@@ -11,11 +11,11 @@ from tower.core.db.types import XID8
 
 
 class Event(Base):
-    """Outbox transactionnelle : écrite dans la même transaction que le changement d'état.
+    """Transactional outbox: written in the same transaction as the state change.
 
-    ``xid`` est l'identifiant de la transaction d'écriture. Les lecteurs parcourent la
-    table dans l'ordre ``(xid, id)`` et ignorent les transactions encore ouvertes, ce
-    qui garantit qu'aucun événement n'est sauté (voir ``tower.core.events.outbox``).
+    ``xid`` is the identifier of the writing transaction. Readers scan the table in
+    ``(xid, id)`` order and skip transactions still open, which guarantees that no event
+    is skipped (see ``tower.core.events.outbox``).
     """
 
     __tablename__ = "events"
@@ -35,7 +35,7 @@ class Event(Base):
 
 
 class EventCursor(Base):
-    """Position d'un consommateur nommé dans l'outbox (reprise après redémarrage)."""
+    """Position of a named consumer in the outbox (resume after restart)."""
 
     __tablename__ = "event_cursors"
 

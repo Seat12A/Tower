@@ -1,4 +1,4 @@
-"""Schémas HTTP. Les IDs X et Discord sont toujours des chaînes (précision JavaScript)."""
+"""HTTP schemas. X and Discord IDs are always strings (JavaScript precision)."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ class DossierOut(BaseModel):
 
 
 class DossierPublicOut(BaseModel):
-    """Vue du site public : uniquement les dossiers publiés, sans données internes."""
+    """Public website view: published dossiers only, no internal data."""
 
     public_id: uuid.UUID
     kind: DossierKind

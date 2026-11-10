@@ -1,7 +1,7 @@
-"""Configuration par variables d'environnement.
+"""Configuration via environment variables.
 
-Toutes les variables sont préfixées par ``TOWER_``, sauf celles que Railway injecte
-lui-même (``DATABASE_URL``, ``PORT``, ``RAILWAY_*``), lues telles quelles.
+All variables are prefixed with ``TOWER_``, except those Railway injects itself
+(``DATABASE_URL``, ``PORT``, ``RAILWAY_*``), which are read as-is.
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ class Settings(BaseSettings):
 
     env: Env = "dev"
     process: str = "tower"
-    """Nom du processus courant (gate, hangar…), fixé par la CLI, ajouté à chaque log."""
+    """Name of the current process (gate, hangar…), set by the CLI and added to every log."""
 
-    # --- Base de données -------------------------------------------------------
+    # --- Database-------------------------------------------------------
     database_url: str = Field(
         default="postgresql://postgres@localhost:5432/tower",
         validation_alias=AliasChoices("TOWER_DATABASE_URL", "DATABASE_URL"),
@@ -39,34 +39,34 @@ class Settings(BaseSettings):
     # --- Logs ------------------------------------------------------------------
     log_level: str = "info"
     log_format: LogFormat | None = None
-    """``json`` (Railway) ou ``console`` (lisible en local). Par défaut : json hors dev."""
+    """``json`` (Railway) or ``console`` (human-readable, local). Default: json outside dev."""
 
     # --- gate (API) ------------------------------------------------------------
     host: str = "::"
-    """``::`` écoute en IPv4 et IPv6, requis par le réseau privé Railway."""
+    """``::`` listens on IPv4 and IPv6, required by Railway's private network."""
     port: int = Field(default=8000, validation_alias=AliasChoices("PORT", "TOWER_PORT"))
     auth_cache_ttl: float = Field(default=15.0, ge=0)
     sse_heartbeat_seconds: float = Field(default=15.0, gt=0)
     sse_batch_size: int = Field(default=200, ge=1, le=1000)
     cors_origins: str = ""
-    """Origines autorisées, séparées par des virgules (site public, extension)."""
+    """Allowed origins, comma-separated (public site, extension)."""
 
     # --- hangar (worker) -------------------------------------------------------
     services: str = "ping"
-    """Services activés dans ce processus, séparés par des virgules."""
+    """Services enabled in this process, comma-separated."""
     queues: str = ""
-    """Files consommées, séparées par des virgules. Vide : toutes celles des services."""
+    """Queues consumed, comma-separated. Empty: all queues of the enabled services."""
     worker_concurrency: int = Field(default=4, ge=1)
     job_lease_seconds: int = Field(default=300, ge=5)
     job_poll_interval: float = Field(default=5.0, gt=0)
     job_retention_days: int = Field(default=7, ge=1)
     event_retention_days: int = Field(default=30, ge=1)
     error_retention_days: int = Field(default=90, ge=1)
-    """Durée de conservation des erreurs *résolues* (les ouvertes sont gardées)."""
+    """Retention period for *resolved* errors (open ones are kept)."""
     error_flush_interval: float = Field(default=5.0, gt=0)
     shutdown_grace_seconds: float = Field(default=20.0, ge=0)
 
-    # --- Railway (lecture seule) ----------------------------------------------
+    # --- Railway (read-only)----------------------------------------------
     railway_replica_id: str | None = Field(
         default=None, validation_alias=AliasChoices("RAILWAY_REPLICA_ID")
     )
@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     def _lower(cls, v: str) -> str:
         return v.lower()
 
-    # --- Valeurs dérivées ------------------------------------------------------
+    # --- Derived values------------------------------------------------------
     @property
     def effective_log_format(self) -> LogFormat:
         if self.log_format is not None:
@@ -100,13 +100,13 @@ class Settings(BaseSettings):
 
     @property
     def sqlalchemy_url(self) -> str:
-        """URL pour SQLAlchemy (pilote asyncpg), sans paramètres inconnus d'asyncpg."""
+        """URL for SQLAlchemy (asyncpg driver), without parameters asyncpg does not know."""
         scheme, rest = _normalized(self.database_url)
         return f"postgresql+asyncpg{rest}" if scheme else rest
 
     @property
     def asyncpg_dsn(self) -> str:
-        """DSN brut pour une connexion asyncpg directe (LISTEN)."""
+        """Raw DSN for a direct asyncpg connection (LISTEN)."""
         _, rest = _normalized(self.database_url)
         return f"postgresql{rest}"
 
@@ -119,7 +119,7 @@ class Settings(BaseSettings):
 
     @property
     def instance_id(self) -> str:
-        """Identifiant lisible de l'instance (worker id, application_name)."""
+        """Human-readable instance identifier (worker id, application_name)."""
         replica = (self.railway_replica_id or "local")[:8]
         return f"{self.process}-{replica}"
 
@@ -129,10 +129,10 @@ def _split(value: str) -> list[str]:
 
 
 def _normalized(url: str) -> tuple[str, str]:
-    """Renvoie (schéma d'origine, reste de l'URL à partir de ``://``), sans ``sslmode``."""
+    """Return (original scheme, rest of the URL from ``://``), without ``sslmode``."""
     parts = urlsplit(url)
     if parts.scheme not in {"postgres", "postgresql", "postgresql+asyncpg"}:
-        raise ValueError(f"URL PostgreSQL attendue, reçu le schéma {parts.scheme!r}")
+        raise ValueError(f"Expected a PostgreSQL URL, got scheme {parts.scheme!r}")
     query = urlencode([(k, v) for k, v in parse_qsl(parts.query) if k != "sslmode"])
     rebuilt = urlunsplit(("x", parts.netloc, parts.path, query, parts.fragment))
     return parts.scheme, rebuilt[1:]

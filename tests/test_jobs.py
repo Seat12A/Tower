@@ -119,10 +119,10 @@ async def test_runner_retries_then_fails_and_stores_error(
     from tower.core.errors import get_reporter
 
     async def broken(_: JobContext) -> None:
-        raise ValueError("source indisponible")
+        raise ValueError("source unavailable")
 
     job_id = await _enqueue(db, "t.broken", max_attempts=2)
-    # Relance immédiate pour le test.
+    # Immediate retry for the test.
     original = q.backoff_delay
     q.backoff_delay = lambda attempt, **_: 0.0
     try:
@@ -150,10 +150,10 @@ async def test_retry_later_and_permanent_error(db: Database, listener: PgListene
         nonlocal calls
         calls += 1
         if calls == 1:
-            raise q.RetryLater(0, "pas encore")
+            raise q.RetryLater(0, "not yet")
 
     async def fatal(_: JobContext) -> None:
-        raise q.PermanentError("post supprimé")
+        raise q.PermanentError("post deleted")
 
     a = await _enqueue(db, "t.deferred")
     b = await _enqueue(db, "t.fatal")
@@ -167,7 +167,7 @@ async def test_retry_later_and_permanent_error(db: Database, listener: PgListene
         {"t.deferred": JobSpec("t.deferred", deferred), "t.fatal": JobSpec("t.fatal", fatal)},
         settled,
     )
-    assert (await _job(db, a)).attempts == 1  # RetryLater ne consomme pas de tentative
+    assert (await _job(db, a)).attempts == 1  # RetryLater does not consume an attempt
     assert (await _job(db, b)).attempts == 1
 
 
@@ -211,4 +211,4 @@ async def test_shutdown_releases_running_jobs(db: Database, listener: PgListener
     await asyncio.wait_for(task, 5)
     job = await _job(db, job_id)
     assert job.status == "queued"
-    assert job.attempts == 0  # tentative remboursée
+    assert job.attempts == 0  # attempt refunded

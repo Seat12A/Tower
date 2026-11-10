@@ -1,7 +1,7 @@
-"""Cycle de vie commun des processus longs (hangar, radar, intercom).
+"""Common lifecycle for long-running processes (hangar, radar, intercom).
 
-Railway envoie SIGTERM au redéploiement, puis SIGKILL après ``drainingSeconds``.
-On arrête de prendre du travail dès SIGTERM et on termine proprement ce qui tourne.
+Railway sends SIGTERM on redeploy, then SIGKILL after ``drainingSeconds``.
+We stop taking new work as soon as SIGTERM arrives and cleanly finish what is running.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def install_signal_handlers(stop: asyncio.Event) -> None:
 
 
 def run(main: Callable[[asyncio.Event], Awaitable[None]]) -> None:
-    """Lance ``main(stop)`` sous uvloop (si disponible) avec gestion des signaux."""
+    """Run ``main(stop)`` under uvloop (if available), with signal handling."""
 
     async def _entry() -> None:
         stop = asyncio.Event()

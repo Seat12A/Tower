@@ -1,7 +1,7 @@
 [project]
 name = "seat12a-tower"
 version = "0.1.0"
-description = "12A Tower : backend de Seat 12A (API, bot, surveillance X, services de fact-check et de modération)"
+description = "12A Tower: Seat 12A backend (API, bot, X monitoring, fact-check and moderation services)"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { file = "LICENSE" }

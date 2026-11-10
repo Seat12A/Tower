@@ -14,7 +14,7 @@ from tower.core.models._helpers import check_in
 
 
 class Dossier(Base):
-    """Dossier de vérification ou de modération portant sur un contenu X."""
+    """Verification or moderation dossier concerning an X post."""
 
     __tablename__ = "dossiers"
     __table_args__ = (
@@ -33,7 +33,7 @@ class Dossier(Base):
     title: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
     assigned_to: Mapped[int | None] = mapped_column(BigInteger)
-    """ID Discord du vérificateur qui a pris le dossier en revue."""
+    """Discord ID of the verifier who took the dossier for review."""
     published_url: Mapped[str | None] = mapped_column(Text)
     opened_by: Mapped[str] = mapped_column(Text)
     version: Mapped[int] = mapped_column(server_default=text("1"))
@@ -44,7 +44,7 @@ class Dossier(Base):
 
 
 class DossierEvent(Base):
-    """Journal d'audit immuable : une ligne par transition."""
+    """Immutable audit log: one row per transition."""
 
     __tablename__ = "dossier_events"
 

@@ -1,17 +1,17 @@
-"""Outbox transactionnelle.
+"""Transactional outbox.
 
-Écriture
-    ``publish()`` insère l'événement dans la transaction courante et émet
-    ``pg_notify``. PostgreSQL ne délivre la notification qu'au commit : en cas de
-    rollback, ni l'événement ni la notification n'existent.
+Writing
+    ``publish()`` inserts the event into the current transaction and emits
+    ``pg_notify``. PostgreSQL only delivers the notification at commit: on rollback,
+    neither the event nor the notification exists.
 
-Lecture sans trou
-    Les ``id`` sont attribués à l'insertion, mais les transactions se terminent dans
-    un autre ordre : lire « id > dernier id vu » peut sauter un événement encore non
-    validé. On lit donc dans l'ordre ``(xid, id)`` en ne gardant que les transactions
-    antérieures à ``pg_snapshot_xmin(pg_current_snapshot())``, c'est-à-dire toutes
-    terminées. Tout événement qui deviendra visible plus tard aura un ``xid`` plus
-    grand que ce seuil, donc plus grand que le curseur.
+Gap-free reading
+    ``id`` values are assigned at insertion, but transactions finish in a different
+    order: reading "id > last id seen" can skip an event that is not yet committed.
+    So we read in ``(xid, id)`` order, keeping only transactions older than
+    ``pg_snapshot_xmin(pg_current_snapshot())``, i.e. all transactions that have
+    finished. Any event that becomes visible later will have an ``xid`` greater than
+    that threshold, and therefore greater than the cursor.
 """
 
 from __future__ import annotations
@@ -45,9 +45,7 @@ class Cursor:
             xid, id_ = value.split("-", 1)
             return cls(int(xid), int(id_))
         except ValueError as exc:
-            raise InvalidInput(
-                "Curseur d'événements invalide", code=ec.EVT_BAD_CURSOR, value=value
-            ) from exc
+            raise InvalidInput("Invalid event cursor", code=ec.EVT_BAD_CURSOR, value=value) from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +109,7 @@ async def publish(
     aggregate_id: str | int | None = None,
     actor: str | None = None,
 ) -> int:
-    """Ajoute un événement à la transaction courante et renvoie son id."""
+    """Append an event to the current transaction and return its id."""
     result = await session.execute(
         _INSERT,
         {
@@ -133,7 +131,7 @@ async def read_events(
     limit: int = 200,
     topics: list[str] | None = None,
 ) -> list[EventRecord]:
-    """Lit les événements validés situés après ``after``, dans l'ordre."""
+    """Read committed events after ``after``, in order."""
     rows = await session.execute(
         _READ, {"xid": after.xid, "id": after.id, "topics": topics, "limit": limit}
     )

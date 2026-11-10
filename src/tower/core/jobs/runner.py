@@ -1,4 +1,4 @@
-"""Exécution des jobs : concurrence bornée, bail, relances, arrêt gracieux."""
+"""Job execution: bounded concurrency, lease, retries, graceful shutdown."""
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ class JobRunner:
                 free = self.concurrency - len(self._active)
                 claimed = await self._claim(free) if free > 0 else 0
                 if free > 0 and claimed == free:
-                    continue  # la file en a peut-être d'autres : on recharge tout de suite
+                    continue  # the queue may have more: reload right away
                 await self._wait(waker, stop)
         finally:
             self.listener.unsubscribe(JOBS, waker)
@@ -73,7 +73,7 @@ class JobRunner:
                     session, self.queues, self.worker_id, limit=limit, lease=self.lease
                 )
         except Exception as exc:
-            capture(ec.DB_UNAVAILABLE, exc, message="Réservation de jobs impossible")
+            capture(ec.DB_UNAVAILABLE, exc, message="Unable to claim jobs")
             await asyncio.sleep(self.settings.job_poll_interval)
             return 0
         for job in jobs:
@@ -109,7 +109,7 @@ class JobRunner:
         jlog = log.bind(job_id=job.id, kind=job.kind, queue=job.queue, attempt=job.attempts)
         spec = self.handlers.get(job.kind)
         if spec is None:
-            error = f"aucun handler pour {job.kind!r}"
+            error = f"no handler for {job.kind!r}"
             await self._finish(q.fail, job, error=f"{ec.JOB_UNKNOWN_KIND.code} {error}")
             capture(ec.JOB_UNKNOWN_KIND, message=error, **_job_ctx(job))
             return
@@ -127,7 +127,7 @@ class JobRunner:
             await self._finish(q.fail, job, error=_err(exc, ec.JOB_PERMANENT))
             capture(ec.JOB_PERMANENT, exc, **_job_ctx(job))
         except asyncio.CancelledError:
-            # Arrêt du processus : on rend le job à la file sans consommer de tentative.
+            # Process shutdown: return the job to the queue without consuming an attempt.
             await self._finish(q.retry, job, delay=0, error="worker shutdown", refund_attempt=True)
             jlog.warning("job.released")
             raise
@@ -154,14 +154,17 @@ class JobRunner:
     async def _finish(self, op: object, job: q.JobRecord, **kwargs: object) -> bool:
         try:
             async with self.db.transaction() as session:
-                return bool(await op(session, job.id, self.worker_id, **kwargs))  # type: ignore[operator]
+                result = await op(  # type: ignore[operator]
+                    session, job.id, self.worker_id, **kwargs
+                )
+                return bool(result)
         except Exception as exc:
             capture(ec.JOB_STATUS_UPDATE_FAILED, exc, **_job_ctx(job))
             return False  # le reaper rattrapera via l'expiration du bail
 
 
 def _err(exc: BaseException, code: ec.ErrorCode) -> str:
-    """Texte stocké dans ``jobs.last_error`` : code du catalogue en tête."""
+    """Text stored in ``jobs.last_error``, with the catalog code first."""
     return f"{code.code} {type(exc).__name__}: {exc}"[:2000]
 
 

@@ -1,12 +1,12 @@
-"""Format d'erreur unique de l'API ::
+"""Single error format for the API ::
 
     {"error": {"code": "TWR-DOS-002", "message": "...", "details": {...},
                "request_id": "...", "fingerprint": "..."}}
 
-- Erreurs métier (``DomainError``) : statut et code issus du catalogue.
-- Validation FastAPI : ``TWR-GEN-001`` (422), détails par champ.
-- Exceptions imprévues : ``TWR-INT-001`` (500), stockées, sans fuite d'information ;
-  ``fingerprint`` et ``request_id`` permettent de retrouver la trace.
+- Domain errors (``DomainError``): status and code taken from the catalog.
+- FastAPI validation: ``TWR-GEN-001`` (422), details per field.
+- Unexpected exceptions: ``TWR-INT-001`` (500), stored, without leaking information;
+  ``fingerprint`` and ``request_id`` make it possible to find the trace.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ def error_body(
 def unexpected_error_response(exc: BaseException) -> JSONResponse:
     fp = capture(ec.INT_UNEXPECTED, exc)
     return JSONResponse(
-        error_body(ec.INT_UNEXPECTED, "Erreur interne", fingerprint=fp), status_code=500
+        error_body(ec.INT_UNEXPECTED, "Internal error", fingerprint=fp), status_code=500
     )
 
 
@@ -74,7 +74,7 @@ def install_error_handlers(app: FastAPI) -> None:
             for err in exc.errors()
         ]
         return JSONResponse(
-            error_body(ec.GEN_INVALID_INPUT, "Requête invalide", {"errors": errors}),
+            error_body(ec.GEN_INVALID_INPUT, "Invalid request", {"errors": errors}),
             status_code=422,
         )
 

@@ -56,7 +56,7 @@ except Exception as exc:
    `TOWER_ERROR_FLUSH_INTERVAL` secondes, en une transaction, et au moment de l'arrêt.
 
 Le contexte est nettoyé : les clés contenant `token`, `authorization`, `password`,
-`secret`, `api_key` ou `cookie` sont masquées.
+`secret`, `api_key` ou `cookie` sont remplacées par `[redacted]`.
 
 ## 4. Stockage agrégé : `error_reports`
 
@@ -83,13 +83,13 @@ l'équipe sur Discord, une seule fois par erreur distincte.
 Format unique :
 
 ```json
-{"error": {"code": "TWR-DOS-002", "message": "Transition interdite…",
+{"error": {"code": "TWR-DOS-002", "message": "Transition not allowed…",
            "details": {"allowed": ["in_review"]}, "request_id": "9f2c…"}}
 ```
 
 - Validation FastAPI : `TWR-GEN-001` (422), `details.errors` par champ.
 - Route inconnue : `TWR-GEN-002` (404).
-- Exception imprévue : `TWR-INT-001` (500), message générique sans fuite, avec
+- Exception imprévue : `TWR-INT-001` (500), message générique sans fuite (`"Internal error"`), avec
   `fingerprint` et `request_id` pour retrouver la trace (logs Railway, `error_reports`).
 - L'en-tête `X-Request-ID` est accepté en entrée et renvoyé en sortie.
 

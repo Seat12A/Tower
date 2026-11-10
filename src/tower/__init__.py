@@ -1,3 +1,3 @@
-"""12A Tower : backend de Seat 12A."""
+"""12A Tower: backend for Seat 12A."""
 
 __version__ = "0.1.0"

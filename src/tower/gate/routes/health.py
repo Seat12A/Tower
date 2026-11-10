@@ -8,18 +8,18 @@ from tower.core.domain import error_codes as ec
 from tower.core.errors import capture
 from tower.gate.deps import DbDep
 
-router = APIRouter(tags=["santé"])
+router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
 async def health() -> dict[str, str]:
-    """Vivacité : ne touche pas la base (healthcheck Railway)."""
+    """Liveness: does not touch the database (Railway healthcheck)."""
     return {"status": "ok", "version": __version__}
 
 
 @router.get("/ready", response_model=None)
 async def ready(db: DbDep) -> JSONResponse | dict[str, str]:
-    """Disponibilité : la base répond."""
+    """Readiness: the database responds."""
     try:
         await db.ping()
     except Exception as exc:

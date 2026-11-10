@@ -10,9 +10,9 @@ from tower.core.db.base import Base
 
 
 class ServiceClient(Base):
-    """Client machine (bot intercom, scripts) authentifié par token de service.
+    """Machine client (intercom bot, scripts) authenticated by service token.
 
-    Seule l'empreinte SHA-256 du token est stockée ; le token n'est affiché qu'une fois.
+    Only the SHA-256 fingerprint of the token is stored; the token is shown only once.
     """
 
     __tablename__ = "service_clients"
@@ -26,7 +26,7 @@ class ServiceClient(Base):
 
 
 class StaffMember(Base):
-    """Membre de l'équipe, identifié par son ID Discord, avec ses rôles."""
+    """Team member, identified by their Discord ID, with their roles."""
 
     __tablename__ = "staff_members"
 

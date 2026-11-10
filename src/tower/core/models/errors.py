@@ -12,11 +12,11 @@ from tower.core.models._helpers import check_in
 
 
 class ErrorReport(Base):
-    """Erreurs stockées, agrégées par empreinte (code + type d'exception + lieu).
+    """Stored errors, aggregated by fingerprint (code + exception type + location).
 
-    Une ligne par erreur *distincte*, pas par occurrence : la table reste petite même
-    si une erreur se répète des milliers de fois. ``occurrences`` compte, ``last_*``
-    garde le dernier exemple. Une erreur résolue qui réapparaît est rouverte.
+    One row per *distinct* error, not per occurrence: the table stays small even if an
+    error repeats thousands of times. ``occurrences`` counts, ``last_*`` keeps the latest
+    example. A resolved error that reappears is reopened.
     """
 
     __tablename__ = "error_reports"

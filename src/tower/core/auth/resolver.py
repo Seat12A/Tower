@@ -1,7 +1,7 @@
-"""Résolution d'un acteur à partir des informations d'une requête.
+"""Resolve an actor from the information in a request.
 
-Petit cache mémoire à durée courte (``TOWER_AUTH_CACHE_TTL``) pour éviter une requête
-SQL par appel ; une révocation prend effet au plus tard après ce délai.
+Small short-lived in-memory cache (``TOWER_AUTH_CACHE_TTL``) to avoid one SQL query
+per call; a revocation takes effect at the latest after this delay.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ class ActorResolver:
         if not token:
             if acting_discord_id:
                 raise Unauthenticated(
-                    "X-Acting-Discord-Id exige un token de service",
+                    "X-Acting-Discord-Id requires a service token",
                     code=ec.AUTH_ACTING_WITHOUT_TOKEN,
                 )
             return Actor.anonymous()
@@ -59,12 +59,12 @@ class ActorResolver:
             discord_id = int(acting_discord_id)
         except ValueError:
             raise Unauthenticated(
-                "X-Acting-Discord-Id invalide", code=ec.AUTH_BAD_ACTING_ID
+                "Invalid X-Acting-Discord-Id", code=ec.AUTH_BAD_ACTING_ID
             ) from None
         roles = await self._staff_roles(discord_id)
         if roles is None:
             raise PermissionDenied(
-                "Membre inconnu ou inactif",
+                "Unknown or inactive member",
                 code=ec.AUTH_UNKNOWN_STAFF,
                 discord_id=str(discord_id),
             )
@@ -82,9 +82,7 @@ class ActorResolver:
                 )
             )
         if client is None:
-            raise Unauthenticated(
-                "Token de service invalide ou révoqué", code=ec.AUTH_INVALID_TOKEN
-            )
+            raise Unauthenticated("Service token is invalid or revoked", code=ec.AUTH_INVALID_TOKEN)
         scopes = frozenset(Permission(s) for s in client.scopes if s in Permission)
         actor = Actor.service(client.name, scopes)
         self._services.put(digest, actor)

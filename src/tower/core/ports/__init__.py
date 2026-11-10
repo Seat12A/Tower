@@ -1,8 +1,8 @@
-"""Ports : interfaces des dépendances externes, implémentées par des adaptateurs.
+"""Ports: interfaces for external dependencies, implemented by adapters.
 
-Le socle ne fournit que les contrats. Les adaptateurs concrets (API X, Anthropic,
-recherche web, Discord) vivront dans les services qui en ont besoin, et les tests
-pourront les remplacer par des doublures.
+The core only provides the contracts. Concrete adapters (X API, Anthropic, web search,
+Discord) will live in the services that need them, and tests can replace them with
+doubles.
 """
 
 from tower.core.ports.clock import Clock, SystemClock

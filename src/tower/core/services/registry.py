@@ -1,7 +1,7 @@
-"""Chargement paresseux des services activés (``TOWER_SERVICES``).
+"""Lazy loading of the enabled services (``TOWER_SERVICES``).
 
-Seuls les services listés sont importés : un réplica hangar dédié à la modération ne
-charge jamais le code (ni la mémoire) du fact-check.
+Only the listed services are imported: a hangar replica dedicated to moderation never
+loads the fact-check code (or its memory).
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from importlib import import_module
 
 from tower.core.services.base import JobSpec, Service, Subscription
 
-#: Nom public -> ``module:attribut``. Ajouter ici chaque nouveau service.
+#: Public name -> ``module:attribute``. Add each new service here.
 BUILTIN_SERVICES: dict[str, str] = {
     "ping": "tower.services.ping:service",
     # "factcheck": "tower.services.factcheck:service",
@@ -24,11 +24,11 @@ def load_service(name: str) -> Service:
         target = BUILTIN_SERVICES[name]
     except KeyError:
         known = ", ".join(sorted(BUILTIN_SERVICES))
-        raise ValueError(f"Service inconnu : {name!r} (connus : {known})") from None
+        raise ValueError(f"Unknown service: {name!r} (known: {known})") from None
     module_name, _, attr = target.partition(":")
     service = getattr(import_module(module_name), attr)
     if not isinstance(service, Service):
-        raise TypeError(f"{target} n'est pas un Service")
+        raise TypeError(f"{target} is not a Service")
     return service
 
 
@@ -46,7 +46,7 @@ class ServiceSet:
 
     @property
     def subscriptions(self) -> list[tuple[str, Subscription]]:
-        """Couples (nom de consommateur global, abonnement)."""
+        """Pairs of (global consumer name, subscription)."""
         return [(f"{s.name}.{sub.name}", sub) for s in self.services for sub in s.subscriptions]
 
     def validate(self, *, lease_seconds: float) -> None:
@@ -55,12 +55,13 @@ class ServiceSet:
             for spec in service.jobs:
                 if spec.kind in seen:
                     raise ValueError(
-                        f"Type de job {spec.kind!r} déclaré par {seen[spec.kind]} et {service.name}"
+                        f"Job kind {spec.kind!r} declared by both "
+                        f"{seen[spec.kind]} and {service.name}"
                     )
                 seen[spec.kind] = service.name
                 if spec.timeout is not None and spec.timeout >= lease_seconds:
                     raise ValueError(
-                        f"{spec.kind} : timeout {spec.timeout}s ≥ bail {lease_seconds}s"
+                        f"{spec.kind}: timeout {spec.timeout}s >= lease {lease_seconds}s"
                     )
 
 

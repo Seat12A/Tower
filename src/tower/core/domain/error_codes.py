@@ -1,15 +1,15 @@
-"""Catalogue des codes d'erreur de la Tower.
+"""Catalog of the Tower's error codes.
 
-Format : ``TWR-<DOMAINE>-<NNN>``. Un code est **stable** : on ne le renumérote ni ne
-le réutilise jamais (les clients, le bot et les recherches de logs s'y fient). Pour
-retirer un code, le marquer ``deprecated`` sans le supprimer.
+Format: ``TWR-<DOMAIN>-<NNN>``. A code is **stable**: it is never renumbered or reused
+(clients, the bot and log searches rely on it). To retire a code, mark it
+``deprecated`` without deleting it.
 
-- ``http_status`` : statut renvoyé par gate quand l'erreur remonte jusqu'à l'API.
-- ``severity`` : niveau de log et seuil d'alerte (≥ error : incident publié).
-- ``store`` : l'occurrence est enregistrée dans ``error_reports`` (agrégée par empreinte).
-  Les erreurs client (4xx) ne sont pas stockées : elles sont seulement journalisées.
+- ``http_status``: status returned by gate when the error reaches the API.
+- ``severity``: log level and alert threshold (≥ error: published incident).
+- ``store``: the occurrence is recorded in ``error_reports`` (aggregated by fingerprint).
+  Client errors (4xx) are not stored: they are only logged.
 
-La page ``docs/errors.md`` est générée depuis ce fichier (``tower errors catalog``).
+The page ``docs/errors.md`` is generated from this file (``tower errors catalog``).
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ CATALOG: dict[str, ErrorCode] = {}
 
 def _define(code: str, title: str, **kwargs: object) -> ErrorCode:
     if code in CATALOG:
-        raise ValueError(f"Code d'erreur dupliqué : {code}")
+        raise ValueError(f"Duplicate error code: {code}")
     entry = ErrorCode(code, title, **kwargs)  # type: ignore[arg-type]
     CATALOG[code] = entry
     return entry
@@ -57,126 +57,122 @@ def _define(code: str, title: str, **kwargs: object) -> ErrorCode:
 
 _INFO, _WARN, _ERR, _CRIT = Severity.INFO, Severity.WARNING, Severity.ERROR, Severity.CRITICAL
 
-# --- GEN : général --------------------------------------------------------------
-GEN_INVALID_INPUT = _define("TWR-GEN-001", "Entrée invalide", http_status=422, severity=_INFO)
-GEN_NOT_FOUND = _define("TWR-GEN-002", "Ressource introuvable", http_status=404, severity=_INFO)
+# --- GEN: general --------------------------------------------------------------
+GEN_INVALID_INPUT = _define("TWR-GEN-001", "Invalid input", http_status=422, severity=_INFO)
+GEN_NOT_FOUND = _define("TWR-GEN-002", "Resource not found", http_status=404, severity=_INFO)
 GEN_CONFLICT = _define(
     "TWR-GEN-003",
-    "Modification concurrente (version obsolète)",
+    "Concurrent modification (stale version)",
     http_status=409,
     severity=_INFO,
-    hint="Relire la ressource puis renvoyer avec la nouvelle version.",
+    hint="Re-read the resource, then resend with the new version.",
 )
-GEN_RATE_LIMITED = _define("TWR-GEN-004", "Trop de requêtes", http_status=429, severity=_INFO)
+GEN_RATE_LIMITED = _define("TWR-GEN-004", "Too many requests", http_status=429, severity=_INFO)
 
-# --- AUTH : authentification et autorisations ----------------------------------
+# --- AUTH: authentication and authorization ----------------------------------
 AUTH_INVALID_TOKEN = _define(
-    "TWR-AUTH-001", "Token de service invalide ou révoqué", http_status=401, severity=_WARN
+    "TWR-AUTH-001", "Service token invalid or revoked", http_status=401, severity=_WARN
 )
 AUTH_ACTING_WITHOUT_TOKEN = _define(
     "TWR-AUTH-002",
-    "X-Acting-Discord-Id fourni sans token de service",
+    "X-Acting-Discord-Id provided without service token",
     http_status=401,
     severity=_WARN,
 )
 AUTH_BAD_ACTING_ID = _define(
-    "TWR-AUTH-003", "X-Acting-Discord-Id invalide", http_status=401, severity=_WARN
+    "TWR-AUTH-003", "X-Acting-Discord-Id invalid", http_status=401, severity=_WARN
 )
 AUTH_UNKNOWN_STAFF = _define(
     "TWR-AUTH-004",
-    "Membre de l'équipe inconnu ou inactif",
+    "Staff member unknown or inactive",
     http_status=403,
     severity=_WARN,
-    hint="Ajouter le membre : tower staff <discord_id> --roles reviewer",
+    hint="Add the member: tower staff <discord_id> --roles reviewer",
 )
-AUTH_FORBIDDEN = _define("TWR-AUTH-005", "Permission manquante", http_status=403, severity=_INFO)
+AUTH_FORBIDDEN = _define("TWR-AUTH-005", "Missing permission", http_status=403, severity=_INFO)
 
-# --- DOS : dossiers ------------------------------------------------------------
-DOS_NOT_FOUND = _define("TWR-DOS-001", "Dossier introuvable", http_status=404, severity=_INFO)
+# --- DOS: dossiers ------------------------------------------------------------
+DOS_NOT_FOUND = _define("TWR-DOS-001", "Dossier not found", http_status=404, severity=_INFO)
 DOS_INVALID_TRANSITION = _define(
-    "TWR-DOS-002", "Transition de statut interdite", http_status=409, severity=_INFO
+    "TWR-DOS-002", "Forbidden status transition", http_status=409, severity=_INFO
 )
 DOS_BAD_PUBLICATION_URL = _define(
     "TWR-DOS-003",
-    "Lien de publication X invalide",
+    "Invalid X publication link",
     http_status=422,
     severity=_INFO,
-    hint="Format attendu : https://x.com/<compte>/status/<id>",
+    hint="Expected format: https://x.com/<account>/status/<id>",
 )
 DOS_PUBLICATION_URL_REQUIRED = _define(
-    "TWR-DOS-004", "Lien de publication X obligatoire", http_status=422, severity=_INFO
+    "TWR-DOS-004", "X publication link required", http_status=422, severity=_INFO
 )
 DOS_PUBLICATION_URL_UNEXPECTED = _define(
     "TWR-DOS-005",
-    "Lien de publication accepté uniquement pour le statut publié",
+    "Publication link only accepted for published status",
     http_status=422,
     severity=_INFO,
 )
 DOS_BAD_PRIORITY = _define(
-    "TWR-DOS-006", "Priorité hors bornes (-100..100)", http_status=422, severity=_INFO
+    "TWR-DOS-006", "Priority out of bounds (-100..100)", http_status=422, severity=_INFO
 )
 
-# --- EVT : bus d'événements ----------------------------------------------------
-EVT_BAD_CURSOR = _define(
-    "TWR-EVT-001", "Curseur d'événements invalide", http_status=422, severity=_INFO
-)
+# --- EVT: event bus ----------------------------------------------------
+EVT_BAD_CURSOR = _define("TWR-EVT-001", "Invalid event cursor", http_status=422, severity=_INFO)
 EVT_CONSUMER_FAILED = _define(
     "TWR-EVT-002",
-    "Échec d'un consommateur d'événements (lot rejoué)",
+    "Event consumer failed (batch replayed)",
     severity=_ERR,
     store=True,
     retryable=True,
-    hint="Le curseur n'avance pas tant que le lot échoue : corriger le handler.",
+    hint="The cursor does not advance while the batch fails: fix the handler.",
 )
 
-# --- JOB : file de travaux -----------------------------------------------------
+# --- JOB: job queue -----------------------------------------------------
 JOB_UNKNOWN_KIND = _define(
     "TWR-JOB-001",
-    "Aucun handler pour ce type de job",
+    "No handler for this job type",
     severity=_ERR,
     store=True,
-    hint="Le service n'est pas activé dans TOWER_SERVICES de ce réplica.",
+    hint="The service is not enabled in TOWER_SERVICES on this replica.",
 )
-JOB_EXHAUSTED = _define(
-    "TWR-JOB-002", "Job en échec après la dernière tentative", severity=_ERR, store=True
-)
+JOB_EXHAUSTED = _define("TWR-JOB-002", "Job failed after last attempt", severity=_ERR, store=True)
 JOB_PERMANENT = _define(
-    "TWR-JOB-003", "Job en échec définitif (PermanentError)", severity=_ERR, store=True
+    "TWR-JOB-003", "Job failed permanently (PermanentError)", severity=_ERR, store=True
 )
 JOB_LEASE_EXPIRED = _define(
     "TWR-JOB-004",
-    "Bail expiré : worker perdu (OOM, arrêt brutal)",
+    "Lease expired: worker lost (OOM, hard kill)",
     severity=_WARN,
     store=True,
     retryable=True,
-    hint="Vérifier la mémoire du réplica et drainingSeconds sur Railway.",
+    hint="Check the replica's memory and drainingSeconds on Railway.",
 )
 JOB_TIMEOUT = _define(
     "TWR-JOB-005",
-    "Job interrompu : délai d'exécution dépassé",
+    "Job interrupted: execution timeout exceeded",
     severity=_WARN,
     store=True,
     retryable=True,
 )
 JOB_ATTEMPT_FAILED = _define(
     "TWR-JOB-006",
-    "Tentative de job échouée, relance programmée",
+    "Job attempt failed, retry scheduled",
     severity=_WARN,
     store=True,
     retryable=True,
 )
 JOB_STATUS_UPDATE_FAILED = _define(
     "TWR-JOB-007",
-    "Impossible d'enregistrer le résultat d'un job",
+    "Unable to record job result",
     severity=_ERR,
     store=True,
-    hint="Le reaper remettra le job en file à l'expiration du bail.",
+    hint="The reaper will requeue the job when the lease expires.",
 )
 
-# --- DB : base de données ------------------------------------------------------
+# --- DB: database ------------------------------------------------------
 DB_UNAVAILABLE = _define(
     "TWR-DB-001",
-    "Base de données indisponible",
+    "Database unavailable",
     http_status=503,
     severity=_CRIT,
     store=True,
@@ -184,25 +180,25 @@ DB_UNAVAILABLE = _define(
 )
 DB_LISTENER_DOWN = _define(
     "TWR-DB-002",
-    "Connexion LISTEN perdue (reconnexion en cours)",
+    "LISTEN connection lost (reconnecting)",
     severity=_WARN,
     store=True,
     retryable=True,
 )
 
-# --- MNT : maintenance ---------------------------------------------------------
-MNT_TASK_FAILED = _define("TWR-MNT-001", "Tâche de maintenance en échec", severity=_ERR, store=True)
+# --- MNT: maintenance ---------------------------------------------------------
+MNT_TASK_FAILED = _define("TWR-MNT-001", "Maintenance task failed", severity=_ERR, store=True)
 
-# --- INT : interne ----------------------------------------------------------------
+# --- INT: internal ----------------------------------------------------------------
 INT_UNEXPECTED = _define(
     "TWR-INT-001",
-    "Erreur interne inattendue",
+    "Unexpected internal error",
     severity=_ERR,
     store=True,
-    hint="Chercher l'empreinte dans error_reports ou request_id dans les logs Railway.",
+    hint="Look up the fingerprint in error_reports or the request_id in Railway logs.",
 )
 INT_SERVICE_CRASHED = _define(
-    "TWR-INT-002", "Tâche de fond d'un processus arrêtée sur erreur", severity=_CRIT, store=True
+    "TWR-INT-002", "Background task of a process stopped on error", severity=_CRIT, store=True
 )
 
 

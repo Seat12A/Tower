@@ -1,8 +1,8 @@
-"""Erreurs métier. Chacune porte un code du catalogue (``error_codes``).
+"""Domain errors. Each carries a code from the catalog (``error_codes``).
 
-gate les traduit en réponse HTTP ``{"error": {"code", "message", "details"}}``,
-intercom en message Discord. Une sous-classe fixe un code par défaut ; un cas d'usage
-peut en préciser un plus spécifique : ``InvalidInput("...", code=DOS_BAD_PRIORITY)``.
+gate translates them into HTTP responses ``{"error": {"code", "message", "details"}}``,
+intercom into a Discord message. A subclass sets a default code; a use case
+can specify a more specific one: ``InvalidInput("...", code=DOS_BAD_PRIORITY)``.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class InvalidTransition(DomainError):
 
 
 class Conflict(DomainError):
-    """Modification concurrente : la version attendue ne correspond plus."""
+    """Concurrent modification: the expected version no longer matches."""
 
     default_code = ec.GEN_CONFLICT
 

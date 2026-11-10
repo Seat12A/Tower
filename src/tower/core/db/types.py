@@ -1,4 +1,4 @@
-"""Types PostgreSQL non couverts par SQLAlchemy."""
+"""PostgreSQL types not covered by SQLAlchemy."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from sqlalchemy.types import UserDefinedType
 
 
 class XID8(UserDefinedType[int]):
-    """Identifiant de transaction 64 bits (``pg_current_xact_id()``)."""
+    """64-bit transaction identifier (``pg_current_xact_id()``)."""
 
     cache_ok = True
 

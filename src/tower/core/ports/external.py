@@ -1,4 +1,4 @@
-"""Contrats minimaux, à compléter quand les services correspondants seront écrits."""
+"""Minimal contracts, to be extended when the corresponding services are written."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ class XPost:
 
 
 class XClient(Protocol):
-    """API officielle de X (lecture payante à l'unité : chaque appel a un coût)."""
+    """Official X API (paid per read: each call has a cost)."""
 
     async def get_post(self, post_id: int) -> XPost | None: ...
 
@@ -26,7 +26,7 @@ class XClient(Protocol):
 
 
 class LLMClient(Protocol):
-    """Appel d'un modèle avec sortie structurée ; renvoie aussi l'usage pour le coût."""
+    """Call a model with structured output; also returns usage for cost tracking."""
 
     async def complete(
         self, *, model: str, system: str, messages: Sequence[dict[str, Any]], schema: dict[str, Any]
@@ -38,6 +38,6 @@ class SearchClient(Protocol):
 
 
 class Notifier(Protocol):
-    """Notification sortante hors bus d'événements (alertes budget, incidents)."""
+    """Outbound notification outside the event bus (budget alerts, incidents)."""
 
     async def notify(self, channel: str, message: str, **fields: Any) -> None: ...

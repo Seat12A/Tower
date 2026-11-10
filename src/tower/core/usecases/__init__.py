@@ -1,6 +1,6 @@
-"""Cas d'usage : la seule porte d'entrée pour modifier l'état métier.
+"""Use cases: the only entry point for changing the business state.
 
-Chaque cas d'usage reçoit une session (transaction ouverte par l'appelant) et un
-acteur, vérifie les permissions, applique les règles du domaine, écrit l'audit et
-publie les événements dans la même transaction.
+Each use case receives a session (transaction opened by the caller) and an
+actor, checks permissions, applies the domain rules, writes the audit trail and
+publishes events within the same transaction.
 """

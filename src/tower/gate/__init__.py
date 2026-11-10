@@ -1,5 +1,5 @@
-"""gate : API HTTP unique de la Tower (site public, extension, bot, futurs clients).
+"""gate: the Tower's single HTTP API (public site, extension, bot, future clients).
 
-Aucun client n'accède directement à la base : tout passe par ici. gate est sans état
-et se met à l'échelle en ajoutant des réplicas Railway.
+No client accesses the database directly: everything goes through here. gate is stateless
+and scales by adding Railway replicas.
 """

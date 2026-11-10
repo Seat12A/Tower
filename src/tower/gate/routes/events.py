@@ -1,12 +1,11 @@
-"""Flux d'événements en Server-Sent Events, pour le bot et les clients internes.
+"""Server-Sent Events stream, for the bot and internal clients.
 
-- Reprise : en-tête ``Last-Event-ID`` (envoyé automatiquement par EventSource) ou
-  paramètre ``after``. Sans curseur, le flux part de la fin (``after=latest``) ou du
-  début (``after=0``).
-- Réveil par la connexion LISTEN partagée du processus : pas de connexion SQL
-  maintenue par client, une session courte par lot.
-- Heartbeat régulier (commentaire SSE) pour garder la connexion ouverte à travers le
-  proxy Railway.
+- Resume: ``Last-Event-ID`` header (sent automatically by EventSource) or the ``after``
+  parameter. Without a cursor, the stream starts at the end (``after=latest``) or at the
+  beginning (``after=0``).
+- Woken by the process's shared LISTEN connection: no SQL connection held per client,
+  one short session per batch.
+- Regular heartbeat (SSE comment) to keep the connection open through the Railway proxy.
 """
 
 from __future__ import annotations
@@ -25,7 +24,7 @@ from tower.core.events.channels import EVENTS
 from tower.core.events.outbox import Cursor, read_events
 from tower.gate.deps import ActorDep, DbDep
 
-router = APIRouter(prefix="/v1/events", tags=["événements"])
+router = APIRouter(prefix="/v1/events", tags=["events"])
 
 _LATEST = text(
     """

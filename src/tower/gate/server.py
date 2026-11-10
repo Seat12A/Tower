@@ -14,10 +14,10 @@ def serve(settings: Settings) -> None:
         port=settings.port,
         loop="uvloop",
         http="httptools",
-        log_config=None,  # nos logs structurés (tower.core.logging) restent en place
-        access_log=False,  # remplacé par AccessLogMiddleware (JSON, /health exclu)
+        log_config=None,  # our structured logs (tower.core.logging) stay in place
+        access_log=False,  # replaced by AccessLogMiddleware (JSON, /health excluded)
         proxy_headers=True,
-        forwarded_allow_ips="*",  # derrière le proxy Railway
+        forwarded_allow_ips="*",  # behind the Railway proxy
         timeout_graceful_shutdown=int(settings.shutdown_grace_seconds),
         server_header=False,
     )

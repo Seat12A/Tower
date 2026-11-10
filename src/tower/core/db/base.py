@@ -1,4 +1,4 @@
-"""Base déclarative SQLAlchemy et conventions de nommage (migrations stables)."""
+"""SQLAlchemy declarative base and naming conventions (stable migrations)."""
 
 from __future__ import annotations
 

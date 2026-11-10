@@ -1,4 +1,4 @@
-"""Consultation et résolution des erreurs stockées (API, CLI, bot)."""
+"""Viewing and resolving stored errors (API, CLI, bot)."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ async def get_report(session: AsyncSession, actor: Actor, fingerprint: str) -> E
     actor.require(Permission.ERRORS_READ)
     report = await session.get(ErrorReport, fingerprint)
     if report is None:
-        raise NotFound("Erreur introuvable", code=ec.GEN_NOT_FOUND, fingerprint=fingerprint)
+        raise NotFound("Error not found", code=ec.GEN_NOT_FOUND, fingerprint=fingerprint)
     return report
 
 
@@ -45,7 +45,7 @@ async def resolve(
     actor.require(Permission.ERRORS_MANAGE)
     report = await session.get(ErrorReport, fingerprint, with_for_update=True)
     if report is None:
-        raise NotFound("Erreur introuvable", code=ec.GEN_NOT_FOUND, fingerprint=fingerprint)
+        raise NotFound("Error not found", code=ec.GEN_NOT_FOUND, fingerprint=fingerprint)
     report.resolved_at = func.now()
     report.resolved_by = actor.label
     report.resolution_note = note

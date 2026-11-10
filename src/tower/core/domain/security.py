@@ -1,8 +1,8 @@
-"""Acteurs, rôles et permissions.
+"""Actors, roles and permissions.
 
-Un acteur est résolu à chaque requête (gate) ou fixé par le processus (system).
-Les permissions sont vérifiées dans les cas d'usage, pas seulement dans l'API :
-un nouveau client (bot, script) ne peut donc pas les contourner.
+An actor is resolved on each request (gate) or set by the process (system).
+Permissions are checked in the use cases, not only in the API: a new client
+(bot, script) therefore cannot bypass them.
 """
 
 from __future__ import annotations
@@ -27,17 +27,17 @@ class Permission(StrEnum):
 
 
 class Role(StrEnum):
-    REVIEWER = "reviewer"  # vérificateur : prend un dossier en revue
-    EDITOR = "editor"  # valide, rejette et marque comme publié
-    ADMIN = "admin"  # tout, y compris la gestion de l'équipe
+    REVIEWER = "reviewer"  # takes a dossier into review
+    EDITOR = "editor"  # validates, rejects and marks as published
+    ADMIN = "admin"  # everything, including team management
 
 
 class ActorKind(StrEnum):
-    SYSTEM = "system"  # processus internes (hangar, radar)
-    SERVICE = "service"  # client authentifié par token de service (bot…)
-    STAFF = "staff"  # membre de l'équipe, via un service (ID Discord)
-    INSTALLATION = "installation"  # extension Chromium (token anonyme)
-    ANONYMOUS = "anonymous"  # site public
+    SYSTEM = "system"  # internal processes (hangar, radar)
+    SERVICE = "service"  # client authenticated by service token (bot…)
+    STAFF = "staff"  # team member, acting via a service (Discord ID)
+    INSTALLATION = "installation"  # Chromium extension (anonymous token)
+    ANONYMOUS = "anonymous"  # public website
 
 
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
@@ -71,11 +71,11 @@ class Actor:
     id: str | None = None
     permissions: frozenset[Permission] = field(default_factory=frozenset)
     via: str | None = None
-    """Service par lequel agit un membre de l'équipe (ex. ``intercom``)."""
+    """Service through which a team member acts (e.g. ``intercom``)."""
 
     @property
     def label(self) -> str:
-        """Représentation stable pour les journaux d'audit (``staff:1234@intercom``)."""
+        """Stable representation for audit logs (``staff:1234@intercom``)."""
         base = f"{self.kind.value}:{self.id}" if self.id else self.kind.value
         return f"{base}@{self.via}" if self.via else base
 
@@ -89,10 +89,10 @@ class Actor:
     def require(self, permission: Permission) -> None:
         if permission not in self.permissions:
             raise PermissionDenied(
-                f"Permission requise : {permission.value}", permission=permission.value
+                f"Missing permission: {permission.value}", permission=permission.value
             )
 
-    # --- Fabriques --------------------------------------------------------------
+    # --- Factories --------------------------------------------------------------
     @classmethod
     def system(cls, name: str) -> Actor:
         return cls(ActorKind.SYSTEM, name, frozenset(Permission))
@@ -107,7 +107,7 @@ class Actor:
 
     @classmethod
     def staff(cls, discord_id: int, roles: frozenset[Role], via: Actor) -> Actor:
-        """Membre agissant via un service : droits = rôles ∩ scopes du service."""
+        """Member acting via a service: rights = roles ∩ the service's scopes."""
         granted: set[Permission] = set()
         for role in roles:
             granted |= ROLE_PERMISSIONS[role]

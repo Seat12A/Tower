@@ -1,7 +1,7 @@
-"""Service de démonstration : boucle complète événement → job → événement.
+"""Demo service: full event → job → event loop.
 
-``ping.requested`` (événement) → job ``ping.pong`` → ``ping.done`` (événement).
-Sert de modèle aux vrais services et de test de fumée en production.
+``ping.requested`` (event) → job ``ping.pong`` → ``ping.done`` (event).
+Serves as a template for real services and as a production smoke test.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ async def pong(ctx: JobContext) -> None:
 
 service = Service(
     name="ping",
-    description="Aller-retour de démonstration et de supervision",
+    description="Round-trip demo and health probe",
     jobs=(JobSpec(kind="ping.pong", handler=pong, queue=QUEUE, timeout=10),),
     subscriptions=(
         Subscription(name="requests", topics=("ping.requested",), handler=on_ping_requested),

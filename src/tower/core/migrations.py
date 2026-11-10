@@ -1,4 +1,4 @@
-"""Pilotage d'Alembic sans alembic.ini : les migrations sont livrées dans le paquet."""
+"""Drives Alembic without alembic.ini: migrations ship inside the package."""
 
 from __future__ import annotations
 

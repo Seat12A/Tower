@@ -1,7 +1,7 @@
-"""Point d'entrée unique : ``tower <commande>``.
+"""Single entry point: ``tower <command>``.
 
-Les imports sont faits dans chaque commande : ``tower hangar`` ne charge ni FastAPI
-ni uvicorn, ce qui réduit la mémoire de chaque processus.
+Imports are done inside each command: ``tower hangar`` loads neither FastAPI
+nor uvicorn, which reduces the memory of each process.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def cmd_create_service_token(args: argparse.Namespace) -> None:
 
     token = asyncio.run(create_service_client(settings, args.name, args.scopes))
     sys.stdout.write(f"{token}\n")
-    sys.stderr.write("Conservez ce token : il ne sera plus jamais affiché.\n")
+    sys.stderr.write("Store this token now: it will never be shown again.\n")
 
 
 def cmd_staff(args: argparse.Namespace) -> None:
@@ -77,7 +77,7 @@ def cmd_errors(args: argparse.Namespace) -> None:
         asyncio.run(list_errors(settings, include_resolved=args.all))
     else:
         if not args.fingerprint:
-            raise SystemExit("Empreinte requise : tower errors resolve <empreinte>")
+            raise SystemExit("Fingerprint required: tower errors resolve <fingerprint>")
         asyncio.run(resolve_error(settings, args.fingerprint, args.note))
 
 
@@ -85,32 +85,32 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tower", description="12A Tower")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("gate", help="API publique et interne (FastAPI)").set_defaults(func=cmd_gate)
-    sub.add_parser("hangar", help="Worker des services").set_defaults(func=cmd_hangar)
+    sub.add_parser("gate", help="Public and internal API (FastAPI)").set_defaults(func=cmd_gate)
+    sub.add_parser("hangar", help="Service worker").set_defaults(func=cmd_hangar)
 
-    p = sub.add_parser("migrate", help="Applique les migrations Alembic")
+    p = sub.add_parser("migrate", help="Apply Alembic migrations")
     p.add_argument("revision", nargs="?", default="head")
     p.add_argument("--downgrade", metavar="REV")
     p.set_defaults(func=cmd_migrate)
 
-    p = sub.add_parser("create-service-token", help="Crée un client de service")
+    p = sub.add_parser("create-service-token", help="Create a service client")
     p.add_argument("name")
-    p.add_argument("--scopes", nargs="+", required=True, help="ex. dossiers:read events:read")
+    p.add_argument("--scopes", nargs="+", required=True, help="e.g. dossiers:read events:read")
     p.set_defaults(func=cmd_create_service_token)
 
-    p = sub.add_parser("staff", help="Ajoute ou met à jour un membre de l'équipe")
+    p = sub.add_parser("staff", help="Add or update a staff member")
     p.add_argument("discord_id", type=int)
     p.add_argument("--roles", nargs="+", required=True, help="reviewer, editor, admin")
     p.add_argument("--name")
     p.add_argument("--disable", action="store_true")
     p.set_defaults(func=cmd_staff)
 
-    p = sub.add_parser("errors", help="Erreurs stockées et catalogue des codes")
+    p = sub.add_parser("errors", help="Stored errors and the error code catalog")
     p.add_argument("action", choices=["list", "resolve", "catalog"])
     p.add_argument("fingerprint", nargs="?")
-    p.add_argument("--all", action="store_true", help="inclure les erreurs résolues")
-    p.add_argument("--note", help="note de résolution")
-    p.add_argument("--markdown", action="store_true", help="(catalog) sortie Markdown")
+    p.add_argument("--all", action="store_true", help="include resolved errors")
+    p.add_argument("--note", help="resolution note")
+    p.add_argument("--markdown", action="store_true", help="(catalog) Markdown output")
     p.set_defaults(func=cmd_errors)
     return parser
 

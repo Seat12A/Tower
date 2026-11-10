@@ -32,26 +32,26 @@ async def test_occurrences_are_aggregated_by_fingerprint(db: Database) -> None:
         try:
             _raise_value_error()
         except ValueError as exc:
-            fps.add(reporter.capture(ec.INT_UNEXPECTED, exc, message=f"essai {i}", job_id=i))
-    assert len(fps) == 1  # le message varie, l'empreinte non
+            fps.add(reporter.capture(ec.INT_UNEXPECTED, exc, message=f"attempt {i}", job_id=i))
+    assert len(fps) == 1  # the message varies, the fingerprint does not
     assert await reporter.flush() == 1
     [report] = await _reports(db)
     assert report.occurrences == 5
     assert report.code == "TWR-INT-001"
-    assert report.location is None  # seules les frames tower.* comptent
-    assert report.last_message == "essai 4"
+    assert report.location is None  # only tower.* frames count
+    assert report.last_message == "attempt 4"
     assert report.last_traceback and "ValueError" in report.last_traceback
     assert await _topics(db) == ["incident.opened"]
 
     reporter.capture(ec.INT_UNEXPECTED, KeyError("x"))
     await reporter.flush()
-    # autre type d'exception = autre empreinte = nouvel incident
+    # different exception type = different fingerprint = new incident
     assert await _topics(db) == ["incident.opened", "incident.opened"]
 
 
 async def test_non_stored_codes_are_only_logged(db: Database) -> None:
     reporter = ErrorReporter(db, process="test")
-    reporter.capture(ec.DOS_NOT_FOUND, message="introuvable")
+    reporter.capture(ec.DOS_NOT_FOUND, message="not found")
     assert await reporter.flush() == 0
     assert await _reports(db) == []
 
@@ -69,7 +69,7 @@ async def test_resolve_then_reopen(db: Database) -> None:
     fp = reporter.capture(ec.MNT_TASK_FAILED, RuntimeError("purge"))
     await reporter.flush()
     async with db.transaction() as s:
-        await errors_service.resolve(s, Actor.system("test"), fp, note="corrigé")
+        await errors_service.resolve(s, Actor.system("test"), fp, note="fixed")
     [report] = await _reports(db)
     assert report.resolved_at is not None and report.resolved_by == "system:test"
 
@@ -86,7 +86,7 @@ async def test_sensitive_context_is_masked(db: Database) -> None:
     reporter.capture(ec.INT_UNEXPECTED, message="x", api_token="t12a_secret", user="ok")
     await reporter.flush()
     [report] = await _reports(db)
-    assert report.last_context["api_token"] == "[masqué]"
+    assert report.last_context["api_token"] == "[redacted]"
     assert report.last_context["user"] == "ok"
 
 

@@ -1,8 +1,8 @@
-"""Moteur, sessions et transactions.
+"""Engine, sessions and transactions.
 
-Un objet ``Database`` par processus. Le pool est volontairement petit : chaque
-réplica Railway ouvre au plus ``pool_size + max_overflow`` connexions, plus une
-connexion dédiée à ``LISTEN``.
+One ``Database`` object per process. The pool is intentionally small: each
+Railway replica opens at most ``pool_size + max_overflow`` connections, plus one
+dedicated connection for ``LISTEN``.
 """
 
 from __future__ import annotations
@@ -53,13 +53,13 @@ class Database:
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
-        """Session sans transaction explicite (lectures)."""
+        """Session without an explicit transaction (reads)."""
         async with self.sessionmaker() as session:
             yield session
 
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[AsyncSession]:
-        """Unité de travail : commit à la sortie, rollback sur exception."""
+        """Unit of work: commit on exit, rollback on exception."""
         async with self.sessionmaker() as session, session.begin():
             yield session
 

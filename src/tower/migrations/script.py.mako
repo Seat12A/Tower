@@ -1,8 +1,8 @@
 """${message}
 
-Révision : ${up_revision}
-Parent : ${down_revision | comma,n}
-Créée le : ${create_date}
+Revision : ${up_revision}
+Parents : ${down_revision | comma,n}
+Created : ${create_date}
 """
 
 from collections.abc import Sequence

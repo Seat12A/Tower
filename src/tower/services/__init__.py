@@ -1,1 +1,1 @@
-"""Services enfichables. Chacun expose un objet ``service`` (voir ``core.services``)."""
+"""Pluggable services. Each one exposes a ``service`` object (see ``core.services``)."""

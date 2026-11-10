@@ -1,4 +1,4 @@
-"""Domaine pur : aucune dépendance à la base, au web ou à Discord.
+"""Pure domain: no dependency on the database, the web, or Discord.
 
-Ce paquet ne doit importer que la bibliothèque standard (vérifié par les tests).
+This package must only import the standard library (checked by the tests).
 """

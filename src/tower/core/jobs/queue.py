@@ -1,10 +1,10 @@
-"""File de travaux sur PostgreSQL.
+"""PostgreSQL job queue.
 
-- ``enqueue`` : dans la transaction de l'appelant (le job n'existe que si elle valide),
-  avec dédoublonnage optionnel sur ``dedupe_key`` parmi les jobs actifs.
-- ``claim`` : réserve un lot via ``FOR UPDATE SKIP LOCKED`` et pose un bail
-  (``locked_until``). Autant de workers que voulu, sans double exécution.
-- Un bail expiré (worker tué, OOM, redéploiement) est récupéré par ``reap``.
+- ``enqueue``: inside the caller's transaction (the job exists only if it commits),
+  with optional deduplication on ``dedupe_key`` among active jobs.
+- ``claim``: reserves a batch via ``FOR UPDATE SKIP LOCKED`` and sets a lease
+  (``locked_until``). As many workers as needed, without double execution.
+- An expired lease (worker killed, OOM, redeployment) is recovered by ``reap``.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from tower.core.events.channels import JOBS
 
 
 class RetryLater(Exception):
-    """À lever dans un handler pour reprogrammer le job (sans erreur journalisée)."""
+    """Raise in a handler to reschedule the job (without logging an error)."""
 
     def __init__(self, delay: float, reason: str = "retry requested") -> None:
         super().__init__(reason)
@@ -30,7 +30,7 @@ class RetryLater(Exception):
 
 
 class PermanentError(Exception):
-    """À lever pour marquer le job en échec définitif, sans nouvelle tentative."""
+    """Raise to mark the job as permanently failed, with no further retry."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,7 +136,7 @@ async def enqueue(
     dedupe_key: str | None = None,
     max_attempts: int = 5,
 ) -> int | None:
-    """Ajoute un job. Renvoie son id, ou None si un job actif a la même ``dedupe_key``."""
+    """Add a job. Return its id, or None if an active job has the same ``dedupe_key``."""
     seconds = delay.total_seconds() if isinstance(delay, timedelta) else float(delay)
     result = await session.execute(
         _ENQUEUE,
@@ -191,7 +191,7 @@ async def fail(session: AsyncSession, job_id: int, worker: str, *, error: str) -
 
 
 async def reap(session: AsyncSession) -> int:
-    """Remet en file (ou en échec) les jobs dont le bail a expiré."""
+    """Requeue (or fail) jobs whose lease has expired."""
     result = await session.execute(_REAP)
     return int(result.rowcount)  # type: ignore[attr-defined]
 
@@ -202,6 +202,6 @@ async def purge(session: AsyncSession, *, older_than_days: int, batch: int = 100
 
 
 def backoff_delay(attempt: int, *, base: float = 5.0, cap: float = 3600.0) -> float:
-    """Backoff exponentiel plafonné, avec gigue (évite les relances synchronisées)."""
+    """Capped exponential backoff, with jitter (avoids synchronized retries)."""
     exp = min(cap, base * float(2 ** max(attempt - 1, 0)))
     return exp / 2 + random.uniform(0, exp / 2)  # noqa: S311

@@ -1,9 +1,9 @@
-"""Contrat d'un service enfichable (fact-check, modération, ingestion…).
+"""Contract for a pluggable service (fact-check, moderation, ingestion, ...).
 
-Un service est une valeur déclarative : il ne démarre rien lui-même. Le processus
-hangar lit sa déclaration, consomme ses files de jobs et ses abonnements aux
-événements. Un service n'importe que ``tower.core`` ; jamais gate, intercom ou un
-autre service (ils communiquent par événements et jobs).
+A service is a declarative value: it starts nothing itself. The hangar process reads
+its declaration, consumes its job queues and its event subscriptions. A service only
+imports ``tower.core``; never gate, intercom or another service (they communicate
+through events and jobs).
 """
 
 from __future__ import annotations
@@ -33,17 +33,17 @@ JobHandler = Callable[[JobContext], Awaitable[None]]
 @dataclass(frozen=True, slots=True)
 class JobSpec:
     kind: str
-    """Nom unique du type de job, préfixé par le service : ``factcheck.triage``."""
+    """Unique name of the job type, prefixed by the service: ``factcheck.triage``."""
     handler: JobHandler
     queue: str = "default"
     timeout: float | None = None
-    """Durée maximale d'exécution ; doit rester inférieure au bail des jobs."""
+    """Maximum execution time; must stay below the job lease."""
 
 
 @dataclass(frozen=True, slots=True)
 class Subscription:
     name: str
-    """Nom du consommateur (unique dans le service) ; son curseur est persistant."""
+    """Consumer name (unique within the service); its cursor is persistent."""
     topics: tuple[str, ...]
     handler: EventHandler
 

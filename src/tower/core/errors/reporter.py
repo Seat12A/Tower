@@ -42,7 +42,7 @@ class _Pending:
 
 
 def _location(tb: TracebackType | None) -> str | None:
-    """Dernière frame appartenant au code de la Tower : ``module:fonction``."""
+    """Last frame belonging to Tower's code: ``module:function``."""
     found = None
     while tb is not None:
         module = tb.tb_frame.f_globals.get("__name__", "")
@@ -53,7 +53,7 @@ def _location(tb: TracebackType | None) -> str | None:
 
 
 def fingerprint(code: ErrorCode, exception_type: str | None, location: str | None) -> str:
-    """Empreinte stable : le message (variable) n'en fait pas partie."""
+    """Stable fingerprint: the (variable) message is not part of it."""
     raw = f"{code.code}|{exception_type or ''}|{location or ''}"
     return hashlib.sha1(raw.encode(), usedforsecurity=False).hexdigest()[:16]
 
@@ -62,7 +62,7 @@ def _scrub(context: dict[str, Any]) -> dict[str, Any]:
     clean: dict[str, Any] = {}
     for key, value in context.items():
         if any(s in key.lower() for s in _SENSITIVE):
-            clean[key] = "[masqué]"
+            clean[key] = "[redacted]"
         elif isinstance(value, str | int | float | bool) or value is None:
             clean[key] = value
         else:
@@ -71,11 +71,11 @@ def _scrub(context: dict[str, Any]) -> dict[str, Any]:
 
 
 class ErrorReporter:
-    """Tampon d'erreurs du processus, vidé périodiquement en base.
+    """Per-process error buffer, periodically flushed to the database.
 
-    Mémoire bornée : au plus ``max_pending`` empreintes distinctes entre deux vidages ;
-    au-delà, les nouvelles empreintes sont comptées comme perdues (signalées dans les
-    logs) mais les occurrences d'empreintes connues continuent d'être agrégées.
+    Bounded memory: at most ``max_pending`` distinct fingerprints between two flushes;
+    beyond that, new fingerprints are counted as lost (reported in the logs), but
+    occurrences of known fingerprints keep being aggregated.
     """
 
     def __init__(
@@ -93,7 +93,7 @@ class ErrorReporter:
         self._pending: dict[str, _Pending] = {}
         self._dropped = 0
 
-    # --- Capture (synchrone, sans I/O) ------------------------------------------
+    # --- Capture (synchronous, no I/O)------------------------------------------
     def capture(
         self,
         code: ErrorCode,
@@ -133,7 +133,7 @@ class ErrorReporter:
                 self._dropped += 1
         return fp
 
-    # --- Vidage ------------------------------------------------------------------
+    # --- Flush------------------------------------------------------------------
     async def flush(self) -> int:
         if not self._pending or self.db is None:
             return 0
@@ -144,7 +144,7 @@ class ErrorReporter:
         try:
             await self._write(batch)
         except Exception as exc:
-            # Pas de capture ici (boucle infinie) : on journalise seulement.
+            # No capture here (infinite loop): only log it.
             log.error("errors.flush_failed", error=str(exc), lost=len(batch))
             return 0
         return len(batch)
@@ -223,7 +223,7 @@ _UPSERT = text(
     """
 )
 
-# Reporter du processus. Par défaut, journalise seulement (aucune base attachée).
+# Process-wide reporter. By default it only logs (no database attached).
 _current = ErrorReporter()
 
 
@@ -239,5 +239,5 @@ def get_reporter() -> ErrorReporter:
 def capture(
     code: ErrorCode, exc: BaseException | None = None, *, message: str | None = None, **context: Any
 ) -> str:
-    """Journalise l'erreur et, si son code est stockable, l'agrège pour stockage."""
+    """Log the error and, if its code is storable, aggregate it for storage."""
     return _current.capture(code, exc, message=message, **context)

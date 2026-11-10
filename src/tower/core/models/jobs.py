@@ -20,7 +20,7 @@ class JobStatus(StrEnum):
 
 
 class Job(Base):
-    """File de travaux PostgreSQL (``FOR UPDATE SKIP LOCKED``)."""
+    """PostgreSQL job queue (``FOR UPDATE SKIP LOCKED``)."""
 
     __tablename__ = "jobs"
     __table_args__ = (

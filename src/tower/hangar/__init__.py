@@ -1,5 +1,5 @@
-"""hangar : worker générique qui exécute les services enfichables.
+"""hangar: generic worker that runs the pluggable services.
 
-Un réplica = une boucle asyncio, une connexion LISTEN, un petit pool SQL. On scale
-en ajoutant des réplicas (même file) ou des services Railway dédiés (``TOWER_QUEUES``).
+One replica = one asyncio loop, one LISTEN connection, a small SQL pool. Scale
+by adding replicas (same queue) or dedicated Railway services (``TOWER_QUEUES``).
 """

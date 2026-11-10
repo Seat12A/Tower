@@ -1,11 +1,11 @@
-"""Consommateur nommé de l'outbox, avec curseur persistant.
+"""Named outbox consumer, with a persistent cursor.
 
-Chaque lot est traité dans **une seule transaction** : verrou du curseur, lecture,
-appel du gestionnaire, avance du curseur. Les effets en base du gestionnaire et
-l'avance du curseur sont donc atomiques (exactement une fois pour la base).
+Each batch is processed in **a single transaction**: lock the cursor, read, call the
+handler, advance the cursor. The handler's database effects and the cursor advance are
+therefore atomic (exactly once for the database).
 
-Le verrou ``FOR UPDATE SKIP LOCKED`` sur la ligne du curseur fait qu'un seul réplica
-traite un consommateur donné à la fois ; les autres attendent leur tour sans erreur.
+The ``FOR UPDATE SKIP LOCKED`` lock on the cursor row ensures that only one replica
+processes a given consumer at a time; the others wait their turn without error.
 """
 
 from __future__ import annotations
@@ -45,13 +45,13 @@ async def consume_batch(
     topics: list[str] | None = None,
     limit: int = 100,
 ) -> int:
-    """Traite un lot. Renvoie le nombre d'événements traités (0 si rien ou verrouillé)."""
+    """Process one batch. Return the number of events processed (0 if none or locked)."""
     async with db.transaction() as session:
         await session.execute(_ENSURE, {"c": consumer})
     async with db.transaction() as session:
         row = (await session.execute(_LOCK, {"c": consumer})).first()
         if row is None:
-            return 0  # un autre réplica traite ce consommateur
+            return 0  # another replica is processing this consumer
         events = await read_events(
             session, Cursor(row.last_xid, row.last_id), limit=limit, topics=topics
         )

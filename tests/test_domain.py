@@ -21,7 +21,7 @@ S = DossierStatus
 
 
 def test_domain_is_pure() -> None:
-    """core/domain n'importe que la bibliothèque standard et lui-même."""
+    """core/domain imports only the standard library and itself."""
     allowed_prefixes = ("tower.core.domain", "__future__")
     stdlib = {"dataclasses", "enum", "re", "typing", "collections", "itertools"}
     for path in (ROOT / "src/tower/core/domain").glob("*.py"):
@@ -34,7 +34,7 @@ def test_domain_is_pure() -> None:
                 names = [node.module]
             for name in names:
                 assert name.startswith(allowed_prefixes) or name.split(".")[0] in stdlib, (
-                    f"{path.name} importe {name}"
+                    f"{path.name} imports {name}"
                 )
 
 
@@ -91,7 +91,7 @@ def test_staff_permissions_are_capped_by_service_scopes() -> None:
     bot = Actor.service("intercom", frozenset({Permission.DOSSIER_READ, Permission.DOSSIER_REVIEW}))
     editor = Actor.staff(42, frozenset({Role.EDITOR}), via=bot)
     assert editor.can(Permission.DOSSIER_REVIEW)
-    assert not editor.can(Permission.DOSSIER_PUBLISH)  # le bot n'a pas ce scope
+    assert not editor.can(Permission.DOSSIER_PUBLISH)  # the bot does not have this scope
     assert editor.label == "staff:42@intercom"
     assert editor.discord_id == 42
     with pytest.raises(PermissionDenied) as info:
@@ -121,5 +121,5 @@ def test_errors_doc_is_up_to_date() -> None:
 
     doc = (ROOT / "docs/errors.md").read_text()
     assert doc.strip() == render_markdown().strip(), (
-        "docs/errors.md obsolète : tower errors catalog --markdown > docs/errors.md"
+        "docs/errors.md is stale: run tower errors catalog --markdown > docs/errors.md"
     )

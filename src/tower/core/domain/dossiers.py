@@ -1,7 +1,7 @@
-"""Types et cycle de vie des dossiers.
+"""Dossier types and lifecycle.
 
-Deux types partagent le même socle : ``fact_check`` et ``moderation`` (contenus X).
-Chaque type a son propre graphe de transitions, défini ici et nulle part ailleurs.
+Two types share the same foundation: ``fact_check`` and ``moderation`` (X content).
+Each type has its own transition graph, defined here and nowhere else.
 """
 
 from __future__ import annotations
@@ -20,11 +20,11 @@ class DossierKind(StrEnum):
 
 
 class DossierStatus(StrEnum):
-    RECEIVED = "received"  # reçu
-    IN_REVIEW = "in_review"  # en revue
-    VALIDATED = "validated"  # validé
-    PUBLISHED = "published"  # publié (lien de la publication X enregistré)
-    REJECTED = "rejected"  # rejeté
+    RECEIVED = "received"  # received
+    IN_REVIEW = "in_review"  # in review
+    VALIDATED = "validated"  # validated
+    PUBLISHED = "published"  # published (X publication link recorded)
+    REJECTED = "rejected"  # rejected
 
 
 S = DossierStatus
@@ -39,7 +39,7 @@ _EDITORIAL_FLOW: dict[DossierStatus, frozenset[DossierStatus]] = {
 
 WORKFLOWS: dict[DossierKind, dict[DossierStatus, frozenset[DossierStatus]]] = {
     DossierKind.FACT_CHECK: _EDITORIAL_FLOW,
-    # La modération suit pour l'instant le même cycle ; à spécialiser ici au besoin.
+    # Moderation currently follows the same cycle; specialize it here if needed.
     DossierKind.MODERATION: _EDITORIAL_FLOW,
 }
 
@@ -68,7 +68,7 @@ def is_terminal(kind: DossierKind, status: DossierStatus) -> bool:
 def check_transition(kind: DossierKind, current: DossierStatus, target: DossierStatus) -> None:
     if target not in WORKFLOWS[kind][current]:
         raise InvalidTransition(
-            f"Transition interdite pour un dossier {kind} : {current} → {target}",
+            f"Transition not allowed for a dossier {kind}: {current} → {target}",
             kind=kind.value,
             current=current.value,
             target=target.value,
@@ -77,11 +77,11 @@ def check_transition(kind: DossierKind, current: DossierStatus, target: DossierS
 
 
 def parse_publication_url(url: str) -> int:
-    """Valide le lien de la publication X de l'équipe et renvoie l'ID du post."""
+    """Validate the team's X publication link and return the post ID."""
     match = _X_STATUS_URL.match(url.strip())
     if not match:
         raise InvalidInput(
-            "Lien de publication X invalide (https://x.com/<compte>/status/<id>)",
+            "Invalid X publication link (https://x.com/<account>/status/<id>)",
             code=ec.DOS_BAD_PUBLICATION_URL,
         )
     return int(match.group(1))

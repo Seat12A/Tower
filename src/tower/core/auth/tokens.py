@@ -1,11 +1,11 @@
-"""Tokens de service : aléatoires, préfixés, stockés uniquement sous forme d'empreinte."""
+"""Service tokens: random, prefixed, stored only as a hash."""
 
 from __future__ import annotations
 
 import hashlib
 import secrets
 
-TOKEN_PREFIX = "t12a_"  # noqa: S105 (préfixe public, pas un secret)
+TOKEN_PREFIX = "t12a_"  # noqa: S105 (public prefix, not a secret)
 
 
 def generate_token() -> str:
@@ -13,5 +13,5 @@ def generate_token() -> str:
 
 
 def hash_token(token: str) -> bytes:
-    # SHA-256 suffit : le token a 256 bits d'entropie, pas besoin d'un hachage lent.
+    # SHA-256 is enough: the token has 256 bits of entropy, so no slow hash is needed.
     return hashlib.sha256(token.encode()).digest()

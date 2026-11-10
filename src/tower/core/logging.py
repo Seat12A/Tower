@@ -1,14 +1,14 @@
-"""Logs structurés, pensés pour Railway.
+"""Structured logs, designed for Railway.
 
-Railway analyse un log comme un objet si la ligne est un JSON **sur une seule ligne**
-avec un champ ``message`` ; ``level`` doit valoir ``debug``, ``info``, ``warn`` ou
-``error``. Les autres clés de premier niveau deviennent des attributs filtrables
-(``@dossier_id:42``, ``@duration_ms:>500``). Tout part sur **stdout** : Railway
-classe stderr en erreur et l'affiche en rouge.
+Railway parses a log line as an object when it is a **single-line** JSON with a
+``message`` field; ``level`` must be ``debug``, ``info``, ``warn`` or ``error``.
+Other top-level keys become filterable attributes (``@dossier_id:42``,
+``@duration_ms:>500``). Everything goes to **stdout**: Railway classifies stderr
+as an error and shows it in red.
 
-La bibliothèque standard (uvicorn, SQLAlchemy, Alembic…) passe par le même rendu.
-Limite Railway : 500 lignes par seconde et par réplica, au-delà les logs sont perdus.
-Ne jamais logguer dans une boucle chaude ; ``/health`` n'est pas journalisé.
+The standard library (uvicorn, SQLAlchemy, Alembic...) goes through the same
+renderer. Railway limit: 500 lines per second and per replica; beyond that, logs
+are lost. Never log inside a hot loop; ``/health`` is not logged.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ _RAILWAY_LEVELS = {
 }
 
 _NOISY = {
-    "uvicorn.access": logging.WARNING,  # remplacé par notre middleware d'accès
+    "uvicorn.access": logging.WARNING,  # replaced by our access middleware
     "sqlalchemy.engine": logging.WARNING,
     "asyncio": logging.WARNING,
 }
@@ -47,7 +47,7 @@ def _railway_level(_: WrappedLogger, __: str, event: EventDict) -> EventDict:
 
 
 def _drop_color_message(_: WrappedLogger, __: str, event: EventDict) -> EventDict:
-    event.pop("color_message", None)  # doublon ajouté par uvicorn
+    event.pop("color_message", None)  # duplicate added by uvicorn
     return event
 
 
@@ -56,7 +56,7 @@ def _orjson_dumps(obj: Any, **_: Any) -> str:
 
 
 def configure_logging(settings: Settings) -> None:
-    """Configure structlog et la bibliothèque standard. Idempotent."""
+    """Configure structlog and the standard library. Idempotent."""
     static: dict[str, Any] = {"process": settings.process}
     if settings.railway_replica_id:
         static["replica"] = settings.railway_replica_id[:8]
@@ -79,7 +79,7 @@ def configure_logging(settings: Settings) -> None:
     if settings.effective_log_format == "json":
         renderer = structlog.processors.JSONRenderer(serializer=_orjson_dumps)
         final: list[Processor] = [
-            structlog.processors.format_exc_info,  # trace dans "exception", sur une ligne
+            structlog.processors.format_exc_info,  # traceback goes into "exception", one line
             structlog.processors.EventRenamer("message"),
             _railway_level,
             renderer,

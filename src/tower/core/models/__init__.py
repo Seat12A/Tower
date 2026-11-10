@@ -1,4 +1,4 @@
-"""Modèles ORM du socle. Importer ce module enregistre toutes les tables dans ``Base``."""
+"""ORM models of the core. Importing this module registers all tables in ``Base``."""
 
 from tower.core.models.auth import ServiceClient, StaffMember
 from tower.core.models.dossiers import Dossier, DossierEvent

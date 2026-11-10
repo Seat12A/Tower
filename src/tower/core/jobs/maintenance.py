@@ -1,4 +1,4 @@
-"""Tâches périodiques singleton (un seul réplica les exécute, via advisory lock)."""
+"""Singleton periodic tasks (only one replica runs them, via advisory lock)."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ _PURGE_EVENTS = text(
 async def run_singleton(
     db: Database, name: str, fn: Callable[[AsyncSession], Awaitable[int]]
 ) -> int | None:
-    """Exécute ``fn`` si aucun autre réplica ne le fait. None si le verrou est pris."""
+    """Run ``fn`` unless another replica is doing it. None if the lock is taken."""
     async with db.transaction() as session:
         if not (await session.execute(_TRY_LOCK, {"name": name})).scalar_one():
             return None
@@ -47,7 +47,7 @@ async def run_maintenance(db: Database, settings: Settings, stop: asyncio.Event)
     async def reap(session: AsyncSession) -> int:
         count = await q.reap(session)
         if count:
-            capture(ec.JOB_LEASE_EXPIRED, message=f"{count} job(s) récupéré(s)", jobs=count)
+            capture(ec.JOB_LEASE_EXPIRED, message=f"{count} job(s) recovered", jobs=count)
         return count
 
     async def purge(session: AsyncSession) -> int:

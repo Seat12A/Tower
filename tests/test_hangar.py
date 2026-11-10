@@ -10,7 +10,7 @@ from .conftest import make_settings
 
 
 async def test_ping_roundtrip_through_hangar(db: Database) -> None:
-    """Événement → consommateur → job → handler → événement, via le vrai processus."""
+    """Event -> consumer -> job -> handler -> event, through the real process."""
     settings = make_settings(services="ping", process="hangar")
     stop = asyncio.Event()
     task = asyncio.create_task(serve(settings, stop))

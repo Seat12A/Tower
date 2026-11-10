@@ -1,11 +1,11 @@
-"""Middleware ASGI pur (sans BaseHTTPMiddleware : moins coûteux, compatible SSE).
+"""Pure ASGI middleware (no BaseHTTPMiddleware: cheaper, SSE-compatible).
 
-- ``request_id`` : repris de ``X-Request-ID`` ou généré, lié à tous les logs de la
-  requête, renvoyé dans l'en-tête de réponse et dans les corps d'erreur.
-- Une ligne de log JSON par requête (``/health`` et ``/ready`` exclus : le healthcheck
-  Railway consommerait le quota de 500 lignes/s pour rien).
-- Filet de sécurité : toute exception imprévue devient une réponse ``TWR-INT-001``
-  stockée, au lieu d'une trace brute d'uvicorn.
+- ``request_id``: taken from ``X-Request-ID`` or generated, bound to all logs of the
+  request, returned in the response header and in error bodies.
+- One JSON log line per request (``/health`` and ``/ready`` excluded: the Railway
+  healthcheck would consume the 500 lines/s quota for nothing).
+- Safety net: any unexpected exception becomes a stored ``TWR-INT-001`` response,
+  instead of a raw uvicorn traceback.
 """
 
 from __future__ import annotations

@@ -7,7 +7,7 @@ from sqlalchemy import CheckConstraint
 
 
 def check_in(column: str, values: Iterable[str] | type[StrEnum], name: str) -> CheckConstraint:
-    """Contrainte ``CHECK (column IN (...))`` : on préfère TEXT + CHECK aux enums PG."""
+    """``CHECK (column IN (...))`` constraint: we prefer TEXT + CHECK over PG enums."""
     items = [v.value if isinstance(v, StrEnum) else v for v in values]
     quoted = ", ".join(f"'{v}'" for v in items)
     return CheckConstraint(f"{column} IN ({quoted})", name=name)

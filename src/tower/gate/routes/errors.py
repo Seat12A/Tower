@@ -1,4 +1,4 @@
-"""Erreurs stockées : consultation et résolution (admins, bot)."""
+"""Stored errors: viewing and resolution (admins, bot)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from tower.core.errors import service
 from tower.core.models.errors import ErrorReport
 from tower.gate.deps import ActorDep, ReadSession, WriteSession
 
-router = APIRouter(prefix="/v1/errors", tags=["erreurs"])
+router = APIRouter(prefix="/v1/errors", tags=["errors"])
 
 
 class ErrorReportOut(BaseModel):
@@ -56,7 +56,7 @@ class ErrorCodeOut(BaseModel):
 
 @router.get("/catalog", response_model=list[ErrorCodeOut])
 async def catalog() -> list[ErrorCodeOut]:
-    """Catalogue public des codes (utile aux clients : site, extension, bot)."""
+    """Public error code catalog (for clients: website, extension, bot)."""
     return [
         ErrorCodeOut(
             code=c.code,

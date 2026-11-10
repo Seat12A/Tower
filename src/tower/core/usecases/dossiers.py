@@ -25,7 +25,7 @@ AGGREGATE = "dossier"
 
 
 def dossier_payload(d: Dossier) -> dict[str, Any]:
-    """Représentation publiée dans les événements (IDs X en chaînes)."""
+    """Representation published in events (X IDs as strings)."""
     return {
         "public_id": str(d.public_id),
         "kind": d.kind,
@@ -51,7 +51,7 @@ async def open_dossier(
 ) -> Dossier:
     actor.require(Permission.DOSSIER_CREATE)
     if not -100 <= priority <= 100:
-        raise InvalidInput("Priorité hors bornes (-100..100)", code=ec.DOS_BAD_PRIORITY)
+        raise InvalidInput("Priority out of range (-100..100)", code=ec.DOS_BAD_PRIORITY)
     dossier = Dossier(
         kind=kind.value,
         status=INITIAL_STATUS.value,
@@ -86,7 +86,7 @@ async def open_dossier(
 async def get_dossier(session: AsyncSession, actor: Actor, public_id: uuid.UUID) -> Dossier:
     dossier = await session.scalar(select(Dossier).where(Dossier.public_id == public_id))
     if dossier is None or not _can_see(actor, dossier):
-        raise NotFound("Dossier introuvable", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
+        raise NotFound("Dossier not found", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
     return dossier
 
 
@@ -122,16 +122,16 @@ async def transition(
     expected_version: int | None = None,
     published_url: str | None = None,
 ) -> Dossier:
-    """Fait avancer un dossier. Verrouille la ligne : pas de course entre deux relecteurs."""
+    """Advance a dossier. Locks the row so two reviewers cannot race."""
     actor.require(TRANSITION_PERMISSION[target])
     dossier = await session.scalar(
         select(Dossier).where(Dossier.public_id == public_id).with_for_update()
     )
     if dossier is None or not _can_see(actor, dossier):
-        raise NotFound("Dossier introuvable", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
+        raise NotFound("Dossier not found", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
     if expected_version is not None and dossier.version != expected_version:
         raise Conflict(
-            "Le dossier a été modifié entre-temps",
+            "The dossier was modified in the meantime",
             expected=expected_version,
             current=dossier.version,
         )
@@ -145,14 +145,14 @@ async def transition(
     if target is DossierStatus.PUBLISHED:
         if not published_url:
             raise InvalidInput(
-                "Le lien de la publication X est obligatoire",
+                "The X publication link is required",
                 code=ec.DOS_PUBLICATION_URL_REQUIRED,
             )
         data["publication_post_id"] = str(parse_publication_url(published_url))
         dossier.published_url = published_url.strip()
     elif published_url:
         raise InvalidInput(
-            "published_url n'est accepté que pour la publication",
+            "published_url is only accepted for publication",
             code=ec.DOS_PUBLICATION_URL_UNEXPECTED,
         )
     dossier.status = target.value
@@ -189,7 +189,7 @@ async def mark_published(
     *,
     expected_version: int | None = None,
 ) -> Dossier:
-    """« Marquer comme publié » : l'équipe a publié sur X et colle le lien."""
+    """Mark as published: the team posted on X and pastes the link."""
     return await transition(
         session,
         actor,

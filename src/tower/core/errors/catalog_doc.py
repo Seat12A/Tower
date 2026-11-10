@@ -1,4 +1,4 @@
-"""Génère la page Markdown du catalogue d'erreurs (``docs/errors.md``)."""
+"""Generate the Markdown page of the error catalog (``docs/errors.md``)."""
 
 from __future__ import annotations
 

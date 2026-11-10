@@ -61,7 +61,7 @@ async def serve(settings: Settings, stop: asyncio.Event) -> None:
         raise
     finally:
         reporter_stop.set()
-        await reporter_task  # dernier vidage du tampon d'erreurs
+        await reporter_task  # final flush of the error buffer
         await listener.stop()
         await db.dispose()
         log.info("hangar.stopped")

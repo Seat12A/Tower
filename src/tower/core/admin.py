@@ -1,4 +1,4 @@
-"""Opérations d'administration lancées depuis la CLI (``railway run tower …``)."""
+"""Admin operations run from the CLI (``railway run tower …``)."""
 
 from __future__ import annotations
 
@@ -18,9 +18,7 @@ from tower.core.models.auth import ServiceClient, StaffMember
 async def create_service_client(settings: Settings, name: str, scopes: list[str]) -> str:
     unknown = [s for s in scopes if s not in Permission]
     if unknown:
-        raise InvalidInput(
-            f"Scopes inconnus : {unknown} (connus : {[p.value for p in Permission]})"
-        )
+        raise InvalidInput(f"Unknown scopes: {unknown} (known: {[p.value for p in Permission]})")
     token = generate_token()
     db = Database(settings)
     try:
@@ -36,7 +34,7 @@ async def upsert_staff(
 ) -> None:
     unknown = [r for r in roles if r not in Role]
     if unknown:
-        raise InvalidInput(f"Rôles inconnus : {unknown}")
+        raise InvalidInput(f"Unknown roles: {unknown}")
     db = Database(settings)
     try:
         async with db.transaction() as session:
@@ -68,7 +66,7 @@ async def list_errors(settings: Settings, *, include_resolved: bool) -> None:
     finally:
         await db.dispose()
     for r in rows:
-        state = "résolue" if r.resolved_at else "OUVERTE"
+        state = "resolved" if r.resolved_at else "OPEN"
         sys.stdout.write(
             f"{r.fingerprint}  {r.code:<13} {r.severity:<8} x{r.occurrences:<6} "
             f"{r.last_seen:%Y-%m-%d %H:%M}  {state:<8} {r.title} — {r.location or '-'}\n"

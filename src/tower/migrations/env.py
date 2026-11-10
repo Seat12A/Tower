@@ -1,4 +1,4 @@
-"""Environnement Alembic asynchrone. L'URL vient de la config Tower, jamais d'un .ini."""
+"""Async Alembic environment. The URL comes from the Tower config, never from an .ini."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import asyncio
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
-import tower.core.models  # noqa: F401  (enregistre les tables)
+import tower.core.models  # noqa: F401  (registers the tables)
 from tower.core.config import Settings, get_settings
 from tower.core.db.base import Base
 

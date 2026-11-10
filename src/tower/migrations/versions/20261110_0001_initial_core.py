@@ -1,8 +1,8 @@
-"""Socle initial : dossiers, outbox, jobs, auth, erreurs.
+"""Initial core: dossiers, outbox, jobs, auth, errors.
 
-Révision : 0001
-Parent :
-Créée le : 2026-11-10 19:07:53.755139
+Revision: 0001
+Parents:
+Created: 2026-11-10 19:07:53.755139
 """
 
 from collections.abc import Sequence

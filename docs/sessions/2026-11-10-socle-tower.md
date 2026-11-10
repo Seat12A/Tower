@@ -59,3 +59,19 @@ systématique.
   `watched_accounts`, `installations`, `post_snapshots`) et endpoint de l'extension.
 - Cycle de vie de la modération à préciser (identique au fact-check pour l'instant).
 - Remplir les valeurs du prompt Fable (volumes, budget, capacité de relecture).
+
+## Complément : passage du code en anglais
+
+- Règle de langue ajoutée dans `CLAUDE.md` : français uniquement pour la
+  documentation, anglais pour tout le reste (code, commentaires, messages d'erreur,
+  logs, CLI, OpenAPI, tests, commits).
+- Traduction réalisée par 9 agents Haiku en parallèle sur des lots de fichiers
+  disjoints : titres et pistes des 29 codes d'erreur, messages d'erreur de l'API,
+  messages de log, CLI, tags et descriptions OpenAPI, puis tous les commentaires et
+  docstrings. `docs/errors.md` régénéré. Migration renommée
+  `20261110_0001_initial_core.py` (révision `0001` inchangée).
+- Vérifications : diff relu (uniquement chaînes et commentaires, plus le découpage
+  d'une ligne trop longue dans `runner.py`), 51 tests verts, ruff, mypy strict et
+  `alembic check` OK, plus aucun texte français dans `src/` et `tests/` (seule
+  exception volontaire : `core/errors/catalog_doc.py`, qui génère la page de doc
+  française).

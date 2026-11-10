@@ -35,18 +35,18 @@ async def test_cursor_roundtrip_and_validation() -> None:
     assert Cursor.decode(Cursor(12, 34).encode()) == Cursor(12, 34)
     assert Cursor.decode(None) == Cursor()
     with pytest.raises(InvalidInput) as info:
-        Cursor.decode("pas-un-curseur")
+        Cursor.decode("not-a-cursor")
     assert info.value.code == "TWR-EVT-001"
 
 
 async def test_open_transaction_hides_later_commits(db: Database) -> None:
-    """Un événement validé après une transaction encore ouverte n'est pas lu trop tôt."""
+    """An event committed after a still-open transaction is not read too early."""
     async with db.sessionmaker() as slow:
         await slow.begin()
-        await publish(slow, "test.slow")  # id 1, transaction ouverte
+        await publish(slow, "test.slow")  # id 1, transaction open
         async with db.transaction() as fast:
-            await publish(fast, "test.fast")  # id 2, validé
-        assert await _all(db) == []  # rien n'est lu tant que "slow" est ouverte
+            await publish(fast, "test.fast")  # id 2, committed
+        assert await _all(db) == []  # nothing is read while "slow" is still open
         await slow.commit()
     events = await _all(db)
     assert [e.topic for e in events] == ["test.slow", "test.fast"]
@@ -84,7 +84,7 @@ async def test_consumer_advances_cursor_atomically(db: Database) -> None:
         await publish(s, "test.item", {"i": 3})
     with pytest.raises(RuntimeError):
         await consume_batch(db, "c1", failing)
-    assert await consume_batch(db, "c1", handler) == 1  # le lot est rejoué
+    assert await consume_batch(db, "c1", handler) == 1  # the batch is replayed
     assert seen == [0, 1, 2, 3]
 
 
@@ -101,7 +101,7 @@ async def test_same_consumer_never_runs_twice_concurrently(db: Database) -> None
 
     first = asyncio.create_task(consume_batch(db, "c2", slow))
     await asyncio.sleep(0.2)
-    assert await consume_batch(db, "c2", slow) == 0  # verrouillé : sauté sans erreur
+    assert await consume_batch(db, "c2", slow) == 0  # locked: skipped without error
     gate.set()
     assert await first == 1
     assert calls == 1

@@ -79,7 +79,7 @@ async def test_dossier_lifecycle(
     assert d["status"] == "received" and d["x_post_id"] == POST
     pid = d["public_id"]
 
-    # Le public ne voit pas un dossier non publié.
+    # The public does not see an unpublished dossier.
     assert (await client.get(f"/v1/dossiers/{pid}")).json()["error"]["code"] == "TWR-DOS-001"
 
     r = await client.post(
@@ -141,7 +141,7 @@ async def test_validation_error_format(client: httpx.AsyncClient, make_token: To
     err = r.json()["error"]
     assert err["code"] == "TWR-GEN-001"
     assert {e["field"] for e in err["details"]["errors"]} == {"body.kind", "body.x_post_id"}
-    r = await client.get("/v1/inexistant")
+    r = await client.get("/v1/nonexistent")
     assert r.status_code == 404 and r.json()["error"]["code"] == "TWR-GEN-002"
 
 
@@ -150,13 +150,13 @@ async def test_unexpected_error_is_stored(client: httpx.AsyncClient, db: Databas
 
     @app.get("/boom")
     async def boom() -> None:
-        raise RuntimeError("panne imprévue")
+        raise RuntimeError("unexpected outage")
 
     r = await client.get("/boom")
     assert r.status_code == 500
     err = r.json()["error"]
-    assert err["code"] == "TWR-INT-001" and err["message"] == "Erreur interne"
-    assert "panne" not in r.text  # pas de fuite du détail
+    assert err["code"] == "TWR-INT-001" and err["message"] == "Internal error"
+    assert "outage" not in r.text  # no leak of the detail
     await get_reporter().flush()
     async with db.session() as s:
         report = await s.get(ErrorReport, err["fingerprint"])
@@ -205,7 +205,7 @@ async def _read_sse(response: httpx.Response, count: int) -> list[dict[str, str]
 
 @pytest.fixture
 async def live_url(settings: Settings, db: Database) -> AsyncIterator[str]:
-    """Vrai serveur uvicorn : ASGITransport ne sait pas diffuser une réponse infinie."""
+    """Real uvicorn server: ASGITransport cannot stream an endless response."""
     from tower.gate.app import create_app
 
     config = uvicorn.Config(

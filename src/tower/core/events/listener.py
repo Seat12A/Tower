@@ -1,8 +1,8 @@
-"""Une connexion ``LISTEN`` par processus, redistribuée aux tâches qui attendent.
+"""One ``LISTEN`` connection per process, fanned out to the tasks waiting on it.
 
-Les notifications servent uniquement à réveiller : chaque consommateur relit la base
-à son réveil, et un délai maximal (polling de secours) couvre les notifications
-perdues, par exemple pendant une reconnexion.
+Notifications are only used to wake up: each consumer re-reads the database when
+woken, and a maximum delay (fallback polling) covers notifications lost during,
+for example, a reconnection.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ log = get_logger(__name__)
 
 
 class Waker:
-    """Réveil pour un abonné. ``wait()`` rend la main sur notification ou au délai."""
+    """Wake-up handle for a subscriber. ``wait()`` returns on notification or timeout."""
 
     def __init__(self) -> None:
         self._event = asyncio.Event()
@@ -31,7 +31,7 @@ class Waker:
         self._event.set()
 
     async def wait(self, timeout: float | None) -> bool:  # noqa: ASYNC109
-        """Renvoie True si réveillé par une notification, False si délai écoulé."""
+        """Return True if woken by a notification, False if the timeout elapsed."""
         try:
             async with asyncio.timeout(timeout):
                 await self._event.wait()
@@ -54,7 +54,7 @@ class PgListener:
 
     def subscribe(self, channel: str) -> Waker:
         if channel not in self._channels:
-            raise ValueError(f"Canal non écouté : {channel}")
+            raise ValueError(f"Channel not listened to: {channel}")
         waker = Waker()
         self._wakers[channel].add(waker)
         return waker
@@ -102,7 +102,7 @@ class PgListener:
                 self.connected.set()
                 log.info("listener.connected", channels=self._channels)
                 backoff = 0.5
-                self._wake_all()  # rattrape ce qui a pu être manqué
+                self._wake_all()  # catch up on anything that may have been missed
                 while not self._conn.is_closed():
                     await asyncio.sleep(5)
                     await self._conn.execute("SELECT 1")
