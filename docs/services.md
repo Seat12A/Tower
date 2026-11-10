@@ -54,7 +54,10 @@ service = Service(
 | Service | Rôle | Notes |
 |---|---|---|
 | `ping` | Démonstration et supervision (`ping.requested` → `ping.done`) | ✅ |
-| `ingest` | Remontées de l'extension, `observed_posts` et `observations`, règles d'ouverture de dossier | à venir |
-| `radar` | Polling de l'API X sur `watched_accounts` | processus dédié prévu |
-| `factcheck` | Pipeline E0 à E8 du plan de fact-check | voir [roadmap.md](roadmap.md) |
+| `ingest` | Contenus de toutes plateformes (`content_items`, `observations`), endpoint de l'extension | à venir, voir [factcheck/plateformes-medias.md](factcheck/plateformes-medias.md) |
+| `radar` | Polling de l'API X sur `watched_accounts` (puis flux Bluesky) | processus dédié prévu |
+| `factcheck` | Étages rapides et par lots du fact-check (E0 à E5, E10, E11), ordonnanceur, vagues | voir [factcheck/pipeline.md](factcheck/pipeline.md) |
+| `investigate` | Enquêtes (E6 à E9) : cadrage, collecte, jugement, rédaction | idem |
+| `atlas` | Synchronisation des sources de connaissance (miroir LEGI, actualité, ClaimReview, registre) | voir [factcheck/connaissances.md](factcheck/connaissances.md) |
+| `media` | Empreintes, OCR, transcription, provenance des médias | futur |
 | `moderation` | Modération de contenus X | à définir |
