@@ -16,7 +16,7 @@ par jour), à corriger quand les volumes réels seront connus.
          ▼
    E4 Ordonnanceur ─▶ E5 Vérif. légère ─▶ E6 Cadrage ─▶ E7 Collecte ─▶ E8 Jugement
    code, budget,      Atlas niveaux 1-3   Sonnet/Opus   backend, Atlas   juge Anthropic
-   niveaux, vagues    OpenAI petit        « recul »     + web            + contradicteur OpenAI
+   niveaux, vagues    OpenAI petit        « recul »     + web            + second avis OpenAI 
                                                                               │
          ┌────────────────────────────────────────────────────────────────────┘
          ▼
@@ -52,10 +52,18 @@ générées) : une recherche de quasi-copie à distance de Hamming ≤ 3 est un 
 | | |
 |---|---|
 | Entrée | Post unique |
-| Traitement | Embedding OpenAI `text-embedding-3-small` tronqué à 512 dimensions (par lots de 100 à 2 000 textes par requête). Recherche de quasi-doublon sémantique dans la fenêtre récente (pgvector, `halfvec`). Score « vérifiable » par une régression logistique dont les poids sont en base, calculée **en Python pur** (512 multiplications : aucun numpy en production). |
-| Passe si | Pas un quasi-doublon (sinon il hérite des affirmations du post existant), et score au-dessus du seuil du niveau. |
+| Traitement | Embedding OpenAI `text-embedding-3-small` tronqué à 512 dimensions (par lots de 100 à 2 000 textes par requête). Score « vérifiable » par une régression logistique dont les poids sont en base, calculée **en Python pur** (512 multiplications : aucun numpy en production). |
+| Passe si | Score au-dessus du seuil du niveau. |
 | Volume | 12 000 → 3 600 |
 | Coût | environ 1 M de tokens par jour, soit 0,02 $ par jour |
+
+Les vecteurs de posts ne sont **pas indexés** (un index HNSW sur 12 000 vecteurs par
+jour atteindrait plusieurs Go par an, voir [reponses-fable.md](reponses-fable.md),
+Q7). Ils sont conservés 14 jours dans une table partitionnée par semaine
+(`content_embeddings`), pour le classifieur, l'entraînement et les distances aux
+médoïdes d'un récit (calculs exacts sur de petits ensembles). Le dédoublonnage au
+niveau du post repose sur le SimHash (E0) ; le regroupement sémantique se fait au
+niveau des affirmations et des groupes (E3), dont seuls les **groupes** sont indexés.
 
 Au démarrage, sans données, le classifieur est remplacé par une règle permissive (tout
 passe à E2) : c'est le scénario « démarrage à froid » de [couts.md](couts.md). Le
@@ -68,36 +76,81 @@ taux de faux négatifs.
 
 | | |
 |---|---|
-| Entrée | 10 à 20 posts par appel (N1), 1 à 5 (N3/N4), chacun délimité et identifié, avec le texte du post parent ou cité tronqué à 280 caractères |
-| Sortie (schéma strict) | Par post : liste d'affirmations canoniques (≤ 300 caractères, formulées de façon neutre, dans la langue du post **et** en français, langue pivot), juridictions (codes pays), signature à sept champs avec valeur normalisée (unité, monnaie, échelle), type de péremption, thème, vérifiabilité estimée (0-1), indices de contexte (voir [contexte.md](contexte.md)), modalité source (texte, image, vidéo) |
-| Contrôle | Fidélité : l'affirmation canonique reste proche du post (similarité d'embedding au-dessus d'un seuil, et chiffres et entités nommées du post retrouvés dans l'affirmation). Échec → l'affirmation est rejetée et le post réessayé seul. |
+| Entrée | N1 : lot de 10 posts ou de 2 500 tokens de contenu, au premier atteint (plafond dur : 12). N3/N4 : 1 post par appel (latence). Chaque post est délimité, identifié et marqué, avec le texte du post parent ou cité tronqué à 280 caractères |
+| Sortie (schéma strict) | **Chaque identifiant d'entrée ressort**, avec des affirmations ou un motif d'absence fermé (`opinion`, `question`, `satire`, `no_claim`, `unreadable`) ; un identifiant manquant relance le post. Par post : liste d'affirmations canoniques (≤ 300 caractères, formulées de façon neutre, dans la langue du post **et** en français, langue pivot), juridictions (codes pays), signature à sept champs avec valeur normalisée (unité, monnaie, échelle), type de péremption, thème, vérifiabilité estimée (0-1), indices de contexte (voir [contexte.md](contexte.md)), modalité source (texte, image, vidéo) |
+| Contrôle | Fidélité **dans les deux sens**. Contamination : tout chiffre ou entité de l'affirmation doit exister dans son post, sinon l'affirmation est rejetée et le post rejoué seul. Omission : un post dont aucun chiffre n'apparaît dans une affirmation est rejoué seul. Un lot avec au moins 2 échecs de fidélité est rejoué entièrement en solo. |
 | Volume | 3 600 posts → environ 2 200 affirmations |
 | Modèle | rôle `extract`, voir [modeles.md](modeles.md) |
 
 **Seul E2 et E9 lisent le texte brut d'un post** (voir [biais.md](biais.md) pour la
-défense contre l'injection). Le micro-lot partage le préfixe d'instructions entre 20
-posts : environ 320 tokens par post au lieu de 1 750, ce qui tient dans le quota
-gratuit OpenAI même au palier bas. Un test de contamination croisée (un post piégé
-dans le lot ne doit pas modifier les sorties des autres) fait partie du jeu de test.
+défense contre l'injection).
 
-Signature à sept champs (inchangée par rapport au plan de Fable) : sujet, mesure ou
-prédicat, valeur et unité, période, lieu, polarité, source invoquée. Plus deux champs
-ajoutés : `claim_type` (statistique, fait historique, citation, texte juridique,
-situation en cours, procédure, prédiction, opinion) et `jurisdiction` (code pays ISO,
-utile pour router vers les bonnes sources juridiques et statistiques ; une affirmation
-peut concerner plusieurs juridictions, voir [international.md](international.md)).
+Règles des micro-lots (arbitrées avec Fable, [reponses-fable.md](reponses-fable.md),
+Q2) :
+
+- **Préfixe d'instructions court** : 900 tokens au plus (au lieu de 1 500). Un lot de
+  10 revient à environ 340 tokens par post, presque autant qu'un lot de 20 avec
+  l'ancien préfixe, sans le risque.
+- **Composition par dissemblance** : jamais deux posts du même récit ni deux posts de
+  similarité supérieure à 0,6 dans un même lot. Entre posts éloignés, un chiffre
+  étranger se voit ; entre posts proches, il passerait le contrôle.
+- **Injection** : un post qui contient des marqueurs d'injection connus est traité
+  seul. Un post **canari** synthétique entre dans 1 lot sur 100 pour vérifier en
+  continu l'absence de contamination.
+- **Mesure des omissions** : 2 % des posts (environ 70 par jour) sont rejoués seuls et
+  comparés au résultat du lot, avec un échantillon stratifié par position dans le
+  lot. Cela estime un taux d'omission de 3 % à ±1,5 point par semaine. Les
+  discordances vont à un humain (le rejeu solo n'est pas une vérité terrain).
+- **Réglage automatique** : si le dernier tiers des lots omet 1,5 fois plus que le
+  premier tiers sur deux semaines, la taille des lots baisse de 2.
+
+Signature : les sept champs du plan de Fable (sujet, mesure ou prédicat, valeur et
+unité, période, lieu, polarité, source invoquée), **extraits du texte d'origine dans
+des champs neutres en langue** : nombres, dates ISO, codes ISO 3166, polarité fermée,
+identifiant Wikidata du sujet quand il existe. Champs ajoutés :
+
+- `claim_type` : statistique, fait historique, citation, texte juridique, situation en
+  cours, procédure, bilan, conduite, accusation, prédiction, opinion ;
+- `jurisdictions` : une affirmation peut concerner plusieurs pays (voir
+  [international.md](international.md)) ;
+- `value_low`, `value_high` : **intervalle** tiré de la précision de l'affirmation
+  (« 7 % » donne [6,5 ; 7,5[, « presque 8 % » donne [7,5 ; 8[, « plus de 10 000 »
+  donne ]10 000 ; +∞[) ;
+- `unit_scale`, `currency`, `value_date` ;
+- `definition_variant` (chômage au sens du BIT ou inscrits en catégorie A) ;
+- `comparison_base` pour les affirmations relatives (« a doublé depuis 2017 ») ;
+- `entities` : entités citées, avec leur rôle (auteur de la conduite évaluée,
+  accusateur, accusé), utilisées par la règle des sources partie prenante (E7).
 
 ### E3 — Appariement (pgvector + signature + arbitre)
 
 | | |
 |---|---|
 | Entrée | Affirmation canonique et son embedding |
-| Traitement | 1) Recherche des groupes les plus proches (pgvector, top 5). 2) Comparaison **déterministe** des signatures (même sujet, même mesure, même période, même lieu, même polarité ; valeur compatible). 3) En zone grise (similarité entre deux seuils), arbitre petit modèle OpenAI (question binaire). 4) Recherche parallèle dans les **fact-checks existants** (ClaimReview, nos verdicts publiés) par embedding et mots-clés. |
-| Sortie | Rattachement à un groupe existant (le verdict actif s'applique s'il n'est pas périmé) ou création d'un groupe. Rattachement du groupe à un récit (voir [vagues.md](vagues.md)). Lien vers un fact-check externe trouvé. |
+| Traitement | 1) Recherche des groupes les plus proches (pgvector sur les groupes, top 5 ; vecteur du texte d'origine pour une même langue, vecteur pivot français pour les autres langues). 2) Comparaison **déterministe** des signatures normalisées. 3) Résolution vers une **fiche de référence** (indicateur, période, territoire, définition) quand l'affirmation est chiffrée. 4) Arbitre petit modèle OpenAI en zone grise, et **systématiquement pour les paires interlingues** (sur les deux textes d'origine). 5) Recherche parallèle dans les **fact-checks existants** (ClaimReview, nos verdicts publiés) par embedding et mots-clés. |
+| Sortie | Rattachement à un groupe existant ou création d'un groupe ; rattachement du groupe à un récit (voir [vagues.md](vagues.md)) ; lien vers un fact-check externe trouvé. |
 | Volume | 2 200 → environ 370 groupes nouveaux |
 
-Deux affirmations au même sujet et à valeurs différentes partagent une **fiche de
-référence**, jamais un verdict.
+**Réutilisation d'un verdict** (règle de Fable, [reponses-fable.md](reponses-fable.md),
+Q9) :
+
+1. **Directe** seulement à signature normalisée **identique**.
+2. **Entre variantes chiffrées, jamais de réutilisation par similarité** : le verdict
+   s'indexe par fiche de référence et **bande de valeurs**. On compare l'intervalle de
+   la variante à la valeur de référence de la fiche, avec une tolérance
+   τ = max(plancher, 5 % de la référence) ; plancher de 0,2 point pour un taux.
+   Bandes : intervalle qui contient la référence ; à moins de 1 τ ; à moins de 3 τ ;
+   au-delà ; chacune avec son côté (au-dessus ou en dessous).
+3. Un relecteur **valide une bande une fois** (« au-dessus de 9 % : Faux ») ; toute
+   variante qui tombe dans une bande validée en hérite. Sinon, la vérification légère
+   E5 juge la variante sur la fiche.
+4. **Période** : deux affirmations sont compatibles si elles se résolvent vers la même
+   fiche. « Actuellement » se résout à la date du post. Si la valeur correspond à la
+   fiche **précédente** de l'indicateur, le type de contexte `outdated` est détecté
+   sans modèle.
+
+Le risque restant est une erreur d'extraction de la signature : il est mesuré sur 50
+paires pièges du jeu de référence.
 
 ### E4 — Ordonnanceur (code seul)
 
@@ -157,40 +210,74 @@ le post ni l'auteur.
    puis la recherche web si nécessaire, dans la limite du niveau.
 3. Récupération sûre des pages (port `WebFetcher` : taille plafonnée à 2 Mo, types
    autorisés, protection SSRF, respect de `robots.txt` et des réservations de fouille).
-4. Extraction du texte, découpage en passages d'environ 120 mots, sélection des
-   passages par embeddings + score lexical PostgreSQL, puis **dédoublonnage des
-   sources** : deux passages quasi identiques (SimHash) venant de domaines différents
-   comptent pour **une seule source** (une dépêche reprise par dix journaux n'est pas
-   dix sources indépendantes).
-5. Chaque passage reçoit un identifiant `P1…Pn`, son domaine, son niveau de fiabilité,
-   sa date, l'empreinte SHA-256 de la page.
+4. Extraction du texte, découpage en passages d'environ 120 mots, pré-filtre lexical
+   PostgreSQL puis sélection des 50 meilleurs passages par embeddings. Les passages
+   quasi identiques (SimHash) sont fusionnés.
+5. Chaque passage reçoit un identifiant `P1…Pn`, son éditeur, son domaine, son niveau
+   de fiabilité, sa date, l'empreinte SHA-256 de la page.
+6. **Sources partie prenante** (règle fermée, [reponses-fable.md](reponses-fable.md),
+   Q11) : une source est partie prenante si son éditeur, ou une entité qui le contrôle
+   selon le registre (`controlled_by`), figure dans l'affirmation comme auteur de la
+   conduite évaluée, accusateur ou accusé, **et** si l'affirmation est de type bilan,
+   conduite ou accusation. C'est une jointure entre les entités extraites au cadrage
+   et le registre, pas un jugement de modèle. La règle est symétrique : gouvernement,
+   opposition, entreprise, ONG, syndicat.
 
 Budget de lecture du juge : 4 000 à 6 000 tokens de passages (jusqu'à 12 000 en N4).
 
-### E8 — Jugement (juge Anthropic + contradicteur OpenAI)
+### E8 — Jugement (juge Anthropic + second avis OpenAI)
 
-**Juge** (Sonnet 5.5 en N2, Opus 5.5 en N3/N4), sans outil, ne reçoit que
-l'affirmation canonique, le cadrage et les passages. Il renvoie (schéma strict) :
+**Profondeur uniforme, escalade par difficulté** (arbitrage de Fable,
+[reponses-fable.md](reponses-fable.md), Q1). Toute enquête, en N2 comme en N3, démarre
+à la **même profondeur** : juge Sonnet 5.5, 4 recherches, second avis. Elle passe en
+**profondeur renforcée** (juge Opus 5.5, 4 recherches de plus, seconde passe du juge)
+si l'une de ces conditions est remplie :
+- désaccord de fond avec le second avis ;
+- sources contradictoires ;
+- confiance calculée inférieure à 0,6.
+
+N4 passe toujours en profondeur renforcée. Le rôle public de l'auteur achète la
+surveillance et la latence, jamais la profondeur ; la difficulté de l'affirmation
+achète la profondeur.
+
+**Juge**, sans outil, ne reçoit que l'affirmation canonique, le cadrage et les
+passages. Il renvoie (schéma strict) :
 
 - l'issue de véracité (voir [contexte.md](contexte.md)) ;
 - pour chaque assertion de sa justification, l'identifiant du passage et la
   **citation exacte** qui l'appuie ;
 - le besoin de contexte (types et éléments) ;
+- pour chaque passage utilisé, l'**origine** de l'information (l'entité à qui elle est
+  attribuée : un ministère, une agence, une étude), qui sert au contrôle
+  d'indépendance ;
 - ce que les sources ne disent pas ;
 - les points que le relecteur doit vérifier en priorité ;
 - une éventuelle demande de recherche supplémentaire (bornée par le niveau).
 
 Il ne renvoie **pas** de score de confiance (calculé en E10).
 
-**Contradicteur** : un modèle d'un **autre fournisseur** (grand modèle OpenAI couvert
-par les tokens gratuits) reçoit le verdict et les passages, et doit produire la
-meilleure objection ou déclarer qu'il n'en trouve pas. Deux fournisseurs différents
-font des erreurs moins corrélées qu'un même modèle consulté deux fois, et on évite
-le biais d'auto-préférence d'un juge qui évaluerait son propre texte.
+**Second avis aveugle** : un grand modèle OpenAI (autre fournisseur que le juge,
+couvert par l'allocation gratuite) reçoit l'affirmation cadrée et les passages **dans
+un autre ordre, sans le verdict**, et rend sa propre issue. Un modèle à qui l'on
+demande « la meilleure objection » en trouve toujours une, et il est ancré par le
+verdict qu'on lui montre ; l'accord de deux jugements indépendants est un signal bien
+plus fort. Le backend compare les deux issues :
 
-En N3/N4, le juge est appelé une seconde fois avec les passages dans un **ordre
-différent** : un désaccord entre les deux passes (biais de position) baisse la
-confiance et alerte le relecteur.
+| Cas | Définition | Effet |
+|---|---|---|
+| Accord identique | Même issue | Confiance en hausse |
+| Écart de style | Un cran d'écart du même côté (Vrai/Plutôt vrai contre Trompeur/Faux) | Journalisé pour mesurer le décalage entre fournisseurs, sans effet sur la confiance |
+| Désaccord de fond | Changement de côté, ou verdict contre abstention | Second appel : **objection typée** ; escalade en profondeur renforcée |
+
+L'objection typée vient d'une liste fermée, avec identifiant de passage obligatoire :
+preuve mal lue, preuve insuffisante pour l'issue, source non indépendante, période ou
+périmètre erronés, définition différente, cadrage infidèle à l'affirmation. Elle ne
+propose pas d'autre issue, seulement une direction fermée (plus sévère, moins sévère,
+abstention), et s'affiche au relecteur comme point à vérifier en priorité.
+
+Le second avis voit les passages dans un autre ordre, ce qui couvre déjà le biais de
+position. La **seconde passe du juge** n'est donc pas systématique : elle a lieu sur
+désaccord et toujours en N4.
 
 ### E9 — Rédaction et contrôles déterministes (Anthropic + code)
 
@@ -205,7 +292,8 @@ Contrôles déterministes, sans modèle (échec → brouillon rejeté ou rétrog
 | Contrôle | Règle |
 |---|---|
 | Citations | Chaque citation existe mot pour mot (après normalisation des espaces et guillemets) dans un passage récupéré |
-| Indépendance | « Vrai » et « Faux » exigent deux sources indépendantes (domaines enregistrables différents, passages non quasi identiques) dont une primaire. À défaut : rétrogradation en « Contexte manquant » ou « Non vérifiable » |
+| Indépendance | « Vrai » et « Faux » exigent deux **origines** indépendantes, dont une primaire. Deux passages de même origine (deux journaux qui relaient le même communiqué) comptent une fois, comme cette origine ; le domaine ne sert que de repli. Une source partie prenante ne compte pas comme origine indépendante. À défaut : rétrogradation en « Non vérifiable » avec contexte |
+| Chiffres officiels | Une statistique produite sous **indépendance statutaire** (attribut du registre, fondé sur des critères externes) est acceptée seule. Une **auto-déclaration de bilan** n'est primaire que pour l'attribution : sans corroboration, issue « Non vérifiable » et note qui attribue le chiffre, avec celui de l'autre partie s'il existe |
 | Dates | Toute source datée après le post est signalée ; une source plus vieille que la péremption du type est signalée |
 | Longueurs | Note de contexte ≤ 280 caractères hors liens ; fiche ≤ longueur du profil |
 | Lexique | Liste de mots chargés ou de jugements de valeur à éviter (« honteux », « mensonge éhonté »…) : alerte pour le relecteur |
@@ -213,11 +301,29 @@ Contrôles déterministes, sans modèle (échec → brouillon rejeté ou rétrog
 
 ### E10 — Assemblage (code)
 
-- **Confiance calibrée**, calculée et non déclarée par un modèle : nombre et niveau des
-  sources, accord entre sources, accord juge-contradicteur, accord entre les deux
-  passes du juge, type d'affirmation. Grille fixe au départ, régression ajustée dès
-  200 revues ; elle prédit la probabilité que le relecteur accepte l'issue sans la
-  changer.
+- **Confiance calibrée**, calculée et non déclarée par un modèle. Elle prédit la
+  probabilité que le relecteur accepte l'issue sans la changer. Elle est écrite dès le
+  départ comme une **régression logistique à coefficients posés à la main** (valeurs
+  de Fable, non mesurées) :
+
+  | Signal | Coefficient |
+  |---|---|
+  | Ordonnée | 0 |
+  | Source primaire directe | +1,0 |
+  | 2 origines indépendantes / 3 ou plus | +0,5 / +0,8 |
+  | Sources contradictoires | −1,5 |
+  | Second avis du même côté / issue identique / désaccord de fond | +0,8 / +1,1 / −1,5 |
+  | Seconde passe concordante / discordante | +0,4 / −1,2 |
+  | Statistique avec fiche | +0,5 |
+  | Situation en cours / causalité / interprétation juridique | −0,8 / −1,0 / −0,5 |
+  | Issue « Trompeur » | −0,4 |
+  | Couverture B | −0,3 |
+
+  Confiance = sigmoïde de la somme, **plafonnée à 0,90** avant calibration. Haute à
+  partir de 0,80, moyenne à partir de 0,55. À 200 revues, on réestime l'ordonnée et les
+  3 ou 4 coefficients les plus forts avec rétrécissement vers ces valeurs ; le modèle
+  complet n'est réestimé qu'à partir de 100 refus (200 revues ne donnent qu'environ
+  30 refus, trop peu pour une douzaine de coefficients).
 - **Contexte du compte** (N3/N4 seulement), ajouté **après** le verdict : récidive sur
   la même affirmation, verdicts antérieurs, corrections publiées. Il enrichit le
   brouillon sans pouvoir influencer le jugement.
@@ -289,7 +395,7 @@ Convention du socle : `<agrégat>.<verbe au participe passé>`, IDs en chaînes.
 | `factcheck.match` | `fc-bulk` | `match:<claim_id>` |
 | `factcheck.schedule` | singleton (verrou consultatif) | — |
 | `factcheck.light_check` | `fc-bulk` | `light:<group_id>:<profile_version>` |
-| `investigate.frame` / `.collect` / `.judge` / `.contradict` / `.draft` | `fc-deep` | `<étape>:<group_id>:<investigation_id>` |
+| `investigate.frame` / `.collect` / `.judge` / `.second_opinion` / `.objection` / `.draft` | `fc-deep` | `<étape>:<group_id>:<investigation_id>` |
 | `factcheck.assemble` | `fc-fast` | `asm:<investigation_id>` |
 | `factcheck.revalidate` | `fc-bulk` | `reval:<verdict_id>` |
 | `llm.batch_submit` / `llm.batch_poll` | `fc-bulk` | `batch:<provider>:<batch_id>` (`RetryLater` tant que le lot n'est pas fini) |

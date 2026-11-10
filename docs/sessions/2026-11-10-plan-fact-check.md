@@ -90,3 +90,19 @@ Proposées, à valider par Jules (liste complète dans `docs/decisions.md`) :
 - `docs/factcheck/questions-fable.md` : brief autonome (contexte commun, puis onze
   questions avec ce qui est prévu, les options, le doute et le format de réponse
   attendu), à transmettre à Fable. `questions.md` y renvoie.
+
+## Complément : intégration des réponses de Fable
+
+- Réponses archivées dans `docs/factcheck/reponses-fable.md`.
+- Arbitrages reportés dans `docs/decisions.md` (section « Arbitrages après l'avis de
+  Fable ») et dans les pages : `niveaux.md` (profondeur uniforme, escalade, mesure de
+  la sélection), `pipeline.md` (lots, signature, bandes de valeurs, second avis,
+  confiance logistique, indépendance par origine, partie prenante), `vagues.md`
+  (réécrite : dossier de preuves, ancres, médoïdes, part du flux, seuils de départ,
+  nouveautés qui prennent), `modeles.md`, `contexte.md` (15 types, trois régimes),
+  `couts.md` (recalcul : 63 à 91 $ par mois selon le taux d'escalade), `donnees.md`,
+  `international.md`, `connaissances.md`, `plateformes-medias.md`, `biais.md`,
+  `evaluation.md`, `feuille-de-route.md`, `README.md`.
+- Vérification : liens internes contrôlés par script. Les seuils restent des valeurs
+  de départ à calibrer ; le recalcul des coûts repose toujours sur le scénario supposé.
+- Points restés ouverts : listés dans `docs/factcheck/questions.md`.

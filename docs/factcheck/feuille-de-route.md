@@ -42,6 +42,10 @@ deux réplicas concurrents (test réel sur PostgreSQL) ; RSS mesuré.
   socle), processus `radar` pour X.
 - E0 : normalisation, empreinte exacte, SimHash par bandes, détection de langue,
   liste des langues traitées en configuration.
+- Empreinte perceptuelle des images **dès l'ingestion** (nécessaire aux notes de
+  contexte rattachées à un média), même si la lecture d'images vient au lot 8.
+- `observations` partitionnée ; `content_items` non partitionnée, clé interne
+  `BIGINT` référencée partout.
 - Registres par pays (`country_profiles`, `official_domains`, `fact_checkers`) amorcés
   ([international.md](international.md)).
 
@@ -54,10 +58,13 @@ l'extension.
 - E2 (extraction temps réel), E6 (cadrage), E7 (collecte) avec un Atlas minimal :
   Google Fact Check Tools, Wikidata, Wikipédia (révision figée + revert risk),
   API Légifrance (PISTE), INSEE BDM, Brave Search.
-- E8 : juge Sonnet (Opus en option), contradicteur OpenAI.
+- E8 : enquête standard (juge Sonnet, 4 recherches, second avis aveugle OpenAI),
+  escalade en profondeur renforcée (Opus) sur désaccord de fond, sources
+  contradictoires ou confiance < 0,6.
 - E9 : brouillon **et note de contexte** dès le MVP (demande de Jules), contrôles
   déterministes.
-- E10 : confiance par grille fixe, revérification, ouverture de dossier, `draft.ready`.
+- E10 : confiance par régression logistique à coefficients posés à la main,
+  revérification, ouverture de dossier, `draft.ready`.
 - E11 : revue dans le bot Discord (dépend du lot intercom du socle), capture des
   corrections, journal de coûts.
 - Ni embeddings, ni cache de verdicts, ni récits à ce stade.
@@ -84,7 +91,8 @@ sécurité.
 - E4 ordonnanceur (singleton), promotion et rétrogradation, quota de brouillons.
 - E5 vérification légère.
 - **Récits et mode vague** ([vagues.md](vagues.md)) : rattachement incrémental,
-  détection par z-score robuste, voie rapide, compteurs d'observations,
+  détection par part du flux (écart de type Poisson, seuils absolus puis quantiles),
+  dossier de preuves partagé, nouveautés qui prennent, voie rapide, compteurs d'observations,
   échantillonnage sous charge, signaux de coordination.
 
 Critère : masse sous 0,00001 $ par post ; test de charge d'une vague simulée
@@ -100,8 +108,9 @@ budget, premier brouillon en moins de 2 h.
   (`jurisdiction_sources`, `news_feeds`, `election_calendar`) ; passage en couverture A
   des pays les plus présents dans le flux ; nouvelles langues activées chacune après
   son sous-ensemble de référence.
-- Classifieur E1 distillé, confiance calibrée par régression, juge Opus en N3,
-  seconde passe du juge, niveau N4 complet.
+- Classifieur E1 distillé, recalibrage de la confiance (ordonnée et 3 ou 4
+  coefficients à 200 revues, modèle complet à 100 refus), bandes de valeurs validées
+  par les relecteurs, niveau N4 complet.
 
 Critère : ≥ 70 % des affirmations tranchées sans recherche web payante ; calibration
 avec écart moyen < 0,1 ; distillation qui réduit de moitié les appels E2 sans perte de

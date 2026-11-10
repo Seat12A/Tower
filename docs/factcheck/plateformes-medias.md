@@ -16,15 +16,19 @@ ou à un média vit dans un adaptateur.
 |---|---|
 | `platform` | `x`, `bluesky`, `threads`, `mastodon`, `youtube`, `tiktok`, `telegram`, `web` (CHECK) |
 | `external_id` | Identifiant natif en `TEXT` (les formats diffèrent : numérique pour X, `at://` pour Bluesky, chaîne pour YouTube) |
-| `x_post_id` | `BIGINT` généré (`CASE WHEN platform = 'x' THEN external_id::bigint END`, colonne stockée) : respecte la règle « IDs X en BIGINT » et reste indexable |
+| (index) | Index sur expression `(external_id::bigint) WHERE platform = 'x'` et contrainte de format (chiffres, borne `BIGINT`) pour X : respecte la règle « IDs X en BIGINT » sans colonne générée (Fable, Q7 : une colonne générée ne sert que si l'on trie par identifiant numérique, et changer son expression réécrit la table) |
 | `author_ref` | Référence vers `platform_accounts` (compte, plateforme, rôle public éventuel) |
 | `text`, `lang`, `created_at` | Contenu normalisé |
 | `parent_ref`, `quoted_ref` | Contexte du fil (réponse, citation, republication) |
 | `media` | Liens vers `media_assets` |
 | `metrics` | Dernières métriques connues et date de relevé |
 
-Dans l'API et les événements, l'identifiant d'un contenu est toujours une chaîne,
-accompagnée de la plateforme.
+Clé primaire : identifiant interne `BIGINT`, référencé par toutes les autres tables ;
+l'identifiant externe ne sert qu'aux frontières (API, plateformes). La table n'est
+**pas partitionnée** (environ 7 M de lignes par an : une partition imposerait la clé
+de partition dans toute clé unique et toute clé étrangère) ; c'est `observations` qui
+l'est. Dans l'API et les événements, l'identifiant d'un contenu est toujours une
+chaîne, accompagnée de la plateforme.
 
 ## Port `PlatformClient`
 
@@ -79,7 +83,7 @@ Le rattachement d'un compte à une entité est une décision humaine journalisé
 |---|---|
 | `kind` | `image`, `video`, `audio`, `document` (CHECK) |
 | `sha256` | Empreinte exacte du fichier |
-| `phash` | Empreinte perceptuelle (image, ou images clés d'une vidéo) en `BIGINT`, indexée par bandes comme le SimHash |
+| `phash` | Empreinte perceptuelle (image, ou images clés d'une vidéo) en `BIGINT`, indexée par bandes comme le SimHash. Calculée **dès l'ingestion** (lot 2), même avant la lecture d'images : les notes de contexte rattachées à un média en dépendent ([contexte.md](contexte.md)) |
 | `duration_s`, `width`, `height` | Métadonnées |
 | `first_seen_at`, `first_seen_ref` | Première apparition connue dans notre base |
 | `ocr_text`, `transcript`, `description` | Texte extrait (M1) |

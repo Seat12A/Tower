@@ -45,7 +45,18 @@ Classées par effet sur la conception, de la plus structurante à la moins struc
 ## À soumettre à Fable (architecture)
 
 Brief autonome avec contexte et onze questions précises :
-[questions-fable.md](questions-fable.md).
+[questions-fable.md](questions-fable.md). Réponses du 2026-11-10 :
+[reponses-fable.md](reponses-fable.md), intégrées au plan.
+
+Points restés ouverts après ces réponses :
+
+- liste des critères externes d'indépendance statutaire des organismes statistiques
+  (normes de diffusion du FMI, revues par les pairs d'Eurostat : à vérifier) ;
+- constitution et publication du registre des relations de contrôle
+  (`controlled_by`) : qui le tient, selon quelles sources ;
+- vérification de la langue pivot étudiée dans SemEval-2025 n° 7 ;
+- rédaction de la méthodologie publique (dont : « le pouvoir en place sera plus
+  vérifié, quel qu'il soit »).
 
 ## Points à vérifier avant implémentation (techniques)
 

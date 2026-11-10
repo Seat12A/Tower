@@ -189,10 +189,25 @@ un événement. Une dépêche reprise par dix titres compte pour une seule sourc
 
 ## Registre de fiabilité des sources
 
-Table `source_registry` : domaine enregistrable → niveau (primaire, secondaire,
-tertiaire, à éviter), type (institution, agence, presse, encyclopédie, fact-checker,
-plateforme), pays, motif, origine, date de revue. Versionnée, éditable par les éditeurs
-depuis Discord.
+Table `source_registry` : éditeur et domaine enregistrable → niveau (primaire,
+secondaire, tertiaire, à éviter), type (institution, agence, presse, encyclopédie,
+fact-checker, plateforme), pays, motif, origine, date de revue. Versionnée, éditable
+par les éditeurs depuis Discord. Deux attributs ajoutés après l'avis de Fable
+([reponses-fable.md](reponses-fable.md), Q11) :
+
+- `controlled_by` : l'entité qui contrôle l'éditeur (État, parti, groupe), utilisée
+  par la règle fermée des sources partie prenante ([pipeline.md](pipeline.md), E7).
+  Ce registre de relations de contrôle est un choix humain : il est **versionné et
+  publié** ;
+- `statutory_independence` : un organisme statistique produisant sous indépendance
+  statutaire voit ses chiffres acceptés seuls. L'attribut repose sur des **critères
+  externes** plutôt que sur un jugement de l'équipe. Candidats, **à vérifier** :
+  adhésion aux normes de diffusion des données du FMI, revues par les pairs
+  d'Eurostat.
+
+L'indépendance entre sources se mesure **par origine** (l'entité à qui l'information
+est attribuée), pas par domaine : deux journaux qui relaient le même communiqué
+comptent pour une seule source.
 
 | Niveau | Exemples | Critère |
 |---|---|---|

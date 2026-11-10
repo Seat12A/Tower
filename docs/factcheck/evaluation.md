@@ -46,15 +46,17 @@ mesurer regroupement et application du verdict), et plus tard un **corpus média
 | E5 | Précision du signal « probablement faux » | à fixer |
 | E6 | Qualité du cadrage (bonne définition, bonne période) jugée par relecteur | ≥ 90 % |
 | E7 | Part des affirmations tranchées sans recherche web payante | ≥ 50 % (V1), ≥ 70 % (V3) |
-| E8 | Exactitude du verdict ; taux d'abstention ; accord juge-contradicteur | à fixer sur la référence |
+| E8 | Exactitude du verdict ; taux d'abstention ; accord juge-second avis (de fond et de style, par fournisseur) ; taux d'escalade | à fixer sur la référence |
 | E9 | Citations valides ; notes de contexte acceptées sans modification | 100 % (contrôle déterministe) ; à mesurer |
-| E10 | Calibration (courbe de fiabilité mensuelle) | écart moyen < 0,1 |
+| E10 | Calibration (courbe de fiabilité mensuelle) ; part des confiances ≥ 0,80 effectivement acceptées | écart moyen < 0,1 |
+| E2 (lots) | Taux d'omission mesuré par le rejeu solo de 2 % ; contamination des canaris | ~3 % ± 1,5 point, à faire baisser ; 0 |
+| E3 (signature) | Erreurs d'extraction de signature sur 50 paires pièges | à fixer |
 | E11 | Temps de relecture ; coût par brouillon accepté | à suivre |
 
 **Métrique reine** : taux de **faux confiants** (« Vrai » ou « Faux » erroné avec
 confiance ≥ 0,8). Cible proche de zéro, quitte à augmenter l'abstention.
 
-## Neutralité : quatre mesures
+## Neutralité : cinq mesures
 
 1. **Permutation** : rejouer le jeu en attribuant chaque affirmation à des auteurs de
    bords opposés. Comme le juge ne voit pas l'auteur, tout écart révèle une fuite
@@ -65,8 +67,12 @@ confiance ≥ 0,8). Cible proche de zéro, quitte à augmenter l'abstention.
    neutre par un euphémisme ou un dysphémisme ne doit pas changer l'issue.
 4. **Parité en production** : par bord (étiquettes de la table séparée, lues par
    l'analytique seule), à portée et thème égaux : taux de passage à chaque étage,
-   distribution des issues, délais, taux d'acceptation par les relecteurs. Tableau de
-   bord mensuel.
+   distribution des issues, délais, taux d'acceptation par les relecteurs. Indicateur
+   principal : rapport brouillons ÷ affirmations vérifiables observées, à rôle et
+   décile de portée égaux ; alerte si l'écart entre deux bords dépasse **1,25 sur un
+   trimestre**. Tableau de bord mensuel.
+5. **Ce que la sélection rate** : chaque mois, 30 groupes non promus tirés au hasard
+   reçoivent une enquête complète.
 
 Limite à écrire noir sur blanc : la composition de la liste des comptes suivis et de
 la table des thèmes à risque biaise la sélection avant tout verdict. Elle est publiée
@@ -90,7 +96,7 @@ mesure le justifie.
 
 ## Audit hebdomadaire (Fable)
 
-Un lot hebdomadaire `claude-fable-5-2` relit les désaccords (juge contre contradicteur,
+Un lot hebdomadaire `claude-fable-5-2` relit les désaccords (juge contre second avis,
 juge contre relecteur, deux passes du juge), propose des réglages de seuils et de
 prompts, et génère des cas pièges pour le jeu de référence. Ses propositions sont des
 **suggestions** soumises à l'équipe, jamais appliquées automatiquement.

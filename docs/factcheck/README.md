@@ -30,11 +30,12 @@ vérifié est signalé « à vérifier ».
 
 1. **On vérifie des affirmations et des récits, pas des posts.** Les milliers de
    variantes d'une même rumeur se ramènent à un groupe d'affirmations, puis à un
-   **récit**. Une seule enquête sert tout le récit.
+   **récit**. Un récit partage un dossier de preuves ; chaque variante reçoit son
+   propre verdict, calculé à bas coût sur ce dossier.
 2. **Le moins cher est l'absence de modèle, puis le token gratuit.** Le code
    (normalisation, empreintes, classifieur en Python pur) écarte la majorité du flux.
    Les petits rôles (extraction, arbitrage, vérification légère, rédaction des
-   requêtes, contradicteur) passent par les modèles OpenAI couverts par le programme de
+   requêtes, second avis aveugle) passent par les modèles OpenAI couverts par le programme de
    tokens gratuits. Anthropic n'intervient que pour le jugement et la rédaction.
 3. **Connaissance structurée d'abord, recherche web en dernier.** Un étage
    « Atlas » interroge dans l'ordre : nos fiches de faits, les fact-checks existants
@@ -69,12 +70,20 @@ vérifié est signalé « à vérifier ».
    des sources : chaque traitement enregistre les versions utilisées. Les appels aux
    modèles sont mis en cache par contenu : un rejeu ne coûte rien.
 
-Coût estimé en régime établi, au volume supposé : **environ 78 $ par mois** d'IA et de
-recherche, hors API X (87 $ dans le plan de Fable). Le flux de masse passe d'environ
-20 $ à environ 2 $ ; l'économie est réinvestie dans la qualité (cadrage, rédaction,
-seconde passe du juge, contradicteur systématique en N3). Il faut y ajouter environ
-2,5 $ par mois de RAM pour un réplica de fact-check. Si le programme de tokens gratuits
-s'arrête : environ +19 $ par mois. Détail : [couts.md](couts.md).
+Coût estimé en régime établi, au volume supposé : **environ 63 à 91 $ par mois** d'IA
+et de recherche selon le taux d'escalade (77 $ à 25 %), hors API X (87 $ dans le plan
+de Fable). Le flux de masse passe d'environ 20 $ à environ 2 $ ; l'économie est
+réinvestie dans le cadrage et la rédaction. Il faut y ajouter environ 2,5 $ par mois de
+RAM pour un réplica de fact-check. Si le programme de tokens gratuits s'arrête :
+environ +25 $ par mois. Détail : [couts.md](couts.md).
+
+**Arbitrages de Fable intégrés** ([reponses-fable.md](reponses-fable.md)) : profondeur
+d'enquête uniforme avec escalade par difficulté (le rôle public n'achète que la
+surveillance et la latence), second avis aveugle au lieu d'un contradicteur, lots de
+10 avec préfixe court, verdicts indexés par fiche et bande de valeurs, récits qui
+partagent des preuves et non des verdicts, détection de vague par part du flux,
+notes de contexte rattachées à des objets, indépendance des sources mesurée par
+origine.
 
 ## Sommaire
 
@@ -94,21 +103,22 @@ s'arrête : environ +19 $ par mois. Détail : [couts.md](couts.md).
 | [evaluation.md](evaluation.md) | Jeu de référence, métriques, tests de neutralité, rejeu |
 | [feuille-de-route.md](feuille-de-route.md) | Lots de livraison, critères chiffrés de passage |
 | [questions.md](questions.md) | Questions pour Jules |
-| [questions-fable.md](questions-fable.md) | Brief et questions d'architecture à soumettre à Fable |
+| [questions-fable.md](questions-fable.md) | Brief et questions d'architecture soumis à Fable |
+| [reponses-fable.md](reponses-fable.md) | Réponses de Fable (2026-11-10), archivées |
 | [recherche.md](recherche.md) | Sources consultées, ce qu'on en retient, dates de vérification |
 
 ## Écarts avec le plan de Fable
 
 | Sujet | Plan de Fable | Ce plan | Raison |
 |---|---|---|---|
-| Fournisseurs | Anthropic seul | OpenAI (petits rôles, tokens gratuits) + Anthropic (jugement, rédaction) | Tokens gratuits OpenAI ; contradicteur d'un autre fournisseur, donc erreurs décorrélées |
+| Fournisseurs | Anthropic seul | OpenAI (petits rôles, tokens gratuits) + Anthropic (jugement, rédaction) | Tokens gratuits OpenAI ; second avis d'un autre fournisseur, donc erreurs décorrélées |
 | Embeddings | Modèle local (bge-m3, e5) sur CPU | API OpenAI `text-embedding-3-small`, 512 dimensions | Sur Railway, 2 Go de RAM coûtent environ 20 $/mois ; l'API coûte moins de 1 $/mois au volume supposé |
 | Sources | Recherche web + fiches de référence | Atlas : sources structurées intégrées avant toute recherche web | Coût, fiabilité ; une étude 2025 montre que le contexte curé surpasse la recherche web (voir [recherche.md](recherche.md)) |
 | Contexte | Issue « Contexte manquant » | Axe séparé : note de contexte typée, possible quel que soit le verdict | Demande de Jules ; modèle des notes de la communauté |
 | Recul | Implicite dans le juge | Étage de cadrage dédié (E6) | Les erreurs viennent souvent d'une mauvaise lecture de l'affirmation |
 | Niveaux | 4 profils (Masse, Viral, Ciblé, Critique) | 5 niveaux N0 à N4, mêmes profils + N0 explicite, rétrogradation | Lisibilité, coût ; le niveau est la clé de tous les réglages |
 | Rumeurs | Groupes d'affirmations | Groupes + récits + mode vague | Demande de Jules : traiter une rumeur qui explose |
-| Triage | Haiku par lot | Micro-lots de 10 à 20 posts par appel OpenAI | Divise par 5 environ les tokens consommés ; tient dans le quota gratuit |
+| Triage | Haiku par lot | Lots de 10 posts (plafond 12) par appel OpenAI, préfixe de 900 tokens, composition par dissemblance | Divise par 5 environ les tokens consommés ; tient dans le quota gratuit |
 | Plateformes | X | Modèle générique `content_items` + adaptateurs | Autres plateformes prévues |
 | Périmètre géographique | Francophone, sources françaises | Toutes langues, tous pays : juridiction par affirmation, registres de sources par pays | Demande de Jules |
 | Médias | Hors périmètre | Table `media_assets` et étages M0 à M2 prévus, livrés plus tard | Images et vidéos prévues |

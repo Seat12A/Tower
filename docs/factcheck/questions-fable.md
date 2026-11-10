@@ -1,5 +1,8 @@
 # Questions d'architecture pour Fable
 
+**Répondu le 2026-11-10** : voir [reponses-fable.md](reponses-fable.md) ; arbitrages
+reportés dans [../decisions.md](../decisions.md).
+
 Brief autonome, à transmettre tel quel à Fable. Il suppose que Fable connaît son propre
 plan du 10 novembre 2026 (cascade E0 à E8, profils Masse, Viral, Ciblé, Critique),
 mais pas le plan d'implémentation qui en découle.

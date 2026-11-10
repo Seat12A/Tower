@@ -4,81 +4,140 @@ Une rumeur qui explose ne ressemble pas à un post isolé : ce sont des milliers
 posts, sur plusieurs plateformes, qui reformulent la même chose avec des variantes
 (chiffres arrondis, image recadrée, traduction, ajout d'une anecdote). Traiter chaque
 post serait ruineux et produirait des verdicts incohérents. Le système doit
-**reconnaître la vague tôt, enquêter une fois, appliquer partout, tenir la charge**.
+**reconnaître la vague tôt, collecter les preuves une fois, juger chaque variante à bas
+coût, tenir la charge**.
+
+Règles revues après l'avis de Fable ([reponses-fable.md](reponses-fable.md), Q4 à Q6).
+
+## Un récit partage des preuves, pas un verdict
+
+Le récit a deux fonctions qu'on sépare :
+
+| Fonction | Exigence de regroupement | Assurée par |
+|---|---|---|
+| **Compter et détecter** (vélocité, alerte, vue d'ensemble pour l'équipe) | Lâche : mieux vaut un récit un peu large qu'une vague fragmentée | Rattachement des groupes aux récits (ci-dessous) |
+| **Appliquer un verdict** | Strict : une variante différente ne doit jamais hériter d'un verdict qui ne la concerne pas | La signature et les bandes de valeurs, au niveau du **groupe** ([pipeline.md](pipeline.md), E3) |
+
+Le récit porte un **dossier de preuves** (passages collectés, fiches de référence,
+notes de contexte rattachées à des objets) que toutes ses variantes réutilisent. Chaque
+groupe du récit reçoit **son propre verdict**, calculé à bas coût sur ce dossier.
 
 ## Trois niveaux de regroupement
 
 | Niveau | Contenu | Exemple | Partage |
 |---|---|---|---|
-| Copie | Posts au texte quasi identique (SimHash) | Le même message copié par 300 comptes | Mêmes affirmations, sans appel de modèle |
-| Groupe d'affirmations | Affirmations à signature compatible | « 12 000 migrants arrivés hier à Calais » et « plus de 10 000 migrants hier à Calais » | Même verdict (si les valeurs sont compatibles) |
-| **Récit** | Groupes qui racontent la même histoire, même avec des affirmations différentes | « Les migrants de Calais ont reçu des logements sociaux » + « La mairie de Calais a expulsé des familles pour loger des migrants » + photo d'un camp présentée comme récente | Même enquête de fond, même note de contexte de base, même alerte |
+| Copie | Posts au texte quasi identique (SimHash, distance ≤ 3) | Le même message copié par 300 comptes | Mêmes affirmations, sans appel de modèle |
+| Groupe d'affirmations | Affirmations qui se résolvent vers la même fiche et la même bande de valeurs | « 12 000 migrants arrivés hier à Calais » et « 12 000 migrants hier à Calais » | Même verdict |
+| **Récit** | Groupes qui racontent la même histoire | « Les migrants de Calais ont reçu des logements sociaux » + « La mairie a expulsé des familles pour les loger » + photo d'un camp présentée comme récente | Même dossier de preuves, même alerte, verdicts distincts |
 
-Le **récit** est nouveau par rapport au plan de Fable. Il regroupe des groupes
-d'affirmations :
+## Rattachement d'un groupe à un récit
 
-- par proximité d'embedding du centroïde des groupes, dans une fenêtre de temps ;
-- par co-occurrence (les mêmes posts ou les mêmes comptes portent plusieurs groupes) ;
-- par entités partagées (lieu, personne, événement) ;
-- par médias partagés (même image ou même vidéo, voir
-  [plateformes-medias.md](plateformes-medias.md)).
+Incrémental (pas de regroupement global recalculé chaque nuit). Un groupe rejoint un
+récit si les **trois** conditions sont réunies :
 
-Le rattachement est **incrémental** (pas de regroupement global recalculé chaque nuit,
-écarté par Fable pour l'instabilité des groupes). Les fusions et scissions de récits
-sont journalisées et réversibles, comme celles des groupes. Un récit a un titre court
-neutre rédigé par un petit modèle et validé par un relecteur.
+1. **Au moins deux signaux sur quatre**, dont au moins un non sémantique :
+   - sémantique : proximité d'un des médoïdes du récit (ci-dessous) ;
+   - co-occurrence : les deux affirmations apparaissent ensemble dans au moins 3 posts
+     de plus de 3 comptes distincts ;
+   - entité partagée ;
+   - média partagé.
+2. **Au moins une ancre spécifique partagée** :
+   - une entité rare, pondérée par sa rareté sur 30 jours (« Calais » est une ancre,
+     « immigration » n'en est pas une) ;
+   - un média non générique ;
+   - un lien.
+   Un média vu dans de nombreux récits sans rapport (mème, logo) est exclu des ancres.
+3. **Proximité d'un médoïde** : tout membre doit rester proche d'au moins un médoïde.
+
+### Médoïdes plutôt que centroïde
+
+Un centroïde dérive à mesure que des groupes s'ajoutent. Le récit est représenté par
+**1 à 3 médoïdes**, qui sont des affirmations réelles :
+- le groupe fondateur, fixe ;
+- les deux groupes à plus forte portée, réélus au plus une fois par jour.
+
+### Bornes
+
+- **Clôture** après 7 jours sans activité. Une résurgence ultérieure crée un nouveau
+  récit, lié à l'ancien et qui hérite de son dossier de preuves.
+- **Scission proposée** au relecteur au-delà de 25 groupes, ou quand deux
+  sous-ensembles ne tiennent ensemble que par un seul groupe (pont).
+- Fusions et scissions journalisées et réversibles. Le risque restant (une ancre
+  partagée par hasard, comme un nom de ville dans deux affaires) est couvert par
+  cette réversibilité.
+
+Un récit a un titre court et neutre, rédigé par un petit modèle et validé par un
+relecteur.
 
 ## Détection d'une vague
 
-L'ordonnanceur E4 calcule toutes les 2 minutes, par récit, des agrégats SQL sur
-fenêtres glissantes (5 min, 1 h, 6 h) :
+### Score
 
-| Signal | Mesure |
-|---|---|
-| Vélocité | nouveaux posts par fenêtre, rapportés à la moyenne du récit et à la moyenne du thème |
-| Accélération | rapport entre la fenêtre courante et la précédente |
-| Diversité | nombre de comptes distincts, d'installations distinctes, de plateformes |
-| Portée | vues et engagement cumulés (estimés, confirmés par une lecture API sur un post représentatif) |
-| Mutation | nouveaux groupes rattachés au récit dans la dernière heure (la rumeur se déforme) |
+L'ordonnanceur E4 calcule toutes les 2 minutes, par récit, sur des fenêtres de 5 min,
+1 h et 6 h :
 
-Le score de vague combine ces signaux par un **z-score robuste** (médiane et écart
-absolu médian sur l'historique du thème) : on détecte un pic par rapport à la normale,
-pas un volume absolu. Trois paliers :
+- la **part du flux observé** : posts du récit ÷ posts observés sur la même fenêtre.
+  Cette normalisation neutralise la croissance de la base d'utilisateurs, le cycle
+  jour-nuit et l'arrivée de nouvelles plateformes, sans jeton d'installation ;
+- la diversité (comptes distincts) ;
+- l'accélération (rapport à la fenêtre précédente).
 
-| Palier | Condition indicative | Effet |
+L'écart à l'attendu suit une forme de type Poisson avec plancher :
+`(observé − attendu) ÷ √(attendu + 5)`. Ce choix remplace le z-score robuste, qui
+dégénère sur des comptages creux : la plupart des fenêtres de 5 min valent zéro, donc
+leur médiane et leur écart absolu médian aussi. Des **planchers absolus** restent une
+condition nécessaire en permanence.
+
+### Paliers
+
+| Palier | Condition de départ | Effet |
 |---|---|---|
-| Veille | z ≥ 3 sur la vélocité 1 h | Récit marqué, facteur de priorité × 2 |
-| Vague | z ≥ 5, ou ≥ 3 plateformes, ou reprise par un compte N3 | Mode vague (ci-dessous), niveau N2 minimum |
-| Alerte | z ≥ 8, ou thème sous surveillance (santé, élections, sécurité, catastrophe) | Niveau N4, alerte Discord immédiate |
+| **Veille** | ≥ 1 % du flux de l'heure et ≥ 10 comptes distincts | Récit marqué, facteur de priorité × 2 |
+| **Vague** | ≥ 3 % du flux, ≥ 30 comptes et doublement par rapport à l'heure précédente ; **ou** palier veille franchi séparément sur 2 plateformes ; **ou** reprise par un compte N3 | Mode vague (ci-dessous), niveau N2 minimum |
+| **Alerte** | ≥ 8 % du flux et ≥ 80 comptes, ou thème sous surveillance (santé, élections, sécurité, catastrophe) | Niveau N4, alerte Discord immédiate |
 
-Les seuils se calibrent sur l'historique réel une fois l'ingestion en place.
+### Calibration progressive
+
+| Phase | Règle |
+|---|---|
+| Jusqu'à 1 000 récits clos | Seuils absolus ci-dessus |
+| Au-delà | Quantiles globaux : « top 1 % des récits au même âge » |
+| À partir de 300 récits clos dans un thème | Quantiles par thème, rétrécis vers le global |
+
+Piège : tout changement des filtres serveur de l'extension (mots-clés, comptes,
+seuils) ressemble à une vague. Les filtres sont **versionnés**, et les bases de
+comparaison sont gelées pendant 24 h après chaque changement.
+
+Risque restant : deux vagues simultanées gonflent le dénominateur et s'atténuent
+l'une l'autre. Les planchers absolus limitent l'effet.
 
 ## Mode vague
 
 Quand un récit entre en vague :
 
-1. **Une enquête, pas mille.** L'ordonnanceur choisit le groupe représentatif du récit
-   (le plus repris, le plus précis) et lance **une** enquête au niveau du récit. Les
-   autres groupes du récit sont jugés ensuite par comparaison de signature et fiche de
-   référence (coût de E5), ou par une mini-enquête qui réutilise les passages déjà
-   collectés.
-2. **Voie rapide.** File dédiée `fc-surge` (ou priorité maximale dans `fc-deep`),
-   quota de brouillons **réservé** et séparé du quota quotidien (par exemple 3 par
-   jour), budget puisé dans la réserve de N4.
-3. **Note de contexte d'abord.** En pleine vague, les faits sont souvent incomplets.
-   Le premier brouillon peut être une **note de contexte** prudente (« L'image date de
-   2019, elle a été prise à… », « Aucune source officielle ne confirme à cette
-   heure… ») avant un verdict complet. La note précise l'heure de vérification.
-4. **Application à toutes les variantes.** Une fois validé, le verdict ou la note
-   s'applique à tous les groupes du récit dont la signature est compatible ; les
-   nouvelles variantes qui arrivent sont rattachées et héritent du verdict sans
-   nouvelle enquête (surveillance passive). Les variantes incompatibles (valeur
-   différente, autre lieu) sont signalées au relecteur au lieu d'être couvertes
-   silencieusement.
-5. **Revalidation rapprochée.** Pendant une vague, la péremption est courte (situation
-   en cours : 6 à 24 h) : un job relit les sources toutes les quelques heures et
-   signale tout changement.
-6. **Fin de vague.** Quand le score retombe sous le palier « veille » pendant 6 h :
+1. **Collecte unique.** L'ordonnanceur choisit le groupe représentatif (le plus repris,
+   le plus précis) et lance une enquête complète. Ses passages, fiches et notes
+   alimentent le **dossier de preuves** du récit.
+2. **Variantes jugées à bas coût.** Les autres groupes du récit sont jugés sur ce
+   dossier, à la façon de la vérification légère E5 (petit modèle, sans nouvelle
+   collecte sauf manque explicite). Seules les variantes **à forte portée** montent
+   au relecteur : signaler chaque variante incompatible saturerait les quelque 12
+   relectures quotidiennes.
+3. **Voie rapide.** File `fc-surge` (ou priorité maximale dans `fc-deep`), quota de
+   brouillons **réservé** et séparé du quota quotidien (3 par jour au départ), budget
+   puisé dans la réserve de N4.
+4. **Note provisoire d'abord.** En pleine vague, les faits sont souvent incomplets. Le
+   premier brouillon peut être une note de type `developing` (« Aucune source
+   officielle ne confirme à cette heure… »). Elle est **horodatée**, expire en 6 h au
+   plus sans revalidation, et n'est **jamais héritée** après expiration (voir
+   [contexte.md](contexte.md)).
+5. **Héritage strict.** Un verdict validé ne s'applique qu'aux groupes de même
+   signature normalisée ou de même bande de valeurs validée. Une note rattachée à un
+   objet (par exemple la date réelle d'une image) s'applique partout où l'objet
+   apparaît et où la présentation le contredit.
+6. **Revalidation rapprochée.** Pendant une vague, la péremption est courte (situation
+   en cours : 6 à 24 h) ; un job relit les sources toutes les quelques heures.
+7. **Fin de vague.** Quand le récit repasse sous le palier « veille » pendant 6 h :
    `narrative.surge_ended`, retour aux niveaux normaux, rapport de vague (durée, posts,
    plateformes, coût, délai jusqu'au premier brouillon).
 
@@ -94,26 +153,47 @@ qualification relève de l'équipe) :
   par installation, confirmation par l'API avant toute promotion) ;
 - même média réutilisé avec des légendes contradictoires.
 
-Ces signaux apparaissent dans le brouillon comme **informations de contexte pour le
-relecteur**. Ils ne modifient jamais le verdict : un contenu vrai partagé de façon
+Ces signaux apparaissent dans le brouillon comme informations de contexte pour le
+relecteur. Ils ne modifient jamais le verdict : un contenu vrai partagé de façon
 coordonnée reste vrai. Ils ne dépendent pas du bord politique supposé des comptes.
 
 ## Tenir la charge pendant une vague
 
-Une vague peut multiplier le flux par 10 ou 100 en quelques heures. Le système ne doit
-ni exploser la RAM, ni exploser le budget.
-
 | Risque | Parade |
 |---|---|
-| Flot d'insertions | `observations` : au-delà d'un seuil par contenu, on agrège en **compteurs** (par contenu, par heure, par source) au lieu d'une ligne par observation. Les copies exactes (même empreinte) n'insèrent qu'un compteur. |
-| Flot d'extractions | Les copies (SimHash) et quasi-doublons (E1) héritent des affirmations sans appel de modèle. En vague, la part de copies est justement très élevée. |
-| Coût des modèles | Une seule enquête par récit ; budget de vague plafonné ; au-delà, les variantes attendent la fin de l'enquête principale. |
-| Files saturées | Contre-pression : l'ordonnanceur n'enfile pas plus que la capacité mesurée de chaque file ; les jobs N1 sont différés (lot suivant) avant les N3/N4. |
-| Échantillonnage | Au-delà d'un débit par récit (par exemple 200 posts par minute), seul un échantillon aléatoire stratifié (par plateforme et par heure) passe en E2 ; le reste est compté. Les estimations de portée restent justes, le coût reste borné. |
-| RAM | Aucun état en mémoire : tout est en base, chaque réplica traite des lots courts. Plus de réplicas hangar si besoin, sans changer le code. |
-| Lectures API payantes | Une lecture par récit représentatif et par fenêtre, jamais par post. |
+| Flot d'insertions | `observations` (table partitionnée) : au-delà d'un seuil par contenu, agrégation en **compteurs** par contenu, heure et source ; les copies exactes n'insèrent qu'un compteur |
+| Flot d'extractions | Copies (SimHash) et quasi-doublons héritent des affirmations sans appel de modèle ; en vague, la part de copies est très élevée |
+| Coût des modèles | Une collecte par récit ; variantes jugées sur le dossier ; budget de vague plafonné |
+| Files saturées | Contre-pression : l'ordonnanceur n'enfile pas plus que la capacité mesurée de chaque file ; les jobs N1 sont différés avant les N3/N4 |
+| Échantillonnage | Au-delà d'un débit par récit (200 posts par minute au départ), seul un échantillon aléatoire stratifié (plateforme, heure) passe en extraction ; le reste est compté |
+| RAM | Aucun état en mémoire : tout est en base, lots courts, réplicas ajoutés par configuration |
+| Lectures API payantes | Une lecture par récit représentatif et par fenêtre, jamais par post |
+
+### Ne pas rater la variante qui relance la vague
+
+L'échantillonnage aléatoire peut rater **la** nouveauté décisive (un nouveau chiffre,
+une nouvelle accusation, une vidéo). Mais une voie « nouveauté » sans garde serait une
+cible : un attaquant pourrait générer des chiffres aléatoires pour vider le budget (à
+200 posts par minute, l'extraction épuiserait l'allocation du jour en 40 minutes).
+
+Le déclencheur est donc **une nouveauté qui prend**, pas une nouveauté vue une fois :
+
+1. **Empreinte de chaque nouveauté**, calculée par du code : chiffre normalisé, lien,
+   mention, hachage de média, entité.
+2. **Passage forcé** quand une empreinte atteint 3 posts de 3 comptes distincts, ou
+   qu'un post dépasse le 90e centile d'engagement du récit.
+3. **Un seul exemplaire** part en extraction : le post le plus engagé.
+4. **Plafond** de 20 % du budget de tokens du récit, classement par
+   soutien × engagement.
+
+Le coût suit alors le nombre de variantes émergentes, quelques-unes par heure. La
+détection d'entités sans modèle étant faible hors alphabet latin, elle est complétée
+par la distance aux médoïdes.
 
 ## Données
 
-Tables `narratives`, `narrative_groups` (lien groupe ↔ récit, avec historique) et
-`narrative_stats` (agrégats par fenêtre), décrites dans [donnees.md](donnees.md).
+Tables `narratives` (médoïdes, état, dates d'ouverture et de clôture, lien vers le récit
+précédent en cas de résurgence), `narrative_groups` (lien groupe ↔ récit, avec
+historique), `narrative_stats` (agrégats par fenêtre), `narrative_novelty`
+(empreintes de nouveautés et leurs compteurs) et `extension_filter_versions`. Voir
+[donnees.md](donnees.md).

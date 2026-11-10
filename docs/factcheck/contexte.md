@@ -34,20 +34,38 @@ Exemples :
 Liste fermée, utilisée par E2 (indices), E6 (cadrage), E8 (jugement) et E9 (rédaction).
 Chaque type a une **consigne de rédaction** et des **sources attendues**.
 
-| Code | Type | Signal typique | Source attendue |
-|---|---|---|---|
-| `outdated` | Information ou chiffre périmé | Chiffre ancien présenté comme actuel | Dernière publication de la source |
-| `recycled_media` | Image ou vidéo recyclée | Média plus ancien que l'événement | Première apparition du média (voir [plateformes-medias.md](plateformes-medias.md)) |
-| `cherry_picking` | Période, échantillon ou point de comparaison choisis | « Depuis 2023 », « record » | Série longue, comparaisons |
-| `missing_baseline` | Absolu contre relatif, rapport à la population | « 10 000 cas » sans dénominateur | Population, taux |
-| `truncated_quote` | Citation tronquée ou hors contexte | Citation courte entre guillemets | Transcription ou vidéo complète |
-| `causation` | Corrélation présentée comme causalité | « À cause de », « depuis que » | Études, consensus |
-| `definition` | Définition ambiguë ou changeante | Chômage, pauvreté, immigré ou étranger, délinquance | Définition officielle de la source |
-| `geography` | Autre pays ou autre territoire | Chiffre étranger appliqué à la France | Source du pays |
-| `procedure` | Procédure en cours présentée comme achevée | Projet de loi, enquête, mise en examen | Légifrance, dossier législatif, communiqué judiciaire |
-| `scientific_uncertainty` | Consensus ou incertitude scientifique | Étude isolée, prépublication | Revues, agences sanitaires |
-| `satire` | Satire ou parodie prise au premier degré | Compte parodique, site satirique | Source d'origine |
-| `missing_event_context` | Fait exact sans les circonstances | Vidéo coupée, chronologie partielle | Couverture de référence |
+Taxonomie à **15 types**, revue avec Fable ([reponses-fable.md](reponses-fable.md),
+Q10). Chaque type a un **régime** de réutilisation (voir plus bas).
+
+| Code | Type | Signal typique | Source attendue | Régime |
+|---|---|---|---|---|
+| `outdated` | Information ou chiffre périmé | Chiffre ancien présenté comme actuel ; détecté sans modèle quand la valeur correspond à la fiche précédente de l'indicateur | Dernière publication de la source | Objet (indicateur) |
+| `recycled_media` | Média authentique recyclé | Média plus ancien que l'événement | Première apparition du média (voir [plateformes-medias.md](plateformes-medias.md)) | Objet (média) |
+| `manipulated_media` | Média retouché, monté ou généré | Incohérences, version d'origine différente | Version d'origine, analyse de provenance (jamais un détecteur seul) | Objet (média) |
+| `cherry_picking` | Période, échantillon ou point de comparaison choisis | « Depuis 2023 », « record » | Série longue, comparaisons | Formulation (groupe) |
+| `missing_baseline` | Absolu contre relatif, rapport à la population | « 10 000 cas » sans dénominateur | Population, taux | Formulation (groupe) |
+| `quote_integrity` | Citation tronquée, mal attribuée ou inventée | Citation courte entre guillemets | Transcription ou vidéo complète | Objet (citation) |
+| `misrepresented_source` | La source invoquée ne dit pas cela | « Selon une étude… », « l'INSEE dit que… » | Le document cité lui-même | Objet (document cité) |
+| `causation` | Corrélation présentée comme causalité | « À cause de », « depuis que » | Études, consensus | Formulation (groupe) |
+| `definition` | Définition ambiguë ou changeante | Chômage, pauvreté, immigré ou étranger, délinquance | Définition officielle de la source | Objet (indicateur) |
+| `scope` | Autre territoire ou autre population | Chiffre étranger appliqué à la France, chiffre d'une catégorie appliqué à tous | Source du territoire ou de la population | Formulation (groupe) |
+| `procedure` | Procédure en cours présentée comme achevée | Projet de loi, enquête, mise en examen | Légifrance, dossier législatif, communiqué judiciaire | Objet (texte juridique avec version, événement) |
+| `scientific_uncertainty` | Consensus ou incertitude scientifique | Étude isolée, prépublication | Revues, agences sanitaires | Formulation (groupe) |
+| `satire` | Origine satirique reprise au premier degré | Compte parodique, site satirique | Contenu satirique d'origine | Objet (contenu d'origine) |
+| `missing_event_context` | Fait exact sans les circonstances | Vidéo coupée, chronologie partielle | Couverture de référence | Objet (événement) |
+| `developing` | Situation en cours, faits non établis | « Aucune source officielle ne confirme à cette heure » | Communiqués, couverture en direct | **Provisoire** |
+
+### Trois régimes de réutilisation
+
+| Régime | Règle | Exemple |
+|---|---|---|
+| **Objet** | La note est rattachée à un **objet** (média, indicateur, texte juridique avec version, événement, document cité, citation) et s'applique partout où l'objet apparaît **et** où la présentation le contredit | La date réelle d'une photo vaut pour tous les posts qui la portent avec une autre date |
+| **Formulation** | La note est liée au **groupe** : elle répond à une façon de présenter les faits | Une période choisie dans un graphique |
+| **Provisoire** | Note horodatée, **expire en 6 h au plus** sans revalidation, **jamais héritée** après expiration | « À cette heure, aucune source officielle ne confirme… » |
+
+Conséquence technique : les notes sur une image supposent une empreinte perceptuelle
+calculée **dès l'ingestion**, même si la lecture d'images (OCR, description) arrive
+plus tard ([plateformes-medias.md](plateformes-medias.md)).
 
 ## Format d'une note de contexte
 
@@ -69,8 +87,8 @@ lecteurs de sensibilités différentes) :
 Avant le relecteur, chaque note passe :
 
 1. les contrôles déterministes d'E9 (citations, liens, longueur, lexique chargé) ;
-2. un **test de pontage** par un modèle critique (rôle `contradictor`, autre
-   fournisseur que le rédacteur) avec une grille fermée : la note serait-elle jugée
+2. un **test de pontage** par un modèle critique (rôle `critic`, autre fournisseur
+   que le rédacteur) avec une grille fermée : la note serait-elle jugée
    utile et juste par un lecteur qui partage l'opinion du post et par un lecteur qui
    la rejette ? Contient-elle une opinion, une généralisation, un mot chargé, un fait
    non sourcé ? Le critique ne réécrit pas, il signale ;
@@ -136,7 +154,7 @@ permet de comprendre l'ironie, la réfutation ou la citation sans lire le texte 
 | Note de contexte | Texte proposé (≤ 280 caractères) |
 | Justification | Assertions avec citations exactes et liens |
 | Ce que les sources ne disent pas | Liste |
-| Points à vérifier en priorité | Liste du juge + désaccords juge-contradicteur ou entre les deux passes |
+| Points à vérifier en priorité | Liste du juge + objection typée du second avis en cas de désaccord de fond + désaccord entre les deux passes du juge |
 | Contexte du compte | (N3/N4) récidive, verdicts antérieurs, corrections publiées |
 | Signaux de coordination | (si vague) informations pour le relecteur |
 | Actions | Valider, corriger, rejeter, scinder le groupe, changer l'issue, forcer un niveau |

@@ -19,9 +19,11 @@ avant le lot V1.
 | `entity_political_labels` | Étiquette de bord, grille, auteur, date | **Table séparée**, lue par l'analytique seule, jamais par le pipeline (droit d'accès SQL distinct) |
 | `platform_accounts` | Plateforme, identifiant natif, pseudo, entité éventuelle | |
 | `watched_accounts` | Compte suivi : catégorie, priorité, curseur de lecture (`since`), actif | Liste publiée |
-| `content_items` | Voir [plateformes-medias.md](plateformes-medias.md) ; `UNIQUE (platform, external_id)` ; empreinte exacte, SimHash et bandes | Index partiel sur `x_post_id` |
+| `content_items` | Voir [plateformes-medias.md](plateformes-medias.md) ; clé interne `BIGINT` ; `UNIQUE (platform, external_id)` ; empreinte exacte, SimHash et bandes | **Non partitionnée** ; index sur expression pour les IDs X |
+| `content_embeddings` | Vecteur du post (`halfvec(512)`), modèle | Partitionnée par semaine, **sans index vectoriel**, conservée 14 jours |
 | `content_snapshots` | Copie du contenu à un instant (ouverture de dossier, revérification) | Déjà prévu par le socle |
-| `observations` | Source (extension, radar, flux), installation, horodatage | Au-delà d'un seuil par contenu, agrégée en compteurs |
+| `observations` | Source (extension, radar, flux), installation, horodatage, version des filtres de l'extension | **Partitionnée** (par semaine ou par mois) ; au-delà d'un seuil par contenu, agrégée en compteurs |
+| `extension_filter_versions` | Version des filtres serveur de l'extension, date | Gel des bases de détection de vague 24 h après un changement |
 | `observation_counters` | Contenu, heure, source, nombre | Tenue en charge des vagues |
 | `installations` | Jeton anonyme haché, quotas, poids | |
 | `media_assets`, `content_media` | Médias et liens | Lot multimodal |
@@ -30,14 +32,16 @@ avant le lot V1.
 
 | Table | Contenu |
 |---|---|
-| `claims` | Texte canonique dans la langue d'origine (`lang_original`, `text_original`) et en français pivot (`text_fr`), ≤ 300 caractères ; signature (colonnes typées : sujet, prédicat, valeur numérique, unité, monnaie, date de valeur, période début et fin, lieu, polarité, source invoquée) ; `claim_type` ; `jurisdictions text[]` (ISO 3166-1/2, `EU`, `INT`) et `primary_jurisdiction` ; thème ; vérifiabilité ; indices de contexte ; `source_modality` ; `embedding halfvec(512)` calculé sur `text_fr` ; `embedding_model` |
+| `claims` | Texte canonique dans la langue d'origine (`lang_original`, `text_original`) et, pour les langues autres que le français, en français pivot (`text_fr`), ≤ 300 caractères ; signature normalisée (colonnes typées : sujet et son QID Wikidata, prédicat, `value_low`, `value_high`, unité, échelle, monnaie, date de valeur, période début et fin, lieu, polarité, source invoquée, `definition_variant`, `comparison_base`) ; `claim_type` ; `jurisdictions text[]` (ISO 3166-1/2, `EU`, `INT`) et `primary_jurisdiction` ; entités avec rôle (auteur, accusateur, accusé) ; thème ; vérifiabilité ; indices de contexte ; `source_modality` ; `reference_fact_id` si résolue vers une fiche ; `embedding halfvec(512)` (texte d'origine, ou pivot hors français), **non indexé** |
 | `content_claims` | Lien contenu ↔ affirmation (un post porte plusieurs affirmations) |
-| `claim_groups` | Affirmation représentative, niveau courant, état (`dormant`, `queued`, `investigating`, `verified`, `to_revalidate`, `passive`), portée cumulée, centroïde, verdict actif |
+| `claim_groups` | Affirmation représentative, niveau courant, état (`dormant`, `queued`, `investigating`, `verified`, `to_revalidate`, `passive`), portée cumulée, vecteur représentatif (**seul index vectoriel HNSW**), fiche et bande de valeurs, verdict actif |
 | `claim_group_members` | Lien affirmation ↔ groupe, avec historique (fusions et scissions réversibles) |
 | `claim_group_events` | Journal : création, fusion, scission, changement de niveau, auteur, motif |
-| `narratives` | Titre neutre, état (`active`, `surge`, `alert`, `dormant`), centroïde, thème |
+| `narratives` | Titre neutre, état (`active`, `watch`, `surge`, `alert`, `closed`), 1 à 3 médoïdes (fondateur fixe + deux groupes à plus forte portée), thème, dates d'ouverture et de clôture, récit précédent (résurgence), dossier de preuves |
 | `narrative_groups` | Lien groupe ↔ récit, avec historique |
-| `narrative_stats` | Agrégats par fenêtre (5 min, 1 h, 6 h) : posts, comptes, installations, plateformes, portée |
+| `narrative_stats` | Agrégats par fenêtre (5 min, 1 h, 6 h) : posts, part du flux observé, comptes, plateformes, portée |
+| `narrative_novelty` | Empreintes de nouveautés (chiffre normalisé, lien, mention, média, entité), nombre de posts et de comptes, passage forcé |
+| `entity_rarity` | Fréquence des entités sur 30 jours (ancres spécifiques des récits) |
 
 Signature : les champs sont des **colonnes**, pas du JSON, pour que la comparaison
 déterministe d'E3 soit une requête SQL indexable.
@@ -47,8 +51,10 @@ déterministe d'E3 soit une requête SQL indexable.
 | Table | Contenu |
 |---|---|
 | `knowledge_sources` | Adaptateurs déclarés : nom, capacités, niveau de fiabilité, coût, licence, actif |
-| `source_registry` | Domaine → niveau de fiabilité, type, pays, motif, origine, version |
-| `reference_facts` | Fiches de référence : indicateur, valeur, unité, période, territoire, source primaire, date de publication, prochaine publication, validée par |
+| `source_registry` | Éditeur et domaine → niveau de fiabilité, type, pays, motif, origine, version ; `controlled_by` (entité qui contrôle l'éditeur) ; `statutory_independence` (indépendance statutaire, fondée sur des critères externes) ; registre versionné et publié |
+| `entity_relations` | Relations de contrôle entre entités (État → média public, parti → organe, groupe → filiale), versionnées et publiées |
+| `reference_facts` | Fiches de référence : indicateur, variante de définition, valeur, unité, période, territoire, source primaire, date de publication, prochaine publication, fiche précédente, validée par |
+| `verdict_bands` | Fiche × bande de valeurs (contient la référence, < 1 τ, < 3 τ, au-delà, avec le côté) → issue validée par un relecteur |
 | `legal_articles` | Miroir juridique : juridiction, identifiant (LEGI, ELI…), code, numéro, texte, vigueur début et fin, empreinte, `tsvector` français |
 | `legal_portals` | Pays, URL du portail officiel, prise en charge ELI, notes |
 | `country_profiles` | Pays : langues officielles, fuseaux, éditions Wikipédia, niveau de couverture (A, B, C) |
@@ -69,7 +75,7 @@ déterministe d'E3 soit une requête SQL indexable.
 | `evidence_passages` | Source, texte du passage dans sa langue (`lang`), traduction française pour le relecteur (`translation_fr`), position, SimHash, embedding (si calculé), conservé (`bool`) : seuls les passages cités sont conservés au-delà de l'enquête |
 | `verdicts` | Groupe, issue de véracité, besoin de contexte, types de contexte, confiance, date d'expiration, versions (profil, routes, prompts), statut (`draft`, `active`, `superseded`, `expired`) ; un seul actif par groupe (index partiel unique) |
 | `citations` | Verdict ↔ passage, citation exacte, assertion appuyée |
-| `context_notes` | Verdict, texte (≤ 280), langue, liens, statut, résultats des contrôles |
+| `context_notes` | Type (15 types), régime (`object`, `formulation`, `provisional`), objet rattaché (`object_type` : média, indicateur, texte juridique avec version, événement, document cité, citation ; `object_id`) ou groupe, texte (≤ 280) par langue, liens, statut, `expires_at` (6 h au plus pour une note provisoire), résultats des contrôles |
 | `reviews` | Dossier, relecteur, décision, issue finale, diff brouillon → publié, étiquettes d'apprentissage, temps de relecture |
 
 Le lien avec le socle : un brouillon ouvre un **dossier** (`dossiers`, type
@@ -94,11 +100,11 @@ groupes (prévu dans [../dossiers.md](../dossiers.md), section « À venir »).
 
 | Table | Index notable | Volume estimé (scénario) |
 |---|---|---|
-| `content_items` | `UNIQUE (platform, external_id)` ; empreinte exacte ; 4 bandes SimHash ; partiel sur `x_post_id` ; `lang` | 20 000 lignes/jour, partitionnable par mois |
+| `content_items` | `UNIQUE (platform, external_id)` ; empreinte exacte ; 4 bandes SimHash ; expression sur l'ID X ; `lang` | 20 000 lignes/jour, ~7 M/an, non partitionnée |
 | `claims` | `primary_jurisdiction` ; GIN sur `jurisdictions` | idem, tous pays dans un seul schéma |
-| `content_items.embedding` | HNSW `halfvec_cosine_ops`, **fenêtre de 14 jours** seulement (embeddings des posts plus anciens mis à `NULL`) | ~170 000 vecteurs × 1 Ko ≈ 170 Mo + index |
-| `claims.embedding` | HNSW `halfvec_cosine_ops` | ~2 200/jour |
-| `claim_groups.centroid` | HNSW | ~370/jour, ~135 000/an ≈ 135 Mo |
+| `content_embeddings` | aucun index vectoriel ; partitions hebdomadaires supprimées après 14 jours | ~170 000 vecteurs × 1 Ko ≈ 170 Mo, sans index |
+| `claims.embedding` | aucun index vectoriel (comparaisons exactes sur petits ensembles) | ~2 200/jour |
+| `claim_groups` (vecteur représentatif) | **HNSW `halfvec_cosine_ops`, seul index vectoriel** | ~370/jour, ~135 000/an ≈ 170 Mo d'index |
 | `legal_articles` | GIN sur `tsvector` ; (juridiction, code, numéro, vigueur) | Codes prioritaires français : taille à mesurer |
 | `llm_calls` | `UNIQUE (cache_key)` ; (rôle, créé le) | ~5 000/jour ; sorties purgées après 180 jours, métriques gardées |
 

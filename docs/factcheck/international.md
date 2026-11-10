@@ -33,12 +33,25 @@ chercher les preuves (statistiques nationales, droit, institutions, presse du pa
 | `value_numeric`, `unit`, `currency`, `value_date` | `claims` (signature) | Valeur normalisée : unités en système international, monnaie ISO 4217 avec date (une comparaison entre pays passe par une conversion datée), échelle explicite |
 | `lang`, `translation_fr` | `evidence_passages` | Passage dans sa langue d'origine + traduction pour le relecteur |
 
-**Embeddings sur `text_fr`** : tous les vecteurs sont dans le même espace, donc une
-rumeur traduite en dix langues se regroupe en un seul groupe et un seul récit
-([vagues.md](vagues.md)). La tâche SemEval-2025 n° 7 montre que traduire vers une
-langue pivot puis vectoriser est une stratégie efficace, au même niveau que les
-modèles multilingues sur les textes d'origine. Les paires interlingues font partie du
-jeu de référence pour le vérifier.
+**Langue pivot : le français, tant qu'il est majoritaire** (arbitrage de Fable,
+[reponses-fable.md](reponses-fable.md), Q8). Le pivot doit être la langue majoritaire
+du corpus : un pivot anglais obligerait à traduire l'essentiel du volume pour servir
+une minorité. À réviser si les contenus non français dépassent 50 % du flux.
+
+- **Vecteurs** : texte d'origine pour les rapprochements dans une même langue ;
+  vecteur pivot (`text_fr`) **seulement pour les affirmations non françaises**, afin
+  qu'une rumeur traduite rejoigne son groupe et son récit ([vagues.md](vagues.md)).
+- **Signature** extraite du **texte d'origine**, dans des champs neutres en langue :
+  nombres, dates ISO, codes ISO 3166, polarité fermée, identifiant Wikidata du sujet
+  quand il existe.
+- **Arbitre systématique pour les paires interlingues**, sur les deux textes
+  d'origine : la comparaison des signatures ne suffit pas, car sujet et prédicat
+  restent du texte libre. C'est la parade contre une négation perdue en traduction.
+- **Validation** : 200 paires (paires multilingues de ClaimReview et jeu de la tâche
+  SemEval-2025 n° 7) pour comparer pivot français, pivot anglais et vecteurs sans
+  pivot. Attention : selon Fable (de mémoire, à revérifier), le pivot étudié dans
+  SemEval était l'anglais ; ce résultat ne valide donc pas à lui seul un pivot
+  français.
 
 **Normalisation des nombres** : séparateurs décimaux et de milliers selon la langue
 (`1.000` vaut mille en français et en allemand, un en anglais), échelles (« billion »
@@ -98,7 +111,7 @@ baisser l'exigence.
 |---|---|
 | E0 | Plus de filtre « français seulement » : liste des langues prises en charge en configuration (`TOWER_FC_LANGUAGES`, à créer), élargie progressivement ; une langue hors liste est comptée, pas traitée |
 | E2 | Extraction dans la langue du post, sortie `text_original` + `text_fr` + juridictions + valeur normalisée en un seul appel |
-| E3 | Appariement sur `text_fr` : regroupement interlingue |
+| E3 | Appariement : vecteur du texte d'origine dans une même langue, vecteur pivot français pour les autres langues ; arbitre systématique sur les paires interlingues |
 | E6 | Cadrage avec le profil du pays (définitions nationales : chaque pays mesure le chômage, la pauvreté ou la délinquance à sa façon) |
 | E7 | Sources choisies par juridiction dans les registres ; requêtes rédigées dans la langue des sources visées (requêtes multilingues) |
 | E8 | Le juge lit les passages **dans leur langue d'origine** ; les modèles retenus lisent les grandes langues |
@@ -112,7 +125,7 @@ baisser l'exigence.
 | Langues peu dotées | Les modèles sont moins fiables hors des grandes langues | Seuil de qualité mesuré **par langue** ; une langue sous le seuil part en abstention ou en relecture renforcée |
 | Biais géopolitique | Des travaux de 2025-2026 montrent que les modèles appliquent des standards différents selon les pays en jeu (méthode des paires où l'on échange les noms de pays) | Paires « pays échangés » dans le jeu de référence : même structure, pays permutés, issue identique attendue |
 | Sources occidentales surreprésentées | Le registre risque de mieux noter les médias de quelques pays | Niveaux fondés sur le processus éditorial, audit de la distribution par région |
-| Conflit d'intérêts des sources officielles | Un gouvernement est la source primaire de ses statistiques, pas une preuve indépendante quand il défend sa propre action (conflit, répression, bilan) | Règle : une source **partie prenante** de l'affirmation ne compte pas comme source indépendante ; champ `party_to_claim` évalué au cadrage |
+| Conflit d'intérêts des sources officielles | Un gouvernement est la source primaire de ses statistiques, pas une preuve indépendante quand il défend sa propre action (conflit, répression, bilan) | Règle fermée par **jointure** : une source est partie prenante si son éditeur, ou une entité qui le contrôle selon le registre (`controlled_by`), figure dans l'affirmation comme auteur de la conduite évaluée, accusateur ou accusé, et si l'affirmation est de type bilan, conduite ou accusation. Statistique sous indépendance statutaire : acceptée seule. Auto-déclaration de bilan sans corroboration : « Non vérifiable » et note qui attribue le chiffre ([pipeline.md](pipeline.md), E7 et E9) |
 | Médias d'État | Indépendance éditoriale variable | Critères documentés et identiques pour tous les pays (indépendance éditoriale, correction publique), jamais le pays lui-même |
 | Fuseaux et calendriers | « Hier » n'est pas le même jour partout | Résolution dans le fuseau de la juridiction |
 

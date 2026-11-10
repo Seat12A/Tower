@@ -96,3 +96,29 @@ l'implémentation ; celles qui dépendent d'une réponse de Jules sont signalée
 | Une base juridique mondiale unique | N'existe pas : adaptateurs par juridiction |
 | Confier la conclusion « campagne coordonnée » ou « deepfake » au système | Indices seulement ; la qualification reste humaine |
 | Scraping de l'AFP ou de plateformes sans API | Interdit par les règles du projet et les conditions des services |
+
+### Arbitrages après l'avis de Fable (2026-11-10)
+
+Réponses complètes : [factcheck/reponses-fable.md](factcheck/reponses-fable.md). Ces
+arbitrages **remplacent** les propositions correspondantes du tableau ci-dessus.
+
+| Sujet | Décision | Remplace | Raison |
+|---|---|---|---|
+| Profondeur et niveau N3 | Profondeur d'enquête uniforme (Sonnet, 4 recherches, second avis) ; escalade en profondeur renforcée (Opus, +4 recherches, seconde passe) sur désaccord de fond, sources contradictoires ou confiance < 0,6 ; N4 toujours renforcé. Le rôle public n'achète que la surveillance et la latence | Juge Opus d'office en N3 | Égalité de traitement ; le quota de brouillons rend l'uniformité presque gratuite |
+| Mesure de neutralité de la sélection | Rapport brouillons ÷ affirmations vérifiables par bord, à rôle et portée égaux, alerte au-delà de 1,25 sur un trimestre ; 30 groupes non promus enquêtés par mois ; pays à pluralisme faible : titulaires de fonctions + 50 comptes à plus forte audience | — | Mesurer sans que le pipeline connaisse le bord |
+| Contradicteur | **Second avis aveugle** (autre fournisseur, sans le verdict, passages dans un autre ordre) ; objection typée seulement en cas de désaccord de fond | Objection systématique au verdict | Un modèle ancré sur un verdict trouve toujours une objection ; l'accord de deux jugements indépendants est un signal plus fort |
+| Confiance | Régression logistique à coefficients posés à la main, plafonnée à 0,90 avant calibration ; réestimation partielle à 200 revues, complète à 100 refus | Grille fixe puis régression à 200 revues | 200 revues ne donnent qu'environ 30 refus |
+| Seconde passe du juge | Sur désaccord et toujours en N4 | Systématique en N3/N4 | Le second avis couvre déjà le biais de position |
+| Lots d'extraction | 10 posts ou 2 500 tokens (plafond 12), N3/N4 en solo, préfixe de 900 tokens, composition par dissemblance, fidélité dans les deux sens, rejeu solo de 2 %, canaris, réglage automatique | Micro-lots de 10 à 20 | Moins de risque de contamination pour presque le même coût |
+| Récits | Un récit partage un **dossier de preuves**, pas un verdict ; rattachement à deux signaux dont un non sémantique et une ancre spécifique ; médoïdes ; clôture après 7 jours, scission au-delà de 25 groupes ; variantes jugées à bas coût sur le dossier | Une enquête et un verdict pour tout le récit | Séparer détection (lâche) et application (stricte) |
+| Détection de vague | Part du flux observé, écart de type Poisson avec plancher, seuils absolus jusqu'à 1 000 récits clos puis quantiles ; filtres de l'extension versionnés ; veille sur 2 plateformes = vague | z-score robuste par thème | Le z-score dégénère sur des comptages creux |
+| Échantillonnage en vague | Passage forcé d'une nouveauté qui prend (3 posts de 3 comptes, ou 90e centile d'engagement), un exemplaire, plafond de 20 % du budget du récit | — | Ne pas rater la variante décisive sans ouvrir une faille de coût |
+| Identifiants et partitions | `content_items` non partitionnée, clé interne `BIGINT`, index sur expression pour les IDs X ; `observations` partitionnée | Colonne générée `x_post_id` et partition mensuelle | Une partition impose sa clé dans toute clé unique et étrangère |
+| Index vectoriels | HNSW sur les groupes seulement ; vecteurs de posts 14 jours sans index, en partitions hebdomadaires | HNSW sur posts (fenêtre) et affirmations | ~5 Go d'index par an évités |
+| Langue pivot | Français tant qu'il est majoritaire (révision au-delà de 50 % de non-français) ; vecteurs du texte d'origine dans une même langue ; signature neutre en langue ; arbitre systématique interlingue | Vecteurs sur `text_fr` pour tout | Ne pas traduire la majorité du volume |
+| Réutilisation des verdicts | Directe seulement à signature normalisée identique ; sinon fiche + bande de valeurs (intervalles tirés de la précision, τ = max(plancher, 5 %)), bande validée une fois par un relecteur | Similarité + signature compatible | Fausse réutilisation < 1 % |
+| Notes de contexte | 15 types ; trois régimes (objet, formulation, provisoire de 6 h au plus) ; notes rattachées à des objets ; empreinte perceptuelle des images dès l'ingestion | 12 types, notes liées au groupe | Une note sur un média ou une définition vaut partout où l'objet apparaît |
+| Indépendance des sources | Par **origine** de l'information ; partie prenante par jointure avec le registre `controlled_by` ; statistique sous indépendance statutaire acceptée seule ; auto-déclaration de bilan → « Non vérifiable » et note d'attribution | SimHash et domaine ; jugement au cadrage | Règle fermée, symétrique, applicable à tous les pays |
+
+Coût estimé après arbitrages : 63 à 91 $ par mois d'IA et de recherche selon le taux
+d'escalade (77 $ à 25 %), voir [factcheck/couts.md](factcheck/couts.md).

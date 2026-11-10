@@ -62,16 +62,18 @@ Au scénario supposé, régime établi :
 
 | Rôle | Calcul | Tokens/jour |
 |---|---|---|
-| Extraction E2 (micro-lots de 20) | 3 600 posts × ~320 tokens | ~1,15 M |
-| Arbitre E3 | ~600 paires × ~300 | ~0,18 M |
-| Vérification légère E5 | 75 groupes × ~3 000 | ~0,23 M |
+| Extraction E2 : masse en lots de 10 (préfixe de 900 tokens), N3 en solo, rejeu de 2 % en solo | estimation de Fable | ~1,65 M |
+| Arbitre E3 (zone grise + toutes les paires interlingues) | ~700 paires × ~300 | ~0,2 M |
+| Vérification légère E5 et variantes de récits | ~90 groupes × ~3 000 | ~0,27 M |
 | Requêtes E7, titres de récits, divers | | ~0,1 M |
-| **Petits modèles** | | **~1,7 M** (sous 2,5 M même au palier bas) |
-| Contradicteur E8 (grand modèle) | ~18 × ~7 000 | **~0,13 M** (sous 250 000) |
+| **Petits modèles** | | **~2,2 M** (sous 2,5 M au palier bas, marge faible) |
+| Second avis E8 (~18 × ~7 000) + objections (~6) | estimation de Fable | **~0,175 M** (sous 250 000) |
 
-Sans micro-lots (1 750 tokens par post), l'extraction seule consommerait 6,3 M de
-tokens par jour. Au démarrage à froid (classifieur absent, 12 000 posts en E2), on
-dépasse le palier bas : le surplus part sur le repli payant (environ 0,20 $ par jour).
+Au palier bas, la marge sur les petits modèles est faible : le routeur bascule le
+surplus sur le repli payant (quelques centimes par jour). Sans lots et avec l'ancien
+préfixe (1 750 tokens par post), l'extraction seule consommerait 6,3 M de tokens par
+jour. Au démarrage à froid (classifieur absent, 12 000 posts en E2), le surplus coûte
+environ 0,20 $ par jour.
 
 ## Rôles et routes par défaut
 
@@ -82,9 +84,11 @@ dépasse le palier bas : le surplus part sur le repli payant (environ 0,20 $ par
 | `light_check` | E5 | Comparer l'affirmation aux éléments Atlas | OpenAI petit plus capable (candidat : `gpt-5.6-terra`) | `gpt-6.1-terra` (1 / 5 $) ou `claude-haiku-5-5` | Signal non publié, sert à prioriser |
 | `query_writer` | E7 | Requêtes symétriques par type de source | OpenAI petit (`gpt-5.6-terra`) | `gpt-6-luna` | Faible volume, qualité utile |
 | `narrative_title` | vagues | Titre neutre d'un récit | OpenAI petit | `gpt-6-luna` | Trivial |
-| `frame` | E6 | Cadrage : prendre du recul | `claude-sonnet-5-5`, effort `low` (N2) ou `medium` (N3) ; `claude-opus-5-5` (N4) | `claude-sonnet-5-5` | Compréhension fine, définitions, sous-entendus |
-| `judge` | E8 | Verdict sourcé | `claude-sonnet-5-5` (N2, API Batch) ; `claude-opus-5-5` (N3/N4) | Opus → Sonnet quand le budget N3 est atteint | Peser des sources contradictoires, distinguer « Trompeur » de « Faux » |
-| `contradictor` | E8 | Meilleure objection au verdict | OpenAI grand modèle gratuit (candidat : `gpt-5.6-sol`) | `gpt-6.1-terra` | **Autre fournisseur que le juge** : erreurs décorrélées, pas d'auto-préférence |
+| `frame` | E6 | Cadrage : prendre du recul | `claude-sonnet-5-5`, effort `medium` (enquête standard) ; `claude-opus-5-5` (profondeur renforcée, N4) | `claude-sonnet-5-5` | Compréhension fine, définitions, sous-entendus |
+| `judge` | E8 | Verdict sourcé | `claude-sonnet-5-5` (enquête standard ; API Batch en N2) ; `claude-opus-5-5` (profondeur renforcée, N4) | Opus → Sonnet quand le budget est atteint | Peser des sources contradictoires, distinguer « Trompeur » de « Faux » ; la profondeur dépend de la difficulté, pas du niveau |
+| `second_opinion` | E8 | Issue indépendante, sans voir le verdict, passages dans un autre ordre | OpenAI grand modèle gratuit (candidat : `gpt-5.6-sol`) | `gpt-6.1-terra` | **Autre fournisseur que le juge** : erreurs décorrélées, pas d'ancrage sur le verdict, couvre le biais de position |
+| `objection` | E8 | Objection typée (liste fermée) en cas de désaccord de fond | même modèle que `second_opinion` | `gpt-6.1-terra` | Ne sert qu'au relecteur et à l'escalade |
+| `critic` | E9 | Test de pontage de la note de contexte | OpenAI grand modèle gratuit | `gpt-6.1-terra` | Autre fournisseur que le rédacteur |
 | `writer` | E9 | Brouillon et note de contexte dans la langue du post, plus la version française | `claude-sonnet-5-5` | `claude-haiku-5-5` | Rédaction nuancée et neutre |
 | `auditor` | hors flux | Audit hebdomadaire des désaccords, cas pièges | `claude-fable-5-2` (8 / 40 $), API Batch | `claude-opus-5-5` | Améliore tous les verdicts futurs, pas un verdict isolé |
 | `media_describe` (futur) | M1 | Description et texte d'une image | OpenAI petit à entrée image (candidat : `gpt-6-luna`) | `claude-haiku-5-5` | Volume potentiellement élevé |
@@ -186,5 +190,5 @@ class LLMResult:
 L'auteur, son bord politique, ses métriques d'engagement, le niveau de traitement, le
 nom du relecteur. Le juge et le cadrage ne reçoivent pas non plus le texte du post,
 seulement l'affirmation canonique. Ces règles sont testées : un test vérifie que les
-entrées des rôles `frame`, `judge` et `contradictor` ne contiennent aucun champ
+entrées des rôles `frame`, `judge`, `second_opinion` et `objection` ne contiennent aucun champ
 interdit.
