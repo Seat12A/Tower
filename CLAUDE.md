@@ -13,8 +13,15 @@ extension Chromium, bot Discord interne. Développeur principal : Jules.
 bot interne, surveillance de X, services de fact-check et de modération. Tous les
 clients passent par l'API ; **le bot n'accède jamais directement à la base**.
 
-Langue : **français** pour la documentation, les messages d'erreur, les docstrings et
-les messages de commit. Identifiants de code en anglais.
+## Langue
+
+- **Français** : uniquement la documentation (`docs/`, `README.md`, ce fichier).
+- **Anglais** pour tout le reste : code, commentaires, docstrings, messages d'erreur
+  (catalogue, exceptions, réponses de l'API), messages de log, aide et sorties de la
+  CLI, tags et descriptions OpenAPI, tests, migrations, fichiers de config, messages
+  de commit.
+- Le socle initial contient encore des commentaires et docstrings en français : les
+  traduire en anglais au fil des modifications des fichiers concernés.
 
 ## Avant de commencer une tâche
 
@@ -147,10 +154,10 @@ doivent être testés pour de vrai.
 - [ ] Migration générée, relue, `alembic check` OK, compatible expand/contract.
 - [ ] Documentation `docs/` à jour, `docs/errors.md` régénéré si besoin.
 - [ ] Résumé de session écrit dans `docs/sessions/`.
-- [ ] Commit en français, clair, sur la branche demandée.
+- [ ] Commit en anglais, clair, sur la branche demandée.
 
 ## Git
 
-- Messages de commit en français, à l'impératif (« Ajoute… », « Corrige… »).
+- Messages de commit en anglais, à l'impératif (« Add… », « Fix… »).
 - Ne jamais committer `.env`, tokens ou secrets.
 - Ne pas créer de pull request sans demande explicite.
