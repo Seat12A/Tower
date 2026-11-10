@@ -84,3 +84,9 @@ Proposées, à valider par Jules (liste complète dans `docs/decisions.md`) :
   échantillonnage sous charge.
 - Étape suivante proposée : phase 0 (jeu de référence, comptes et clés), et en
   parallèle le lot 1 (fondations : ports, routeur de modèles, budgets).
+
+## Complément : questions pour Fable
+
+- `docs/factcheck/questions-fable.md` : brief autonome (contexte commun, puis onze
+  questions avec ce qui est prévu, les options, le doute et le format de réponse
+  attendu), à transmettre à Fable. `questions.md` y renvoie.

@@ -93,7 +93,8 @@ s'arrête : environ +19 $ par mois. Détail : [couts.md](couts.md).
 | [couts.md](couts.md) | Coûts par niveau, projection mensuelle, RAM, sensibilité |
 | [evaluation.md](evaluation.md) | Jeu de référence, métriques, tests de neutralité, rejeu |
 | [feuille-de-route.md](feuille-de-route.md) | Lots de livraison, critères chiffrés de passage |
-| [questions.md](questions.md) | Questions pour Jules et questions à soumettre à Fable |
+| [questions.md](questions.md) | Questions pour Jules |
+| [questions-fable.md](questions-fable.md) | Brief et questions d'architecture à soumettre à Fable |
 | [recherche.md](recherche.md) | Sources consultées, ce qu'on en retient, dates de vérification |
 
 ## Écarts avec le plan de Fable

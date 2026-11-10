@@ -44,32 +44,8 @@ Classées par effet sur la conception, de la plus structurante à la moins struc
 
 ## À soumettre à Fable (architecture)
 
-Points où un second avis serait utile avant l'implémentation :
-
-1. **Niveau N3 et neutralité** : le plan autorise le **rôle public** de l'auteur (élu,
-   ministre, candidat, média) pour fixer la profondeur de vérification, tout en
-   interdisant le bord. Le juge ne voit jamais le niveau. Est-ce suffisant, ou faut-il
-   une contrainte supplémentaire (par exemple un quota de traitement par bord mesuré
-   a posteriori) ?
-2. **Micro-lots en extraction** (20 posts par appel) : le gain de tokens est d'environ
-   × 5. Le risque est la contamination croisée et l'injection d'un post sur les
-   autres. Les parades prévues (IDs, délimitation, marquage, contrôle de fidélité, test
-   dédié) suffisent-elles, ou faut-il plafonner la taille des lots en dessous de 20 ?
-3. **Contradicteur d'un autre fournisseur** (OpenAI) que le juge (Anthropic) : l'idée
-   est de décorréler les erreurs. Y a-t-il un risque de désaccords systématiques dus
-   aux différences de style plutôt que de fond, qui feraient baisser la confiance
-   inutilement ? Comment le calibrer ?
-4. **Récits** : rattachement incrémental par centroïde, co-occurrence et entités.
-   Quelle règle de fusion de récits évite les « récits fourre-tout » (par exemple tout
-   ce qui parle d'immigration) tout en reconnaissant une rumeur qui mute ?
-5. **Identifiants multi-plateformes** : `external_id TEXT` + colonne générée
-   `x_post_id BIGINT` pour respecter la règle « IDs X en BIGINT ». Alternative : une
-   table par plateforme. Le choix proposé est-il le bon compromis ?
-6. **Détection de vague** par z-score robuste sur l'historique du thème : pertinent
-   pour un service qui démarre sans historique ? Faut-il des seuils absolus au début ?
-7. **Échantillonnage sous charge** pendant une vague : risque de rater une variante
-   importante (nouvelle affirmation dans le récit) ? Faut-il forcer le passage des
-   posts dont l'embedding s'éloigne du centroïde ?
+Brief autonome avec contexte et onze questions précises :
+[questions-fable.md](questions-fable.md).
 
 ## Points à vérifier avant implémentation (techniques)
 
