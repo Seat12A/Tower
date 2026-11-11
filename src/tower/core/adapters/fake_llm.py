@@ -29,6 +29,11 @@ _SPACE_THOUSANDS = re.compile(r"(?<![0-9])([0-9]{1,3})((?:[   ][0-9]{3}(?![0-
 _NUMBER = re.compile(r"[0-9]+(?:[.,][0-9]+)*")
 _FIRST_WORDS = re.compile(r"(?:\S+\s+){0,11}\S+")
 _CAPITALIZED = re.compile(r"\b[A-ZÀ-Ý][\w'-]{2,}")
+_FR_MARKER = re.compile(r"\s*\[fr:\s*([^\]]+?)\s*\]")
+_YEAR = re.compile(r"\b(?:1[0-9]|20)[0-9]{2}\b")
+_NEGATIONS = frozenset(
+    {"not", "no", "never", "ne", "pas", "jamais", "aucun", "aucune", "nicht", "nie", "kein"}
+)
 _warned = False
 
 
@@ -122,6 +127,9 @@ def _extract(data: Mapping[str, Any]) -> dict[str, Any]:
     post = data["post"]
     text = str(post["text"]).strip()
     lang = str(post.get("lang") or "")
+    french = _FR_MARKER.search(text)
+    if french is not None:  # smoke tests: an interlingual pair without a translation model
+        text = _FR_MARKER.sub("", text).strip()
     out: dict[str, Any] = {"post_id": str(post["id"]), "thread_context": None}
     if post.get("context"):
         out["thread_context"] = "Relates to another post."
@@ -149,7 +157,7 @@ def _extract(data: Mapping[str, Any]) -> dict[str, Any]:
     }
     claim = {
         "text_original": sentence,
-        "text_fr": sentence,
+        "text_fr": _cut(french.group(1), 280) if french is not None else sentence,
         "claim_type": "statistic" if any(c.isdigit() for c in sentence) else "other",
         "signature": signature,
         "jurisdictions": ["FR"] if lang == "fr" else [],
@@ -343,6 +351,44 @@ def _translate(data: Mapping[str, Any]) -> dict[str, Any]:
     return {"lang": target, "text": text}
 
 
+def _numbers_of(text: str) -> list[str]:
+    return sorted(m.group(0).replace(",", ".") for m in _NUMBER.finditer(text))
+
+
+def _negation_parity(text: str) -> int:
+    words = re.findall(r"[\w']+", _strip_accents(text))
+    return sum(1 for w in words if w in _NEGATIONS) % 2
+
+
+def _pair_arbiter(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Deterministic: other numbers, negation parity or other years mean "different"."""
+    a, b = str(data["claim_a"]["text"]), str(data["claim_b"]["text"])
+    years_a, years_b = sorted(_YEAR.findall(a)), sorted(_YEAR.findall(b))
+    if years_a != years_b:
+        return {
+            "same": False,
+            "reason": "different_period",
+            "explanation": "The two claims refer to different years.",
+        }
+    if _numbers_of(a) != _numbers_of(b):
+        return {
+            "same": False,
+            "reason": "different_value",
+            "explanation": "The two claims state different numbers.",
+        }
+    if _negation_parity(a) != _negation_parity(b):
+        return {
+            "same": False,
+            "reason": "opposite_polarity",
+            "explanation": "One claim negates what the other affirms.",
+        }
+    return {
+        "same": True,
+        "reason": "same_claim",
+        "explanation": "Both claims state the same figures and polarity.",
+    }
+
+
 _BUILDERS: dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]] = {
     "ExtractOutput": _extract,
     "FrameOutput": _frame,
@@ -353,6 +399,7 @@ _BUILDERS: dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]] = {
     "WriterOutput": _writer,
     "CriticOutput": _critic,
     "TranslateOutput": _translate,
+    "PairArbiterOutput": _pair_arbiter,
 }
 
 

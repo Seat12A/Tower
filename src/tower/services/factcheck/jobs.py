@@ -28,6 +28,7 @@ from tower.core.domain.security import Actor
 from tower.core.errors import capture
 from tower.core.events.outbox import EventRecord
 from tower.core.factcheck import inputs, names, runtime
+from tower.core.factcheck.levels import override_level
 from tower.core.factcheck.profiles import active_profile
 from tower.core.factcheck.schemas import ExtractedClaim, ExtractOutput, Signature, TranslateOutput
 from tower.core.jobs.queue import PermanentError, RetryLater, enqueue
@@ -65,6 +66,7 @@ from tower.core.usecases import assembly as assembly_uc
 from tower.core.usecases import claims as claims_uc
 from tower.core.usecases.ingestion import ingest_items
 from tower.services.factcheck import assembly as asm
+from tower.services.factcheck import matching
 
 log = get_logger(__name__)
 
@@ -361,12 +363,25 @@ async def extract(ctx: JobContext) -> None:
         _check_post_id(output, content_id)
         claims, _ = _faithful(output, post_text, context_text, content_id)
 
+    try:
+        decisions = await matching.match_claims(
+            ctx,
+            content_id=content_id,
+            post_date=created.date() if created is not None else None,
+            lang=post_lang,
+            claims=claims,
+            level=level,
+        )
+    except BudgetExhausted as exc:
+        raise RetryLater(_retry_delay(exc.retry_at), "model budget exhausted") from exc
+
     async with ctx.db.transaction() as session:
         content = await session.get(ContentItem, content_id)
         if content is None:
             return
         if await _reuse_existing(session, actor, content, level, requested_by, unprocessed):
             return
+        profile = await active_profile(session, settings)
         record = await claims_uc.record_extraction(
             session,
             actor,
@@ -378,6 +393,10 @@ async def extract(ctx: JobContext) -> None:
             thread_context=output.thread_context,
             absence_reason=output.absence_reason.value if output.absence_reason else None,
             language_not_processed=unprocessed,
+            matches=decisions if claims else None,
+            post_date=created.date() if created is not None else None,
+            profile=profile,
+            current_period_days=settings.fc_current_period_days,
         )
     log.info(
         "factcheck.extracted",
@@ -688,36 +707,67 @@ async def _translate_one(
 
 
 async def on_content_ingested(session: AsyncSession, events: Sequence[EventRecord]) -> None:
-    """Enqueue the N3 extraction of new contents written by an active watched account."""
+    """Enqueue the extraction of new contents written by an active watched account (N3),
+    or by an account carrying an active ``account`` level override at N3 or N4 (the
+    override level; no need to be watched)."""
     languages = set(get_settings().fc_language_list)
-    ids: list[int] = []
+    in_language: dict[int, bool] = {}
     for event in events:
         payload = event.payload
         try:
             content_id = int(payload["id"])
         except (KeyError, TypeError, ValueError):
             continue
-        if str(payload.get("lang", "")).lower() in languages:
-            ids.append(content_id)
-    if not ids:
+        in_language[content_id] = str(payload.get("lang", "")).lower() in languages
+    if not in_language:
         return
-    watched = await session.scalars(
-        select(ContentItem.id)
-        .join(WatchedAccount, WatchedAccount.account_id == ContentItem.author_account_id)
-        .where(
-            ContentItem.id.in_(ids),
-            WatchedAccount.active.is_(True),
-            ContentItem.copy_of_id.is_(None),
+    ids = [i for i, ok in in_language.items() if ok]
+    queued: set[int] = set()
+    if ids:
+        watched = await session.scalars(
+            select(ContentItem.id)
+            .join(WatchedAccount, WatchedAccount.account_id == ContentItem.author_account_id)
+            .where(
+                ContentItem.id.in_(ids),
+                WatchedAccount.active.is_(True),
+                ContentItem.copy_of_id.is_(None),
+            )
+            .order_by(ContentItem.id)
         )
-        .order_by(ContentItem.id)
-    )
-    for content_id in watched:
+        for content_id in watched:
+            queued.add(content_id)
+            await enqueue(
+                session,
+                QUEUE,
+                names.JOB_EXTRACT,
+                {"content_id": content_id, "level": "N3", "requested_by": names.FACTCHECK_ACTOR},
+                dedupe_key=names.extract_key(content_id, "N3"),
+            )
+    authored = (
+        await session.execute(
+            select(ContentItem.id, ContentItem.author_account_id)
+            .where(
+                ContentItem.id.in_(list(in_language)),
+                ContentItem.author_account_id.is_not(None),
+                ContentItem.copy_of_id.is_(None),
+            )
+            .order_by(ContentItem.id)
+        )
+    ).all()
+    for content_id, account_id in authored:
+        if content_id in queued:
+            continue
+        level = await override_level(
+            session, content_id=content_id, group_ids=[], account_id=account_id
+        )
+        if level not in ("N3", "N4") or (level == "N3" and not in_language[content_id]):
+            continue
         await enqueue(
             session,
             QUEUE,
             names.JOB_EXTRACT,
-            {"content_id": content_id, "level": "N3", "requested_by": names.FACTCHECK_ACTOR},
-            dedupe_key=names.extract_key(content_id, "N3"),
+            {"content_id": content_id, "level": level, "requested_by": names.FACTCHECK_ACTOR},
+            dedupe_key=names.extract_key(content_id, level),
         )
 
 

@@ -9,35 +9,62 @@ from __future__ import annotations
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tower.core.domain.factcheck.matching import MatchDecision
 from tower.core.domain.factcheck.opinion import initial_depth
-from tower.core.domain.factcheck.values import UNVERIFIABLE_CLAIM_TYPES, ClaimGroupState, ClaimType
+from tower.core.domain.factcheck.profiles import Profile
+from tower.core.domain.factcheck.reuse import ReuseContext, can_reuse
+from tower.core.domain.factcheck.signatures import NormalizedSignature, compare_signatures
+from tower.core.domain.factcheck.values import (
+    UNVERIFIABLE_CLAIM_TYPES,
+    ClaimGroupState,
+    ClaimType,
+    GroupEventKind,
+    MatchOutcome,
+    ReuseRule,
+    VerdictStatus,
+)
 from tower.core.domain.security import Actor, Permission
 from tower.core.events.outbox import publish
 from tower.core.factcheck import names
+from tower.core.factcheck.candidates import claim_signature, post_dates
+from tower.core.factcheck.references import active_band
 from tower.core.factcheck.schemas import ExtractedClaim
 from tower.core.logging import get_logger
 from tower.core.models.factcheck import (
+    LEVELS,
     Claim,
     ClaimGroup,
     ClaimGroupMember,
     ContentClaim,
     Investigation,
+    Verdict,
 )
+from tower.core.models.factcheck_v1 import ClaimGroupEvent, ReferenceFact
 from tower.core.models.ingestion import ContentItem
+from tower.core.usecases.reuse import inherit_band_verdict
 
-__all__ = ["ExtractionRecord", "promote_to_n4", "record_extraction", "request_investigation"]
+__all__ = [
+    "ExtractionRecord",
+    "journal_event",
+    "promote_to_n4",
+    "raise_group_level",
+    "record_extraction",
+    "request_investigation",
+]
 
 log = get_logger(__name__)
 
 FRAMING = "framing"
 FAILED = "failed"
+_RUNNING_EXCLUDED = ("completed", "assembled", "failed")
+_MAX_MERGE_HOPS = 5
 
 
 @dataclass(slots=True)
@@ -106,6 +133,287 @@ async def request_investigation(
     return investigation
 
 
+async def journal_event(
+    session: AsyncSession,
+    actor: Actor,
+    group: ClaimGroup,
+    kind: GroupEventKind,
+    *,
+    other_group_id: int | None = None,
+    claim_ids: Sequence[int] = (),
+    from_level: str | None = None,
+    to_level: str | None = None,
+    reason: str | None = None,
+    data: Mapping[str, Any] | None = None,
+) -> None:
+    """One row of the group journal (``claim_group_events``)."""
+    session.add(
+        ClaimGroupEvent(
+            group_id=group.id,
+            kind=kind.value,
+            other_group_id=other_group_id,
+            claim_ids=list(claim_ids),
+            from_level=from_level,
+            to_level=to_level,
+            actor=actor.label,
+            reason=reason,
+            data=dict(data or {}),
+        )
+    )
+    await session.flush()
+
+
+async def raise_group_level(
+    session: AsyncSession, actor: Actor, group: ClaimGroup, level: str, *, reason: str
+) -> bool:
+    """Raise ``group`` to ``level`` when higher (never lowers): journal and
+    ``claim_group.level_changed``. Returns True when the level changed."""
+    if LEVELS.index(level) <= LEVELS.index(group.level):
+        return False
+    previous = group.level
+    group.level = level
+    group.updated_at = func.now()
+    await journal_event(
+        session,
+        actor,
+        group,
+        GroupEventKind.LEVEL_CHANGED,
+        from_level=previous,
+        to_level=level,
+        reason=reason,
+    )
+    await publish(
+        session,
+        names.CLAIM_GROUP_LEVEL_CHANGED,
+        {
+            "group_id": str(group.public_id),
+            "from_level": previous,
+            "to_level": level,
+            "reason": reason,
+        },
+        aggregate_type="claim_group",
+        aggregate_id=str(group.public_id),
+        actor=actor.label,
+    )
+    return True
+
+
+def _informative(sig: NormalizedSignature) -> bool:
+    """A signature carrying a value: enough to say two claims of one post are the same."""
+    return sig.value_low is not None or sig.value_high is not None
+
+
+async def _live_group(session: AsyncSession, group_id: int) -> ClaimGroup | None:
+    """Lock ``group_id`` and follow ``merged_into_id`` (at most 5 hops) to the live group."""
+    current = group_id
+    for _ in range(_MAX_MERGE_HOPS + 1):
+        group = await session.scalar(
+            select(ClaimGroup)
+            .where(ClaimGroup.id == current)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if group is None:
+            return None
+        if group.state != ClaimGroupState.MERGED.value:
+            return group
+        if group.merged_into_id is None:
+            return None
+        current = group.merged_into_id
+    return None
+
+
+async def _identical_to_representative(
+    session: AsyncSession,
+    group: ClaimGroup,
+    claim: Claim,
+    post_day: date | None,
+    current_period_days: int,
+) -> bool:
+    """Re-check under the lock (a concurrent merge may have changed the representative)."""
+    representative = await session.get(Claim, group.representative_claim_id)
+    if representative is None:
+        return False
+    day = (await post_dates(session, [representative.id])).get(representative.id)
+    comparison = compare_signatures(
+        claim_signature(claim, post_day),
+        claim_signature(representative, day),
+        current_period_days=current_period_days,
+    )
+    return comparison.identical
+
+
+async def _has_open_work(session: AsyncSession, group: ClaimGroup) -> bool:
+    """A running investigation, or a draft verdict waiting for review."""
+    running = await session.scalar(
+        select(Investigation.id)
+        .where(
+            Investigation.claim_group_id == group.id,
+            Investigation.stage.not_in(_RUNNING_EXCLUDED),
+        )
+        .limit(1)
+    )
+    if running is not None:
+        return True
+    draft = await session.scalar(
+        select(Verdict.id)
+        .where(
+            Verdict.claim_group_id == group.id,
+            Verdict.status == VerdictStatus.DRAFT.value,
+        )
+        .limit(1)
+    )
+    return draft is not None
+
+
+def _direct_reuse_allowed(profile: Profile | None, level: str) -> bool:
+    return profile.level(level).direct_reuse if profile is not None else level != "N4"
+
+
+async def _after_join(
+    session: AsyncSession,
+    actor: Actor,
+    *,
+    group: ClaimGroup,
+    claim: Claim,
+    content: ContentItem,
+    level: str,
+    requested_by: str,
+    profile: Profile | None,
+    flags: Mapping[str, Any],
+    language_not_processed: bool,
+    record: ExtractionRecord,
+) -> None:
+    """What happens to a claim that joined ``group`` (every member is covered by the
+    group verdict: joining is direct reuse)."""
+    if level == "N4":
+        investigation = await promote_to_n4(
+            session,
+            actor,
+            group=group,
+            content=content,
+            requested_by=requested_by,
+            language_not_processed=language_not_processed,
+        )
+        if investigation is not None:
+            record.investigation_ids.append(investigation.id)
+        return
+    verdict = (
+        await session.get(Verdict, group.active_verdict_id)
+        if group.active_verdict_id is not None
+        else None
+    )
+    now = datetime.now(UTC)
+    if verdict is not None and can_reuse(
+        ReuseContext(
+            level=level,
+            direct_reuse_allowed=_direct_reuse_allowed(profile, level),
+            verdict_expires_at=verdict.expires_at,
+            verdict_status=verdict.status,
+            note_regime=None,
+            note_expires_at=None,
+            now=now,
+        ),
+        ReuseRule.IDENTICAL_SIGNATURE,
+    ):
+        await publish(
+            session,
+            names.VERDICT_REUSED,
+            {
+                "verdict_id": str(verdict.public_id),
+                "group_id": str(group.public_id),
+                "claim_id": str(claim.public_id),
+                "content_id": str(content.id),
+                "rule": ReuseRule.IDENTICAL_SIGNATURE.value,
+                "origin_verdict_id": str(verdict.public_id),
+            },
+            aggregate_type="claim_group",
+            aggregate_id=str(group.public_id),
+            actor=actor.label,
+        )
+        return
+    if await _has_open_work(session, group):
+        return
+    if ClaimType(claim.claim_type) in UNVERIFIABLE_CLAIM_TYPES:
+        return
+    investigation = await request_investigation(
+        session,
+        actor,
+        group=group,
+        content=content,
+        level=level,
+        requested_by=requested_by,
+        flags=flags,
+    )
+    record.investigation_ids.append(investigation.id)
+
+
+async def _try_band_inheritance(
+    session: AsyncSession,
+    actor: Actor,
+    *,
+    group: ClaimGroup,
+    claim: Claim,
+    content: ContentItem,
+    level: str,
+    decision: MatchDecision,
+    profile: Profile | None,
+) -> bool:
+    """Inherit the verdict of a validated band of a validated fact (rule ``band``)."""
+    if (
+        level == "N4"
+        or decision.reference_fact_id is None
+        or decision.band is None
+        or decision.band_side is None
+        or claim.claim_type != ClaimType.STATISTIC.value
+    ):
+        return False
+    fact = await session.get(ReferenceFact, decision.reference_fact_id)
+    if fact is None or fact.status != "validated":
+        return False
+    band = await active_band(session, fact.id, decision.band, decision.band_side)
+    if band is None or band.source_verdict_id is None:
+        return False
+    source = await session.get(Verdict, band.source_verdict_id)
+    if source is None:
+        return False
+    now = datetime.now(UTC)
+    if fact.next_publication is not None and fact.next_publication <= now.date():
+        return False
+    allowed = can_reuse(
+        ReuseContext(
+            level=level,
+            direct_reuse_allowed=_direct_reuse_allowed(profile, level),
+            verdict_expires_at=source.expires_at,
+            verdict_status=source.status,
+            note_regime=None,
+            note_expires_at=None,
+            now=now,
+        ),
+        ReuseRule.BAND,
+    )
+    if not allowed:
+        return False
+    await inherit_band_verdict(
+        session,
+        actor,
+        group=group,
+        band=band,
+        fact=fact,
+        claim=claim,
+        content_id=content.id,
+        now=now,
+    )
+    return True
+
+
+async def _group_public_id(session: AsyncSession, group_id: int | None) -> str | None:
+    if group_id is None:
+        return None
+    value = await session.scalar(select(ClaimGroup.public_id).where(ClaimGroup.id == group_id))
+    return str(value) if value is not None else None
+
+
 async def record_extraction(
     session: AsyncSession,
     actor: Actor,
@@ -118,9 +426,19 @@ async def record_extraction(
     thread_context: str | None,
     absence_reason: str | None = None,
     language_not_processed: bool = False,
+    matches: Sequence[MatchDecision] | None = None,
+    post_date: date | None = None,
+    profile: Profile | None = None,
+    current_period_days: int = 31,
 ) -> ExtractionRecord:
-    """Store the claims of ``content`` with one group per claim and one investigation per
-    verifiable claim; publish ``claim.extracted`` and ``investigation.requested``.
+    """Store the claims of ``content``; publish ``claim.extracted`` and
+    ``investigation.requested``.
+
+    Without ``matches`` (lot 3 behaviour) every claim gets its own group and every
+    verifiable claim an investigation. With ``matches`` (E3 decisions, same length and
+    order as ``claims``) a claim joins an existing group (direct reuse of its verdict, or
+    nothing when work is under way), or creates a group that may inherit a verdict
+    through a validated value band.
 
     No claim (absence reason only) writes nothing."""
     actor.require(Permission.FACTCHECK_REQUEST)
@@ -128,12 +446,17 @@ async def record_extraction(
     if not claims:
         log.info("factcheck.no_claim", content=content.id, reason=absence_reason)
         return record
+    if matches is not None and len(matches) != len(claims):
+        raise ValueError("matches must have one decision per claim")
+    if post_date is None and content.created_at_platform is not None:
+        post_date = content.created_at_platform.date()
 
-    flags = {"language_not_processed": True} if language_not_processed else {}
+    base_flags: dict[str, Any] = {"language_not_processed": True} if language_not_processed else {}
     claim_rows: list[Claim] = []
     group_rows: list[ClaimGroup] = []
-    investigations: list[tuple[ClaimGroup, Investigation]] = []
+    created_in_call: list[tuple[NormalizedSignature, Claim, ClaimGroup]] = []
     for position, extracted in enumerate(claims):
+        decision = matches[position] if matches is not None else None
         sig = extracted.signature
         claim = Claim(
             public_id=uuid.uuid4(),
@@ -166,23 +489,194 @@ async def record_extraction(
             source_modality=extracted.source_modality,
             thread_context=thread_context,
             prompt_version=prompt_version,
+            embedding=list(decision.embedding) if decision and decision.embedding else None,
+            embedding_pivot=(
+                list(decision.embedding_pivot) if decision and decision.embedding_pivot else None
+            ),
+            embedding_model=decision.embedding_model if decision else None,
         )
         session.add(claim)
         await session.flush()
         session.add(ContentClaim(content_id=content.id, claim_id=claim.id, position=position))
+        record.claim_ids.append(claim.id)
+        claim_rows.append(claim)
+
+        if decision is None:
+            group = ClaimGroup(
+                public_id=uuid.uuid4(),
+                representative_claim_id=claim.id,
+                level=level,
+                state=ClaimGroupState.QUEUED.value,
+                reach=_impressions(content),
+            )
+            session.add(group)
+            await session.flush()
+            session.add(ClaimGroupMember(group_id=group.id, claim_id=claim.id))
+            group_rows.append(group)
+            record.group_ids.append(group.id)
+            if ClaimType(claim.claim_type) not in UNVERIFIABLE_CLAIM_TYPES:
+                investigation = await request_investigation(
+                    session,
+                    actor,
+                    group=group,
+                    content=content,
+                    level=level,
+                    requested_by=requested_by,
+                    flags=base_flags,
+                )
+                record.investigation_ids.append(investigation.id)
+            continue
+
+        # ---- E3 decision: join a live group whose signature still matches, else new.
+        normalized = claim_signature(claim, post_date)
+        joined: ClaimGroup | None = None
+        join_data: dict[str, Any] = {}
+        if decision.outcome is MatchOutcome.JOIN and decision.group_id is not None:
+            candidate = await _live_group(session, decision.group_id)
+            if candidate is not None and await _identical_to_representative(
+                session, candidate, claim, post_date, current_period_days
+            ):
+                joined = candidate
+                join_data = {
+                    "rule": decision.rule,
+                    "similarity": decision.similarity,
+                    "arbiter_reason": decision.arbiter_reason,
+                }
+            else:
+                log.info("factcheck.join_rejected_on_recheck", group=decision.group_id)
+        if joined is None:
+            for earlier_sig, earlier_claim, earlier_group in created_in_call:
+                comparison = compare_signatures(
+                    normalized, earlier_sig, current_period_days=current_period_days
+                )
+                if comparison.identical and (
+                    _informative(normalized)
+                    or earlier_claim.text_original.casefold() == claim.text_original.casefold()
+                ):
+                    joined = earlier_group
+                    join_data = {"rule": "same_post:identical_signature"}
+                    break
+
+        if joined is not None:
+            session.add(ClaimGroupMember(group_id=joined.id, claim_id=claim.id))
+            joined.reach = joined.reach + _impressions(content)
+            joined.updated_at = func.now()
+            await journal_event(
+                session,
+                actor,
+                joined,
+                GroupEventKind.JOINED,
+                claim_ids=[claim.id],
+                data=join_data,
+            )
+            await raise_group_level(session, actor, joined, level, reason="content")
+            await _after_join(
+                session,
+                actor,
+                group=joined,
+                claim=claim,
+                content=content,
+                level=level,
+                requested_by=requested_by,
+                profile=profile,
+                flags=base_flags,
+                language_not_processed=language_not_processed,
+                record=record,
+            )
+            group_rows.append(joined)
+            record.group_ids.append(joined.id)
+            continue
+
         group = ClaimGroup(
             public_id=uuid.uuid4(),
             representative_claim_id=claim.id,
             level=level,
             state=ClaimGroupState.QUEUED.value,
             reach=_impressions(content),
+            representative_embedding=(
+                list(decision.embedding_pivot or decision.embedding or ()) or None
+            ),
+            reference_fact_id=decision.reference_fact_id,
+            band=decision.band.value if decision.band else None,
+            band_side=decision.band_side.value if decision.band_side else None,
         )
         session.add(group)
         await session.flush()
         session.add(ClaimGroupMember(group_id=group.id, claim_id=claim.id))
-        claim_rows.append(claim)
+        fact_public = None
+        if decision.reference_fact_id is not None:
+            fact_public = await session.scalar(
+                select(ReferenceFact.public_id).where(
+                    ReferenceFact.id == decision.reference_fact_id
+                )
+            )
+        await journal_event(
+            session,
+            actor,
+            group,
+            GroupEventKind.CREATED,
+            other_group_id=decision.related_group_id,
+            claim_ids=[claim.id],
+            to_level=level,
+            data={
+                "rule": decision.rule,
+                "similarity": decision.similarity,
+                "arbiter_reason": decision.arbiter_reason,
+                "related_group_id": decision.related_group_id,
+            },
+        )
+        if decision.reference_fact_id is not None:
+            await journal_event(
+                session,
+                actor,
+                group,
+                GroupEventKind.FACT_LINKED,
+                data={
+                    "reference_fact_id": str(fact_public),
+                    "band": group.band,
+                    "band_side": group.band_side,
+                },
+            )
+        await publish(
+            session,
+            names.CLAIM_GROUP_CREATED,
+            {
+                "group_id": str(group.public_id),
+                "claim_id": str(claim.public_id),
+                "level": level,
+                "content_id": str(content.id),
+                "rule": decision.rule,
+                "related_group_id": await _group_public_id(session, decision.related_group_id),
+                "reference_fact_id": str(fact_public) if fact_public is not None else None,
+                "band": group.band,
+                "band_side": group.band_side,
+            },
+            aggregate_type="claim_group",
+            aggregate_id=str(group.public_id),
+            actor=actor.label,
+        )
+        created_in_call.append((normalized, claim, group))
         group_rows.append(group)
+        record.group_ids.append(group.id)
+        if await _try_band_inheritance(
+            session,
+            actor,
+            group=group,
+            claim=claim,
+            content=content,
+            level=level,
+            decision=decision,
+            profile=profile,
+        ):
+            continue
         if ClaimType(claim.claim_type) not in UNVERIFIABLE_CLAIM_TYPES:
+            flags = dict(base_flags)
+            if decision.outdated:
+                flags["outdated"] = True
+            if fact_public is not None:
+                flags["reference_fact_id"] = str(fact_public)
+            if decision.external_factchecks:
+                flags["external_factchecks"] = [dict(e) for e in decision.external_factchecks]
             investigation = await request_investigation(
                 session,
                 actor,
@@ -192,10 +686,7 @@ async def record_extraction(
                 requested_by=requested_by,
                 flags=flags,
             )
-            investigations.append((group, investigation))
             record.investigation_ids.append(investigation.id)
-        record.claim_ids.append(claim.id)
-        record.group_ids.append(group.id)
 
     await publish(
         session,
