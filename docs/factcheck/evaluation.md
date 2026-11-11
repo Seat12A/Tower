@@ -66,7 +66,8 @@ confiance ≥ 0,8). Cible proche de zéro, quitte à augmenter l'abstention.
 3. **Perturbations lexicales** (ajout de ce plan, d'après PolBiX) : remplacer un terme
    neutre par un euphémisme ou un dysphémisme ne doit pas changer l'issue.
 4. **Parité en production** : par bord (étiquettes de la table séparée, lues par
-   l'analytique seule), à portée et thème égaux : taux de passage à chaque étage,
+   l'analytique seule, limitées aux partis, organisations et affiliations officielles
+   d'élus et de candidats, jamais déduites pour un compte ordinaire), à portée et thème égaux : taux de passage à chaque étage,
    distribution des issues, délais, taux d'acceptation par les relecteurs. Indicateur
    principal : rapport brouillons ÷ affirmations vérifiables observées, à rôle et
    décile de portée égaux ; alerte si l'écart entre deux bords dépasse **1,25 sur un

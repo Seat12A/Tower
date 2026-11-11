@@ -198,7 +198,8 @@ par les éditeurs depuis Discord. Deux attributs ajoutés après l'avis de Fable
 - `controlled_by` : l'entité qui contrôle l'éditeur (État, parti, groupe), utilisée
   par la règle fermée des sources partie prenante ([pipeline.md](pipeline.md), E7).
   Ce registre de relations de contrôle est un choix humain : il est **versionné et
-  publié** ;
+  publié**. Il est amorcé automatiquement depuis Wikidata (propriétés « propriétaire »
+  et « organisation mère ») et les registres officiels, puis corrigé par l'équipe ;
 - `statutory_independence` : un organisme statistique produisant sous indépendance
   statutaire voit ses chiffres acceptés seuls. L'attribut repose sur des **critères
   externes** plutôt que sur un jugement de l'équipe. Candidats, **à vérifier** :
@@ -228,8 +229,13 @@ Règles de neutralité :
 
 ## Droit d'auteur et conservation
 
-- Pages récupérées : on conserve l'empreinte SHA-256, l'URL, la date, et **seulement
-  les passages cités** (droit de courte citation). Le texte complet des pages non
+- Pages récupérées : on conserve **toujours le lien de la source** (URL canonique et
+  URL d'origine), le titre, l'éditeur, la date de publication et de récupération,
+  l'empreinte SHA-256, et **seulement les passages cités** (droit de courte citation).
+  Pour lutter contre la disparition des pages, un lien d'archive publique peut être
+  demandé pour chaque source citée (candidat : Internet Archive ; conditions d'usage
+  automatisé **à vérifier**) ; si la page source disparaît, le lien d'archive prend le
+  relais. Le texte complet des pages non
   citées est supprimé après l'enquête (cohérent avec l'article L. 122-5-3 du code de
   la propriété intellectuelle, qui impose de détruire les copies faites pour la fouille
   de textes, hors recherche).

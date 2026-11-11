@@ -37,7 +37,8 @@ deux réplicas concurrents (test réel sur PostgreSQL) ; RSS mesuré.
 
 - Tables `entities`, `platform_accounts`, `watched_accounts`, `content_items` (avec
   `x_post_id` généré), `content_snapshots`, `observations`, `observation_counters`,
-  `installations`.
+  `installation_daily` (pseudonyme du jour, secret détruit chaque jour : aucun
+  profilage possible).
 - Service `ingest`, endpoint de l'extension (déjà prévu par la feuille de route du
   socle), processus `radar` pour X.
 - E0 : normalisation, empreinte exacte, SimHash par bandes, détection de langue,
@@ -135,7 +136,8 @@ Critère : ≥ 90 % des images recyclées du corpus datées correctement ; RSS d
 ## Lot 9 — V4 : audit et neutralité
 
 - Audit hebdomadaire Fable, tableau de bord de neutralité (quatre mesures), exemples
-  dynamiques dans les prompts, brouillons pièges pour mesurer la vigilance.
+  dynamiques dans les prompts ; brouillons pièges seulement si le taux d'acceptation
+  sans modification le justifie et avec l'accord de l'équipe.
 
 Critère : rapport de neutralité mensuel publié en interne ; écart nul au test de
 permutation.

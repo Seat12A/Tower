@@ -154,8 +154,23 @@ paires pièges du jeu de référence.
 
 ### E4 — Ordonnanceur (code seul)
 
-Job périodique (toutes les 2 minutes) exécuté en singleton par verrou consultatif
-(`pg_try_advisory_xact_lock`), comme la maintenance du socle. Il :
+Job exécuté en singleton par verrou consultatif (`pg_try_advisory_xact_lock`), comme
+la maintenance du socle. **Sa cadence s'adapte au flux** (demande de Jules : au départ,
+une dizaine de tweets par jour ; la charge peut monter vite) :
+
+- **réveil par événement** : un contenu N3 ou N4 (compte suivi, forçage) est traité
+  dès son arrivée, sans attendre le prochain passage ;
+- **passage périodique** dont l'intervalle suit le débit d'entrée mesuré sur l'heure
+  écoulée, pour viser environ 5 nouveaux contenus par passage :
+  `intervalle = borne(60 s, 30 min, 5 ÷ débit)`. À 10 tweets par jour, un passage
+  toutes les 30 minutes ; à 20 000 par jour, toutes les minutes ou presque ;
+- **lots qui attendent** : un lot d'extraction N1 part dès qu'il atteint 10 posts, ou
+  après un délai maximal (6 h au départ), pour ne pas garder un post isolé
+  indéfiniment ;
+- les bornes et la cible sont dans `processing_profiles` : aucun changement de code
+  quand le volume grandit.
+
+À chaque passage, il :
 
 1. recalcule portée, vélocité et niveau des groupes actifs (agrégats SQL, pas de
    chargement en mémoire) ;
@@ -163,9 +178,12 @@ Job périodique (toutes les 2 minutes) exécuté en singleton par verrou consult
 3. détecte les vagues ([vagues.md](vagues.md)) ;
 4. classe les groupes en attente par score de priorité ;
 5. réserve le budget et enfile les jobs E5 ou E6 dans la limite du budget, du quota
-   de brouillons et de la capacité des files.
+   de brouillons (50 par jour au plus, voir [niveaux.md](niveaux.md)) et de la capacité
+   des files.
 
-Volume : 370 → environ 75 groupes par jour qui avancent.
+Volume (scénario de 20 000 posts par jour) : 370 → environ 75 groupes par jour qui
+avancent. Au démarrage (une dizaine de tweets par jour), tout ce qui est vérifiable
+peut avancer.
 
 ### E5 — Vérification légère (Atlas + petit modèle)
 

@@ -16,16 +16,16 @@ avant le lot V1.
 | Table | Contenu | Notes |
 |---|---|---|
 | `entities` | Personne ou organisation publique : nom, type, rôle public (catégorie fermée) | Jamais de bord politique ici |
-| `entity_political_labels` | Étiquette de bord, grille, auteur, date | **Table séparée**, lue par l'analytique seule, jamais par le pipeline (droit d'accès SQL distinct) |
+| `entity_political_labels` | Bord d'un **parti ou d'une organisation**, ou **affiliation partisane officielle** d'un élu ou d'un candidat (donnée rendue publique par la personne, sourcée : registres officiels, Wikidata) ; grille, source, date | **Table séparée**, lue par l'analytique seule, jamais par le pipeline (droit d'accès SQL distinct). **Jamais d'étiquette déduite** pour un compte ordinaire |
 | `platform_accounts` | Plateforme, identifiant natif, pseudo, entité éventuelle | |
-| `watched_accounts` | Compte suivi : catégorie, priorité, curseur de lecture (`since`), actif | Liste publiée |
+| `watched_accounts` | Compte suivi : catégorie, priorité, curseur de lecture (`since`), actif, ajouté par | Liste tenue par l'équipe, publication recommandée |
 | `content_items` | Voir [plateformes-medias.md](plateformes-medias.md) ; clé interne `BIGINT` ; `UNIQUE (platform, external_id)` ; empreinte exacte, SimHash et bandes | **Non partitionnée** ; index sur expression pour les IDs X |
 | `content_embeddings` | Vecteur du post (`halfvec(512)`), modèle | Partitionnée par semaine, **sans index vectoriel**, conservée 14 jours |
 | `content_snapshots` | Copie du contenu à un instant (ouverture de dossier, revérification) | Déjà prévu par le socle |
 | `observations` | Source (extension, radar, flux), installation, horodatage, version des filtres de l'extension | **Partitionnée** (par semaine ou par mois) ; au-delà d'un seuil par contenu, agrégée en compteurs |
 | `extension_filter_versions` | Version des filtres serveur de l'extension, date | Gel des bases de détection de vague 24 h après un changement |
 | `observation_counters` | Contenu, heure, source, nombre | Tenue en charge des vagues |
-| `installations` | Jeton anonyme haché, quotas, poids | |
+| `installation_daily` | **Pseudonyme du jour** d'une installation : `HMAC(secret du jour, jeton)`, compteurs et quotas du jour | Le secret change chaque jour et l'ancien est **détruit** : impossible de relier deux jours entre eux, donc pas de profilage ni de traçage. Aucune adresse IP stockée |
 | `media_assets`, `content_media` | Médias et liens | Lot multimodal |
 
 ## Affirmations, groupes, récits
@@ -75,6 +75,7 @@ déterministe d'E3 soit une requête SQL indexable.
 | `evidence_passages` | Source, texte du passage dans sa langue (`lang`), traduction française pour le relecteur (`translation_fr`), position, SimHash, embedding (si calculé), conservé (`bool`) : seuls les passages cités sont conservés au-delà de l'enquête |
 | `verdicts` | Groupe, issue de véracité, besoin de contexte, types de contexte, confiance, date d'expiration, versions (profil, routes, prompts), statut (`draft`, `active`, `superseded`, `expired`) ; un seul actif par groupe (index partiel unique) |
 | `citations` | Verdict ↔ passage, citation exacte, assertion appuyée |
+| `context_note_translations` | Note, langue, texte, origine (`original`, `human`, `machine`), validée par | Traductions générées à la demande et mises en cache |
 | `context_notes` | Type (15 types), régime (`object`, `formulation`, `provisional`), objet rattaché (`object_type` : média, indicateur, texte juridique avec version, événement, document cité, citation ; `object_id`) ou groupe, texte (≤ 280) par langue, liens, statut, `expires_at` (6 h au plus pour une note provisoire), résultats des contrôles |
 | `reviews` | Dossier, relecteur, décision, issue finale, diff brouillon → publié, étiquettes d'apprentissage, temps de relecture |
 
@@ -123,4 +124,6 @@ petits. Si nécessaire, quantification binaire avec re-classement en `halfvec`
 | `observations` détaillées | 30 jours, puis compteurs |
 | `news_index` | 90 jours |
 | Sorties complètes de `llm_calls` | 180 jours |
-| `entity_political_labels` | selon la base légale validée (voir [questions.md](questions.md)) |
+| `entity_political_labels` | tant que la fonction ou l'affiliation est publique ; revue annuelle |
+| `installation_daily` | 30 jours, puis compteurs agrégés sans pseudonyme |
+| Liens des sources citées | permanents |

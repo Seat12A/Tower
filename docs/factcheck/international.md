@@ -115,8 +115,33 @@ baisser l'exigence.
 | E6 | Cadrage avec le profil du pays (définitions nationales : chaque pays mesure le chômage, la pauvreté ou la délinquance à sa façon) |
 | E7 | Sources choisies par juridiction dans les registres ; requêtes rédigées dans la langue des sources visées (requêtes multilingues) |
 | E8 | Le juge lit les passages **dans leur langue d'origine** ; les modèles retenus lisent les grandes langues |
-| E9 | Note rédigée dans la langue du post + traduction française pour le relecteur ; **les citations sont vérifiées contre le texte original, jamais contre une traduction** |
-| E11 | Le relecteur valide sur la version française ; une publication dans une autre langue demande un relecteur qui la lit (voir [questions.md](questions.md)) |
+| E9 | Note rédigée dans la langue du post + version dans une langue que l'équipe lit (français ou anglais) ; **les citations sont vérifiées contre le texte original, jamais contre une traduction** |
+| E11 | Le relecteur valide la version française ou anglaise ; les autres langues sont des traductions automatiques de la version validée (voir « Langues de publication ») |
+
+## Langues de publication
+
+Réponse de Jules (2026-11-11) : l'équipe relit le français et l'anglais (on
+s'adaptera) ; tout doit être traduisible.
+
+| Destination | Langue par défaut | Autres langues |
+|---|---|---|
+| Réponse sur X, bot Discord, site pour les personnes sans l'extension | **Langue du tweet** | Disponibles à la demande |
+| Équipe (relecture, Discord) | Français ou anglais, au choix du relecteur | Toutes |
+| Utilisateurs de l'extension | Langue choisie dans l'extension | Repli : langue du tweet, puis anglais |
+
+- Chaque note et chaque fiche a une version de **référence relue** (français ou
+  anglais) ; les autres langues sont des **traductions automatiques** de cette version
+  (petit modèle OpenAI, gratuit), générées à la demande et mises en cache
+  (`context_note_translations`).
+- Une traduction automatique est **signalée comme telle** au lecteur. Raison : selon
+  une analyse de l'article 50 de l'AI Act, la relecture d'un texte source ne couvre
+  pas forcément ses traductions ; l'étiquette évite toute ambiguïté. Quand un membre
+  de l'équipe lit la langue, il peut valider la traduction, qui perd l'étiquette.
+- L'API accepte un paramètre de langue avec repli ; l'extension transmet la langue
+  choisie, rien d'autre sur l'utilisateur.
+- Une langue que personne dans l'équipe ne lit reste publiable (traduction signalée),
+  mais un tweet dans cette langue passe en relecture renforcée si la confiance est
+  moyenne ou basse.
 
 ## Biais propres à l'international
 

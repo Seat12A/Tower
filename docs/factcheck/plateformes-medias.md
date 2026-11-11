@@ -60,6 +60,15 @@ la portée se calcule alors sur les signaux disponibles).
 | **Mastodon** | API publique par instance | Gratuit | Comptes suivis, instances francophones | Ensuite |
 | **YouTube, TikTok, Telegram** | API officielles avec conditions variables (programmes chercheurs, quotas) ; **à étudier** au moment de l'intégration | Variable | Vidéos virales (après le multimodal) | Plus tard |
 
+Exigence de Jules (2026-11-11) : même si les plateformes suivantes ne sont pas encore
+choisies, le système doit **déjà les distinguer**. Concrètement, dès le lot 2 :
+- chaque contenu, compte, observation, affirmation (via ses contenus), brouillon et
+  événement porte sa **plateforme** (`x` pour l'instant) ;
+- l'API, le bot et l'extension affichent la plateforme d'origine ;
+- les statistiques, les vagues et les budgets peuvent être ventilés par plateforme ;
+- ajouter une plateforme ne demande ni migration de schéma lourde ni changement du
+  pipeline (voir la fin de cette page).
+
 Interdits du projet, inchangés : aucun scraping, aucun compte automatisé pour lire,
 uniquement des API officielles ou des flux publics prévus pour cet usage.
 

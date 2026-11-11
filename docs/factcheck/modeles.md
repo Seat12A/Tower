@@ -48,9 +48,14 @@ Conséquences pour la conception :
    entraîner les modèles d'OpenAI. On n'y envoie que du contenu public (textes de
    posts publics, pages web publiques), mentions pseudonymisées (`@user`), sans nom
    d'auteur, sans note interne, sans identité de relecteur, sans étiquette politique.
-   Point juridique ouvert (RGPD : les posts contiennent des données personnelles
-   d'auteurs, et OpenAI les réutilise pour ses propres fins) : voir
-   [questions.md](questions.md).
+   **Décision de Jules (2026-11-11) : partage activé.** Ces règles de minimisation
+   s'appliquent sans exception. Un avis juridique reste recommandé (RGPD : les posts
+   contiennent des données personnelles d'auteurs, qu'OpenAI réutilise pour ses
+   propres fins).
+   Organisation au **palier 1** au départ (environ 15 € crédités) : allocation de
+   2,5 M de tokens par jour pour les petits modèles et 250 000 pour les grands. Si le
+   second avis dépasse 250 000 tokens un jour donné (au-delà d'environ 35 avis), le
+   surplus part sur le repli payant.
 4. **Deux clés OpenAI possibles** : une organisation dédiée avec partage
    (`TOWER_OPENAI_API_KEY_SHARED`) pour les rôles publics, et une organisation sans
    partage (`TOWER_OPENAI_API_KEY`) pour tout ce qui ne doit pas l'être. Chaque route

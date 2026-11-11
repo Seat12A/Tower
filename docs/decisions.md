@@ -122,3 +122,24 @@ arbitrages **remplacent** les propositions correspondantes du tableau ci-dessus.
 
 Coût estimé après arbitrages : 63 à 91 $ par mois d'IA et de recherche selon le taux
 d'escalade (77 $ à 25 %), voir [factcheck/couts.md](factcheck/couts.md).
+
+### Réponses de Jules (2026-11-11)
+
+Détail : [factcheck/questions.md](factcheck/questions.md).
+
+| Décision | Raison |
+|---|---|
+| Plafond de 50 brouillons par jour, sélection par doute puis portée ; rien n'est publié sans relecture (hypothèse à confirmer) | Capacité de relecture adaptable ; contrôle éditorial humain |
+| Partage des données avec OpenAI activé, palier 1 ; minimisation stricte des données envoyées | Tokens gratuits ; avis juridique recommandé |
+| Budget « le moins possible » : plafond par défaut de 30 $/mois, escalade Opus suspendue à 80 %, enquêtes non prioritaires suspendues à 100 % | Coût minimal ; le budget borne la dépense, pas le quota |
+| Cadence de l'ordonnanceur adaptée au débit (`borne(60 s, 30 min, 5 ÷ débit)`), réveil immédiat pour N3/N4, lots N1 envoyés à 10 posts ou après 6 h | Démarrage à une dizaine de tweets par jour, montée rapide possible |
+| Application automatique des verdicts aux variantes de signature identique ou de bande validée | Réponse oui de Jules, dans les limites strictes du plan |
+| Liste des comptes suivis tenue librement par l'équipe ; elle ne change que surveillance et latence | Choix éditorial ; publication recommandée |
+| Étiquettes politiques limitées aux partis, organisations et affiliations officielles d'élus et de candidats ; jamais déduites pour un compte ordinaire | RGPD article 9 : données rendues publiques par les personnes concernées seulement |
+| Registre `controlled_by` amorcé depuis Wikidata et registres officiels, corrigé par l'équipe, publié | Règle de partie prenante applicable sans jugement au cas par cas |
+| Brouillons pièges non activés au départ | Petite équipe ; à revoir sur mesure |
+| Réponse dans la langue du tweet ; version de référence relue en français ou en anglais ; autres langues en traduction automatique signalée ; langue au choix dans l'extension | Équipe francophone et anglophone ; tout doit être traduisible |
+| Plateforme portée par chaque contenu, compte, observation et événement dès le lot 2 | Autres plateformes à venir, système déjà prêt |
+| Jeton d'installation transformé en pseudonyme du jour (HMAC avec secret quotidien détruit), aucune IP stockée | Compter les observateurs indépendants sans possibilité technique de profilage ni de traçage |
+| Liens des sources toujours conservés, passages cités et empreinte ; lien d'archive publique à étudier | Traçabilité des verdicts ; droit d'auteur |
+| Pas de contrat AFP pour l'instant | Budget |

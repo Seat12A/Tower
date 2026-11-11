@@ -1,46 +1,36 @@
 # Questions ouvertes
 
-## Pour Jules
+## Pour Jules : réponses du 2026-11-11
 
-Classées par effet sur la conception, de la plus structurante à la moins structurante.
+| # | Question | Réponse | Effet dans le plan |
+|---|---|---|---|
+| 1 | Capacité de relecture | On s'adaptera ; ne pas tout envoyer, une cinquantaine de brouillons par jour au plus | Plafond de 50 brouillons/jour, sélection par doute et portée ([niveaux.md](niveaux.md)) |
+| 2 | Partage des données avec OpenAI | Oui | Partage activé, minimisation stricte ; avis juridique recommandé ([modeles.md](modeles.md)) |
+| 3 | Palier OpenAI | Palier 1, environ 15 € crédités | Allocation de 2,5 M / 250 k tokens par jour ; repli payant au-delà |
+| 4 | Volumes | Peu au début (une dizaine de tweets par jour), montée possiblement rapide | Cadence adaptative de l'ordonnanceur ([pipeline.md](pipeline.md), E4) |
+| 5 | Budget | Le moins possible | Plafond par défaut de 30 $/mois, dégradation automatique ([couts.md](couts.md)) |
+| 6 | Application automatique des verdicts | Oui | Seulement aux variantes de signature identique ou de bande validée |
+| 7 | Comptes suivis | L'équipe tient la liste, choix libre | Choix éditorial ; publication recommandée ; la liste ne change que surveillance et latence |
+| 8 | Étiquetage politique | « Choisis le mieux » | Choix fait : étiquettes limitées aux partis, organisations et affiliations officielles d'élus et de candidats ; jamais d'étiquette déduite pour un compte ordinaire ; table séparée lue par l'analytique seule |
+| 9 | Méthodologie publique (pouvoir en place plus vérifié) | Oui | À écrire dans la méthodologie publiée |
+| 10 | Registre de contrôle des sources | Question pas claire | Choix fait : amorcé depuis Wikidata et registres officiels, corrigé par l'équipe, publié ([connaissances.md](connaissances.md)) |
+| 11 | Latence | Valeur qui s'adapte au nombre de tweets | Cadence `borne(60 s, 30 min, 5 ÷ débit)`, réveil immédiat pour N3/N4 |
+| 12 | Brouillons pièges | Ne sait pas | Choix fait : non activés au départ ; envisagés si l'acceptation sans modification dépasse 95 % sur un trimestre |
+| 13 | Langues | Équipe : français et anglais ; réponse dans la langue du tweet ; tout traduisible, langue au choix dans l'extension | Section « Langues de publication » ([international.md](international.md)) |
+| 14 | Plateformes | Pas encore choisies, mais le système doit déjà les distinguer | Plateforme portée par chaque contenu, compte, observation et événement dès le lot 2 ([plateformes-medias.md](plateformes-medias.md)) |
+| 15 | Images et vidéos | Ne sait pas | Choix fait : lot 8 ; empreinte des images et liens des médias conservés dès le lot 2 |
+| 16 | Contrat AFP | Non pour l'instant | Flux publics, GDELT, ClaimReview |
+| 17 | Jeton d'installation | Oui, sans aucune possibilité de profilage ou de traçage de notre côté | Pseudonyme du jour, secret détruit chaque jour, aucune IP stockée ([donnees.md](donnees.md)) |
+| 18 | Conservation des pages | Ne sait pas, mais les liens des sources doivent être conservés | Choix fait : liens toujours conservés + passages cités + empreinte ; lien d'archive publique à étudier |
 
-1. **Capacité de relecture réelle** (personnes, heures par semaine) : elle fixe le
-   quota de brouillons, donc toute la dépense d'enquête.
-2. **Partage des données avec OpenAI** : accepter que les posts publics et pages web
-   envoyés aux petits modèles servent à l'entraînement d'OpenAI ? Les posts contiennent
-   des données personnelles de leurs auteurs (RGPD) ; un avis juridique est conseillé
-   avant d'activer le programme. Alternative : organisation sans partage, coût
-   d'environ +25 $ par mois.
-3. **Palier d'usage OpenAI** de l'organisation et **liste exacte des modèles
-   éligibles** à l'allocation gratuite (famille GPT-6 comprise, API Batch et Flex
-   comprises ?), à relever dans le tableau de bord.
-4. **Application automatique des verdicts** à tout un groupe ou un récit sur le site et
-   l'extension, sans revue post par post ? Si oui, une erreur de regroupement devient
-   publique et les seuils doivent monter.
-5. **Volumes réels** : posts observés par jour, nombre de comptes suivis et posts par
-   jour de ces comptes (le coût de l'API X en dépend directement).
-6. **Budget mensuel** et inclusion ou non de l'API X.
-7. **Liste des comptes suivis** : catégories de rôle public retenues (seuil
-   d'abonnés ?), qui la tient, publication.
-8. **Étiquetage politique des comptes** (pour mesurer la neutralité) : qui l'établit,
-   selon quelle grille, sur quelle base légale (opinions politiques : donnée sensible
-   au sens de l'article 9 du RGPD, même déduite de comptes publics) ?
-9. **Contrat AFP** : envisageable ? Sinon, l'actualité repose sur les flux publics,
-   GDELT et ClaimReview.
-10. **Latence acceptable** sur un contenu viral (2 h prévues) et en vague (30 min
-    prévues).
-11. **Langues et pays prioritaires** : quelles langues traiter dès le départ (le
-    système est mondial, mais chaque langue demande un sous-ensemble de référence) ?
-    Quels pays passer en couverture A en premier ? Quelles langues l'équipe lit-elle
-    pour relire et publier ailleurs qu'en français ?
-12. **Plateformes prioritaires** après X (proposition : Bluesky, puis Threads).
-13. **Images et vidéos** : à quel horizon ? Le modèle de données les prévoit déjà.
-14. **Identité des installations de l'extension** : jeton anonyme stable possible ?
-    Sans cela, le critère « observateurs indépendants » n'est pas mesurable.
-15. **Conservation des pages sources** : le plan propose de ne garder que les passages
-    cités et l'empreinte de la page. À confirmer.
-16. **Brouillons pièges** pour mesurer la vigilance des relecteurs : l'équipe est-elle
-    d'accord sur le principe ?
+### Encore à confirmer par Jules
+
+- **Publication sans relecture** : le plan suppose que **rien n'est publié sans
+  relecture humaine** et que le plafond de 50 par jour sert à choisir ce qui est relu.
+  Si l'intention est de publier sans relecture les verdicts jugés sûrs, il faut le
+  dire : cela change le cadre légal (étiquetage « généré par IA » obligatoire, AI Act
+  article 50) et le risque d'erreur publique.
+- Publication de la liste des comptes suivis : recommandée, pas encore décidée.
 
 ## À soumettre à Fable (architecture)
 

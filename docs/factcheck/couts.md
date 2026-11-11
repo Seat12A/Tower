@@ -60,8 +60,26 @@ n'est pas connu avant la mise en service. Trois hypothèses :
 
 Les enquêtes seules coûtent 50 à 78 $ selon le taux d'escalade. Fable estimait 45 à
 65 $ avec les coûts unitaires de son propre plan ; l'écart vient surtout de la
-rédaction dédiée (E9) et du cadrage, ajoutés dans ce plan. Le plafond de 18 brouillons
-par jour borne la dépense : l'uniformité de profondeur entre N2 et N3 coûte peu.
+rédaction dédiée (E9) et du cadrage, ajoutés dans ce plan.
+
+## Budget : « le moins possible »
+
+Réponse de Jules (2026-11-11) : dépenser le moins possible, avec un démarrage à une
+dizaine de tweets par jour et une montée possiblement rapide. Conséquences :
+
+- **Au démarrage**, la dépense réelle est de l'ordre de **quelques dollars par mois** :
+  presque tout tient dans l'allocation gratuite OpenAI du palier 1 (2,5 M de tokens
+  par jour pour les petits modèles, 250 000 pour les grands), et les enquêtes
+  Anthropic se comptent par unités.
+- **Plafonds par défaut** dans `budget_counters`, modifiables depuis Discord :
+  30 $ par mois au total pour l'IA et la recherche, alertes à 50 %, 80 % et 100 %. À
+  80 %, l'escalade vers Opus est suspendue ; à 100 %, seules les enquêtes N3/N4 en
+  profondeur standard continuent, les autres attendent le mois suivant.
+- **Le quota de 50 brouillons par jour est un plafond, pas un objectif.** S'il était
+  atteint chaque jour, les enquêtes coûteraient de l'ordre de 100 à 150 $ par mois :
+  ce sont les plafonds de budget qui décident, pas le quota.
+- Le palier 1 d'OpenAI exige un solde positif (environ 15 € sont déjà crédités) : ce
+  solde n'est entamé que par le repli payant, quand l'allocation du jour est épuisée.
 
 ## Sensibilité
 

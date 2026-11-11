@@ -86,8 +86,10 @@ Une rétrogradation n'efface rien : le verdict et les traces restent.
 
 ## Liste des comptes suivis et neutralité
 
-Le niveau N3 utilise l'identité de l'auteur, ce que la règle 10 de `CLAUDE.md` encadre
-strictement :
+La liste est **tenue par l'équipe**, qui choisit librement qui y figure (réponse de
+Jules, 2026-11-11) : c'est un choix éditorial, pas un calcul du système. Sa
+**publication** reste recommandée, car la composition de la liste est le premier biais
+de sélection possible. Le système encadre ce que la liste peut changer :
 
 - **autorisé** : le **rôle public**, appliqué de façon identique à tous et **dans tous
   les pays** (chef d'État ou de gouvernement, membre du gouvernement, parlementaire,
@@ -148,7 +150,22 @@ coordonnés).
 
 ## Quota de brouillons
 
-Le goulot reste le temps de relecture humaine. Le nombre de brouillons envoyés dans
-Discord par jour est plafonné à **1,5 × la capacité de revue** (18 par jour au scénario
-supposé). Le surplus attend ou expire. Le mode vague a un quota séparé et réservé (voir
-[vagues.md](vagues.md)).
+Le goulot reste le temps de relecture humaine. Réponse de Jules (2026-11-11) : la
+capacité s'adaptera ; on n'envoie pas tout en relecture, au plus **une cinquantaine de
+brouillons par jour**.
+
+- **Plafond** : 50 brouillons par jour (`processing_profiles`, modifiable à chaud).
+- **Sélection** quand il y a plus de candidats que de places, dans l'ordre :
+  1. les cas où le système **doute** (désaccord de fond avec le second avis, sources
+     contradictoires, confiance moyenne ou basse) sur un contenu à forte portée ;
+  2. les verdicts « Faux » ou « Trompeur » à forte portée ;
+  3. le reste par score de priorité.
+- Le surplus attend ou expire. Les groupes de variantes **déjà couverts** par un
+  verdict validé (signature identique ou bande de valeurs validée) n'occupent pas de
+  place : ils héritent sans relecture.
+- **Rien n'est publié sans relecture humaine** (hypothèse retenue, à confirmer par
+  Jules) : ni sur X, ni sur le site, ni dans l'extension. C'est aussi ce qui place
+  Seat 12A dans l'exception de l'AI Act (article 50) pour les textes relus.
+- Le quota est un plafond, pas un objectif : c'est le **budget** qui borne réellement
+  la dépense ([couts.md](couts.md)).
+- Le mode vague a un quota séparé et réservé (voir [vagues.md](vagues.md)).

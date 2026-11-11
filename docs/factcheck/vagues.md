@@ -73,7 +73,8 @@ relecteur.
 
 ### Score
 
-L'ordonnanceur E4 calcule toutes les 2 minutes, par récit, sur des fenêtres de 5 min,
+L'ordonnanceur E4 calcule à chaque passage (cadence adaptée au flux, voir
+[pipeline.md](pipeline.md), E4), par récit, sur des fenêtres de 5 min,
 1 h et 6 h :
 
 - la **part du flux observé** : posts du récit ÷ posts observés sur la même fenêtre.
