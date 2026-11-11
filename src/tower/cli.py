@@ -153,6 +153,7 @@ def cmd_factcheck(args: argparse.Namespace) -> None:
             report=args.report,
             level=args.level,
             concurrency=args.concurrency,
+            e3_only=args.e3_only,
         )
     )
     if code:
@@ -215,6 +216,7 @@ def build_parser() -> argparse.ArgumentParser:
     pe.add_argument("--report", metavar="PATH", help="write the Markdown report here")
     pe.add_argument("--level", choices=["N3", "N4"], default="N3")
     pe.add_argument("--concurrency", type=int, default=2, metavar="K")
+    pe.add_argument("--e3-only", action="store_true", help="matching layer only (skip E6-E10)")
     pe.set_defaults(func=cmd_factcheck)
     ps = fsub.add_parser("seed-registry", help="Seed the source registry")
     ps.set_defaults(func=cmd_factcheck)

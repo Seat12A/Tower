@@ -10,16 +10,18 @@ from typing import Any
 import pytest
 
 from tower.cli import build_parser
-from tower.core.adapters.fake_llm import FakeLLMProvider
+from tower.core.adapters.fake_llm import FakeEmbedder, FakeLLMProvider
 from tower.core.config import Settings
 from tower.core.db.database import Database
 from tower.core.domain.errors import InvalidInput
 from tower.core.domain.factcheck.confidence import ConfidenceBand
 from tower.core.domain.factcheck.values import Agreement, ContextNeed, Veracity
 from tower.core.llm.admin import run_seed
+from tower.core.llm.embeddings import EmbeddingService
 from tower.core.llm.prompts import PromptRegistry
 from tower.core.llm.router import LLMRouter
 from tower.services.investigate import evaluation as ev
+from tower.services.investigate import evaluation_e3 as e3
 from tower.services.investigate import pipeline as pl
 
 from .conftest import make_settings
@@ -91,9 +93,9 @@ def test_parse_bad_json_and_duplicate_id() -> None:
 
 def test_example_file_loads() -> None:
     cases = ev.load_cases(EXAMPLES)
-    assert len(cases) == 5 and all(c.example and c.notes for c in cases)
+    assert len(cases) == 13 and all(c.example and c.notes for c in cases)
     assert {c.category for c in cases} >= {"established_fact_denial", "unverifiable"}
-    assert {c.lang for c in cases} == {"fr", "en"}
+    assert {c.lang for c in cases} == {"fr", "en", "de"}
 
 
 # ------------------------------------------------------------------------- metrics
@@ -288,6 +290,7 @@ async def test_end_to_end_examples_with_fake_provider_and_cache(db: Database) ->
     providers = {name: FakeLLMProvider(name) for name in ("openai", "openai_shared", "anthropic")}
     router = LLMRouter(db, providers, PromptRegistry.default(), usage_tier=1, free_margin=0.1)
     cases = ev.load_cases(EXAMPLES)
+    embedder = EmbeddingService(db, FakeEmbedder())
     first = await ev.run_eval(
         router,
         FakeAtlas([default_docs()]),
@@ -296,14 +299,15 @@ async def test_end_to_end_examples_with_fake_provider_and_cache(db: Database) ->
         concurrency=2,
         set_path=str(EXAMPLES),
         today=date(2026, 3, 1),
+        embedder=embedder,
     )
-    assert len(first.results) == 5
+    assert len(first.results) == 13
     assert all(r.error is None and r.scored for r in first.results), [
         r.error for r in first.results
     ]
     assert first.total_cost_usd_micros >= 0
     report = ev.render_report(first, high=settings.fc_confidence_high)
-    assert "Example cases: 5" in report
+    assert "Example cases: 13" in report
     second = await ev.run_eval(
         router,
         FakeAtlas([default_docs()]),
@@ -312,8 +316,14 @@ async def test_end_to_end_examples_with_fake_provider_and_cache(db: Database) ->
         concurrency=2,
         set_path=str(EXAMPLES),
         today=date(2026, 3, 1),
+        embedder=embedder,
     )
     assert second.total_cost_usd_micros == 0
+    assert first.e3 is not None and second.e3 is not None
+    assert not first.e3.errors, first.e3.errors
+    metrics = e3.compute_e3_metrics(first.e3)
+    assert metrics.false_reuse == 0 and metrics.interlingual_rate == 1.0
+    assert "## E3: matching, groups and bands" in report
     assert [r.predicted for r in second.results] == [r.predicted for r in first.results]
 
 
@@ -362,6 +372,9 @@ def test_cli_eval_arguments() -> None:
     )
     defaults = build_parser().parse_args(["factcheck", "eval", "--set", "x.jsonl"])
     assert (defaults.level, defaults.concurrency, defaults.limit) == ("N3", 2, None)
+    assert defaults.e3_only is False
+    flagged = build_parser().parse_args(["factcheck", "eval", "--set", "x.jsonl", "--e3-only"])
+    assert flagged.e3_only is True
     with pytest.raises(SystemExit):
         build_parser().parse_args(["factcheck", "eval"])
     with pytest.raises(SystemExit):
