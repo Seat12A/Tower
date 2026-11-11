@@ -674,7 +674,10 @@ async def test_seed_is_idempotent_and_keeps_modified_routes(
         )
 
     assert await counts() == (12, 15, 2)
-    assert await scalar(db, "SELECT cap_usd_micros FROM budget_counters WHERE scope = 'global'") == 30_000_000
+    assert (
+        await scalar(db, "SELECT cap_usd_micros FROM budget_counters WHERE scope = 'global'")
+        == 30_000_000
+    )
     assert (
         await scalar(db, "SELECT free_group FROM llm_models WHERE model = 'gpt-5.6-sol'") == "large"
     )
@@ -704,7 +707,9 @@ async def test_seed_is_idempotent_and_keeps_modified_routes(
         await scalar(db, "SELECT params->>'effort' FROM llm_routes WHERE role = 'extract'")
         == "high"
     )
-    assert await scalar(db, "SELECT cap_usd_micros FROM budget_counters WHERE scope = 'global'") == 1
+    assert (
+        await scalar(db, "SELECT cap_usd_micros FROM budget_counters WHERE scope = 'global'") == 1
+    )
     assert await scalar(
         db, "SELECT input_usd_per_mtok FROM llm_models WHERE model = 'gpt-5-nano'"
     ) == Decimal("0.05")
