@@ -110,6 +110,29 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     asyncio.run(publish_filters_from_file(settings, args.file, args.version))
 
 
+def cmd_factcheck(args: argparse.Namespace) -> None:
+    settings = _settings("cli")
+    if args.action == "seed-registry":
+        from tower.core.factcheck.registry_seed import run_seed_registry
+
+        asyncio.run(run_seed_registry(settings))
+        return
+    from tower.services.investigate.evaluation import run_command
+
+    code = asyncio.run(
+        run_command(
+            settings,
+            set_path=args.set,
+            limit=args.limit,
+            report=args.report,
+            level=args.level,
+            concurrency=args.concurrency,
+        )
+    )
+    if code:
+        raise SystemExit(code)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tower", description="12A Tower")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -157,6 +180,18 @@ def build_parser() -> argparse.ArgumentParser:
     pf.add_argument("file", help="JSON file: {keywords, accounts, thresholds}")
     pf.add_argument("--version", required=True)
     pf.set_defaults(func=cmd_ingest)
+
+    p = sub.add_parser("factcheck", help="Fact-check tools: evaluation and registry seed")
+    fsub = p.add_subparsers(dest="action", required=True)
+    pe = fsub.add_parser("eval", help="Run an evaluation set (JSONL) through the pipeline")
+    pe.add_argument("--set", required=True, metavar="PATH", help="JSONL evaluation set")
+    pe.add_argument("--limit", type=int, metavar="N", help="only the first N cases")
+    pe.add_argument("--report", metavar="PATH", help="write the Markdown report here")
+    pe.add_argument("--level", choices=["N3", "N4"], default="N3")
+    pe.add_argument("--concurrency", type=int, default=2, metavar="K")
+    pe.set_defaults(func=cmd_factcheck)
+    ps = fsub.add_parser("seed-registry", help="Seed the source registry")
+    ps.set_defaults(func=cmd_factcheck)
     return parser
 
 
