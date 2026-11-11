@@ -60,7 +60,7 @@ class SourceHttp:
             timeout=timeout,
             headers={"User-Agent": user_agent, **(headers or {})},
             follow_redirects=True,
-            trust_env=False,
+            trust_env=transport is None,  # honour HTTPS_PROXY; tests inject a transport
         )
 
     async def aclose(self) -> None:

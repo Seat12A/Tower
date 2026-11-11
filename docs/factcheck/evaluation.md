@@ -119,7 +119,7 @@ Le jeu est un fichier **JSONL** : un cas par ligne, encodé en UTF-8.
 | `id` | oui | Identifiant stable du cas |
 | `claim` | oui | Affirmation canonique, dans sa langue d'origine (≤ 300 caractères) |
 | `lang` | oui | Langue de l'affirmation (BCP 47) |
-| `claim_fr` | si `lang` ≠ `fr` | Version française pivot (à défaut, `claim` est reprise telle quelle) |
+| `claim_fr` | non (recommandé si `lang` ≠ `fr`) | Version française pivot ; à défaut, `claim` est reprise telle quelle |
 | `jurisdiction` | oui | Code ISO 3166-1, `EU` ou `INT` |
 | `date` | oui | Date de publication de l'affirmation (`AAAA-MM-JJ`) : sert à résoudre « hier », « l'an dernier » |
 | `claim_type` | non | Type d'affirmation (valeurs de `ClaimType`) ; défaut `other` |

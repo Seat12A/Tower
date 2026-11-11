@@ -23,6 +23,7 @@ from tower.core.domain.factcheck.urls import content_url, parse_content_url
 from tower.core.domain.factcheck.values import (
     ClaimGroupState,
     NoteStatus,
+    Regime,
     ReviewDecision,
     ReviewLabel,
     ReviewOutcome,
@@ -531,6 +532,19 @@ async def review_draft(
         group.active_verdict_id = verdict.id
         group.state = ClaimGroupState.VERIFIED.value
         group.updated_at = func.now()
+        if note is None and decision is ReviewDecision.EDIT and new_note:
+            # The draft had no note (no evidence, refusal): the team writes the first one.
+            note = ContextNote(
+                verdict_id=verdict.id,
+                claim_group_id=group.id,
+                regime=Regime.FORMULATION.value,
+                text=new_note,
+                lang=lang,
+                links=[],
+                status=NoteStatus.VALIDATED.value,
+            )
+            session.add(note)
+            await session.flush()
         if note is not None:
             note.status = NoteStatus.VALIDATED.value
             note.updated_at = func.now()

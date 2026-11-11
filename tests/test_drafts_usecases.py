@@ -532,6 +532,21 @@ async def test_edit_in_english_creates_the_row_when_missing(db: Database) -> Non
     assert (await events(db, "verdict.published"))[0].payload["retranslate_from"] == "en"
 
 
+async def test_edit_creates_the_note_when_the_draft_has_none(db: Database) -> None:
+    built = await build_draft(db)
+    async with db.transaction() as s:
+        await s.execute(text("DELETE FROM context_notes"))  # e.g. no evidence: no writer note
+        await uc.review_draft(
+            s, EDITOR, built.verdict, decision="edit", note_text="Note de l'équipe", note_lang="fr"
+        )
+    async with db.session() as s:
+        note = (await s.scalars(select(ContextNote))).one()
+        rows = (await s.scalars(select(ContextNoteTranslation))).all()
+    assert note.status == "validated" and note.lang == "fr" and note.regime == "formulation"
+    assert [(r.lang, r.origin, r.text) for r in rows] == [("fr", "human", "Note de l'équipe")]
+    assert (await events(db, "verdict.published"))[0].payload["retranslate_from"] == "fr"
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [
