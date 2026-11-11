@@ -1,7 +1,8 @@
 """Fact-check MVP (lot 3): claims, groups, investigations, evidence, verdicts, notes,
 reviews, minimal source registry and source cache; ``dossiers.content_id``.
 
-Expand only: new tables and one nullable column.
+Expand only: new tables, one nullable column, and the observation source ``manual``
+added to two CHECK constraints (widening).
 
 Revision : 0005
 Parents : 0004
@@ -756,8 +757,21 @@ def upgrade() -> None:
         ondelete="SET NULL",
     )
 
+    # Manual fact-check requests ingest the post with the observation source "manual".
+    for table in ("observations", "observation_counters"):
+        op.drop_constraint(op.f(f"ck_{table}_source"), table, type_="check")
+        op.create_check_constraint(
+            op.f(f"ck_{table}_source"), table, "source IN ('extension', 'radar', 'feed', 'manual')"
+        )
+
 
 def downgrade() -> None:
+    for table in ("observations", "observation_counters"):
+        op.execute(f"DELETE FROM {table} WHERE source = 'manual'")
+        op.drop_constraint(op.f(f"ck_{table}_source"), table, type_="check")
+        op.create_check_constraint(
+            op.f(f"ck_{table}_source"), table, "source IN ('extension', 'radar', 'feed')"
+        )
     op.drop_constraint(op.f("fk_dossiers_content_id_content_items"), "dossiers", type_="foreignkey")
     op.drop_index(op.f("ix_dossiers_content_id"), table_name="dossiers")
     op.drop_column("dossiers", "content_id")
