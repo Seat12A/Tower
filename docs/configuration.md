@@ -68,6 +68,51 @@ Voir [ingestion.md](ingestion.md).
 | `TOWER_INGEST_DAILY_QUOTA` | `500` | Items acceptés par installation et par jour UTC |
 | `TOWER_HTTP_USER_AGENT` | `Seat12A-Tower/0.1` | User-Agent des récupérations web ; y ajouter une URL de contact générique, jamais une adresse personnelle |
 
+## Budgets
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_BUDGET_RESERVATION_TTL_S` | `1800` | Une réservation de budget (ou d'allocation gratuite) non réglée après ce délai est libérée par la maintenance (voir [llm.md](llm.md#budgets)) |
+
+## Radar (service hangar `radar`)
+
+Voir [radar.md](radar.md). Le jeton est un secret (`SecretStr`), jamais journalisé.
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_X_BEARER_TOKEN` | vide | Jeton d'application (bearer) de l'API X ; absent : `TWR-RAD-007` |
+| `TOWER_X_API_BASE` | `https://api.x.com` | URL de l'API X (faux serveur local pour les essais) |
+| `TOWER_X_PRICE_POST_READ_USD` | `0.005` | Prix d'une lecture de post |
+| `TOWER_X_PRICE_USER_READ_USD` | `0.010` | Prix d'une lecture d'utilisateur |
+| `TOWER_X_MONTHLY_CAP_USD` | `20` | Plafond initial de la portée `provider:x` (créé par `tower llm seed` ou par le radar s'il manque), modifiable ensuite par `tower llm budget provider:x <usd>` |
+| `TOWER_RADAR_MAX_RESULTS` | `20` | Posts demandés par page (bornes X : 5 à 100) |
+| `TOWER_RADAR_MAX_PAGES` | `3` | Pages lues au plus par lecture d'un compte |
+| `TOWER_RADAR_EXCLUDE` | `retweets` | Paramètre `exclude` : `retweets`, `replies`, les deux ou vide |
+| `TOWER_RADAR_INTERVAL_HIGH_S` | `120` | Intervalle de base, priorité ≥ 50 |
+| `TOWER_RADAR_INTERVAL_NORMAL_S` | `600` | Intervalle de base, priorité 0 à 49 |
+| `TOWER_RADAR_INTERVAL_LOW_S` | `1800` | Intervalle de base, priorité < 0 |
+| `TOWER_RADAR_INTERVAL_MIN_S` | `60` | Intervalle minimal |
+| `TOWER_RADAR_INTERVAL_MAX_S` | `21600` | Intervalle maximal (6 h) |
+| `TOWER_RADAR_EXPECTED_POSTS_PER_POLL` | `2` | Posts renvoyés en moyenne par lecture (une lecture vide ne coûte rien) : sert au plafond quotidien de lectures |
+| `TOWER_RADAR_SCHEDULE_BATCH` | `100` | Lectures enfilées au plus par passage de la planification |
+
+## intercom (bot Discord)
+
+Voir [intercom.md](intercom.md). Le token Discord et le token de gate sont des secrets.
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_DISCORD_TOKEN` | vide | Token du bot Discord (obligatoire hors `--dry-run`) |
+| `TOWER_DISCORD_GUILD_ID` | vide | Serveur où synchroniser les commandes (immédiat) ; vide : synchronisation globale |
+| `TOWER_DISCORD_CHANNEL_INCIDENTS` | vide | Salon des incidents (`incident.opened`, `incident.reopened`) |
+| `TOWER_DISCORD_CHANNEL_BUDGET` | vide | Salon du budget (`budget.threshold_reached`) |
+| `TOWER_DISCORD_CHANNEL_DOSSIERS` | vide | Salon des dossiers (`dossier.opened`, `dossier.transitioned`) |
+| `TOWER_DISCORD_CHANNEL_ADMIN` | vide | Salon d'administration (`watchlist.changed`, `extension_filters.published`) |
+| `TOWER_DISCORD_LOCALE` | `fr` | Langue des notifications dans les salons (`fr` ou `en`) ; les réponses aux commandes suivent la langue Discord de l'utilisateur |
+| `TOWER_GATE_URL` | `http://localhost:8000` | URL de gate (réseau privé Railway en production) |
+| `TOWER_GATE_TOKEN` | vide | Token de service du bot |
+| `TOWER_INTERCOM_CURSOR_NAME` | `intercom` | Nom du curseur SSE stocké côté gate |
+
 ## Rétention et erreurs
 
 | Variable | Défaut | Description |

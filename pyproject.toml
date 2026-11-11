@@ -20,6 +20,7 @@ dependencies = [
     "openai>=3.49.0",
     "anthropic>=2.8.0",
     "httpx>=0.28.1",
+    "discord-py>=2.5",
 ]
 
 [project.scripts]

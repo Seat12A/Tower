@@ -17,7 +17,7 @@ router = APIRouter(prefix="/v1/watched-accounts", tags=["watchlist"])
 class WatchedOut(BaseModel):
     public_id: uuid.UUID
     platform: str
-    external_id: str
+    external_id: str | None
     handle: str | None
     category: str
     priority: int
@@ -33,7 +33,7 @@ class WatchedOut(BaseModel):
 class WatchedCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     platform: str = Field(max_length=32)
-    external_id: str = Field(max_length=512)
+    external_id: str | None = Field(default=None, max_length=512)
     handle: str | None = Field(default=None, max_length=512)
     category: PublicRole
     priority: int = Field(default=0, ge=-100, le=100)

@@ -44,7 +44,8 @@ deux réplicas concurrents (test réel sur PostgreSQL) ; RSS mesuré.
 E0 (normalisation, empreintes, SimHash par bandes, langue), endpoint et configuration
 de l'extension, liste de suivi, service `ingest` (copies, partitions, secrets),
 `media_assets` avec colonnes d'empreinte perceptuelle prêtes. **Reportés** (hors
-périmètre de la partie 1) : processus `radar` et appels à l'API X, calcul de
+périmètre de la partie 1) : `radar` et appels à l'API X (**livrés en partie 2**, en
+service hangar, voir [../radar.md](../radar.md)), calcul de
 l'empreinte perceptuelle, registres par pays, test de charge à 20 000 contenus par
 jour et mesure du rappel des quasi-copies sur un corpus. Point à trancher : une
 substitution d'un mot dans un texte de 40 mots donne une distance SimHash de 4 à 7,
@@ -160,5 +161,7 @@ permutation.
 ## Dépendances avec la feuille de route du socle
 
 Le lot 2 correspond à l'étape « Ingestion » de [../roadmap.md](../roadmap.md) ; le
-lot 3 dépend de `radar` (lecture des comptes suivis) et d'`intercom` (bot Discord).
+lot 3 dépend de `radar` (lecture des comptes suivis) et d'`intercom` (bot Discord),
+**livrés par la partie 2 le 2026-11-11** ([../radar.md](../radar.md),
+[../intercom.md](../intercom.md)), testés sans appel réel à X ni à Discord.
 Les lots 1 et 2 peuvent avancer en parallèle de la phase 0.

@@ -36,6 +36,7 @@ TABLES = [
     "llm_routes",
     "llm_models",
     "llm_free_usage",
+    "budget_reservations",
     "budget_counters",
     "observations",
     "observation_counters",

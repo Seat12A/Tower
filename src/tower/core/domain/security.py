@@ -27,6 +27,7 @@ class Permission(StrEnum):
     CONTENT_INGEST = "content:ingest"
     WATCHLIST_READ = "watchlist:read"
     WATCHLIST_WRITE = "watchlist:write"
+    USAGE_READ = "usage:read"
 
 
 class Role(StrEnum):
@@ -63,6 +64,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.DOSSIER_PUBLISH,
             Permission.WATCHLIST_READ,
             Permission.WATCHLIST_WRITE,
+            Permission.USAGE_READ,
         }
     ),
     Role.ADMIN: frozenset(Permission),

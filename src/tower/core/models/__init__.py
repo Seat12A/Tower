@@ -20,10 +20,18 @@ from tower.core.models.ingestion import (
     WatchedAccountEvent,
 )
 from tower.core.models.jobs import Job, JobStatus
-from tower.core.models.llm import BudgetCounter, LLMCall, LLMFreeUsage, LLMModel, LLMRoute
+from tower.core.models.llm import (
+    BudgetCounter,
+    BudgetReservation,
+    LLMCall,
+    LLMFreeUsage,
+    LLMModel,
+    LLMRoute,
+)
 
 __all__ = [
     "BudgetCounter",
+    "BudgetReservation",
     "ContentItem",
     "ContentMedia",
     "ContentSnapshot",

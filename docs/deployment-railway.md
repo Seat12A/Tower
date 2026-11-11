@@ -9,7 +9,12 @@ Un projet Railway, un repo, **une image** (`Dockerfile`), un service par process
 | `gate` | `railway/gate.json` | `tower gate` (+ `tower migrate` en pre-deploy) | 1 → N |
 | `hangar` | `railway/hangar.json` | `tower hangar` | 1 → N |
 | `Postgres` | plugin Railway | — | 1 |
-| `radar`, `intercom` | à venir | `tower radar`, `tower intercom` | 1 |
+| `intercom` | `railway/intercom.json` | `tower intercom` | 1 (un second réplica ne casse rien : notifications idempotentes, curseur en base) |
+
+Le radar n'est pas un service Railway : c'est le service hangar `radar`
+(`TOWER_SERVICES=ping,ingest,radar` et `TOWER_X_BEARER_TOKEN` sur le service
+`hangar`). Pour l'isoler : second service hangar avec `TOWER_SERVICES=radar` et
+`TOWER_QUEUES=radar`.
 
 ## Mise en place
 
@@ -24,12 +29,21 @@ Un projet Railway, un repo, **une image** (`Dockerfile`), un service par process
 4. Créer le premier token et le premier admin :
 
 ```bash
-railway run --service gate tower create-service-token intercom --scopes dossiers:read dossiers:create dossiers:review dossiers:decide dossiers:publish events:read
+railway run --service gate tower create-service-token intercom --scopes dossiers:read dossiers:create dossiers:review dossiers:decide dossiers:publish events:read errors:read errors:manage watchlist:read watchlist:write usage:read
 ```
 
 ```bash
 railway run --service gate tower staff <discord_id> --roles admin --name "Jules"
 ```
+
+5. **Bot** : créer le service `intercom` depuis le même repo avec
+   `railway/intercom.json`. Variables : `TOWER_DISCORD_TOKEN`, `TOWER_DISCORD_GUILD_ID`,
+   les quatre `TOWER_DISCORD_CHANNEL_*`, `TOWER_GATE_URL` (adresse privée de gate,
+   ex. `http://gate.railway.internal:8000`), `TOWER_GATE_TOKEN` (token créé à
+   l'étape 4). Pas de `DATABASE_URL` : le bot n'accède jamais à la base.
+6. **Radar** : sur le service `hangar`, `TOWER_SERVICES=ping,ingest,radar` et
+   `TOWER_X_BEARER_TOKEN`. Plafond mensuel : `railway run --service gate tower llm
+   budget provider:x 20` (créé à 20 $ par défaut sinon).
 
 ## Pendant un déploiement
 

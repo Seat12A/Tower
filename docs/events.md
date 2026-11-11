@@ -59,6 +59,17 @@ Le curseur public est la chaîne `"<xid>-<id>"` (opaque pour les clients).
 - Aucune connexion SQL n'est tenue par client : une session courte par lot, réveil
   par la connexion LISTEN partagée du réplica.
 
+### Curseurs stockés des clients de service
+
+Un client de service (le bot) peut stocker sa position côté gate pour reprendre sans
+perte après un redémarrage : `GET` et `PUT /v1/events/cursors/{nom}` (permission
+`events:read`, voir [api.md](api.md)). Le curseur est rangé dans `event_cursors` sous
+la clé `sse:<client de service>:<nom>` ; un membre de l'équipe qui agit via le bot
+utilise les curseurs du bot. Nom : 1 à 64 caractères `a-z 0-9 . _ -` (`TWR-EVT-003`).
+Aucun audit ni événement : c'est un état de lecture du client, et un événement serait
+lui-même renvoyé dans le flux. Livraison au moins une fois : le client dédoublonne par
+identifiant d'événement.
+
 ## Topics existants
 
 | Topic | Émis par | Payload |
@@ -70,9 +81,9 @@ Le curseur public est la chaîne `"<xid>-<id>"` (opaque pour les clients).
 | `incident.resolved` | `errors.service.resolve` | empreinte, code, note |
 | `ping.requested` / `ping.done` | service ping | démonstration |
 | `content.ingested` | cas d'usage `ingest_items`, **nouveau contenu seulement** (jamais par observation) | `id` (clé interne en chaîne), `public_id`, `platform`, `external_id`, `lang`, `source` |
-| `watchlist.changed` | cas d'usage de la liste de suivi | `action` (`added`, `updated`), compte suivi (`public_id`, `platform`, `external_id`, `handle`, `category`, `priority`, `active`, `version`) |
+| `watchlist.changed` | cas d'usage de la liste de suivi | `action` (`added`, `updated`, `resolved`), compte suivi (`external_id` nul tant qu'un compte ajouté par pseudo n'est pas résolu par le radar), (`public_id`, `platform`, `external_id`, `handle`, `category`, `priority`, `active`, `version`) |
 | `extension_filters.published` | `publish_filters` | `version` |
-| `budget.threshold_reached` | routeur de modèles, au premier franchissement de 50, 80 ou 100 % d'une portée sur la période | `scope`, `period_start`, `threshold_pct`, `spent_usd_micros`, `cap_usd_micros` |
+| `budget.threshold_reached` | registre des budgets (`core/budget.py` : routeur de modèles et radar), au premier franchissement de 50, 80 ou 100 % d'une portée sur la période | `scope`, `period_start`, `threshold_pct`, `spent_usd_micros`, `cap_usd_micros` |
 
 Convention de nommage : `<agrégat>.<verbe au participe passé>`.
 

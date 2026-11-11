@@ -22,7 +22,7 @@ membre ne peut pas dépasser ses rôles.
 | Rôle | Permissions |
 |---|---|
 | `reviewer` | lire, créer, prendre en revue ; lire la liste de suivi |
-| `editor` | + valider, rejeter, marquer comme publié ; modifier la liste de suivi |
+| `editor` | + valider, rejeter, marquer comme publié ; modifier la liste de suivi ; consulter l'usage et les budgets |
 | `admin` | tout (gestion de l'équipe, erreurs) |
 
 ## Permissions
@@ -30,7 +30,8 @@ membre ne peut pas dépasser ses rôles.
 `dossiers:read_public`, `dossiers:read`, `dossiers:create`, `dossiers:review`,
 `dossiers:decide`, `dossiers:publish`, `events:read`, `staff:manage`,
 `errors:read`, `errors:manage`, `content:ingest` (envoi de contenus : extension,
-radar), `watchlist:read`, `watchlist:write` (liste des comptes suivis).
+radar), `watchlist:read`, `watchlist:write` (liste des comptes suivis), `usage:read`
+(allocation gratuite et budgets du mois : `GET /v1/llm/usage`, commande `/usage`).
 
 Elles sont vérifiées **dans les cas d'usage**, pas seulement dans l'API.
 

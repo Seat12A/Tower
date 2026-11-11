@@ -87,6 +87,54 @@ class Settings(BaseSettings):
     ingest_daily_quota: int = Field(default=500, ge=1)
     """Items per installation and per UTC day."""
 
+    # --- Budgets ---------------------------------------------------------------
+    budget_reservation_ttl_s: int = Field(default=1800, ge=60)
+    """A budget/free-allocation reservation not settled after this delay is released."""
+
+    # --- Radar (X official API, hangar service ``radar``) -----------------------
+    x_bearer_token: SecretStr | None = None
+    """App-only bearer token of the X API (secret, never logged)."""
+    x_api_base: str = "https://api.x.com"
+    """Base URL of the X API (a local fake server in smoke tests)."""
+    x_price_post_read_usd: float = Field(default=0.005, ge=0)
+    x_price_user_read_usd: float = Field(default=0.010, ge=0)
+    x_monthly_cap_usd: float = Field(default=20.0, ge=0)
+    """Initial ``provider:x`` cap created by ``tower llm seed`` (then edited in base)."""
+    radar_max_results: int = Field(default=20, ge=5, le=100)
+    """Posts requested per timeline page (X bounds: 5..100)."""
+    radar_max_pages: int = Field(default=3, ge=1, le=10)
+    """Timeline pages read per poll job at most."""
+    radar_exclude: str = "retweets"
+    """``exclude`` of the timeline call: ``retweets``, ``replies``, both or empty."""
+    radar_interval_high_s: int = Field(default=120, ge=30)
+    """Base interval for priority >= 50."""
+    radar_interval_normal_s: int = Field(default=600, ge=30)
+    """Base interval for priority 0..49."""
+    radar_interval_low_s: int = Field(default=1800, ge=30)
+    """Base interval for priority < 0."""
+    radar_interval_min_s: int = Field(default=60, ge=30)
+    radar_interval_max_s: int = Field(default=21600, ge=60)
+    radar_expected_posts_per_poll: float = Field(default=2.0, gt=0)
+    """Average posts returned by one poll (an empty read costs nothing on X): sizes the
+    daily poll allowance (remaining budget / days left / average cost)."""
+    radar_schedule_batch: int = Field(default=100, ge=1, le=1000)
+    """Poll jobs enqueued per scheduling round at most."""
+
+    # --- intercom (Discord bot) -------------------------------------------------
+    discord_token: SecretStr | None = None
+    discord_guild_id: int | None = None
+    """Guild where slash commands are synced (instant); global sync when empty."""
+    discord_channel_incidents: int | None = None
+    discord_channel_budget: int | None = None
+    discord_channel_dossiers: int | None = None
+    discord_channel_admin: int | None = None
+    gate_url: str = "http://localhost:8000"
+    gate_token: SecretStr | None = None
+    """Service token of the bot (scopes: see docs/intercom.md)."""
+    intercom_cursor_name: str = "intercom"
+    discord_locale: str = "fr"
+    """Language of channel notifications (``fr`` or ``en``); replies follow the user."""
+
     # --- Railway (read-only)----------------------------------------------
     railway_replica_id: str | None = Field(
         default=None, validation_alias=AliasChoices("RAILWAY_REPLICA_ID")
@@ -141,6 +189,10 @@ class Settings(BaseSettings):
         if mode is None:
             return None
         return mode not in {"disable", "allow"}
+
+    @property
+    def radar_exclude_list(self) -> list[str]:
+        return _split(self.radar_exclude)
 
     @property
     def instance_id(self) -> str:

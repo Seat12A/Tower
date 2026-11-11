@@ -21,12 +21,14 @@ l'extension), service `ingest` (copies, partitions, secrets). Voir [llm.md](llm.
 
 1. **Ingestion (suite)** : règles d'ouverture de dossier (plusieurs installations
    distinctes, mot-clé prioritaire) et relecture via l'API X.
-2. **radar** : processus de polling de l'API X (priorité → fréquence, `since_id`),
-   adaptateur `XClient`, suivi du coût par lecture. Explorer l'accès gratuit
-   « utilité publique » d'X.
-3. **intercom** : bot Discord (discord.py) client de gate (token de service +
-   `X-Acting-Discord-Id`), abonné au flux SSE (`dossier.*`, `incident.*`), action
-   « Marquer comme publié ».
+2. ✅ **radar** (partie 2, 2026-11-11) : service hangar `radar`, adaptateur
+   `XPlatformClient`, planification adaptative plafonnée par le budget `provider:x`,
+   résolution des pseudos ([radar.md](radar.md)). Reste : premier appel réel (clé),
+   relecture d'un post par l'API (lot 3), flux Bluesky.
+3. ✅ **intercom** (partie 2) : bot Discord client de gate, notifications, commandes
+   `/watchlist`, `/dossier`, `/incidents`, `/usage`, reprise du flux par curseur
+   stocké ([intercom.md](intercom.md)). Reste : premier lancement réel (token
+   Discord), revue des brouillons de fact-check (lot 3, E11).
 4. **Fact-check** : plan d'implémentation détaillé dans
    [factcheck/feuille-de-route.md](factcheck/feuille-de-route.md) (2026-11-10). Phase 0
    (jeu de référence de 300 affirmations, comptes et clés, validations juridiques),

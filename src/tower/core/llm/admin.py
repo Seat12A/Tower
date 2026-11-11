@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -12,14 +14,16 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from tower.core.config import Settings
 from tower.core.db.database import Database
-from tower.core.domain.llm import GLOBAL_SCOPE, FreeGroup, free_allowance, month_period
+from tower.core.domain.llm import GLOBAL_SCOPE, month_period
+from tower.core.llm.usage import get_usage
 from tower.core.models.llm import BudgetCounter, LLMModel, LLMRoute
 
-__all__ = ["run_seed", "run_usage"]
+__all__ = ["run_budget", "run_seed", "run_usage"]
 
 PRICES_CHECKED_ON = date(2026, 11, 10)
 GLOBAL_CAP_USD_MICROS = 30_000_000
 SEED_ACTOR = "system:seed"
+X_SCOPE = "provider:x"
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,8 +93,14 @@ _ROUTES: tuple[_RouteSeed, ...] = (
 )
 
 
-async def _seed(db: Database, now: datetime) -> dict[str, int]:
-    counts = {"models": 0, "routes_created": 0, "routes_kept": 0, "budget_created": 0}
+async def _seed(db: Database, settings: Settings, now: datetime) -> dict[str, int]:
+    counts = {
+        "models": 0,
+        "routes_created": 0,
+        "routes_kept": 0,
+        "budget_created": 0,
+        "x_budget_created": 0,
+    }
     async with db.transaction() as session:
         for m in _MODELS:
             stmt = pg_insert(LLMModel).values(
@@ -167,19 +177,40 @@ async def _seed(db: Database, now: datetime) -> dict[str, int]:
                 .on_conflict_do_nothing(index_elements=["scope", "period_start"])
             )
             counts["budget_created"] = 1
+        # Provider X counter: created only when the scope has no counter at all, so a
+        # cap changed by the team (or a previous month's counter) is never overwritten.
+        has_x = (
+            await session.execute(
+                text("SELECT 1 FROM budget_counters WHERE scope = :s LIMIT 1"),
+                {"s": X_SCOPE},
+            )
+        ).first()
+        if has_x is None:
+            await session.execute(
+                pg_insert(BudgetCounter)
+                .values(
+                    scope=X_SCOPE,
+                    period_start=start,
+                    period_end=end,
+                    cap_usd_micros=round(settings.x_monthly_cap_usd * 1_000_000),
+                )
+                .on_conflict_do_nothing(index_elements=["scope", "period_start"])
+            )
+            counts["x_budget_created"] = 1
     return counts
 
 
 async def run_seed(settings: Settings) -> None:
     db = Database(settings)
     try:
-        counts = await _seed(db, datetime.now(UTC))
+        counts = await _seed(db, settings, datetime.now(UTC))
     finally:
         await db.dispose()
     print(
         f"Models upserted: {counts['models']}. "
         f"Routes created: {counts['routes_created']} (kept: {counts['routes_kept']}). "
-        f"Global budget created: {'yes' if counts['budget_created'] else 'no (already set)'}."
+        f"Global budget created: {'yes' if counts['budget_created'] else 'no (already set)'}. "
+        f"Provider X budget created: {'yes' if counts['x_budget_created'] else 'no (already set)'}."
     )
 
 
@@ -189,47 +220,55 @@ def _usd(micros: int) -> str:
 
 async def run_usage(settings: Settings) -> None:
     db = Database(settings)
-    now = datetime.now(UTC)
-    start, _ = month_period(now)
     try:
         async with db.session() as session:
-            free = {
-                (r.provider, r.free_group): int(r.tokens)
-                for r in (
-                    await session.execute(
-                        text(
-                            "SELECT provider, free_group, tokens FROM llm_free_usage"
-                            " WHERE day = :day"
-                        ),
-                        {"day": now.date()},
-                    )
-                ).all()
-            }
-            budgets = (
-                await session.execute(
-                    text(
-                        "SELECT scope, spent_usd_micros, reserved_usd_micros, cap_usd_micros"
-                        " FROM budget_counters WHERE period_start = :p ORDER BY scope"
-                    ),
-                    {"p": start},
-                )
-            ).all()
+            report = await get_usage(session, settings, datetime.now(UTC))
     finally:
         await db.dispose()
 
-    print(f"Free allocation, {now.date().isoformat()} (UTC), tier {settings.openai_usage_tier}")
-    for group in FreeGroup:
-        used = free.get(("openai", group.value), 0)
-        allowance = free_allowance(settings.openai_usage_tier, group)
+    print(f"Free allocation, {report.day.isoformat()} (UTC), tier {report.usage_tier}")
+    for line in report.free:
         print(
-            f"  openai/{group.value:<6} {used:>12,} / {allowance:>12,} tokens"
-            f"  {100 * used / allowance:5.1f}%"
+            f"  {line.provider}/{line.free_group:<6} {line.used_tokens:>12,} /"
+            f" {line.allowance_tokens:>12,} tokens"
+            f"  {100 * line.used_tokens / line.allowance_tokens:5.1f}%"
         )
-    print(f"Budget, period starting {start.isoformat()}")
-    if not budgets:
+    print(f"Budget, period starting {report.period_start.isoformat()}")
+    if not report.scopes:
         print("  (no budget counter: run `tower llm seed`)")
-    for row in budgets:
+    for row in report.scopes:
         print(
             f"  {row.scope:<16} spent {_usd(row.spent_usd_micros):>10}"
             f"  reserved {_usd(row.reserved_usd_micros):>10}  cap {_usd(row.cap_usd_micros):>10}"
         )
+
+
+_SCOPE = re.compile(r"^[a-z0-9_]+:[a-z0-9_.-]+$")
+
+
+async def run_budget(settings: Settings, scope: str, usd: float) -> None:
+    """Set the monthly cap of ``scope`` for the current period (creates the counter)."""
+    if scope != GLOBAL_SCOPE and not _SCOPE.fullmatch(scope):
+        raise ValueError(f"Invalid scope {scope!r} (expected 'global' or '<kind>:<name>')")
+    if not math.isfinite(usd) or usd < 0:
+        raise ValueError("Cap must be a finite amount >= 0 (USD)")
+    cap = round(usd * 1_000_000)
+    start, end = month_period(datetime.now(UTC))
+    db = Database(settings)
+    try:
+        async with db.transaction() as session:
+            stmt = pg_insert(BudgetCounter).values(
+                scope=scope, period_start=start, period_end=end, cap_usd_micros=cap
+            )
+            await session.execute(
+                stmt.on_conflict_do_update(
+                    index_elements=["scope", "period_start"],
+                    set_={
+                        "cap_usd_micros": stmt.excluded.cap_usd_micros,
+                        "updated_at": text("now()"),
+                    },
+                )
+            )
+    finally:
+        await db.dispose()
+    print(f"Budget cap of {scope} for the period starting {start.isoformat()}: {_usd(cap)}")

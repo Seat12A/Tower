@@ -37,6 +37,10 @@ _NOISY = {
     "uvicorn.access": logging.WARNING,  # replaced by our access middleware
     "sqlalchemy.engine": logging.WARNING,
     "asyncio": logging.WARNING,
+    "httpx": logging.WARNING,  # one line per request (radar, bot): too chatty for Railway
+    "httpcore": logging.WARNING,
+    "discord": logging.WARNING,  # gateway chatter; errors still surface
+    "discord.client": logging.ERROR,  # "voice not supported" warnings at every start
 }
 
 

@@ -110,7 +110,7 @@ refusée (`TWR-ING-011` ; plateforme ou identifiant de compte invalide :
 | Méthode | Chemin | Permission |
 |---|---|---|
 | GET | `/v1/watched-accounts?active=&platform=&limit=&offset=` | `watchlist:read` |
-| POST | `/v1/watched-accounts` `{platform, external_id, handle?, category, priority?, note?}` | `watchlist:write` |
+| POST | `/v1/watched-accounts` `{platform, external_id?, handle?, category, priority?, note?}` | `watchlist:write` |
 | PATCH | `/v1/watched-accounts/{public_id}` `{version, category?, priority?, active?, note?, handle?}` | `watchlist:write` |
 
 `category` est une catégorie fermée de rôle public (`head_of_state_or_government`,
@@ -122,6 +122,17 @@ Doublon → `TWR-ING-009` ; introuvable → `TWR-ING-008` ; version périmée �
 audit, ni événement, ni version). Chaque écriture est auditée (`watched_account_events`) et publie
 `watchlist.changed`. Le suivi ne change que la surveillance et la latence, jamais le
 verdict (règle 10).
+
+**Ajout par pseudo.** `external_id` ou `handle` est obligatoire (`TWR-ING-006` si les
+deux manquent ; sur X, pseudo `^[A-Za-z0-9_]{1,15}$`). Un pseudo déjà connu avec son
+identifiant réutilise ce compte ; sinon un compte **en attente** est créé
+(`platform_accounts.external_id` nul, un seul par plateforme et pseudo sans casse).
+L'événement `watchlist.changed` (`external_id: null`) déclenche le job
+`radar.resolve_account`, qui appelle le cas d'usage `resolve_watched_account` : il
+renseigne l'identifiant, ou rattache le suivi à un compte déjà connu sous cet
+identifiant (le compte en attente est supprimé), audite `resolved` et publie
+`watchlist.changed` (`action: resolved`). Rejouer la résolution ne fait rien. Voir
+[radar.md](radar.md).
 
 ## Quotas et limites
 

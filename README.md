@@ -6,8 +6,8 @@ interne et la surveillance de X, et héberge les services de fact-check et de
 modération.
 
 - Python 3.13, FastAPI, SQLAlchemy 2 (async), Alembic, PostgreSQL 16
-- Une image, plusieurs processus : `tower gate` (API), `tower hangar` (worker), et à
-  venir `tower radar` (surveillance X) et `tower intercom` (bot Discord)
+- Une image, plusieurs processus : `tower gate` (API), `tower hangar` (worker, dont
+  le service `radar` de surveillance de X) et `tower intercom` (bot Discord)
 - PostgreSQL comme seule infrastructure : données, file de jobs, bus d'événements
 - Déployé sur Railway
 

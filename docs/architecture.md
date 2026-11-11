@@ -7,14 +7,15 @@ déployés comme des services Railway distincts. Tous partagent `tower.core` et 
 base PostgreSQL.
 
 ```
-                    ┌──────────────┐   ┌──────────────┐   ┌───────────────┐
-  Site public ─────▶│              │   │              │   │               │
-  Extension   ─────▶│  gate (API)  │   │   hangar     │   │ radar (futur) │
-  Bot intercom ────▶│  FastAPI     │   │  (worker)    │   │ surveillance X│
-  (futur)      SSE◀─│  N réplicas  │   │  N réplicas  │   │               │
-                    └──────┬───────┘   └──────┬───────┘   └───────┬───────┘
-                           │   tower.core (domaine, cas d'usage, bus, jobs)
-                           ▼                  ▼                   ▼
+                    ┌──────────────┐   ┌───────────────────┐   ┌──────────────┐
+  Site public ─────▶│              │   │ hangar (worker)   │   │  intercom    │
+  Extension   ─────▶│  gate (API)  │   │ services : ping,  │   │  bot Discord │
+                    │  FastAPI     │◀──┼───────────────────┼───│  client HTTP │
+               SSE ─┼─────────────▶│   │ ingest, radar…    │   │  de gate     │
+                    │  N réplicas  │   │ N réplicas        │   │  1 réplica   │
+                    └──────┬───────┘   └─────────┬─────────┘   └──────────────┘
+                           │   tower.core        │       ▲ API X (radar, officielle)
+                           ▼                     ▼
                     ┌─────────────────────────────────────────────────────┐
                     │ PostgreSQL : données · outbox · file de jobs ·       │
                     │ LISTEN/NOTIFY · advisory locks · erreurs             │
@@ -25,8 +26,8 @@ base PostgreSQL.
 |---|---|---|---|
 | `tower gate` | gate | API HTTP unique : site (lecture seule), extension, bot, futurs clients. Flux SSE d'événements. | ✅ socle |
 | `tower hangar` | hangar | Worker générique : exécute les jobs et les abonnements des services activés | ✅ socle |
-| `tower radar` | radar | Surveillance X (API officielle, comptes ciblés, polling `since_id`) | ⏳ à venir |
-| `tower intercom` | intercom | Bot Discord interne ; **passe uniquement par gate** | ⏳ à venir |
+| — | radar | Lecture des comptes suivis par l'API officielle de X (polling `since_id`, planification adaptative plafonnée par le budget) : **service hangar** `radar`, pas un processus ([radar.md](radar.md)) | ✅ partie 2 |
+| `tower intercom` | intercom | Bot Discord interne ; **passe uniquement par gate** ([intercom.md](intercom.md)) | ✅ partie 2 |
 | — | blackbox | Archive des verdicts (module du core, pas un processus) | ⏳ à venir |
 
 ## Arborescence
