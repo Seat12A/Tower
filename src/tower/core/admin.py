@@ -80,3 +80,32 @@ async def resolve_error(settings: Settings, fingerprint: str, note: str | None) 
             await errors_service.resolve(session, Actor.system("cli"), fingerprint, note=note)
     finally:
         await db.dispose()
+
+
+async def publish_filters_from_file(settings: Settings, path: str, version: str) -> None:
+    """Publish and activate extension filters read from a JSON file."""
+    import asyncio
+    import json
+    from pathlib import Path
+
+    from tower.core.domain import error_codes as ec
+    from tower.core.usecases.ingestion import publish_filters
+
+    try:
+        filters = json.loads(await asyncio.to_thread(Path(path).read_text, encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise InvalidInput(
+            f"Cannot read filters file: {exc}", code=ec.ING_BAD_FILTERS, path=path
+        ) from exc
+    db = Database(settings)
+    try:
+        async with db.transaction() as session:
+            row = await publish_filters(
+                session, Actor.system("cli"), version=version, filters=filters
+            )
+            summary = (
+                f"{len(row.filters['keywords'])} keywords, {len(row.filters['accounts'])} accounts"
+            )
+    finally:
+        await db.dispose()
+    sys.stdout.write(f"Published extension filters version {version} ({summary})\n")
