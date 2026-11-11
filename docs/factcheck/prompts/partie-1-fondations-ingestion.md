@@ -409,9 +409,45 @@ diffs, lance les tests et corrige par un nouveau brief court si nécessaire.
 5. Résumé de session (résultats réels, échecs compris, ce qui n'a pas pu être
    vérifié), décisions, commits en anglais à l'impératif, push.
 
-## 5. Rapport final attendu
+## 5. Économie d'usage (forfait Claude de Jules)
 
-En français, court : ce qui est livré, les vérifications avec leurs chiffres (tests,
+Jules paie un forfait Claude : chaque token consommé par toi ou par tes sous-agents
+compte. Sois **efficace et économe, sans rien céder sur la qualité** : mêmes
+exigences, mêmes tests, mêmes vérifications. Règles :
+
+- **Répartition des modèles** : toi (Opus 5.5), tu conçois les contrats, relis et
+  intègres. Le code d'implémentation est écrit par les sous-agents **Claude Sonnet
+  5.5**, moins coûteux. Aucun sous-agent Opus. Aucun sous-agent d'exploration : tu
+  sais déjà où sont les fichiers grâce à ce prompt et à la doc.
+- **Lecture ciblée** : lis les pages de doc listées une fois, et seulement les
+  sections utiles des longs fichiers (offset et limite, `grep`). Ne relis pas un
+  fichier que tu viens d'écrire ou d'éditer. Ne recopie pas de gros fichiers dans
+  les briefs : donne les chemins et les extraits indispensables.
+- **Briefs courts et complets** : une consigne précise évite les allers-retours, qui
+  coûtent plus cher qu'un brief soigné. Demande des rapports de 10 lignes au plus
+  (fichiers touchés, résultats des commandes, doutes), sans recopier le code.
+- **Le moins de sous-agents possible** : les six du tableau suffisent. Regroupe les
+  petites corrections dans un seul brief de suivi plutôt qu'en plusieurs.
+- **Outils en parallèle** : regroupe les appels indépendants (lectures, commandes)
+  dans un même tour.
+- **Sorties de commandes courtes** : `pytest -q`, `ruff --quiet`, `| tail -n 30`.
+  Pendant le développement, ne lance que les tests concernés ; la suite complète
+  seulement aux points de contrôle (fin de phase A, fin de phase B, phase C).
+- **Recherche web minimale** : seulement pour vérifier les noms exacts de
+  paramètres des SDK OpenAI et Anthropic (skill `claude-api` d'abord, qui ne coûte
+  aucune recherche). Le reste est déjà documenté dans `docs/factcheck/`.
+- **Pas de réécriture inutile** : corrige par des éditions ciblées, pas en réécrivant
+  des fichiers entiers. N'écris pas de documentation en double : renvoie vers la page
+  existante.
+- **Pas de travail spéculatif** : rien hors du périmètre de la partie 1, aucune
+  abstraction « pour plus tard » non demandée par le plan.
+- **Messages à Jules courts** : un point d'avancement bref à chaque fin de phase,
+  pas de récapitulatif long en cours de route.
+
+## 6. Rapport final attendu
+
+En français, court : ce qui est livré, une estimation de l'usage consommé (nombre de
+sous-agents lancés, d'allers-retours de correction), les vérifications avec leurs chiffres (tests,
 RSS avant et après), ce qui n'a pas pu être vérifié, les écarts au plan et leur
 raison, les questions pour Jules, et la prochaine partie proposée (lot 3 : MVP sur les
 comptes suivis, qui demande les clés d'API et le jeu de référence).

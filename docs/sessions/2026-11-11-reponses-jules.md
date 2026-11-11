@@ -73,3 +73,6 @@ réponse :
   (ingestion générique multi-plateforme), avec exigences de RAM, de langues, de
   scalabilité et de documentation, découpage en sous-agents et vérifications.
 - Fusion de la branche du plan dans `main` à la demande de Jules.
+- Ajout au prompt d'une section « Économie d'usage » (forfait Claude de Jules) :
+  répartition Opus et Sonnet 5.5, lecture ciblée, briefs courts, peu de sous-agents,
+  sorties de commandes courtes, recherche web minimale, même niveau de qualité.
