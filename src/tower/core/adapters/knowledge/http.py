@@ -58,7 +58,9 @@ class SourceHttp:
         self._client = httpx.AsyncClient(
             transport=transport,
             timeout=timeout,
-            headers={"User-Agent": user_agent, **(headers or {})},
+            # identity like HttpFetcher: small JSON bodies, no decompression buffers; also
+            # avoids a Wikimedia 403 seen through compressing proxies.
+            headers={"User-Agent": user_agent, "Accept-Encoding": "identity", **(headers or {})},
             follow_redirects=True,
             trust_env=transport is None,  # honour HTTPS_PROXY; tests inject a transport
         )
