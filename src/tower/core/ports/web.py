@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
+from tower.core.domain.error_codes import ErrorCode
+
 
 @dataclass(frozen=True, slots=True)
 class SearchResult:
@@ -49,3 +51,12 @@ class WebFetcher(Protocol):
     """Safe URL fetch (SSRF protection, size cap, robots.txt)."""
 
     async def fetch(self, url: str) -> FetchedPage: ...
+
+
+class FetchError(Exception):
+    """A fetch was refused or failed; ``code`` is the stable catalog entry."""
+
+    def __init__(self, message: str, *, code: ErrorCode, url: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.url = url

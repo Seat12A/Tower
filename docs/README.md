@@ -21,6 +21,8 @@ modération.
 | [errors.md](errors.md) | Catalogue des codes d'erreur (**généré**) |
 | [logging.md](logging.md) | Logs structurés et affichage dans Railway |
 | [api.md](api.md) | Référence de l'API HTTP (gate) |
+| [llm.md](llm.md) | Routeur de modèles : routes, cache de contenu, budgets, allocation gratuite, prompts, adaptateurs |
+| [ingestion.md](ingestion.md) | Ingestion multi-plateforme : API de l'extension, quotas, vie privée, partitions, copies, liste de suivi |
 | [deployment-railway.md](deployment-railway.md) | Déploiement et exploitation sur Railway |
 | [development.md](development.md) | Environnement local, tests, commandes |
 | [decisions.md](decisions.md) | Journal des décisions (retenues et écartées) |

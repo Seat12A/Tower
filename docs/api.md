@@ -66,7 +66,18 @@ data: {"id":"1300-42","topic":"dossier.transitioned","aggregate_type":"dossier",
 | GET | `/v1/errors/{empreinte}` | `errors:read` (avec trace) |
 | POST | `/v1/errors/{empreinte}/resolve` `{note?}` | `errors:manage` |
 
+## Ingestion et liste de suivi
+
+Détail des corps, quotas et erreurs : [ingestion.md](ingestion.md).
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| POST | `/v1/ingest/observations` | `X-Installation-Token` ou `content:ingest` ; réponse `202` avec compteurs |
+| GET | `/v1/ingest/config` | public (`ETag`, `If-None-Match` → `304`) |
+| GET | `/v1/watched-accounts?active=&platform=&limit=&offset=` | `watchlist:read` |
+| POST | `/v1/watched-accounts` | `watchlist:write` (`201`) |
+| PATCH | `/v1/watched-accounts/{public_id}` | `watchlist:write` (verrou optimiste `version`) |
+
 ## À venir
 
-Ingestion de l'extension (token d'installation anonyme, rate-limit, payload minimal),
-verdicts publics, configuration pilotée par le serveur pour l'extension.
+Verdicts publics.

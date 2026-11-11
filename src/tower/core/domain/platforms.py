@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from tower.core.domain import error_codes as ec
+from tower.core.domain.errors import InvalidInput
+
 
 class Platform(StrEnum):
     X = "x"
@@ -41,7 +44,12 @@ MAX_EXTERNAL_ID_LENGTH = 256
 
 def parse_platform(value: str) -> Platform:
     """Return the platform or raise ``InvalidInput`` (``ING_UNKNOWN_PLATFORM``)."""
-    raise NotImplementedError
+    try:
+        return Platform(value)
+    except ValueError:
+        raise InvalidInput(
+            "Unknown platform", code=ec.ING_UNKNOWN_PLATFORM, platform=str(value)[:64]
+        ) from None
 
 
 def validate_external_id(platform: Platform | str, value: str) -> str:
@@ -54,4 +62,27 @@ def validate_external_id(platform: Platform | str, value: str) -> str:
     Unknown platform → ``ING_UNKNOWN_PLATFORM``; bad value → ``ING_BAD_EXTERNAL_ID``
     (details: ``platform``, never the full value if longer than 64 characters).
     """
-    raise NotImplementedError
+    plat = platform if isinstance(platform, Platform) else parse_platform(platform)
+    if plat is Platform.X:
+        ok = (
+            isinstance(value, str)
+            and value.isascii()
+            and value.isdigit()
+            and len(value) <= 19
+            and int(value) <= X_MAX_ID
+        )
+    else:
+        ok = (
+            isinstance(value, str)
+            and 1 <= len(value) <= MAX_EXTERNAL_ID_LENGTH
+            and value.isprintable()
+            and value == value.strip()
+        )
+    if not ok:
+        raise InvalidInput(
+            "Invalid platform identifier",
+            code=ec.ING_BAD_EXTERNAL_ID,
+            platform=plat.value,
+            value=value[:64] if isinstance(value, str) else None,
+        )
+    return value

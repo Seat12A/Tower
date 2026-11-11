@@ -29,9 +29,41 @@ PostgreSQL 16 (Railway). SQLAlchemy 2 en asynchrone (asyncpg), migrations Alembi
 | `staff_members` | Équipe : ID Discord, rôles, actif |
 | `error_reports` | Erreurs stockées, agrégées par empreinte (voir [error-handling.md](error-handling.md)) |
 
-Tables à venir (voir [roadmap.md](roadmap.md)) : `observed_posts`, `observations`,
-`watched_accounts`, `post_snapshots`, affirmations, groupes, verdicts, sources,
-citations, profils de traitement, journal de coûts.
+## Tables du routeur de modèles (migration 0002)
+
+Voir [llm.md](llm.md).
+
+| Table | Colonnes principales |
+|---|---|
+| `llm_models` | `provider` (CHECK `openai`, `anthropic`), `model`, `UNIQUE (provider, model)`, `input_usd_per_mtok`, `cached_input_usd_per_mtok`, `output_usd_per_mtok` (`NUMERIC(12,4)`, $ par million de tokens), `batch_factor`, `free_group` (`small`, `large` ou NULL), `capabilities` JSONB, `prices_checked_on`, `active` |
+| `llm_routes` | `role`, `level` (CHECK `N0`..`N4`, `*`), `model_id`, `fallback_model_ids BIGINT[]` (ordonnés), `params` JSONB, `data_sharing_ok`, `version`, `active`, `created_by` ; `UNIQUE (role, level, version)` ; index unique partiel `(role, level) WHERE active` |
+| `llm_calls` | `cache_key`, `role`, `level`, `provider`, `model`, `prompt_id`, `prompt_version`, `route_id`, `route_version`, `profile_version`, `budget_scope`, tokens (entrée, en cache, sortie), `cost_usd_micros`, `free_tier`, `latency_ms`, `request_id`, `status` (CHECK `succeeded`, `invalid_output`, `refused`, `failed`), `output` JSONB, `error` ; index unique partiel `cache_key WHERE status = 'succeeded'` (cache), index `(role, created_at)` |
+| `llm_free_usage` | PK `(provider, free_group, day)`, `tokens` |
+| `budget_counters` | `scope`, `period_start`, `period_end`, `cap_usd_micros`, `spent_usd_micros`, `reserved_usd_micros`, `thresholds_notified SMALLINT[]` ; `UNIQUE (scope, period_start)`, CHECK montants ≥ 0 |
+
+## Tables de l'ingestion (migration 0003)
+
+Voir [ingestion.md](ingestion.md). Plateforme partout (CHECK sur les 8 valeurs) ; pour
+X, CHECK de format (`^[0-9]{1,19}$`, borne `BIGINT`) sur `external_id`.
+
+| Table | Colonnes principales |
+|---|---|
+| `entities` | `public_id`, `name`, `kind` (`person`, `organization`), `public_role` (catégorie fermée, jamais de bord politique) |
+| `platform_accounts` | `platform`, `external_id`, `UNIQUE (platform, external_id)`, `handle`, `entity_id` |
+| `watched_accounts` | `public_id`, `account_id` (unique), `category` (rôle public), `priority` (-100..100), `since_cursor`, `active`, `note`, `added_by`, `version` (verrou optimiste) |
+| `watched_account_events` | Audit immuable de la liste de suivi : `action`, `actor`, `changes` JSONB |
+| `content_items` | Clé interne `BIGINT`, `public_id`, `platform`, `external_id` (`UNIQUE (platform, external_id)`), `author_account_id`, `text` (d'origine), `lang`, `lang_confidence`, `lang_hint`, `useful_words`, `content_hash` (32 octets), `simhash BIGINT` et `simhash_b0..b3` (colonnes générées stockées), `parent_external_id`, `quoted_external_id`, `copy_of_id`, `metrics` JSONB, `metrics_at`, `created_at_platform`, `first_seen_at`, `last_seen_at`, `observation_count`. **Non partitionnée** |
+| `content_snapshots` | Copie d'un contenu à un instant : `reason` (`dossier_opened`, `recheck`, `manual`), `text`, `metrics`, `data` |
+| `media_assets` | `kind` (`image`, `video`, `audio`, `document`), `url`, `url_sha256` (unique), `sha256`, `phash` et `phash_b0..b3` (générées ; empreinte perceptuelle calculée par un job ultérieur), `first_seen_at` |
+| `content_media` | PK `(content_id, media_id)`, `position` |
+| `observations` | **Partitionnée par semaine** sur `observed_at` (PK `(id, observed_at)`), `content_id`, `platform`, `source` (`extension`, `radar`, `feed`), `installation_pseudonym` (16 octets ou NULL), `filter_version` |
+| `observation_counters` | PK `(content_id, hour, source)`, `count` : agrégat conservé après la purge des observations |
+| `installation_secrets` | PK `day`, `secret` (32 octets) : supprimé après le jour concerné |
+| `installation_daily` | PK `(day, pseudonym)`, `items`, `quota` |
+| `extension_filter_versions` | `version` (unique), `filters` JSONB, `active` (une seule active : index unique partiel), `created_by` |
+
+Tables à venir : affirmations, groupes, verdicts, sources, citations, profils de
+traitement (voir [factcheck/donnees.md](factcheck/donnees.md)).
 
 ## Index notables
 
@@ -39,6 +71,12 @@ citations, profils de traitement, journal de coûts.
   pour la réservation ; index partiel unique sur `dedupe_key` parmi les jobs actifs.
 - `events` : `(xid, id)` pour la lecture sans trou.
 - `error_reports` : index partiel sur les erreurs ouvertes.
+- `content_items` : `(simhash_bN, first_seen_at)` pour chaque bande (quasi-copies sur
+  30 jours), `content_hash`, `lang`, `first_seen_at`, index sur expression
+  `(external_id::bigint) WHERE platform = 'x'` (IDs X numériques sans colonne générée).
+- `observations` : `(content_id, observed_at)`, propagé à chaque partition.
+- Les partitions `observations_pAAAAMMJJ` sont créées par le service `ingest` ; elles
+  sont exclues de l'autogénération Alembic (`include_name` dans `migrations/env.py`).
 
 ## Migrations
 

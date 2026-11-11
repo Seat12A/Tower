@@ -47,11 +47,15 @@ src/tower/
     services/            contrat Service + registre
     errors/              capture, stockage agrégé, consultation
     auth/                tokens, résolution de l'acteur
-    ports/               interfaces des dépendances externes (X, LLM, recherche…)
+    ports/               interfaces des dépendances externes (LLM, plateformes, web…)
+    adapters/            adaptateurs partagés des ports (OpenAI, Anthropic, httpx),
+                         SDK importés paresseusement
+    llm/                 routeur de modèles, registre des prompts (voir llm.md)
     admin.py, migrations.py
   gate/                  FastAPI : app, routes, middleware, erreurs HTTP
   hangar/                worker
   services/ping/         service de démonstration (modèle à copier)
+  services/ingest/       liaison des copies, maintenance des partitions et secrets
   migrations/            Alembic (livré dans le paquet)
 ```
 
@@ -64,6 +68,10 @@ domain  ←  models / events / jobs / errors / auth  ←  usecases  ←  gate, h
 - `core/domain` n'importe **que** la bibliothèque standard (test `test_domain_is_pure`).
 - Un **service** n'importe que `tower.core`. Jamais `gate`, `intercom`, ni un autre
   service : les services communiquent par **événements** et **jobs**.
+- Les **adaptateurs partagés** (OpenAI, Anthropic, embeddings, récupération web) sont
+  dans `core/adapters` : un service n'importe que `tower.core`, il les y trouve. Leurs
+  SDK sont importés dans les constructeurs, jamais au niveau module (test
+  d'isolation des imports).
 - **Aucun client n'accède à la base** : le bot, le site et l'extension passent par gate.
 - Toute écriture métier passe par un **cas d'usage** (`core/usecases`), qui vérifie les
   permissions, applique le domaine, écrit l'audit et publie l'événement dans la même

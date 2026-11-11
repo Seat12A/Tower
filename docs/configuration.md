@@ -44,6 +44,30 @@ par Railway. Un fichier `.env` est lu en local (voir `.env.example`).
 | `TOWER_JOB_POLL_INTERVAL` | `5` | Polling de secours si une notification est perdue (s) |
 | `TOWER_SHUTDOWN_GRACE_SECONDS` | `20` | Temps laissé aux jobs en cours après SIGTERM. Doit être < `drainingSeconds` Railway |
 
+## Modèles (LLM)
+
+Voir [llm.md](llm.md). Les clés sont des secrets : lues par la configuration
+(`SecretStr`), jamais journalisées ni mises dans un contexte d'erreur.
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_OPENAI_API_KEY` | vide | Organisation OpenAI **sans** partage des données (routes `data_sharing_ok = false`) |
+| `TOWER_OPENAI_API_KEY_SHARED` | vide | Organisation OpenAI **avec** partage (allocation gratuite ; données publiques seulement) |
+| `TOWER_ANTHROPIC_API_KEY` | vide | Clé Anthropic |
+| `TOWER_OPENAI_USAGE_TIER` | `1` | Palier d'usage OpenAI (1 à 5) : fixe l'allocation gratuite quotidienne |
+| `TOWER_LLM_FREE_MARGIN` | `0.10` | Marge appliquée à l'estimation avant d'utiliser l'allocation gratuite |
+
+## Ingestion et fact-check
+
+Voir [ingestion.md](ingestion.md).
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_FC_LANGUAGES` | `fr,en` | Langues traitées par le fact-check (sous-étiquettes BCP 47) |
+| `TOWER_INGEST_MAX_ITEMS` | `50` | Items au plus par lot d'ingestion |
+| `TOWER_INGEST_DAILY_QUOTA` | `500` | Items acceptés par installation et par jour UTC |
+| `TOWER_HTTP_USER_AGENT` | `Seat12A-Tower/0.1` | User-Agent des récupérations web ; y ajouter une URL de contact générique, jamais une adresse personnelle |
+
 ## Rétention et erreurs
 
 | Variable | Défaut | Description |
