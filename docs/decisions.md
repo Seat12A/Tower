@@ -202,3 +202,33 @@ Détail : [radar.md](radar.md), [intercom.md](intercom.md), [llm.md](llm.md#budg
 | Curseurs SSE des clients rangés dans `event_cursors` (`sse:<client>:<nom>`), sans audit ni événement | Pas de nouvelle table ; un événement de curseur serait renvoyé dans le flux |
 | Bot : logique dans des gestionnaires purs, discord.py importé seulement par `intercom/app.py` ; notifications dans la langue `TOWER_DISCORD_LOCALE`, réponses dans la langue Discord de l'utilisateur | Testable sans Discord ; un salon est partagé, une réponse est personnelle |
 | Codes `TWR-BOT-*` seulement journalisés | Le bot n'a pas accès à la base (`error_reports`) |
+
+### Lot 3 : MVP du fact-check (2026-11-11)
+
+Détail : [fact-check.md](fact-check.md).
+
+| Décision | Raison |
+|---|---|
+| Profondeur renforcée par des **rôles distincts** `frame_reinforced` et `judge_reinforced` (routes Opus, repli Sonnet), prompts partagés avec `frame` et `judge` | Le routeur choisit la route par rôle et niveau ; la profondeur ne dépend pas du niveau (escalade en N3), et changer de modèle reste une affaire de base |
+| Un groupe par affirmation et une enquête par affirmation vérifiable ; `claim_group_members` historisé | Le lot 4 ajoute le regroupement sans réécriture |
+| Schémas de sortie sans contraintes de longueur ni de taille dans le JSON Schema ; bornes vérifiées par pydantic après l'appel | Les sorties structurées d'Anthropic (et le mode strict d'OpenAI) refusent ou ignorent `maxLength`, `maximum`, `maxItems` |
+| Passages : découpage d'environ 120 mots, BM25 en Python pur, SimHash ; aucun embedding | Lot 3 sans pgvector ; RAM et coût minimaux |
+| Datamarking par le caractère `ˆ` entre les mots des posts et des passages ; citations « démarquées » puis vérifiées sur le texte **original** | Défense contre l'injection (spotlighting) sans fausser le contrôle des citations |
+| Escalade : tour 2 (4 recherches de plus, seconde passe du juge renforcé sur tous les passages en ordre inverse) ; une enquête déjà renforcée fait la seconde passe sans nouvelle collecte ; le verdict final est celui de la seconde passe, une divergence devient un point à vérifier | Plan E8 ; l'ordre inverse couvre le biais de position |
+| Cadrage « non vérifiable » : pas de brouillon en N3, brouillon « Non vérifiable » en N4 | Ne pas occuper le quota avec des opinions ; une demande manuelle de l'équipe reçoit toujours une réponse |
+| Refus d'un modèle : jamais converti en « Vrai » ou « Faux » ; refus du juge → brouillon « Non vérifiable » signalé au relecteur | Règle des refus du plan ; l'équipe tranche |
+| La règle d'indépendance ne relève le besoin de contexte qu'en cas de rétrogradation | Un « Vrai » bien sourcé ne doit pas recevoir un besoin de contexte artificiel |
+| Revue : `accept` ou `edit` par un `reviewer` = avis favorable (dossier en revue) ; par un `editor` = validation (verdict actif, `verdict.published`) ; `reject` réservé à l'`editor` | Modèle de permissions existant des dossiers (`dossiers:review`, `dossiers:decide`) |
+| Origine des versions de la note : `machine` pour tout texte de modèle non relu (y compris la version du rédacteur dans la langue du post), `original` pour une version fr/en validée telle quelle, `human` pour une correction | La lecture publique signale toute traduction ou rédaction non relue (AI Act, article 50) |
+| Quota : ouverture immédiate s'il reste une place, sinon attente et tâche `factcheck:drain_quota` (priorité : N4, doute, « Faux »/« Trompeur », portée, ancienneté) | Flux continu : la priorité ne peut s'appliquer qu'aux brouillons en attente |
+| Source d'observation `manual` pour les demandes de l'équipe (CHECK élargi en 0005) | Distinguer ces contenus des lectures du radar et de l'extension |
+| `dossiers.content_id` (multi-plateforme) ; `x_post_id` conservé pour X | Expand : rien n'est supprimé |
+| `verdicts.notified_at` écrit par le bot (marqueur opérationnel, sans audit ni événement) et réconciliation au démarrage | Corrige la limite du notificateur au tout premier démarrage ; idempotent |
+| Rejeu de l'extraction avec une consigne ajoutée à l'entrée ; requêtes du tour 2 avec les requêtes précédentes en entrée | Le cache de contenu renverrait sinon la même sortie |
+| Pages web récupérées jamais mises en cache ; seules les réponses des API (et des recherches) le sont | Conservation limitée aux passages cités (droit d'auteur, article L. 122-5-3) |
+| INSEE BDM interrogé sur `bdm.insee.fr` sans clé ; `TOWER_INSEE_API_KEY` gardée pour un futur portail | Accès ouvert constaté le 2026-11-11 |
+
+Question ouverte (posée à Jules) : le tableau des coefficients de
+[factcheck/pipeline.md](factcheck/pipeline.md) donne +0,8 à un second avis « du même
+côté », alors que Q3 dit qu'un écart de style est « sans effet sur la confiance ». Le
+code applique le tableau ; le coefficient se règle par `TOWER_FC_CONFIDENCE_COEFFICIENTS`.
