@@ -16,22 +16,33 @@ __all__ = [
     "UNVERIFIABLE_CLAIM_TYPES",
     "AbsenceReason",
     "Agreement",
+    "ArbiterReason",
+    "Band",
+    "BandSide",
+    "BandStatus",
     "ClaimGroupState",
     "ClaimType",
     "ContextNeed",
     "ContextType",
     "Depth",
     "EntityRole",
+    "FactOrigin",
+    "FactStatus",
+    "GroupEventKind",
     "InvestigationStage",
+    "MatchOutcome",
     "NoteStatus",
     "ObjectionDirection",
     "ObjectionType",
+    "OverrideTarget",
     "Polarity",
     "Regime",
+    "ReuseRule",
     "ReviewDecision",
     "ReviewLabel",
     "ReviewOutcome",
     "Side",
+    "SignatureDifference",
     "TranslationOrigin",
     "Veracity",
     "VerdictStatus",
@@ -217,6 +228,7 @@ class ClaimGroupState(StrEnum):
     VERIFIED = "verified"
     TO_REVALIDATE = "to_revalidate"
     PASSIVE = "passive"
+    MERGED = "merged"  # lot 4: absorbed by another group (``merged_into_id``)
 
 
 class VerdictStatus(StrEnum):
@@ -265,3 +277,96 @@ class ReviewLabel(StrEnum):
     WRONG_CONTEXT = "wrong_context"
     NOTE_REWRITTEN = "note_rewritten"
     NOT_WORTH_CHECKING = "not_worth_checking"
+
+
+# ----------------------------------------------------------------------------- lot 4
+
+
+class ArbiterReason(StrEnum):
+    """Closed reason of the ``pair_arbiter`` role (E3)."""
+
+    SAME_CLAIM = "same_claim"
+    DIFFERENT_VALUE = "different_value"
+    DIFFERENT_PERIOD = "different_period"
+    DIFFERENT_TERRITORY = "different_territory"
+    DIFFERENT_DEFINITION = "different_definition"
+    OPPOSITE_POLARITY = "opposite_polarity"
+    DIFFERENT_SUBJECT = "different_subject"
+
+
+class SignatureDifference(StrEnum):
+    """Why two normalized signatures are not identical (deterministic comparison)."""
+
+    CLAIM_TYPE = "claim_type"
+    SUBJECT = "subject"
+    VALUE = "value"
+    UNIT = "unit"
+    SCALE = "scale"
+    CURRENCY = "currency"
+    PERIOD = "period"
+    TERRITORY = "territory"
+    POLARITY = "polarity"
+    DEFINITION = "definition"
+    COMPARISON_BASE = "comparison_base"
+    MISSING = "missing"  # a field is set on one side only (compatible, not identical)
+
+
+class MatchOutcome(StrEnum):
+    JOIN = "join"  # attached to an existing group
+    NEW = "new"  # new group created
+
+
+class ReuseRule(StrEnum):
+    """How a verdict covers a claim without a new investigation (Q9)."""
+
+    IDENTICAL_SIGNATURE = "identical_signature"
+    BAND = "band"
+
+
+class Band(StrEnum):
+    """Position of a claimed interval relative to a reference value (Q9)."""
+
+    CONTAINS = "contains"
+    WITHIN_1_TAU = "within_1_tau"
+    WITHIN_3_TAU = "within_3_tau"
+    BEYOND = "beyond"
+
+
+class BandSide(StrEnum):
+    NONE = "none"  # band ``contains``
+    ABOVE = "above"  # the claim overstates the reference
+    BELOW = "below"  # the claim understates the reference
+
+
+class BandStatus(StrEnum):
+    ACTIVE = "active"
+    REVOKED = "revoked"
+
+
+class FactStatus(StrEnum):
+    PENDING = "pending"  # waiting for a reviewer; never used before validation
+    VALIDATED = "validated"
+    REJECTED = "rejected"
+    SUPERSEDED = "superseded"
+
+
+class FactOrigin(StrEnum):
+    INVESTIGATION = "investigation"  # created from a validated investigation (bot button)
+    INSEE = "insee"  # automatic feed of the tracked INSEE indicators
+    MANUAL = "manual"
+
+
+class GroupEventKind(StrEnum):
+    CREATED = "created"
+    JOINED = "joined"
+    MERGED = "merged"
+    SPLIT = "split"
+    LEVEL_CHANGED = "level_changed"
+    REPRESENTATIVE_CHANGED = "representative_changed"
+    FACT_LINKED = "fact_linked"
+
+
+class OverrideTarget(StrEnum):
+    CONTENT = "content"
+    GROUP = "group"
+    ACCOUNT = "account"

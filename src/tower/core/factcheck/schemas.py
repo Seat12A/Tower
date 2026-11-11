@@ -14,6 +14,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict
 
 from tower.core.domain.factcheck.values import (
     AbsenceReason,
+    ArbiterReason,
     ClaimType,
     ContextNeed,
     ContextType,
@@ -36,6 +37,7 @@ __all__ = [
     "JudgeCitation",
     "JudgeOutput",
     "ObjectionOutput",
+    "PairArbiterOutput",
     "PassageOrigin",
     "QueryItem",
     "QueryOutput",
@@ -309,3 +311,16 @@ class CriticOutput(_Out):
 class TranslateOutput(_Out):
     lang: str
     text: Annotated[str, _max_len(4000)]
+
+
+# ------------------------------------------------------------------- pair arbiter
+
+
+class PairArbiterOutput(_Out):
+    """E3 arbiter. ``same`` is honoured only with ``reason == same_claim``; any other
+    combination is read as "different" by the code (never merge by mistake)."""
+
+    same: bool
+    reason: ArbiterReason
+    explanation: Line
+    """One sentence in English naming the decisive element (never the author)."""

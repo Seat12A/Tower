@@ -541,6 +541,112 @@ FCK_PLATFORM_UNAVAILABLE = _define(
     retryable=True,
 )
 
+# Lot 4: groups, reuse, reference facts, bands, profiles, levels
+FCK_GROUP_NOT_FOUND = _define(
+    "TWR-FCK-020", "Claim group not found", http_status=404, severity=_INFO
+)
+FCK_GROUP_MERGED = _define(
+    "TWR-FCK-021",
+    "Claim group already merged into another group",
+    http_status=409,
+    severity=_INFO,
+    hint="Act on the group it was merged into (merged_into in the group).",
+)
+FCK_MERGE_CONFLICT = _define(
+    "TWR-FCK-022",
+    "Both groups hold active verdicts with different outcomes",
+    http_status=409,
+    severity=_INFO,
+    hint="Expire or reject one verdict first; a merge never overrides a verdict.",
+)
+FCK_MERGE_DIRECTION = _define(
+    "TWR-FCK-023",
+    "Only the target group of a merge may hold the active verdict",
+    http_status=409,
+    severity=_INFO,
+    hint="Merge into the group that holds the verdict.",
+)
+FCK_SPLIT_INVALID = _define(
+    "TWR-FCK-024",
+    "Invalid split (claims not active members, or the group would be empty)",
+    http_status=422,
+    severity=_INFO,
+)
+FCK_FACT_NOT_FOUND = _define(
+    "TWR-FCK-025", "Reference fact not found", http_status=404, severity=_INFO
+)
+FCK_FACT_INVALID = _define("TWR-FCK-026", "Invalid reference fact", http_status=422, severity=_INFO)
+FCK_FACT_NOT_VALIDATED = _define(
+    "TWR-FCK-027",
+    "Reference fact not validated by a reviewer",
+    http_status=409,
+    severity=_INFO,
+    hint="A reference fact serves only once validated (POST /v1/reference-facts/{id}/validate).",
+)
+FCK_BAND_INVALID = _define(
+    "TWR-FCK-028",
+    "Value band cannot be validated (no validated fact, no band, or no outcome)",
+    http_status=422,
+    severity=_INFO,
+)
+FCK_PROFILE_NOT_FOUND = _define(
+    "TWR-FCK-029", "Processing profile version not found", http_status=404, severity=_INFO
+)
+FCK_PROFILE_OUT_OF_BOUNDS = _define(
+    "TWR-FCK-030",
+    "Processing profile outside the safety bounds",
+    http_status=422,
+    severity=_INFO,
+    hint="See the bounds in docs/fact-check.md (Profils et niveaux).",
+)
+FCK_OVERRIDE_INVALID = _define(
+    "TWR-FCK-031", "Invalid level override", http_status=422, severity=_INFO
+)
+FCK_OVERRIDE_NOT_FOUND = _define(
+    "TWR-FCK-032", "Level override not found", http_status=404, severity=_INFO
+)
+FCK_EMBEDDING_FAILED = _define(
+    "TWR-FCK-033",
+    "Embedding request failed",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+FCK_ARBITER_FAILED = _define(
+    "TWR-FCK-034",
+    "Pair arbiter failed: the pair is treated as different",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+    hint="Safe default: no grouping and no reuse without the arbiter.",
+)
+FCK_VECTOR_EXTENSION_MISSING = _define(
+    "TWR-FCK-035",
+    "PostgreSQL extension pgvector (>= 0.8) is not available",
+    severity=_CRIT,
+    hint="Use a PostgreSQL image that ships pgvector (Railway: pgvector template).",
+)
+FCK_ROUTER_MODEL_INVALID = _define(
+    "TWR-FCK-036",
+    "Invalid E1 router model (weights, dimensions or metrics)",
+    http_status=422,
+    severity=_INFO,
+)
+FCK_REVALIDATION_FAILED = _define(
+    "TWR-FCK-037",
+    "Verdict revalidation failed",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+FCK_REFERENCE_FEED_FAILED = _define(
+    "TWR-FCK-038",
+    "Automatic reference fact feed failed (INSEE)",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+
 # --- ATL: knowledge sources (Atlas) and web search ---------------------------------
 ATL_SOURCE_UNAVAILABLE = _define(
     "TWR-ATL-001",

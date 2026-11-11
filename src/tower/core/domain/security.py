@@ -29,6 +29,12 @@ class Permission(StrEnum):
     WATCHLIST_WRITE = "watchlist:write"
     USAGE_READ = "usage:read"
     FACTCHECK_REQUEST = "factcheck:request"
+    GROUPS_MANAGE = "claim_groups:manage"  # merge, split (lot 4)
+    FACTS_WRITE = "reference_facts:write"  # create a reference fact
+    FACTS_VALIDATE = "reference_facts:validate"  # validate facts and value bands
+    PROFILES_READ = "profiles:read"
+    PROFILES_MANAGE = "profiles:manage"  # activate, roll back (admin only)
+    LEVELS_OVERRIDE = "levels:override"
 
 
 class Role(StrEnum):
@@ -53,6 +59,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.DOSSIER_CREATE,
             Permission.DOSSIER_REVIEW,
             Permission.WATCHLIST_READ,
+            Permission.FACTS_WRITE,
+            Permission.PROFILES_READ,
         }
     ),
     Role.EDITOR: frozenset(
@@ -67,6 +75,11 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.WATCHLIST_WRITE,
             Permission.USAGE_READ,
             Permission.FACTCHECK_REQUEST,
+            Permission.GROUPS_MANAGE,
+            Permission.FACTS_WRITE,
+            Permission.FACTS_VALIDATE,
+            Permission.PROFILES_READ,
+            Permission.LEVELS_OVERRIDE,
         }
     ),
     Role.ADMIN: frozenset(Permission),

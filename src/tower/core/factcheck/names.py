@@ -6,12 +6,18 @@ from __future__ import annotations
 # Queues
 FC_FAST = "fc-fast"
 FC_DEEP = "fc-deep"
+FC_BULK = "fc-bulk"
 
 # Jobs of the service ``factcheck`` (queue fc-fast)
 JOB_EXTRACT = "factcheck.extract"
 JOB_ASSEMBLE = "factcheck.assemble"
 JOB_REQUEST = "factcheck.request"
 JOB_TRANSLATE = "factcheck.translate"
+
+# Lot 4 jobs of the service ``factcheck`` (queue fc-bulk)
+JOB_EMBED_BATCH = "factcheck.embed_batch"
+JOB_REVALIDATE = "factcheck.revalidate"
+JOB_INSEE_REFRESH = "factcheck.insee_refresh"
 
 # Jobs of the service ``investigate`` (queue fc-deep), one per stage
 JOB_FRAME = "investigate.frame"
@@ -30,6 +36,17 @@ INVESTIGATION_COMPLETED = "investigation.completed"
 DRAFT_READY = "draft.ready"
 DRAFT_REVIEWED = "draft.reviewed"
 VERDICT_PUBLISHED = "verdict.published"
+# Lot 4
+CLAIM_GROUP_CREATED = "claim_group.created"
+CLAIM_GROUP_MERGED = "claim_group.merged"
+CLAIM_GROUP_SPLIT = "claim_group.split"
+CLAIM_GROUP_LEVEL_CHANGED = "claim_group.level_changed"
+VERDICT_REUSED = "verdict.reused"
+VERDICT_EXPIRED = "verdict.expired"
+REFERENCE_FACT_VALIDATED = "reference_fact.validated"
+VERDICT_BAND_VALIDATED = "verdict_band.validated"
+PROCESSING_PROFILE_ACTIVATED = "processing_profile.activated"
+LEVEL_OVERRIDE_CREATED = "level_override.created"
 
 # Actors
 FACTCHECK_ACTOR = "system:factcheck"
@@ -47,6 +64,8 @@ ROLE_OBJECTION = "objection"
 ROLE_WRITER = "writer"
 ROLE_CRITIC = "critic"
 ROLE_TRANSLATE = "translate"
+ROLE_PAIR_ARBITER = "pair_arbiter"
+ROLE_EMBED = "embed"
 """Prompt id = role, except the reinforced roles which reuse ``frame`` and ``judge``."""
 
 PROMPT_OF_ROLE = {
@@ -82,3 +101,17 @@ def request_key(platform: str, external_id: str) -> str:
 
 def translate_key(verdict_id: int, version: int) -> str:
     return f"tr:{verdict_id}:{version}"
+
+
+def embed_batch_key(minute_bucket: str) -> str:
+    """One embedding batch per UTC minute (``YYYYmmddHHMM``): events of the same
+    minute collapse into one job, which then takes every pending content."""
+    return f"emb:{minute_bucket}"
+
+
+def revalidate_key(verdict_id: int) -> str:
+    return f"reval:{verdict_id}"
+
+
+def insee_key(indicator: str, day: str) -> str:
+    return f"insee:{indicator}:{day}"

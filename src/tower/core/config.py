@@ -117,6 +117,41 @@ class Settings(BaseSettings):
     English posts)."""
     fc_review_locale_fallback: str = "fr"
 
+    # --- Fact-check V1 (lot 4: embeddings, groups, reuse, profiles) ---------------
+    fc_embed_batch_size: int = Field(default=2000, ge=100, le=2000)
+    """Contents embedded per ``factcheck.embed_batch`` job (one API request per 256)."""
+    fc_embed_debounce_seconds: int = Field(default=30, ge=0, le=600)
+    """Delay before a batch runs, so the events of a minute share one batch."""
+    fc_embedding_retention_days: int = Field(default=14, ge=7, le=60)
+    fc_e1_sample_rate: float = Field(default=0.02, ge=0, le=0.2)
+    """Share of contents discarded by E1 kept as a random sample (false negatives)."""
+    fc_e1_thresholds: str = '{"N1": 0.15, "N2": 0.15, "N3": 0.05, "N4": 0.0}'
+    """Default E1 thresholds by level (JSON), used by the default processing profile."""
+    fc_match_candidates: int = Field(default=5, ge=1, le=20)
+    """Nearest groups compared by E3."""
+    fc_match_same_threshold: float = Field(default=0.92, ge=0.85, le=0.999)
+    """Cosine similarity above which an identical-signature pair of the same language is
+    the same claim without the arbiter."""
+    fc_match_grey_threshold: float = Field(default=0.80, ge=0.5, le=0.99)
+    """Lower bound of the grey zone (arbiter); below, the pair is different."""
+    fc_current_period_days: int = Field(default=31, ge=1, le=366)
+    """Without a reference fact, two "currently" claims share a period when their posts
+    are at most this many days apart."""
+    fc_band_tau_ratio: float = Field(default=0.05, gt=0, le=0.5)
+    """Value band tolerance: tau = max(floor, ratio x |reference|)."""
+    fc_band_floor_rate_points: float = Field(default=0.2, ge=0)
+    """Tolerance floor for a rate (unit ``%``), in points."""
+    fc_band_floor_default: float = Field(default=0.0, ge=0)
+    """Tolerance floor for other units (in the unit of the fact)."""
+    fc_verdict_ttl_days: str = ""
+    """JSON object overriding the validity of a verdict by claim type, in days."""
+    fc_level_budgets_usd: str = '{"N0": 1, "N1": 5, "N2": 10, "N3": 20, "N4": 15}'
+    """Monthly caps of the budget scopes ``level:N0..N4`` created by ``tower llm seed``."""
+    fc_insee_indicators: str = ""
+    """JSON list of tracked INSEE indicators fed automatically into reference facts."""
+    fc_external_factcheck_lookup: bool = True
+    """E3 looks up existing fact-checks (Google Fact Check Tools) for new groups."""
+
     # --- Knowledge sources (Atlas) -------------------------------------------------
     google_api_key: SecretStr | None = None
     """Google Fact Check Tools API key (``claims:search``)."""

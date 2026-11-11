@@ -34,8 +34,11 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from tower.core.db.base import Base
+from tower.core.db.vector import HalfVec
 from tower.core.domain.factcheck.values import (
     Agreement,
+    Band,
+    BandSide,
     ClaimGroupState,
     ClaimType,
     ContextNeed,
@@ -45,6 +48,7 @@ from tower.core.domain.factcheck.values import (
     NoteStatus,
     Polarity,
     Regime,
+    ReuseRule,
     ReviewDecision,
     ReviewOutcome,
     TranslationOrigin,
@@ -131,6 +135,12 @@ class Claim(Base):
     thread_context: Mapped[str | None] = mapped_column(Text)
     """Neutral rephrasing of the parent or quoted post (never the raw text)."""
     prompt_version: Mapped[str] = mapped_column(Text)
+    # Lot 4 (E3): vectors are never indexed on claims (exact comparisons only).
+    embedding: Mapped[list[float] | None] = mapped_column(HalfVec())
+    """Vector of ``text_original``."""
+    embedding_pivot: Mapped[list[float] | None] = mapped_column(HalfVec())
+    """Vector of ``text_fr`` for non-French claims (NULL for French: same as embedding)."""
+    embedding_model: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
@@ -145,12 +155,24 @@ class ContentClaim(Base):
 
 
 class ClaimGroup(Base):
-    """Group of equivalent claims. Lot 3: one claim per group."""
+    """Group of claims that say the same thing, verifiable by the same evidence (E3).
+
+    Joining a group requires an identical normalized signature (docs/fact-check.md):
+    every member is covered by the group verdict."""
 
     __tablename__ = "claim_groups"
     __table_args__ = (
         check_in("level", LEVELS, "level"),
         check_in("state", ClaimGroupState, "state"),
+        check_in("band", Band, "band"),
+        check_in("band_side", BandSide, "band_side"),
+        Index(
+            "ix_claim_groups_representative_embedding",
+            "representative_embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"representative_embedding": "halfvec_cosine_ops"},
+        ),
+        Index("ix_claim_groups_reference_fact", "reference_fact_id"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -163,6 +185,17 @@ class ClaimGroup(Base):
     reach: Mapped[int] = mapped_column(BigInteger, server_default=sa_text("0"))
     active_verdict_id: Mapped[int | None] = mapped_column(
         ForeignKey("verdicts.id", ondelete="SET NULL", use_alter=True)
+    )
+    # Lot 4
+    representative_embedding: Mapped[list[float] | None] = mapped_column(HalfVec())
+    """Pivot-space vector of the representative claim: the only vector index (HNSW)."""
+    reference_fact_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reference_facts.id", ondelete="SET NULL")
+    )
+    band: Mapped[str | None] = mapped_column(Text)
+    band_side: Mapped[str | None] = mapped_column(Text)
+    merged_into_id: Mapped[int | None] = mapped_column(
+        ForeignKey("claim_groups.id", ondelete="SET NULL")
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
@@ -293,6 +326,7 @@ class Verdict(Base):
         check_in("veracity", Veracity, "veracity"),
         check_in("context_need", ContextNeed, "context_need"),
         check_in("status", VerdictStatus, "status"),
+        check_in("reuse_rule", ReuseRule, "reuse_rule"),
         CheckConstraint("confidence IS NULL OR confidence BETWEEN 0 AND 1", name="confidence"),
         Index(
             "uq_verdicts_active_group",
@@ -328,6 +362,11 @@ class Verdict(Base):
     """Set by the bot once the draft is displayed in Discord (reconciliation)."""
     validated_at: Mapped[datetime | None] = mapped_column()
     validated_by: Mapped[str | None] = mapped_column(Text)
+    # Lot 4: a verdict inherited through a validated value band (never a copy of text).
+    reused_from_verdict_id: Mapped[int | None] = mapped_column(
+        ForeignKey("verdicts.id", ondelete="SET NULL")
+    )
+    reuse_rule: Mapped[str | None] = mapped_column(Text)
     version: Mapped[int] = mapped_column(server_default=sa_text("1"))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())

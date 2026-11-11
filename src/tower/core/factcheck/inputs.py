@@ -325,3 +325,22 @@ def translate_input(*, text: str, source_lang: str, target_lang: str, kind: str)
         "target_lang": target_lang,
         "text": text,
     }
+
+
+def pair_arbiter_input(
+    *,
+    a_text: str,
+    a_lang: str,
+    a_date: date | None,
+    b_text: str,
+    b_lang: str,
+    b_date: date | None,
+) -> dict[str, Any]:
+    """E3 arbiter: the two **original** claim texts, each in its own language, with the
+    publication date of its post (resolves "currently", "last year"). Never the
+    author, the platform, the reach or the level. Texts are datamarked by the caller
+    like any untrusted text."""
+    return {
+        "claim_a": {"text": a_text, "lang": a_lang, "post_date": _iso(a_date)},
+        "claim_b": {"text": b_text, "lang": b_lang, "post_date": _iso(b_date)},
+    }

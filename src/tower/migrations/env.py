@@ -6,11 +6,17 @@ import asyncio
 import re
 
 from alembic import context
+
+# Reflection of pgvector's ``halfvec`` (compared with the models by autogenerate).
+from sqlalchemy.dialects.postgresql import base as _pg_base
 from sqlalchemy.ext.asyncio import create_async_engine
 
 import tower.core.models  # noqa: F401  (registers the tables)
 from tower.core.config import Settings, get_settings
 from tower.core.db.base import Base
+from tower.core.db.vector import HalfVec
+
+_pg_base.ischema_names["halfvec"] = HalfVec
 
 config = context.config
 settings: Settings = config.attributes.get("settings") or get_settings()
@@ -19,7 +25,7 @@ target_metadata = Base.metadata
 
 #: Weekly partitions of ``observations`` are created at runtime by the ingest service:
 #: they are not in the models, so autogenerate must not propose to drop them.
-_PARTITION = re.compile(r"^observations_p\d{8}$")
+_PARTITION = re.compile(r"^(observations|content_embeddings)_p\d{8}$")
 
 
 def _include_name(name: str | None, type_: str, _parent: object) -> bool:

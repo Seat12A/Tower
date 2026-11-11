@@ -24,6 +24,12 @@ from tower.core.migrations import downgrade, upgrade
 from tower.core.models.auth import ServiceClient, StaffMember
 
 TABLES = [
+    "verdict_bands",
+    "claim_group_events",
+    "content_embeddings",
+    "level_overrides",
+    "processing_profiles",
+    "router_models",
     "citations",
     "context_note_translations",
     "context_notes",
@@ -37,6 +43,7 @@ TABLES = [
     "content_claims",
     "claims",
     "sources",
+    "reference_facts",
     "source_registry",
     "source_cache",
     "dossier_events",
