@@ -10,7 +10,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import AliasChoices, Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Env = Literal["dev", "test", "prod"]
@@ -87,6 +87,56 @@ class Settings(BaseSettings):
     ingest_daily_quota: int = Field(default=500, ge=1)
     """Items per installation and per UTC day."""
 
+    # --- Fact-check pipeline (lot 3, services factcheck and investigate) ----------
+    llm_fake: bool = False
+    """Fake model provider producing schema-valid outputs (dev, smoke tests, eval demo).
+    Refused when ``TOWER_ENV=prod``."""
+    fc_draft_daily_quota: int = Field(default=50, ge=0)
+    """Drafts sent to review per UTC day; the surplus waits for a free slot."""
+    fc_cap_standard_usd: float = Field(default=0.10, ge=0)
+    """Per-investigation cost cap at the standard depth: no escalation beyond it."""
+    fc_cap_reinforced_usd: float = Field(default=0.40, ge=0)
+    fc_cap_n4_usd: float = Field(default=0.60, ge=0)
+    fc_searches_standard: int = Field(default=4, ge=0, le=20)
+    """Web searches of a standard investigation (after the free sources)."""
+    fc_searches_reinforced_extra: int = Field(default=4, ge=0, le=20)
+    fc_passages_standard: int = Field(default=30, ge=4, le=200)
+    """Passages given to the judge (~160 tokens each)."""
+    fc_passages_reinforced: int = Field(default=60, ge=4, le=200)
+    fc_passage_words: int = Field(default=120, ge=40, le=400)
+    fc_confidence_coefficients: str = ""
+    """JSON object overriding coefficients of the confidence regression (pipeline.md E10)."""
+    fc_confidence_cap: float = Field(default=0.90, gt=0, le=1)
+    fc_confidence_high: float = Field(default=0.80, gt=0, le=1)
+    fc_confidence_medium: float = Field(default=0.55, gt=0, le=1)
+    fc_escalation_threshold: float = Field(default=0.60, ge=0, le=1)
+    fc_loaded_terms_file: str = ""
+    """JSON lexicon of loaded terms by language; empty = the packaged default."""
+    fc_reference_langs: str = "fr"
+    """Reference languages always written besides the post language (``en`` is added for
+    English posts)."""
+    fc_review_locale_fallback: str = "fr"
+
+    # --- Knowledge sources (Atlas) -------------------------------------------------
+    google_api_key: SecretStr | None = None
+    """Google Fact Check Tools API key (``claims:search``)."""
+    brave_api_key: SecretStr | None = None
+    """Brave Search API subscription token."""
+    piste_client_id: SecretStr | None = None
+    piste_client_secret: SecretStr | None = None
+    """Légifrance through PISTE (OAuth2 client credentials)."""
+    piste_sandbox: bool = False
+    """Use the PISTE sandbox endpoints instead of production."""
+    insee_api_key: SecretStr | None = None
+    """INSEE API portal key (BDM), when the portal requires one."""
+    insee_series: str = ""
+    """JSON object ``{"indicator": "idbank"}`` of the INSEE BDM series used by the selector."""
+    atlas_wikipedia_concurrency: int = Field(default=3, ge=1, le=3)
+    """Concurrent Wikimedia requests per process (Wikimedia limit: 3)."""
+    atlas_cache_ttl_s: int = Field(default=7 * 86400, ge=60)
+    """Default freshness of ``source_cache`` entries (search results: 1 day)."""
+    atlas_http_timeout_s: float = Field(default=10.0, gt=0)
+
     # --- Budgets ---------------------------------------------------------------
     budget_reservation_ttl_s: int = Field(default=1800, ge=60)
     """A budget/free-allocation reservation not settled after this delay is released."""
@@ -143,6 +193,12 @@ class Settings(BaseSettings):
         default=None, validation_alias=AliasChoices("RAILWAY_DEPLOYMENT_ID")
     )
 
+    @model_validator(mode="after")
+    def _no_fake_in_prod(self) -> Settings:
+        if self.llm_fake and self.env == "prod":
+            raise ValueError("TWR-FCK-016: TOWER_LLM_FAKE is refused when TOWER_ENV=prod")
+        return self
+
     @field_validator("log_level")
     @classmethod
     def _lower(cls, v: str) -> str:
@@ -166,6 +222,10 @@ class Settings(BaseSettings):
     @property
     def fc_language_list(self) -> list[str]:
         return [lang.lower() for lang in _split(self.fc_languages)]
+
+    @property
+    def fc_reference_lang_list(self) -> list[str]:
+        return [lang.lower() for lang in _split(self.fc_reference_langs)]
 
     @property
     def cors_origin_list(self) -> list[str]:

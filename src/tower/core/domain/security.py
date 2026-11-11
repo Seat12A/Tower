@@ -28,6 +28,7 @@ class Permission(StrEnum):
     WATCHLIST_READ = "watchlist:read"
     WATCHLIST_WRITE = "watchlist:write"
     USAGE_READ = "usage:read"
+    FACTCHECK_REQUEST = "factcheck:request"
 
 
 class Role(StrEnum):
@@ -65,6 +66,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.WATCHLIST_READ,
             Permission.WATCHLIST_WRITE,
             Permission.USAGE_READ,
+            Permission.FACTCHECK_REQUEST,
         }
     ),
     Role.ADMIN: frozenset(Permission),

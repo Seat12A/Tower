@@ -79,10 +79,14 @@ _ROUTES: tuple[_RouteSeed, ...] = (
     _low("light_check", "gpt-5.6-terra", "gpt-6.1-terra", "claude-haiku-5-5"),
     _low("query_writer", "gpt-5.6-terra", "gpt-6-luna"),
     _low("narrative_title", "gpt-5.6-luna", "gpt-6-luna"),
+    _low("translate", "gpt-5.6-luna", "gpt-6-luna", "claude-haiku-5-5"),
     _effort("frame", "*", "medium", "claude-sonnet-5-5"),
     _effort("frame", "N4", "medium", "claude-opus-5-5", "claude-sonnet-5-5"),
     _effort("judge", "*", "high", "claude-sonnet-5-5"),
     _effort("judge", "N4", "medium", "claude-opus-5-5", "claude-sonnet-5-5"),
+    # Reinforced depth (escalation, and always in N4): Opus, Sonnet as fallback.
+    _effort("frame_reinforced", "*", "medium", "claude-opus-5-5", "claude-sonnet-5-5"),
+    _effort("judge_reinforced", "*", "medium", "claude-opus-5-5", "claude-sonnet-5-5"),
     *(
         _RouteSeed(role, "*", "gpt-5.6-sol", ("gpt-6.1-terra",), {"effort": "medium"}, True)
         for role in ("second_opinion", "objection", "critic")

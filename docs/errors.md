@@ -6,6 +6,18 @@
 Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé.
 « Stocké » : l'occurrence est agrégée dans la table `error_reports`.
 
+## ATL : ATL
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-ATL-001` | Knowledge source unavailable (network, timeout, 5xx): skipped | 500 | warning | oui | oui |  |
+| `TWR-ATL-002` | Knowledge source rate limit reached: skipped | 500 | info | non | oui |  |
+| `TWR-ATL-003` | Unexpected knowledge source response | 500 | error | oui | non |  |
+| `TWR-ATL-004` | Knowledge source not configured (missing key): skipped | 500 | info | non | non | TOWER_BRAVE_API_KEY, TOWER_GOOGLE_API_KEY, TOWER_PISTE_CLIENT_ID/SECRET… |
+| `TWR-ATL-005` | Knowledge source refused the credentials | 500 | error | oui | non |  |
+| `TWR-ATL-006` | Recent Wikipedia revision with a high revert risk: last stable revision used | 500 | info | non | non |  |
+| `TWR-ATL-007` | Search budget exhausted: web search skipped | 500 | warning | non | oui |  |
+
 ## AUTH : Authentification et autorisations
 
 | Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
@@ -50,6 +62,30 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-EVT-001` | Invalid event cursor | 422 | info | non | non |  |
 | `TWR-EVT-002` | Event consumer failed (batch replayed) | 500 | error | oui | oui | The cursor does not advance while the batch fails: fix the handler. |
 | `TWR-EVT-003` | Invalid client cursor name (1-64 chars: a-z, 0-9, '.', '_', '-') | 422 | info | non | non |  |
+
+## FCK : FCK
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-FCK-001` | Extracted claim not faithful to its post (number or entity absent, omission) | 500 | info | non | non | The post is replayed alone; repeated failures leave it without claims. |
+| `TWR-FCK-002` | Model output rejected by a pipeline check after validation | 500 | warning | oui | oui |  |
+| `TWR-FCK-003` | Model budget exhausted: the investigation waits for the next period | 503 | warning | non | oui | Raise the level:N3/level:N4 or global cap with tower llm budget, or wait. |
+| `TWR-FCK-004` | Per-investigation cost cap reached: no escalation, draft flagged | 500 | info | non | non |  |
+| `TWR-FCK-005` | Every model of the route refused: the draft is flagged for the reviewer | 500 | warning | oui | non |  |
+| `TWR-FCK-006` | Investigation stage failed | 500 | error | oui | oui |  |
+| `TWR-FCK-007` | Draft not found | 404 | info | non | non |  |
+| `TWR-FCK-008` | The draft was already decided | 409 | info | non | non |  |
+| `TWR-FCK-009` | Invalid review (missing veracity or note for an edit, missing reason for a rejection) | 422 | info | non | non |  |
+| `TWR-FCK-010` | Daily draft quota reached: the draft waits for a free slot | 500 | info | non | non | TOWER_FC_DRAFT_DAILY_QUOTA (50 by default). |
+| `TWR-FCK-011` | Content not found on the platform | 404 | info | non | non |  |
+| `TWR-FCK-012` | Unsupported or invalid content URL | 422 | info | non | non |  |
+| `TWR-FCK-013` | No validated verdict for this content | 404 | info | non | non |  |
+| `TWR-FCK-014` | Quote not found verbatim in its passage | 500 | warning | oui | non | The citation is dropped from the draft; stored for prompt analysis. |
+| `TWR-FCK-015` | Post deleted or modified since its ingestion (recheck) | 500 | info | non | non |  |
+| `TWR-FCK-016` | TOWER_LLM_FAKE is refused in production | 500 | critical | non | non | Unset TOWER_LLM_FAKE; the fake provider is for development and smoke tests only. |
+| `TWR-FCK-017` | Note translation failed | 500 | warning | oui | oui |  |
+| `TWR-FCK-018` | Content language not processed by the fact-check pipeline | 422 | info | non | non | TOWER_FC_LANGUAGES lists the processed languages. |
+| `TWR-FCK-019` | Platform read failed during a manual request or a recheck | 503 | warning | oui | oui |  |
 
 ## GEN : Général
 
