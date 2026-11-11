@@ -25,19 +25,22 @@ erreurs), Docker, Railway, CI, documentation.
 3. **intercom** : bot Discord (discord.py) client de gate (token de service +
    `X-Acting-Discord-Id`), abonné au flux SSE (`dossier.*`, `incident.*`), action
    « Marquer comme publié ».
-4. **Fact-check, MVP** (plan Fable) : comptes ciblés seulement. Filtres E0, triage
-   Haiku, collecte hors modèle, juge Sonnet, contrôle des citations, brouillon dans
-   Discord, capture des corrections, journal de coûts. Phase 0 avant tout code : jeu
-   de référence de 300 affirmations.
-5. Fact-check V1 à V4 : embeddings (pgvector, service hangar dédié), regroupement,
-   signature structurée, cache de verdicts avec péremption, profils et budgets en
-   base, flux de masse, fiches de référence, classifieur distillé, contradicteur,
-   audit Fable, tableau de bord de neutralité.
-6. **Modération** : définir le cycle et le service `moderation` (type de dossier déjà
+4. **Fact-check** : plan d'implémentation détaillé dans
+   [factcheck/feuille-de-route.md](factcheck/feuille-de-route.md) (2026-11-10). Phase 0
+   (jeu de référence de 300 affirmations, comptes et clés, validations juridiques),
+   puis lots : fondations (routeur de modèles OpenAI et Anthropic, ports, budgets),
+   ingestion générique multi-plateforme, MVP comptes ciblés avec verdict **et note de
+   contexte**, V1 (embeddings par API, groupes, cache, profils, niveaux N0 à N4), V2
+   (flux de masse, ordonnanceur, récits et mode vague), V3 (Atlas complet : droit,
+   statistiques, actualité ; classifieur distillé ; confiance calibrée), plateformes
+   supplémentaires, médias, audit et neutralité.
+5. **Modération** : définir le cycle et le service `moderation` (type de dossier déjà
    prévu).
-7. **blackbox** : archive publique des verdicts.
+6. **blackbox** : archive publique des verdicts.
 
 ## Questions ouvertes (héritées du plan Fable)
+
+Liste à jour et complétée : [factcheck/questions.md](factcheck/questions.md).
 
 Capacité réelle de relecture (fixe le quota de brouillons), application automatique
 des verdicts à tout un groupe, volumes réels, budget mensuel (API X incluse ou non),

@@ -88,8 +88,10 @@ src/tower/migrations      Alembic (livré dans le paquet)
    une étape.
 9. Aucune publication automatique sur X. Aucun scraping. L'extension n'envoie que les
    posts filtrés, avec un payload minimal et rien sur l'utilisateur.
-10. Neutralité : aucune logique de priorité ou de verdict ne dépend de l'auteur ni de
-    son bord politique.
+10. Objectivité et égalité de traitement : aucune logique de priorité ou de verdict ne
+    dépend de l'auteur ni de son bord politique. Objectif ne veut pas dire neutre à
+    mi-chemin : pas de faux équilibre, un fait établi (critères de
+    `docs/factcheck/objectivite.md`) n'est jamais présenté comme débattu.
 
 ## Scalabilité et RAM (Railway facture la RAM)
 

@@ -25,6 +25,7 @@ modération.
 | [development.md](development.md) | Environnement local, tests, commandes |
 | [decisions.md](decisions.md) | Journal des décisions (retenues et écartées) |
 | [roadmap.md](roadmap.md) | Prochaines étapes et lien avec le plan de fact-check |
+| [factcheck/](factcheck/README.md) | Plan d'implémentation du fact-check : niveaux, pipeline, vagues de rumeurs, modèles OpenAI et Anthropic, sources intégrées, contexte, biais, plateformes et médias, données, coûts, évaluation, feuille de route |
 | [sessions/](sessions/) | Résumés de chaque session de travail |
 
 ## Règle d'or
