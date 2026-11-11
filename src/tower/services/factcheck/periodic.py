@@ -13,6 +13,7 @@ from tower.core.domain.factcheck.quota import DraftCandidate, select_for_review
 from tower.core.domain.factcheck.values import Veracity
 from tower.core.domain.security import Actor
 from tower.core.factcheck import names
+from tower.core.factcheck.profiles import active_profile
 from tower.core.models.factcheck import ClaimGroup, Investigation, Verdict
 from tower.core.models.ingestion import ContentItem
 from tower.core.usecases.assembly import open_draft
@@ -27,7 +28,8 @@ async def drain_quota(session: AsyncSession, settings: Settings) -> int:
     """Open the dossiers of the waiting drafts that fit in today's remaining quota,
     best candidates first (``quota.select_for_review``). Returns how many were opened."""
     await asm.lock_quota(session)
-    slots = settings.fc_draft_daily_quota - await asm.today_count(session)
+    quota = (await active_profile(session, settings)).draft_daily_quota
+    slots = quota - await asm.today_count(session)
     if slots <= 0:
         return 0
     rows = (

@@ -52,7 +52,8 @@ class LevelSettings:
     direct_reuse: bool
     """Reuse of a verdict at identical signature or validated band (never in N4)."""
     unit_cap_usd: float
-    """Maximum cost of one investigation at this level."""
+    """Cost cap of one investigation at this level (standard depth; N4: reinforced).
+    The reinforced depth outside N4 keeps ``TOWER_FC_CAP_REINFORCED_USD``."""
     monthly_budget_usd: float
     """Monthly cap of the budget scope ``level:<N>``."""
 

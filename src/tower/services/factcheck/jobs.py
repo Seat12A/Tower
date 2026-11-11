@@ -28,6 +28,7 @@ from tower.core.domain.security import Actor
 from tower.core.errors import capture
 from tower.core.events.outbox import EventRecord
 from tower.core.factcheck import inputs, names, runtime
+from tower.core.factcheck.profiles import active_profile
 from tower.core.factcheck.schemas import ExtractedClaim, ExtractOutput, Signature, TranslateOutput
 from tower.core.jobs.queue import PermanentError, RetryLater, enqueue
 from tower.core.llm.errors import (
@@ -559,14 +560,15 @@ async def assemble(ctx: JobContext) -> None:
             locked_verdict.flags = flags
             await asm.lock_quota(session)
             used = await asm.today_count(session)
-            if used < settings.fc_draft_daily_quota:
+            quota = (await active_profile(session, settings)).draft_daily_quota
+            if used < quota:
                 await assembly_uc.open_draft(session, _actor(), locked_verdict, locked)
             else:
                 flags["over_quota_since"] = datetime.now(UTC).isoformat()
                 locked_verdict.flags = flags
                 capture(
                     ec.FCK_DRAFT_QUOTA_REACHED,
-                    quota=settings.fc_draft_daily_quota,
+                    quota=quota,
                     investigation=investigation_id,
                 )
         locked.stage = "assembled"

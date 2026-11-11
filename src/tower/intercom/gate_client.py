@@ -289,6 +289,75 @@ class GateClient:
     async def mark_draft_notified(self, acting: int | None, draft_id: str) -> None:
         await self._request("POST", f"/v1/drafts/{quote(draft_id, safe='')}/notified", acting)
 
+    # --- processing profiles and level overrides ----------------------------------------
+    async def list_profiles(self, acting: int) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request("GET", "/v1/profiles", acting)
+        return rows
+
+    async def get_active_profile(self, acting: int) -> dict[str, Any]:
+        profile: dict[str, Any] = await self._request("GET", "/v1/profiles/active", acting)
+        return profile
+
+    async def create_profile(
+        self, acting: int, *, changes: dict[str, Any], reason: str, activate: bool = True
+    ) -> dict[str, Any]:
+        created: dict[str, Any] = await self._request(
+            "POST",
+            "/v1/profiles",
+            acting,
+            body={"changes": changes, "reason": reason, "activate": activate},
+        )
+        return created
+
+    async def rollback_profile(self, acting: int, *, reason: str) -> dict[str, Any]:
+        profile: dict[str, Any] = await self._request(
+            "POST", "/v1/profiles/rollback", acting, body={"reason": reason}
+        )
+        return profile
+
+    async def create_level_override(
+        self,
+        acting: int,
+        *,
+        target_type: str,
+        target: str,
+        level: str,
+        hours: float,
+        reason: str,
+    ) -> dict[str, Any]:
+        created: dict[str, Any] = await self._request(
+            "POST",
+            "/v1/level-overrides",
+            acting,
+            body={
+                "target_type": target_type,
+                "target": target,
+                "level": level,
+                "hours": hours,
+                "reason": reason,
+            },
+        )
+        return created
+
+    async def list_level_overrides(
+        self, acting: int, *, active: bool = True, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/level-overrides", acting, params={"active": active, "limit": limit}
+        )
+        return rows
+
+    async def revoke_level_override(
+        self, acting: int, override_id: str, *, reason: str
+    ) -> dict[str, Any]:
+        revoked: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/level-overrides/{quote(override_id, safe='')}/revoke",
+            acting,
+            body={"reason": reason},
+        )
+        return revoked
+
     # --- as the service itself --------------------------------------------------------
     async def get_cursor(self, name: str) -> str | None:
         body = await self._request("GET", f"/v1/events/cursors/{quote(name, safe='')}", None)

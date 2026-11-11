@@ -312,6 +312,7 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
 
     from tower.intercom.handlers import dossiers, incidents, usage, watchlist
     from tower.intercom.handlers import factcheck as fc_handlers
+    from tower.intercom.handlers import profiles as profile_handlers
 
     async def run(interaction: Any, call: HandlerCall) -> None:
         locale = locale_of(str(interaction.locale))
@@ -439,7 +440,72 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
     async def fc_request(interaction: discord.Interaction, url: str) -> None:
         await run(interaction, lambda loc, uid: fc_handlers.request(gate, uid, loc, url))
 
-    for group in (wl, dos, inc):
+    # --- /profile and /level -------------------------------------------------------
+    prof = app_commands.Group(name="profile", description="Processing profiles")
+
+    @prof.command(name="show", description="Show the active processing profile")
+    async def p_show(interaction: discord.Interaction) -> None:
+        await run(interaction, lambda loc, uid: profile_handlers.show(gate, uid, loc))
+
+    @prof.command(name="history", description="List the profile versions")
+    async def p_history(interaction: discord.Interaction) -> None:
+        await run(interaction, lambda loc, uid: profile_handlers.history(gate, uid, loc))
+
+    @prof.command(name="set", description="Change one setting (new version, activated)")
+    @app_commands.describe(
+        path="Dotted path, e.g. levels.N1.e1_threshold or draft_daily_quota",
+        value="New value (JSON: 0.2, true, 40)",
+        reason="Why",
+    )
+    async def p_set(interaction: discord.Interaction, path: str, value: str, reason: str) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: profile_handlers.set_value(gate, uid, loc, path, value, reason),
+        )
+
+    @prof.command(name="rollback", description="Re-activate the previous profile version")
+    async def p_rollback(interaction: discord.Interaction, reason: str) -> None:
+        await run(interaction, lambda loc, uid: profile_handlers.rollback(gate, uid, loc, reason))
+
+    lvl = app_commands.Group(name="level", description="Manual level overrides")
+    target_choices = [app_commands.Choice(name=v, value=v) for v in ("content", "group", "account")]
+    level_choices = [app_commands.Choice(name=v, value=v) for v in ("N0", "N1", "N2", "N3", "N4")]
+
+    @lvl.command(name="set", description="Force a level for a content, group or account")
+    @app_commands.describe(
+        target="Content/group public id, <platform>:<external id>, or <platform>:@<handle>",
+        hours="Duration in hours (0 < hours <= 720)",
+        reason="Why",
+    )
+    @app_commands.choices(target_type=target_choices, level=level_choices)
+    async def l_set(
+        interaction: discord.Interaction,
+        target_type: app_commands.Choice[str],
+        target: str,
+        level: app_commands.Choice[str],
+        hours: float,
+        reason: str,
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: profile_handlers.level_set(
+                gate, uid, loc, target_type.value, target, level.value, hours, reason
+            ),
+        )
+
+    @lvl.command(name="list", description="List the active level overrides")
+    async def l_list(interaction: discord.Interaction) -> None:
+        await run(interaction, lambda loc, uid: profile_handlers.level_list(gate, uid, loc))
+
+    @lvl.command(name="revoke", description="End a level override")
+    @app_commands.describe(override_id="Override id (at least 6 characters)", reason="Why")
+    async def l_revoke(interaction: discord.Interaction, override_id: str, reason: str) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: profile_handlers.level_revoke(gate, uid, loc, override_id, reason),
+        )
+
+    for group in (wl, dos, inc, prof, lvl):
         tree.add_command(group)
     tree.add_command(u_show)
     tree.add_command(fc_request)

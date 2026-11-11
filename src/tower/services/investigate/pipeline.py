@@ -59,6 +59,7 @@ from tower.core.domain.factcheck.passages import (
     chunk_text,
     select_passages,
 )
+from tower.core.domain.factcheck.profiles import Profile
 from tower.core.domain.factcheck.values import (
     CONTEXT_REGIME,
     UNVERIFIABLE_CLAIM_TYPES,
@@ -440,12 +441,18 @@ def synthetic_judgement(*review_points: str, needs_more_research: str | None = N
     )
 
 
-def cap_micros(settings: Settings, level: str, depth: Depth | str) -> int:
-    """Per-investigation cost cap (micro-dollars) of the level and depth."""
+def cap_micros(
+    settings: Settings, level: str, depth: Depth | str, profile: Profile | None = None
+) -> int:
+    """Per-investigation cost cap (micro-dollars) of the level and depth. With the active
+    ``profile``, the standard depth and N4 use the level's unit cap; the reinforced depth
+    outside N4 keeps ``fc_cap_reinforced_usd``."""
     if level == "N4":
-        usd = settings.fc_cap_n4_usd
+        usd = settings.fc_cap_n4_usd if profile is None else profile.level("N4").unit_cap_usd
     elif depth == Depth.REINFORCED:
         usd = settings.fc_cap_reinforced_usd
+    elif profile is not None:
+        usd = profile.level(level).unit_cap_usd
     else:
         usd = settings.fc_cap_standard_usd
     return round(usd * 1_000_000)
@@ -857,10 +864,11 @@ def decide_route(
     conflicting_sources: bool,
     confidence: float,
     spent_usd_micros: int,
+    profile: Profile | None = None,
 ) -> Route:
     """Escalation step: switch to the reinforced depth, run a second judge pass without new
     collection (N4), or go to the draft. Never exceeds the cost cap of the depth."""
-    cap = cap_micros(settings, level, depth)
+    cap = cap_micros(settings, level, depth, profile)
     if depth == Depth.STANDARD:
         if round_ != 1:
             return Route("draft")
@@ -1273,6 +1281,7 @@ async def run_in_memory(
     today: date,
     settings: Settings,
     registry_tier: Callable[[str], tuple[str, str | None]] | None = None,
+    profile: Profile | None = None,
 ) -> InMemoryOutcome:
     """E6 to E9 plus the final confidence, without any database write of its own (the
     router still records ``llm_calls`` and budgets). Mirrors the job handlers step by step."""
@@ -1463,6 +1472,7 @@ async def run_in_memory(
             )
             route = decide_route(
                 settings,
+                profile=profile,
                 level=level,
                 depth=depth,
                 round_=round_,

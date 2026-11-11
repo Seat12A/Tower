@@ -33,6 +33,7 @@ from tower.core.errors import capture
 from tower.core.events.outbox import EventRecord
 from tower.core.factcheck import names, runtime
 from tower.core.factcheck.inputs import ClaimView
+from tower.core.factcheck.profiles import active_profile
 from tower.core.factcheck.schemas import (
     FrameOutput,
     JudgeOutput,
@@ -809,8 +810,11 @@ async def _escalate(ctx: JobContext, st: _State) -> None:
         agreement=agreement,
         second_pass=None,
     )
+    async with ctx.db.session() as session:
+        profile = await active_profile(session, ctx.settings)
     route = pl.decide_route(
         ctx.settings,
+        profile=profile,
         level=inv.level,
         depth=inv.depth,
         round_=inv.round,

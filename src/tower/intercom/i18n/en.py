@@ -181,4 +181,39 @@ MESSAGES: dict[str, str] = {
     "factcheck.duplicate": (
         "A fact-check of the {platform} post `{external_id}` is already queued."
     ),
+    # --- processing profiles and level overrides -----------------------------------
+    "error.TWR-FCK-029": "Profile version not found. ({code})",
+    "error.TWR-FCK-030": "Profile refused: {message} ({code})",
+    "error.TWR-FCK-031": "Invalid level override: {message} ({code})",
+    "error.TWR-FCK-032": "Override target not found. ({code})",
+    "profile.show.header": "Active profile: version {version} ({origin}).",
+    "profile.show.default": "default from the settings",
+    "profile.show.stored": "stored",
+    "profile.show.general": (
+        "Same-claim threshold {same} | grey zone {grey} | draft quota {quota}/day | "
+        "E1 sample rate {sample}"
+    ),
+    "profile.show.level": (
+        "- {level}: E1 threshold {e1} | direct reuse {reuse} | unit cap {cap} $ | "
+        "monthly budget {budget} $"
+    ),
+    "profile.yes": "yes",
+    "profile.no": "no",
+    "profile.history.header": "Profile versions ({count}):",
+    "profile.history.line": "- v{version}{active} | {author} | {created} | {reason}",
+    "profile.history.active": " (active)",
+    "profile.set.done": "Profile version {version} created and activated: {path} = {value}.",
+    "profile.rollback.done": "Rolled back: profile version {version} is active again.",
+    "level.set.done": (
+        "Level {level} forced on the {target_type} `{target}` until {expires} "
+        "(override `{short_id}`). {applied}"
+    ),
+    "level.set.applied": "Applied now.",
+    "level.set.not_applied": "Recorded: not applied to a group yet or deferred.",
+    "level.list.header": "Active level overrides ({count}):",
+    "level.list.empty": "No active level override.",
+    "level.list.line": (
+        "- `{short_id}` | {target_type} `{target}` -> {level} | until {expires} | {reason}"
+    ),
+    "level.revoke.done": "Override `{short_id}` revoked.",
 }

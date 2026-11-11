@@ -673,7 +673,7 @@ async def test_seed_is_idempotent_and_keeps_modified_routes(
             await scalar(db, "SELECT count(*) FROM budget_counters"),
         )
 
-    assert await counts() == (12, 18, 2)
+    assert await counts() == (12, 18, 7)  # global, provider:x, level:N0..N4
     assert (
         await scalar(db, "SELECT cap_usd_micros FROM budget_counters WHERE scope = 'global'")
         == 30_000_000
@@ -702,7 +702,7 @@ async def test_seed_is_idempotent_and_keeps_modified_routes(
     await run_seed(settings)
     second = capsys.readouterr().out
     assert "Routes created: 0 (kept: 18)" in second
-    assert await counts() == (12, 18, 2)
+    assert await counts() == (12, 18, 7)  # global, provider:x, level:N0..N4
     assert (
         await scalar(db, "SELECT params->>'effort' FROM llm_routes WHERE role = 'extract'")
         == "high"

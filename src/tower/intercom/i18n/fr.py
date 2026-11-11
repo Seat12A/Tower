@@ -190,4 +190,41 @@ MESSAGES: dict[str, str] = {
         "Le brouillon apparaîtra dans le salon des dossiers."
     ),
     "factcheck.duplicate": ("Un fact-check du post {platform} `{external_id}` est déjà en file."),
+    # --- profils de traitement et forçages de niveau -----------------------------------
+    "error.TWR-FCK-029": "Version de profil introuvable. ({code})",
+    "error.TWR-FCK-030": "Profil refusé : {message} ({code})",
+    "error.TWR-FCK-031": "Forçage de niveau invalide : {message} ({code})",
+    "error.TWR-FCK-032": "Cible du forçage introuvable. ({code})",
+    "profile.show.header": "Profil actif : version {version} ({origin}).",
+    "profile.show.default": "défaut issu des réglages",
+    "profile.show.stored": "enregistré",
+    "profile.show.general": (
+        "Seuil même affirmation {same} | zone grise {grey} | quota de brouillons {quota}/jour | "
+        "taux d'échantillonnage E1 {sample}"
+    ),
+    "profile.show.level": (
+        "- {level} : seuil E1 {e1} | réutilisation directe {reuse} | plafond unitaire {cap} $ | "
+        "budget mensuel {budget} $"
+    ),
+    "profile.yes": "oui",
+    "profile.no": "non",
+    "profile.history.header": "Versions du profil ({count}) :",
+    "profile.history.line": "- v{version}{active} | {author} | {created} | {reason}",
+    "profile.history.active": " (actif)",
+    "profile.set.done": "Profil version {version} créé et activé : {path} = {value}.",
+    "profile.rollback.done": (
+        "Retour arrière : la version {version} du profil est de nouveau active."
+    ),
+    "level.set.done": (
+        "Niveau {level} forcé sur {target_type} `{target}` jusqu'au {expires} "
+        "(forçage `{short_id}`). {applied}"
+    ),
+    "level.set.applied": "Appliqué maintenant.",
+    "level.set.not_applied": "Enregistré : pas encore appliqué à un groupe, ou différé.",
+    "level.list.header": "Forçages de niveau actifs ({count}) :",
+    "level.list.empty": "Aucun forçage de niveau actif.",
+    "level.list.line": (
+        "- `{short_id}` | {target_type} `{target}` -> {level} | jusqu'au {expires} | {reason}"
+    ),
+    "level.revoke.done": "Forçage `{short_id}` révoqué.",
 }

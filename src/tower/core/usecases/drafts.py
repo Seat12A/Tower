@@ -9,19 +9,23 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tower.core.config import get_settings
 from tower.core.domain import error_codes as ec
 from tower.core.domain.dossiers import DossierKind, DossierStatus, allowed_transitions
 from tower.core.domain.errors import Conflict, InvalidInput, NotFound
 from tower.core.domain.factcheck.checks import NOTE_MAX_CHARS, note_length
+from tower.core.domain.factcheck.expiry import parse_ttl_overrides, verdict_expiry
 from tower.core.domain.factcheck.urls import content_url, parse_content_url
 from tower.core.domain.factcheck.values import (
     ClaimGroupState,
+    ClaimType,
+    FactStatus,
     NoteStatus,
     Regime,
     ReviewDecision,
@@ -36,6 +40,7 @@ from tower.core.domain.security import Actor, Permission
 from tower.core.events.outbox import publish
 from tower.core.factcheck import names
 from tower.core.jobs.queue import enqueue
+from tower.core.logging import get_logger
 from tower.core.models.dossiers import Dossier
 from tower.core.models.factcheck import (
     Claim,
@@ -51,8 +56,10 @@ from tower.core.models.factcheck import (
     Source,
     Verdict,
 )
+from tower.core.models.factcheck_v1 import ReferenceFact
 from tower.core.models.ingestion import ContentItem
 from tower.core.usecases import dossiers as dossier_uc
+from tower.core.usecases import references as references_uc
 
 __all__ = [
     "DraftView",
@@ -68,6 +75,8 @@ __all__ = [
     "request_factcheck",
     "review_draft",
 ]
+
+log = get_logger(__name__)
 
 AGGREGATE = "verdict"
 REFERENCE_LANGS = ("fr", "en")
@@ -406,9 +415,11 @@ async def review_draft(
     labels: Sequence[str] = (),
     reason: str | None = None,
     expected_version: int | None = None,
+    validate_band: bool = False,
 ) -> ReviewResult:
     """Decide a draft. A reviewer endorses (the draft waits for an editor); an editor
-    validates (verdict active, ``verdict.published``) or rejects."""
+    validates (verdict active, ``verdict.published``) or rejects. With ``validate_band``,
+    a validation also validates the value band of the group (same transaction)."""
     actor.require(Permission.DOSSIER_REVIEW)
     try:
         decision = ReviewDecision(decision)
@@ -527,6 +538,7 @@ async def review_draft(
             verdict.veracity = new_veracity.value
         verdict.status = VerdictStatus.ACTIVE.value
         verdict.validated_at = func.now()
+        verdict.expires_at = await _expiry_of(session, group, note)
         verdict.validated_by = reviewer
         verdict.updated_at = func.now()
         group.active_verdict_id = verdict.id
@@ -617,7 +629,38 @@ async def review_draft(
             aggregate_id=str(verdict.public_id),
             actor=reviewer,
         )
+        if validate_band:
+            await references_uc.validate_band_from_verdict(
+                session, actor, verdict_id=verdict.public_id
+            )
     return ReviewResult(outcome, await _build_view(session, verdict))
+
+
+async def _expiry_of(
+    session: AsyncSession, group: ClaimGroup, note: ContextNote | None
+) -> datetime:
+    """Expiry of the verdict being validated: claim-type TTL, next publication of the
+    group's validated reference fact, 6 h when its note is provisional."""
+    settings = get_settings()
+    claim = await session.get(Claim, group.representative_claim_id)
+    claim_type = ClaimType(claim.claim_type) if claim is not None else ClaimType.OTHER
+    try:
+        overrides = parse_ttl_overrides(settings.fc_verdict_ttl_days)
+    except ValueError:
+        log.warning("factcheck.bad_ttl_overrides")
+        overrides = {}
+    next_publication = None
+    if group.reference_fact_id is not None:
+        fact = await session.get(ReferenceFact, group.reference_fact_id)
+        if fact is not None and fact.status == FactStatus.VALIDATED.value:
+            next_publication = fact.next_publication
+    return verdict_expiry(
+        validated_at=datetime.now(UTC),
+        claim_type=claim_type,
+        overrides=overrides,
+        next_publication=next_publication,
+        has_provisional_note=note is not None and note.regime == Regime.PROVISIONAL.value,
+    )
 
 
 async def _content_of(

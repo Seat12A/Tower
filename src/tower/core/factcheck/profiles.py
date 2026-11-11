@@ -17,7 +17,7 @@ from tower.core.models.factcheck_v1 import ProcessingProfile
 __all__ = ["active_profile", "default_profile", "invalidate_profile_cache"]
 
 CACHE_TTL_S = 30.0
-_cache: tuple[float, Profile] | None = None
+_cache: tuple[float, Settings, Profile] | None = None
 
 
 def default_profile(settings: Settings) -> Profile:
@@ -27,7 +27,7 @@ def default_profile(settings: Settings) -> Profile:
         "N0": 0.0,
         "N1": 0.0,
         "N2": settings.fc_cap_standard_usd,
-        "N3": settings.fc_cap_reinforced_usd,
+        "N3": settings.fc_cap_standard_usd,
         "N4": settings.fc_cap_n4_usd,
     }
     levels = {}
@@ -52,13 +52,14 @@ def default_profile(settings: Settings) -> Profile:
 async def active_profile(session: AsyncSession, settings: Settings) -> Profile:
     global _cache
     now = time.monotonic()
-    if _cache is not None and now - _cache[0] < CACHE_TTL_S:
-        return _cache[1]
+    # Keyed on the settings object too: a process has one, tests build several.
+    if _cache is not None and _cache[1] is settings and now - _cache[0] < CACHE_TTL_S:
+        return _cache[2]
     row = await session.scalar(select(ProcessingProfile).where(ProcessingProfile.active))
     profile = (
         default_profile(settings) if row is None else profile_from_json(row.version, row.settings)
     )
-    _cache = (now, profile)
+    _cache = (now, settings, profile)
     return profile
 
 
