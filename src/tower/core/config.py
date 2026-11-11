@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     """Base interval for priority < 0."""
     radar_interval_min_s: int = Field(default=60, ge=30)
     radar_interval_max_s: int = Field(default=21600, ge=60)
+    radar_expected_posts_per_poll: float = Field(default=2.0, gt=0)
+    """Average posts returned by one poll (an empty read costs nothing on X): sizes the
+    daily poll allowance (remaining budget / days left / average cost)."""
     radar_schedule_batch: int = Field(default=100, ge=1, le=1000)
     """Poll jobs enqueued per scheduling round at most."""
 
