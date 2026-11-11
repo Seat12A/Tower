@@ -46,7 +46,11 @@ content.ingested (nouveaux contenus) ; since, intervalle et next_poll_at mis à 
 - Si la portée `provider:x` n'a encore aucun compteur, la planification le crée avec
   `TOWER_X_MONTHLY_CAP_USD` (20 $) : le radar n'est **jamais** sans plafond.
 - À l'enfilage, `next_poll_at` est repoussé d'un intervalle (bail) : un job en échec
-  n'est pas réenfilé à chaque passage.
+  n'est pas réenfilé à chaque passage. Seuls les jobs réellement créés (hors doublon
+  `dedupe_key`) comptent dans le plafond.
+- Les prix utilisés pour réserver et régler sont ceux du client de la plateforme
+  (`cost_per_read_usd_micros`, `cost_per_account_read_usd_micros`), alimentés par
+  `TOWER_X_PRICE_*` pour X.
 - **Intervalle** : base selon la priorité (≥ 50 : 2 min ; 0 à 49 : 10 min ; < 0 :
   30 min), divisé par `1 + n // 2` quand une lecture ramène `n` posts, doublé à chaque
   lecture vide consécutive, borné entre 1 min et 6 h. Bornes en configuration.
@@ -71,7 +75,7 @@ content.ingested (nouveaux contenus) ; since, intervalle et next_poll_at mis à 
 
 | Situation | Effet |
 |---|---|
-| Budget épuisé (`BudgetRefused`) | `RetryLater` jusqu'au début du mois suivant, aucun appel |
+| Budget épuisé (`BudgetRefused`) | `RetryLater` jusqu'au début du mois suivant, aucun appel ; si le refus survient à la page N > 1, les pages déjà lues sont réglées au coût réel mais pas ingérées (`since` inchangé ; la relecture n'est pas refacturée sous 24 h) |
 | 429 | Réservation réglée à 0, `RetryLater` jusqu'à `x-rate-limit-reset` |
 | 401 / 403 | `TWR-RAD-001` stocké, `PermanentError` |
 | 404 (compte disparu) | `TWR-RAD-006` stocké, prochaine lecture à l'intervalle maximal |
@@ -89,7 +93,8 @@ L'abonnement `radar.watchlist` enfile `radar.resolve_account` (`dedupe_key` par 
 pour chaque `watchlist.changed` actif dont `external_id` est nul. Le job réserve le
 prix d'une lecture d'utilisateur, appelle `get_account(pseudo)`, règle le coût réel,
 puis appelle `resolve_watched_account` (voir [ingestion.md](ingestion.md#liste-de-suivi--v1watched-accounts)).
-Pseudo introuvable : `TWR-RAD-006` stocké (visible par `/incidents`). Identifiant déjà
+Pseudo introuvable : `TWR-RAD-006` stocké (visible par `/incidents`) ; erreurs de
+l'API traitées comme pour la lecture. Identifiant déjà
 suivi : avertissement journalisé, rien n'est modifié.
 
 ## Coûts

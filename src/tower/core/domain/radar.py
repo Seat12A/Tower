@@ -24,9 +24,19 @@ class IntervalBounds:
     max_s: int = 21_600
 
 
+def _clamp(value: int, bounds: IntervalBounds) -> int:
+    return max(bounds.min_s, min(bounds.max_s, value))
+
+
 def base_interval(priority: int, bounds: IntervalBounds) -> int:
     """Base interval (seconds) of a priority, clamped to the bounds."""
-    raise NotImplementedError
+    if priority >= 50:
+        base = bounds.high_s
+    elif priority >= 0:
+        base = bounds.normal_s
+    else:
+        base = bounds.low_s
+    return _clamp(base, bounds)
 
 
 def next_interval(
@@ -44,7 +54,13 @@ def next_interval(
       4 items third it; a page full of new items reaches the floor quickly.
     Always clamped to ``[bounds.min_s, bounds.max_s]``.
     """
-    raise NotImplementedError
+    base = base_interval(priority, bounds)
+    if new_items <= 0:
+        # Cap the exponent: the result is clamped anyway, and this keeps ints small.
+        value = base * 2 ** min(max(consecutive_empty, 0), 30)
+    else:
+        value = base // (1 + new_items // 2)
+    return _clamp(value, bounds)
 
 
 def daily_read_allowance(
@@ -55,4 +71,7 @@ def daily_read_allowance(
 ) -> int | None:
     """Polls allowed today: remaining budget / days left (today included, >= 1) /
     average cost of one poll. None when the scope is not capped. Never negative."""
-    raise NotImplementedError
+    if remaining_usd_micros is None:
+        return None
+    per_day = max(remaining_usd_micros, 0) // max(days_left, 1)
+    return per_day // max(avg_read_cost_usd_micros, 1)

@@ -1,0 +1,94 @@
+# intercom : le bot Discord
+
+`tower intercom` est le bot Discord interne de l'équipe. C'est un **client de gate**
+comme les autres : il n'accède jamais à la base. Il notifie les événements utiles dans
+des salons et offre des commandes slash pour la liste de suivi, les dossiers, les
+incidents et l'usage. Les permissions sont **toujours vérifiées par gate**, jamais
+par le bot seul. Source : `src/tower/intercom/`.
+
+## Briques
+
+| Module | Rôle |
+|---|---|
+| `app.py` | Client discord.py, arbre de commandes, démarrage du notificateur. **Seul module qui importe `discord`** (importé paresseusement par la CLI) |
+| `gate_client.py` | Client HTTP de gate : token de service, `X-Acting-Discord-Id` de la personne qui agit ; erreurs `GateError` (code `TWR-*` de gate) et `GateUnavailable` (`TWR-BOT-001`) ; lecture du flux SSE |
+| `handlers/` | Logique des commandes, pure et indépendante de discord.py : `(gate, acting, locale, …) → Reply` |
+| `i18n/` | Catalogues `fr` et `en` (mêmes clés, test de parité) |
+| `notifier.py` | Événements SSE → messages courts dans les salons, reprise par curseur |
+
+## Commandes
+
+Toutes les réponses sont **éphémères** (visibles seulement par la personne). Une erreur
+affiche le code `TWR-*` avec un message traduit.
+
+| Commande | Effet | Permission gate |
+|---|---|---|
+| `/watchlist list [plateforme]` | Comptes suivis (pseudo, catégorie, priorité ; « en attente » tant que le radar n'a pas résolu le pseudo) | `watchlist:read` |
+| `/watchlist add plateforme pseudo catégorie [priorité] [note]` | Ajout par pseudo ; le radar résout l'identifiant (voir [radar.md](radar.md)) | `watchlist:write` |
+| `/watchlist edit id [catégorie] [priorité] [pseudo] [note]` | Modification (verrou optimiste géré par le bot) | `watchlist:write` |
+| `/watchlist deactivate id` | Désactivation | `watchlist:write` |
+| `/dossier show id` | État du dossier | `dossiers:read` |
+| `/dossier take id` | Prise en revue (`in_review`) | `dossiers:review` |
+| `/dossier validate id` / `reject id [note]` | Décision | `dossiers:decide` |
+| `/dossier publish id lien` | Enregistre le lien du post publié ; **la publication sur X reste manuelle** | `dossiers:publish` |
+| `/incidents list` / `resolve empreinte [note]` | Erreurs stockées | `errors:read` / `errors:manage` |
+| `/usage` | Allocation gratuite du jour, dépense du mois par portée (`global`, fournisseurs, `provider:x`) | `usage:read` |
+
+Les droits effectifs sont l'intersection des rôles de la personne et des scopes du
+token du bot (voir [auth.md](auth.md)). Token du bot : `dossiers:read
+dossiers:create dossiers:review dossiers:decide dossiers:publish events:read
+errors:read errors:manage watchlist:read watchlist:write usage:read`.
+
+## Notifications
+
+| Topic | Salon |
+|---|---|
+| `incident.opened`, `incident.reopened` | `TOWER_DISCORD_CHANNEL_INCIDENTS` |
+| `budget.threshold_reached` | `TOWER_DISCORD_CHANNEL_BUDGET` |
+| `dossier.opened`, `dossier.transitioned` | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
+| `watchlist.changed`, `extension_filters.published` | `TOWER_DISCORD_CHANNEL_ADMIN` |
+
+Messages courts, avec la plateforme d'origine quand l'événement en porte une, dans la
+langue `TOWER_DISCORD_LOCALE` (`fr` par défaut). Salon non configuré : notification
+ignorée. Aucun événement à haut volume : le bot ne s'abonne pas à `content.ingested`.
+
+### Reprise sans perte
+
+Une seule connexion SSE (`GET /v1/events?after=…&topics=…`). Le curseur est stocké côté
+gate (`PUT /v1/events/cursors/intercom`, voir [events.md](events.md)) après chaque
+événement traité ; au redémarrage, le bot le relit et reprend avec `?after=`. Premier
+démarrage sans curseur : départ à « maintenant » (pas d'inondation du salon). Livraison
+**au moins une fois** : les identifiants d'événements déjà notifiés sont mémorisés dans
+un ensemble borné (2 048) ; un doublon n'est pas renvoyé. Flux coupé : `TWR-BOT-002`
+journalisé, reprise avec recul (1 à 30 s) depuis le dernier curseur. Échec d'envoi
+Discord : `TWR-BOT-003` journalisé, la boucle continue. Deux réplicas ne cassent rien
+(doublons possibles mais pas de perte) ; un seul est prévu.
+
+## Langues
+
+Chaque texte vient du catalogue `fr` ou `en` choisi d'après la langue Discord de
+l'utilisateur (`interaction.locale` : `fr`, `fr-FR`… → français ; sinon anglais). Clés
+et code en anglais. Un test vérifie que les deux catalogues ont exactement les mêmes
+clés et les mêmes paramètres.
+
+## RAM
+
+Cible : au plus 120 Mo de RSS au repos. Intents minimaux (`guilds` seulement : ni
+contenu des messages ni membres), `member_cache_flags` à aucun,
+`chunk_guilds_at_startup=False`, `max_messages=None` (pas de cache de messages), une
+seule connexion SSE, ensemble de déduplication borné. gate et hangar ne chargent
+jamais `discord` (test d'isolation).
+
+## Lancer
+
+```bash
+uv run tower intercom             # TOWER_DISCORD_TOKEN, TOWER_GATE_URL, TOWER_GATE_TOKEN
+```
+
+```bash
+uv run tower intercom --dry-run   # construit tout sans se connecter à Discord ; notifications journalisées
+```
+
+Configuration manquante : `TWR-BOT-004` et arrêt (code 2). Variables :
+[configuration.md](configuration.md#intercom-bot-discord). Déploiement :
+[deployment-railway.md](deployment-railway.md).

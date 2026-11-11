@@ -15,6 +15,7 @@ from tower.core.services.base import JobSpec, PeriodicTask, Service, Subscriptio
 BUILTIN_SERVICES: dict[str, str] = {
     "ping": "tower.services.ping:service",
     "ingest": "tower.services.ingest:service",
+    "radar": "tower.services.radar:service",
     # "factcheck": "tower.services.factcheck:service",
     # "moderation": "tower.services.moderation:service",
 }
