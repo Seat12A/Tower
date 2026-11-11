@@ -32,7 +32,7 @@ _CAPITALIZED = re.compile(r"\b[A-ZÀ-Ý][\w'-]{2,}")
 _FR_MARKER = re.compile(r"\s*\[fr:\s*([^\]]+?)\s*\]")
 _YEAR = re.compile(r"\b(?:1[0-9]|20)[0-9]{2}\b")
 _NEGATIONS = frozenset(
-    {"not", "no", "never", "ne", "pas", "jamais", "aucun", "aucune", "nicht", "nie", "kein"}
+    {"not", "no", "never", "pas", "jamais", "aucun", "aucune", "nicht", "nie", "kein"}
 )
 _warned = False
 
@@ -160,8 +160,9 @@ def _extract(data: Mapping[str, Any]) -> dict[str, Any]:
         "text_fr": _cut(french.group(1), 280) if french is not None else sentence,
         "claim_type": "statistic" if any(c.isdigit() for c in sentence) else "other",
         "signature": signature,
-        "jurisdictions": ["FR"] if lang == "fr" else [],
-        "primary_jurisdiction": "FR" if lang == "fr" else None,
+        # A ``[fr: …]`` marker stands for a French claim posted in another language.
+        "jurisdictions": ["FR"] if lang == "fr" or french is not None else [],
+        "primary_jurisdiction": "FR" if lang == "fr" or french is not None else None,
         "entities": [],
         "theme": None,
         "verifiability": 0.8,
@@ -356,6 +357,7 @@ def _numbers_of(text: str) -> list[str]:
 
 
 def _negation_parity(text: str) -> int:
+    """French ``ne … pas`` counts once (``ne`` is not in the list)."""
     words = re.findall(r"[\w']+", _strip_accents(text))
     return sum(1 for w in words if w in _NEGATIONS) % 2
 
