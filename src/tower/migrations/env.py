@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -16,6 +17,15 @@ settings: Settings = config.attributes.get("settings") or get_settings()
 target_metadata = Base.metadata
 
 
+#: Weekly partitions of ``observations`` are created at runtime by the ingest service:
+#: they are not in the models, so autogenerate must not propose to drop them.
+_PARTITION = re.compile(r"^observations_p\d{8}$")
+
+
+def _include_name(name: str | None, type_: str, _parent: object) -> bool:
+    return not (type_ == "table" and name is not None and _PARTITION.match(name))
+
+
 def _configure(connection: object | None = None) -> None:
     context.configure(
         connection=connection,  # type: ignore[arg-type]
@@ -23,6 +33,7 @@ def _configure(connection: object | None = None) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         compare_server_default=True,
+        include_name=_include_name,
         transaction_per_migration=True,
     )
 

@@ -10,7 +10,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Env = Literal["dev", "test", "prod"]
@@ -66,6 +66,27 @@ class Settings(BaseSettings):
     error_flush_interval: float = Field(default=5.0, gt=0)
     shutdown_grace_seconds: float = Field(default=20.0, ge=0)
 
+    # --- LLM providers and router ---------------------------------------------
+    openai_api_key: SecretStr | None = None
+    """OpenAI organisation WITHOUT data sharing (routes with ``data_sharing_ok = false``)."""
+    openai_api_key_shared: SecretStr | None = None
+    """OpenAI organisation WITH data sharing (free daily allocation; public data only)."""
+    anthropic_api_key: SecretStr | None = None
+    openai_usage_tier: int = Field(default=1, ge=1, le=5)
+    llm_free_margin: float = Field(default=0.10, ge=0, le=1)
+    """Safety margin applied to token estimates before using the free allocation."""
+
+    # --- Outbound HTTP ----------------------------------------------------------
+    http_user_agent: str = "Seat12A-Tower/0.1"
+    """User-Agent of outbound fetches; add a generic contact URL, never a personal address."""
+
+    # --- Fact-check and ingestion ----------------------------------------------
+    fc_languages: str = "fr,en"
+    """Languages processed by the fact-check pipeline (BCP 47 primary subtags)."""
+    ingest_max_items: int = Field(default=50, ge=1, le=500)
+    ingest_daily_quota: int = Field(default=500, ge=1)
+    """Items per installation and per UTC day."""
+
     # --- Railway (read-only)----------------------------------------------
     railway_replica_id: str | None = Field(
         default=None, validation_alias=AliasChoices("RAILWAY_REPLICA_ID")
@@ -93,6 +114,10 @@ class Settings(BaseSettings):
     @property
     def queue_names(self) -> list[str]:
         return _split(self.queues)
+
+    @property
+    def fc_language_list(self) -> list[str]:
+        return [lang.lower() for lang in _split(self.fc_languages)]
 
     @property
     def cors_origin_list(self) -> list[str]:

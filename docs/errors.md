@@ -50,6 +50,22 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-GEN-003` | Concurrent modification (stale version) | 409 | info | non | non | Re-read the resource, then resend with the new version. |
 | `TWR-GEN-004` | Too many requests | 429 | info | non | non |  |
 
+## ING : ING
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-ING-001` | Invalid installation token | 401 | info | non | non | X-Installation-Token: base64url, 22 to 64 characters. |
+| `TWR-ING-002` | Daily ingestion quota exceeded for this installation | 429 | info | non | non | The quota resets at 00:00 UTC. |
+| `TWR-ING-003` | Too many items in the batch | 422 | info | non | non |  |
+| `TWR-ING-004` | Request body too large | 413 | info | non | non |  |
+| `TWR-ING-005` | Unknown platform | 422 | info | non | non |  |
+| `TWR-ING-006` | Invalid platform identifier | 422 | info | non | non |  |
+| `TWR-ING-007` | Too many ingestion requests | 429 | info | non | non |  |
+| `TWR-ING-008` | Watched account not found | 404 | info | non | non |  |
+| `TWR-ING-009` | Account is already on the watchlist | 409 | info | non | non |  |
+| `TWR-ING-010` | No observations partition for this timestamp | 503 | error | oui | oui | The ingest service creates partitions ahead; check that a hangar runs it. |
+| `TWR-ING-011` | Invalid extension filter definition | 422 | info | non | non |  |
+
 ## INT : Interne
 
 | Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
@@ -69,9 +85,33 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-JOB-006` | Job attempt failed, retry scheduled | 500 | warning | oui | oui |  |
 | `TWR-JOB-007` | Unable to record job result | 500 | error | oui | non | The reaper will requeue the job when the lease expires. |
 
+## LLM : LLM
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-LLM-001` | LLM budget exhausted for the current period | 503 | warning | non | oui | Jobs retry at the start of the next period; raise the cap in budget_counters if needed. |
+| `TWR-LLM-002` | No active model route for this role and level | 500 | error | oui | non | Run `tower llm seed` or add a route in llm_routes. |
+| `TWR-LLM-003` | Unknown prompt id | 500 | error | oui | non | Add src/tower/services/<service>/prompts/<prompt_id>.md. |
+| `TWR-LLM-004` | Every model of the route refused the request | 422 | warning | oui | non | Sensitive topic: flag the item for a human reviewer. |
+| `TWR-LLM-005` | No schema-valid output from any model of the route | 500 | error | oui | oui | Check the prompt and the schema; compare the stored outputs in llm_calls. |
+| `TWR-LLM-006` | Model provider temporarily unavailable (rate limit, timeout, 5xx) | 503 | warning | non | oui |  |
+| `TWR-LLM-007` | Model provider rejected the request (authentication, bad request) | 500 | error | oui | non | Check the API key and the request parameters of the route. |
+| `TWR-LLM-008` | No API key configured for the provider required by the route | 500 | error | oui | non | Set TOWER_OPENAI_API_KEY, TOWER_OPENAI_API_KEY_SHARED or TOWER_ANTHROPIC_API_KEY. |
+| `TWR-LLM-009` | Route references an unknown or inactive model | 500 | error | oui | non | Run `tower llm seed` or fix llm_routes. |
+
 ## MNT : Maintenance
 
 | Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
 |---|---|---|---|---|---|---|
 | `TWR-MNT-001` | Maintenance task failed | 500 | error | oui | non |  |
+
+## WEB : WEB
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-WEB-001` | URL refused (scheme, port or non-public address) | 422 | warning | non | non | SSRF protection: only public http(s) addresses are fetched. |
+| `TWR-WEB-002` | Fetched content exceeds the size cap | 500 | info | non | non |  |
+| `TWR-WEB-003` | Content type not allowed | 500 | info | non | non |  |
+| `TWR-WEB-004` | Disallowed by robots.txt | 500 | info | non | non |  |
+| `TWR-WEB-005` | Fetch failed (network, timeout, too many redirects, HTTP error) | 500 | warning | non | oui |  |
 

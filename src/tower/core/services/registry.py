@@ -9,11 +9,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from importlib import import_module
 
-from tower.core.services.base import JobSpec, Service, Subscription
+from tower.core.services.base import JobSpec, PeriodicTask, Service, Subscription
 
 #: Public name -> ``module:attribute``. Add each new service here.
 BUILTIN_SERVICES: dict[str, str] = {
     "ping": "tower.services.ping:service",
+    "ingest": "tower.services.ingest:service",
     # "factcheck": "tower.services.factcheck:service",
     # "moderation": "tower.services.moderation:service",
 }
@@ -48,6 +49,10 @@ class ServiceSet:
     def subscriptions(self) -> list[tuple[str, Subscription]]:
         """Pairs of (global consumer name, subscription)."""
         return [(f"{s.name}.{sub.name}", sub) for s in self.services for sub in s.subscriptions]
+
+    @property
+    def periodic(self) -> list[PeriodicTask]:
+        return [task for s in self.services for task in s.periodic]
 
     def validate(self, *, lease_seconds: float) -> None:
         seen: dict[str, str] = {}

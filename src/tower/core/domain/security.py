@@ -24,6 +24,9 @@ class Permission(StrEnum):
     STAFF_MANAGE = "staff:manage"
     ERRORS_READ = "errors:read"
     ERRORS_MANAGE = "errors:manage"
+    CONTENT_INGEST = "content:ingest"
+    WATCHLIST_READ = "watchlist:read"
+    WATCHLIST_WRITE = "watchlist:write"
 
 
 class Role(StrEnum):
@@ -47,6 +50,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.DOSSIER_READ,
             Permission.DOSSIER_CREATE,
             Permission.DOSSIER_REVIEW,
+            Permission.WATCHLIST_READ,
         }
     ),
     Role.EDITOR: frozenset(
@@ -57,12 +61,15 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.DOSSIER_REVIEW,
             Permission.DOSSIER_DECIDE,
             Permission.DOSSIER_PUBLISH,
+            Permission.WATCHLIST_READ,
+            Permission.WATCHLIST_WRITE,
         }
     ),
     Role.ADMIN: frozenset(Permission),
 }
 
 PUBLIC_PERMISSIONS = frozenset({Permission.DOSSIER_READ_PUBLIC})
+INSTALLATION_PERMISSIONS = frozenset({Permission.CONTENT_INGEST})
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +107,11 @@ class Actor:
     @classmethod
     def anonymous(cls) -> Actor:
         return cls(ActorKind.ANONYMOUS, None, PUBLIC_PERMISSIONS)
+
+    @classmethod
+    def installation(cls) -> Actor:
+        """Chromium extension. Anonymous: the token is never part of the actor."""
+        return cls(ActorKind.INSTALLATION, None, INSTALLATION_PERMISSIONS)
 
     @classmethod
     def service(cls, name: str, scopes: frozenset[Permission]) -> Actor:

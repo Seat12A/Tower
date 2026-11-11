@@ -17,6 +17,9 @@ dependencies = [
     "uvicorn>=0.32",
     "uvloop>=0.21; sys_platform != 'win32'",
     "httptools>=0.6",
+    "openai>=3.49.0",
+    "anthropic>=2.8.0",
+    "httpx>=0.28.1",
 ]
 
 [project.scripts]
