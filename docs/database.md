@@ -103,6 +103,34 @@ seules les tables utilisées par le lot 3 sont créées (pas d'embedding). Voir
 | `source_registry` | Registre minimal : `domain` (unique, correspondance par suffixe), `publisher`, `tier`, `kind`, `country`, `reason`, `origin` (`seed`, `team`), `version`. Tout domaine absent est tertiaire |
 | `source_cache` | Cache des sources et des recherches : `key` (SHA-256 de l'adaptateur et de la requête canonique, PK), `adapter`, `response` JSONB, `fetched_at`, `expires_at` (indexé, purge horaire) |
 
+## Fact-check V1, lot 4
+
+Migration `0006`, **expand** uniquement. Elle exige l'extension **pgvector ≥ 0.8**
+(`halfvec`, scan itératif) : `CREATE EXTENSION IF NOT EXISTS vector`, précédée d'un
+contrôle qui échoue avec un message clair (`TWR-FCK-035`) si l'extension est absente ou
+trop ancienne. Sur Railway, l'image PostgreSQL standard ne la fournit pas : voir
+[deployment-railway.md](deployment-railway.md#pgvector). Le code Python ne dépend pas du
+paquet `pgvector` (qui tire numpy) : type de colonne `HalfVec` maison dans
+`core/db/vector.py` (vecteurs échangés en texte, `list[float]` côté Python).
+
+| Table | Rôle |
+|---|---|
+| `content_embeddings` | Vecteur E1 d'un contenu : PK `(content_id, created_at)`, `embedding halfvec(512)`, `model`, `lang`, `score` (probabilité « vérifiable », nulle sous la règle permissive), `level` (`N0`, `N1`), `sampled` (contenu écarté gardé dans l'échantillon de 2 %), `router_version`. **Partitionnée par semaine** sur `created_at` (partitions `content_embeddings_pAAAAMMJJ` créées et supprimées après 14 jours par le service `factcheck`), **sans index vectoriel** |
+| `claim_group_events` | Journal d'un groupe : `kind` (`created`, `joined`, `merged`, `split`, `level_changed`, `representative_changed`, `fact_linked`), `other_group_id`, `claim_ids bigint[]`, `from_level`, `to_level`, `actor`, `reason`, `data` (règle d'E3, similarité, raison de l'arbitre) |
+| `reference_facts` | Fiche de référence : `indicator` (clé stable, ex. `fr.unemployment_rate`), `label`, `definition_variant`, `subject_qid`, `aliases text[]` (GIN), `value`, `unit`, `unit_scale`, `period_start`, `period_end`, `territory`, `source_url`, `source_name`, `published_at`, `next_publication`, `previous_fact_id`, `status` (`pending`, `validated`, `rejected`, `superseded`), `origin` (`investigation`, `insee`, `manual`), `origin_verdict_id`, `external_key` (unique : idempotence de l'alimentation automatique), `created_by`, `validated_by`, `validated_at`. Ne sert qu'une fois validée |
+| `verdict_bands` | Fiche × bande × côté → issue validée : `band` (`contains`, `within_1_tau`, `within_3_tau`, `beyond`), `side` (`none`, `above`, `below`), `veracity`, `context_need`, `context_types`, `source_verdict_id` (verdict validé montré aux lecteurs des variantes), `status` (`active`, `revoked` ; une seule bande active par fiche, bande et côté), `validated_by/at`, `revoked_by/at` |
+| `processing_profiles` | Profil de traitement versionné : `version` (unique), `settings` JSONB (réglages par niveau, seuils d'appariement, quota, échantillon E1), `active` (un seul actif, index unique partiel), `based_on_version`, `author`, `reason`, `activated_at/by`. Aucune ligne active : profil par défaut tiré de la configuration (version 0) |
+| `level_overrides` | Forçage de niveau : `target_type` (`content`, `group`, `account`), `target_id` (clé interne), `level`, `expires_at`, `author`, `reason` (obligatoire), `revoked_at/by` |
+| `router_models` | Classifieur E1 : `version`, `embedding_model`, `dims`, `weights double precision[]` (CHECK `cardinality = dims`), `bias`, `metrics` JSONB (mesures sur l'échantillon de validation), `sample_size`, `active` (un seul actif), `trained_at`, `activated_at/by` |
+
+Colonnes ajoutées (nullables) :
+
+| Table | Colonnes |
+|---|---|
+| `claims` | `embedding halfvec(512)` (texte d'origine), `embedding_pivot halfvec(512)` (texte français pivot, affirmations non françaises seulement), `embedding_model` ; **non indexées** |
+| `claim_groups` | `representative_embedding halfvec(512)` (vecteur pivot de l'affirmation représentative : **seul index vectoriel**, HNSW `halfvec_cosine_ops`), `reference_fact_id`, `band`, `band_side` (CHECK), `merged_into_id` ; état `merged` ajouté au CHECK de `state` (élargissement, même nom) |
+| `verdicts` | `reused_from_verdict_id` (verdict d'origine d'un héritage par bande), `reuse_rule` (`identical_signature`, `band`) |
+
 ## Index notables
 
 - `jobs` : index partiel `(queue, priority DESC, run_at, id) WHERE status = 'queued'`
@@ -113,8 +141,13 @@ seules les tables utilisées par le lot 3 sont créées (pas d'embedding). Voir
   30 jours), `content_hash`, `lang`, `first_seen_at`, index sur expression
   `(external_id::bigint) WHERE platform = 'x'` (IDs X numériques sans colonne générée).
 - `observations` : `(content_id, observed_at)`, propagé à chaque partition.
-- Les partitions `observations_pAAAAMMJJ` sont créées par le service `ingest` ; elles
-  sont exclues de l'autogénération Alembic (`include_name` dans `migrations/env.py`).
+- Les partitions `observations_pAAAAMMJJ` sont créées par le service `ingest`, et les
+  partitions `content_embeddings_pAAAAMMJJ` par le service `factcheck` ; elles sont
+  exclues de l'autogénération Alembic (`include_name` dans `migrations/env.py`).
+- `claim_groups.representative_embedding` : HNSW `halfvec_cosine_ops`, le seul index
+  vectoriel du schéma (ni les posts ni les affirmations ne sont indexés). Les requêtes
+  posent `hnsw.iterative_scan = relaxed_order` pour filtrer les groupes fusionnés sans
+  perdre de résultats.
 
 ## Migrations
 

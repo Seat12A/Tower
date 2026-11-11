@@ -90,6 +90,16 @@ identifiant d'événement.
 | `draft.ready` | cas d'usage `open_draft` (service `factcheck`, E10) | `draft_id` (= identifiant public du verdict), `dossier_id`, `group_id`, `level`, `veracity`, `context_need`, `confidence`, `platform`, `external_id`, `url` |
 | `draft.reviewed` | cas d'usage `review_draft` | `draft_id`, `dossier_id`, `decision`, `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `labels`, `reviewer` |
 | `verdict.published` | `review_draft`, à la validation (dossier `validated` ; la publication sur X reste manuelle) | `verdict_id`, `group_id`, `dossier_id`, `veracity`, `context_need`, `platform`, `external_id`, `retranslate_from` |
+| `claim_group.created` | `record_extraction` (E3), nouveau groupe | `group_id`, `claim_id`, `level`, `content_id`, `rule` (règle d'E3), `related_group_id` (groupe proche suggéré pour une fusion manuelle, ou nul), `reference_fact_id`, `band`, `band_side` |
+| `claim_group.merged` | cas d'usage `merge_groups` (gate, bot) | `target_group_id`, `source_group_id`, `claim_ids` (affirmations déplacées : une scission de ces affirmations annule la fusion), `actor`, `reason` |
+| `claim_group.split` | cas d'usage `split_group` | `group_id`, `new_group_id`, `claim_ids`, `actor`, `reason` |
+| `claim_group.level_changed` | `record_extraction` (contenu de niveau supérieur), forçage de niveau | `group_id`, `from_level`, `to_level`, `reason` (`content`, `override`, `request`) |
+| `verdict.reused` | `record_extraction` (affirmation rattachée à un groupe couvert, ou héritage par bande), job `factcheck.revalidate` | `verdict_id` (verdict qui couvre), `group_id`, `claim_id`, `content_id`, `rule` (`identical_signature`, `band`), `origin_verdict_id` (verdict d'origine pour une bande) |
+| `verdict.expired` | tâche périodique `factcheck:expire` | `verdict_id`, `group_id`, `claim_type`, `expires_at` |
+| `reference_fact.validated` | cas d'usage `validate_reference_fact` | `fact_id`, `indicator`, `territory`, `period_start`, `period_end`, `validated_by` |
+| `verdict_band.validated` | cas d'usage `validate_band` (brouillon, bot, API) | `band_id`, `fact_id`, `band`, `side`, `veracity`, `validated_by` |
+| `processing_profile.activated` | cas d'usage `activate_profile`, `rollback_profile` | `version`, `previous_version`, `actor`, `reason`, `changes` (`{chemin: [ancien, nouveau]}`) |
+| `level_override.created` | cas d'usage `create_override` | `override_id`, `target_type`, `target_id`, `level`, `expires_at`, `actor`, `reason` |
 
 Convention de nommage : `<agrégat>.<verbe au participe passé>`.
 

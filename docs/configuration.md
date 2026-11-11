@@ -93,6 +93,31 @@ Voir [fact-check.md](fact-check.md#réglages).
 | `TOWER_FC_REFERENCE_LANGS` | `fr` | Langues de référence toujours rédigées en plus de la langue du post (l'anglais est ajouté pour un post en anglais) |
 | `TOWER_FC_REVIEW_LOCALE_FALLBACK` | `fr` | Langue de relecture par défaut |
 
+### Fact-check V1 (lot 4)
+
+Voir [fact-check.md](fact-check.md#réglages-du-lot-4). Les réglages par niveau marqués
+« profil » ne servent qu'au **profil par défaut** (version 0) : dès qu'un profil est
+activé en base (`processing_profiles`), ce sont ses valeurs qui comptent.
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_FC_EMBED_BATCH_SIZE` | `2000` | Contenus par job `factcheck.embed_batch` (100 à 2 000 ; requêtes de 256 textes) |
+| `TOWER_FC_EMBED_DEBOUNCE_SECONDS` | `30` | Délai avant le lot : les contenus d'une même minute partagent un lot |
+| `TOWER_FC_EMBEDDING_RETENTION_DAYS` | `14` | Conservation des vecteurs de posts (partitions hebdomadaires) |
+| `TOWER_FC_E1_SAMPLE_RATE` | `0.02` | Profil : part des contenus écartés gardés au hasard (faux négatifs) |
+| `TOWER_FC_E1_THRESHOLDS` | `{"N1": 0.15, "N2": 0.15, "N3": 0.05, "N4": 0.0}` | Profil : seuils du classifieur E1 par niveau |
+| `TOWER_FC_MATCH_CANDIDATES` | `5` | Groupes les plus proches comparés par E3 |
+| `TOWER_FC_MATCH_SAME_THRESHOLD` | `0.92` | Profil : similarité au-delà de laquelle une paire de même langue à signature identique est rattachée sans arbitre (borne ≥ 0,85) |
+| `TOWER_FC_MATCH_GREY_THRESHOLD` | `0.80` | Profil : bas de la zone grise (arbitre) ; en dessous, paire différente |
+| `TOWER_FC_CURRENT_PERIOD_DAYS` | `31` | Sans fiche, deux affirmations « actuellement » partagent une période si leurs posts sont à moins de N jours |
+| `TOWER_FC_BAND_TAU_RATIO` | `0.05` | Tolérance des bandes : τ = max(plancher, ratio × référence) |
+| `TOWER_FC_BAND_FLOOR_RATE_POINTS` | `0.2` | Plancher de τ pour un taux (en points) |
+| `TOWER_FC_BAND_FLOOR_DEFAULT` | `0` | Plancher de τ pour les autres unités |
+| `TOWER_FC_VERDICT_TTL_DAYS` | vide | Objet JSON qui remplace la validité d'un verdict par type d'affirmation, en jours (défauts dans [fact-check.md](fact-check.md#péremption-et-revalidation)) |
+| `TOWER_FC_LEVEL_BUDGETS_USD` | `{"N0": 1, "N1": 5, "N2": 10, "N3": 20, "N4": 15}` | Profil : plafonds mensuels des portées `level:N0..N4` (créées par `tower llm seed`) |
+| `TOWER_FC_INSEE_INDICATORS` | vide | Liste JSON des indicateurs INSEE suivis, versés automatiquement en fiches à valider |
+| `TOWER_FC_EXTERNAL_FACTCHECK_LOOKUP` | `true` | E3 cherche les fact-checks existants (Google Fact Check Tools) pour un nouveau groupe |
+
 ### Sources de connaissance (Atlas)
 
 | Variable | Défaut | Description |
