@@ -7,6 +7,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, replace
 from enum import StrEnum
+from math import exp
 
 from tower.core.domain.factcheck.values import Agreement
 
@@ -87,7 +88,39 @@ def linear_score(signals: ConfidenceSignals, coefficients: Coefficients) -> floa
     ``two_independent_origins``, 3 or more → ``three_plus_independent_origins`` (not both).
     Agreement: identical → ``second_opinion_identical``, style → ``second_opinion_same_side``,
     substantive → ``second_opinion_substantive``."""
-    raise NotImplementedError
+    c = coefficients
+    total = c.intercept
+    if signals.primary_direct:
+        total += c.primary_direct
+    if signals.independent_origins >= 3:
+        total += c.three_plus_independent_origins
+    elif signals.independent_origins == 2:
+        total += c.two_independent_origins
+    if signals.conflicting_sources:
+        total += c.conflicting_sources
+    if signals.agreement is Agreement.IDENTICAL:
+        total += c.second_opinion_identical
+    elif signals.agreement is Agreement.STYLE:
+        total += c.second_opinion_same_side
+    elif signals.agreement is Agreement.SUBSTANTIVE:
+        total += c.second_opinion_substantive
+    if signals.second_pass is True:
+        total += c.second_pass_concordant
+    elif signals.second_pass is False:
+        total += c.second_pass_discordant
+    if signals.statistic_with_reference:
+        total += c.statistic_with_reference
+    if signals.ongoing_situation:
+        total += c.ongoing_situation
+    if signals.causation:
+        total += c.causation
+    if signals.legal_interpretation:
+        total += c.legal_interpretation
+    if signals.outcome_misleading:
+        total += c.outcome_misleading
+    if signals.coverage_b:
+        total += c.coverage_b
+    return total
 
 
 def compute_confidence(
@@ -96,9 +129,24 @@ def compute_confidence(
     thresholds: Thresholds | None = None,
 ) -> float:
     """``min(sigmoid(linear_score), thresholds.cap)``, rounded to 4 decimals."""
-    raise NotImplementedError
+    score = linear_score(signals, coefficients or Coefficients())
+    cap = (thresholds or Thresholds()).cap
+    return round(min(_sigmoid(score), cap), 4)
 
 
 def band(confidence: float, thresholds: Thresholds | None = None) -> ConfidenceBand:
     """HIGH from ``thresholds.high``, MEDIUM from ``thresholds.medium``, LOW below."""
-    raise NotImplementedError
+    t = thresholds or Thresholds()
+    if confidence >= t.high:
+        return ConfidenceBand.HIGH
+    if confidence >= t.medium:
+        return ConfidenceBand.MEDIUM
+    return ConfidenceBand.LOW
+
+
+def _sigmoid(x: float) -> float:
+    """Logistic function, safe for large ``|x|`` (never overflows)."""
+    if x >= 0:
+        return 1.0 / (1.0 + exp(-x))
+    e = exp(x)
+    return e / (1.0 + e)
