@@ -227,4 +227,82 @@ MESSAGES: dict[str, str] = {
         "- `{short_id}` | {target_type} `{target}` -> {level} | jusqu'au {expires} | {reason}"
     ),
     "level.revoke.done": "Forçage `{short_id}` révoqué.",
+    # --- groupes, faits de référence et bandes de valeur ---------------------------------
+    "error.TWR-FCK-020": "Groupe d'affirmations introuvable. ({code})",
+    "error.TWR-FCK-021": "Ce groupe a déjà été fusionné dans un autre groupe. ({code})",
+    "error.TWR-FCK-022": (
+        "Les deux groupes ont des verdicts différents : une fusion n'écrase jamais un verdict. "
+        "({code})"
+    ),
+    "error.TWR-FCK-023": (
+        "Seul le groupe qui absorbe l'autre peut porter le verdict actif. ({code})"
+    ),
+    "error.TWR-FCK-024": (
+        "Scission invalide : les affirmations doivent être des membres actifs et le groupe "
+        "ne peut pas être vidé. ({code})"
+    ),
+    "error.TWR-FCK-025": "Fait de référence introuvable. ({code})",
+    "error.TWR-FCK-026": "Fait de référence invalide : {message} ({code})",
+    "error.TWR-FCK-027": "Ce fait de référence n'est pas encore validé. ({code})",
+    "error.TWR-FCK-028": "La bande de valeur ne peut pas être validée : {message} ({code})",
+    "draft.group.line": (
+        "**Groupe** `{group_id}` | {members} affirmation(s) | plateformes : {platforms}"
+    ),
+    "draft.group.other_posts": "Autres posts : {links}",
+    "draft.group.related": (
+        "Doublon possible : le groupe `{group_id}` a déjà un verdict ({veracity}). "
+        "Utilisez « Même groupe que... » pour le fusionner."
+    ),
+    "draft.fact.line": (
+        "**Référence** {label} : {value} {unit} (du {start} au {end}, {territory}, {status})"
+    ),
+    "draft.fact.band": "Bande : {label}",
+    "draft.fact.outdated": "La valeur avancée correspond au chiffre précédent : périmée.",
+    "draft.external.header": "**Fact-checks ailleurs**",
+    "draft.external.line": "- {publisher} : {rating} <{url}>",
+    "fact.status.pending": "en attente",
+    "fact.status.validated": "validé",
+    "fact.status.rejected": "rejeté",
+    "band.kind.contains": "contient le fait",
+    "band.kind.within_1_tau": "à moins de 1 tau du fait",
+    "band.kind.within_3_tau": "à moins de 3 tau du fait",
+    "band.kind.beyond": "au-delà de 3 tau du fait",
+    "draft.button.samegroup": "Même groupe que...",
+    "draft.button.split": "Scinder",
+    "draft.button.fact": "Créer un fait",
+    "draft.button.band": "Valider la bande",
+    "draft.modal.samegroup.title": "Fusionner un autre groupe dans celui-ci",
+    "draft.modal.samegroup.group": "Identifiant du groupe à absorber",
+    "draft.modal.split.title": "Scinder des affirmations de ce groupe",
+    "draft.modal.split.claims": "Identifiants d'affirmations (virgules)",
+    "draft.modal.fact.title": "Créer un fait de référence",
+    "draft.modal.fact.value": "Valeur",
+    "draft.modal.fact.period": "Période (AAAA-MM-JJ AAAA-MM-JJ)",
+    "draft.modal.fact.url": "URL de la source",
+    "draft.modal.fact.name": "Nom de la source",
+    "draft.modal.fact.published": "Publié le (AAAA-MM-JJ)",
+    "group.merged": (
+        "Fusion faite : le groupe `{group_id}` compte maintenant {members} affirmation(s)."
+    ),
+    "group.split": (
+        "Scission faite : les affirmations sont dans le nouveau groupe `{group_id}` "
+        "(pas encore de verdict)."
+    ),
+    "group.show.header": "Groupe `{group_id}` | {level} | {state} | {members} affirmation(s)",
+    "group.show.merged_into": "Fusionné dans `{group_id}`.",
+    "group.show.verdict": "Verdict : {veracity} (expire le {expires}, règle {rule})",
+    "group.show.fact": "Fait : {label} = {value} {unit} | bande {band} ({side})",
+    "group.show.member": "- `{claim_id}` {text} {links}",
+    "group.show.event": "  journal : {kind} par {actor} le {when}",
+    "fact.line": (
+        "- `{short_id}` {status} | {label} : {value} {unit} | du {start} au {end} | {territory}"
+    ),
+    "fact.show.source": "Source : {source} <{url}> | publié le {published} | prochain {next}",
+    "fact.list.header": "Faits de référence ({count}) :",
+    "fact.list.empty": "Aucun fait de référence.",
+    "fact.validated": "Fait `{short_id}` validé.",
+    "fact.rejected": "Fait `{short_id}` rejeté.",
+    "fact.created": "Fait `{short_id}` créé ({label}). Un relecteur doit le valider.",
+    "fact.needs_validated": "Validez d'abord le verdict : un fait se crée depuis un verdict actif.",
+    "band.validated": "Bande validée : {label} ({side}) -> {veracity}.",
 }

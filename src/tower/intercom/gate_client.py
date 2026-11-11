@@ -270,8 +270,11 @@ class GateClient:
         labels: Sequence[str] = (),
         reason: str | None = None,
         expected_version: int | None = None,
+        validate_band: bool = False,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"decision": decision, "labels": list(labels)}
+        if validate_band:
+            body["validate_band"] = True
         for key, value in (
             ("veracity", veracity),
             ("note_text", note_text),
@@ -288,6 +291,89 @@ class GateClient:
 
     async def mark_draft_notified(self, acting: int | None, draft_id: str) -> None:
         await self._request("POST", f"/v1/drafts/{quote(draft_id, safe='')}/notified", acting)
+
+    # --- groups, reference facts and bands ----------------------------------------------
+    async def get_group(self, acting: int, group_id: str) -> dict[str, Any]:
+        group: dict[str, Any] = await self._request(
+            "GET", f"/v1/groups/{quote(group_id, safe='')}", acting
+        )
+        return group
+
+    async def merge_groups(
+        self, acting: int, target_id: str, *, source_id: str, reason: str
+    ) -> dict[str, Any]:
+        merged: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/groups/{quote(target_id, safe='')}/merge",
+            acting,
+            body={"source_group_id": source_id, "reason": reason},
+        )
+        return merged
+
+    async def split_group(
+        self, acting: int, group_id: str, *, claim_ids: Sequence[str], reason: str
+    ) -> dict[str, Any]:
+        new: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/groups/{quote(group_id, safe='')}/split",
+            acting,
+            body={"claim_ids": list(claim_ids), "reason": reason},
+        )
+        return new
+
+    async def list_facts(
+        self,
+        acting: int,
+        *,
+        status: str | None = None,
+        indicator: str | None = None,
+        limit: int = 25,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if status is not None:
+            params["status"] = status
+        if indicator is not None:
+            params["indicator"] = indicator
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/reference-facts", acting, params=params
+        )
+        return rows
+
+    async def get_fact(self, acting: int, fact_id: str) -> dict[str, Any]:
+        fact: dict[str, Any] = await self._request(
+            "GET", f"/v1/reference-facts/{quote(fact_id, safe='')}", acting
+        )
+        return fact
+
+    async def create_fact_from_verdict(
+        self, acting: int, *, verdict_id: str, **fields: Any
+    ) -> dict[str, Any]:
+        body = {k: v for k, v in {"verdict_id": verdict_id, **fields}.items() if v is not None}
+        created: dict[str, Any] = await self._request(
+            "POST", "/v1/reference-facts/from-verdict", acting, body=body
+        )
+        return created
+
+    async def validate_fact(self, acting: int, fact_id: str) -> dict[str, Any]:
+        fact: dict[str, Any] = await self._request(
+            "POST", f"/v1/reference-facts/{quote(fact_id, safe='')}/validate", acting
+        )
+        return fact
+
+    async def reject_fact(self, acting: int, fact_id: str, *, reason: str) -> dict[str, Any]:
+        fact: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/reference-facts/{quote(fact_id, safe='')}/reject",
+            acting,
+            body={"reason": reason},
+        )
+        return fact
+
+    async def validate_band_from_verdict(self, acting: int, verdict_id: str) -> dict[str, Any]:
+        band: dict[str, Any] = await self._request(
+            "POST", "/v1/verdict-bands/from-verdict", acting, body={"verdict_id": verdict_id}
+        )
+        return band
 
     # --- processing profiles and level overrides ----------------------------------------
     async def list_profiles(self, acting: int) -> list[dict[str, Any]]:

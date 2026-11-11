@@ -161,6 +161,42 @@ class DraftNoteOut(BaseModel):
     origin: str
 
 
+class DraftGroupOut(BaseModel):
+    id: str
+    level: str
+    members: int
+
+
+class DraftPostOut(BaseModel):
+    platform: str
+    external_id: str
+    url: str | None
+    posted_at: str | None
+
+
+class DraftReusableOut(BaseModel):
+    id: str
+    veracity: str
+    group_id: str
+
+
+class DraftFactOut(BaseModel):
+    indicator: str
+    label: str
+    value: str | None
+    unit: str
+    period_start: str
+    period_end: str
+    territory: str
+    status: str
+
+
+class DraftBandOut(BaseModel):
+    band: str
+    side: str
+    label: str
+
+
 class DraftOut(BaseModel):
     """A fact-check draft as shown to reviewers (``draft_id`` = public verdict id)."""
 
@@ -190,6 +226,14 @@ class DraftOut(BaseModel):
     sources: list[DraftSourceOut]
     drafted_at: datetime | None
     notified_at: datetime | None
+    group: DraftGroupOut | None = None
+    other_posts: list[DraftPostOut] = []
+    platforms: list[str] = []
+    reusable_verdict: DraftReusableOut | None = None
+    reference_fact: DraftFactOut | None = None
+    band: DraftBandOut | None = None
+    outdated: bool = False
+    external_factchecks: list[dict[str, str]] = []
 
     @classmethod
     def of(cls, view: DraftView) -> DraftOut:
@@ -205,6 +249,8 @@ class ReviewIn(BaseModel):
     labels: list[str] = Field(default_factory=list, max_length=16)
     reason: str | None = Field(default=None, max_length=1000)
     expected_version: int | None = None
+    validate_band: bool = False
+    """With a validation: also validate the value band of the group (editors)."""
 
 
 class ReviewOut(BaseModel):
@@ -220,6 +266,14 @@ class PublicNoteOut(BaseModel):
     links: list[str]
 
 
+class PublicInheritedOut(BaseModel):
+    """The verdict covers this post through another one (identical signature or band)."""
+
+    rule: str
+    origin_verdict_id: str
+    origin_url: str | None
+
+
 class PublicClaimOut(BaseModel):
     text: str
     lang: str
@@ -228,6 +282,7 @@ class PublicClaimOut(BaseModel):
     context_types: list[str]
     validated_at: datetime | None
     note: PublicNoteOut | None
+    inherited: PublicInheritedOut | None = None
 
 
 class PublicVerdictOut(BaseModel):

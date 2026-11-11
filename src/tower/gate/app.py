@@ -23,10 +23,12 @@ from tower.gate.routes import (
     errors,
     events,
     factcheck,
+    groups,
     health,
     ingest,
     levels,
     profiles,
+    references,
     usage,
     watchlist,
 )
@@ -80,6 +82,8 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(factcheck.router)
     app.include_router(profiles.router)
     app.include_router(levels.router)
+    app.include_router(groups.router)
+    app.include_router(references.router)
     if settings.cors_origin_list:
         app.add_middleware(
             CORSMiddleware,

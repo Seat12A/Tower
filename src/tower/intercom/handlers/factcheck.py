@@ -18,13 +18,24 @@ from tower.core.domain import error_codes as ec
 from tower.core.errors import capture
 from tower.core.logging import get_logger
 from tower.intercom.gate_client import GateClient, GateError
-from tower.intercom.handlers import MAX_MESSAGE, Reply, guarded, ok, short
+from tower.intercom.handlers import MAX_MESSAGE, Reply, guarded, listing, ok, short
 from tower.intercom.i18n import has, t
 
 __all__ = [
     "ACTIONS",
     "VERACITIES",
+    "band_validate",
     "custom_id",
+    "fact_create",
+    "fact_list",
+    "fact_reject",
+    "fact_show",
+    "fact_validate",
+    "group_merge",
+    "group_merge_same",
+    "group_show",
+    "group_split",
+    "group_split_draft",
     "parse_custom_id",
     "parse_veracity",
     "post_draft",
@@ -40,9 +51,11 @@ __all__ = [
 
 log = get_logger(__name__)
 
-ACTIONS = ("validate", "correct", "reject")
+ACTIONS = ("validate", "correct", "reject", "samegroup", "split", "fact", "band")
 VERACITIES = ("true", "mostly_true", "misleading", "false", "unverifiable")
-_CUSTOM_ID = re.compile(r"^fc:(validate|correct|reject):([0-9a-fA-F-]{36})$")
+_CUSTOM_ID = re.compile(
+    r"^fc:(validate|correct|reject|samegroup|split|fact|band):([0-9a-fA-F-]{36})$"
+)
 _QUOTE_MAX = 300
 _ASSERTION_MAX = 400
 _MAX_PARTS = 10
@@ -196,6 +209,86 @@ def _claim_block(view: dict[str, Any], locale: str) -> str:
     return "\n".join(lines)
 
 
+def _links(posts: list[dict[str, Any]], limit: int = 5) -> str:
+    shown = [f"{p['platform']} <{p['url']}>" for p in posts if p.get("url")][:limit]
+    extra = len(posts) - len(shown)
+    return ", ".join(shown) + (f" (+{extra})" if extra > 0 else "")
+
+
+def _group_block(view: dict[str, Any], locale: str) -> str | None:
+    group = view.get("group")
+    if not group:
+        return None
+    lines = [
+        t(
+            locale,
+            "draft.group.line",
+            group_id=group["id"],
+            members=group["members"],
+            platforms=", ".join(view.get("platforms") or []) or "-",
+        )
+    ]
+    posts = view.get("other_posts") or []
+    if posts:
+        lines.append(t(locale, "draft.group.other_posts", links=_links(posts)))
+    related = view.get("reusable_verdict")
+    if related:
+        lines.append(
+            t(
+                locale,
+                "draft.group.related",
+                group_id=related["group_id"],
+                veracity=veracity_label(locale, str(related["veracity"])),
+            )
+        )
+    return "\n".join(lines)
+
+
+def _fact_block(view: dict[str, Any], locale: str) -> str | None:
+    fact = view.get("reference_fact")
+    lines: list[str] = []
+    if fact:
+        lines.append(
+            t(
+                locale,
+                "draft.fact.line",
+                label=fact["label"],
+                value=fact["value"],
+                unit=fact["unit"],
+                start=fact["period_start"],
+                end=fact["period_end"],
+                territory=fact["territory"],
+                status=_label(locale, "fact.status", fact["status"]),
+            )
+        )
+    band = view.get("band")
+    if band:
+        side = f" ({band['side']})" if band.get("side") not in (None, "none") else ""
+        label = _label(locale, "band.kind", band["band"]) + side
+        lines.append(t(locale, "draft.fact.band", label=label))
+    if view.get("outdated"):
+        lines.append(t(locale, "draft.fact.outdated"))
+    return "\n".join(lines) if lines else None
+
+
+def _external_block(view: dict[str, Any], locale: str) -> str | None:
+    items = view.get("external_factchecks") or []
+    if not items:
+        return None
+    lines = [t(locale, "draft.external.header")]
+    for item in items[:3]:
+        lines.append(
+            t(
+                locale,
+                "draft.external.line",
+                publisher=_clip(item.get("publisher") or "?", 60),
+                rating=_clip(item.get("rating") or "?", 80),
+                url=item.get("url", "?"),
+            )
+        )
+    return "\n".join(lines)
+
+
 def _note_block(view: dict[str, Any], locale: str) -> str:
     notes: dict[str, dict[str, Any]] = view.get("notes") or {}
     order = ["en", "fr"] if locale == "en" else ["fr"]
@@ -326,6 +419,9 @@ def render_draft(view: dict[str, Any], locale: str) -> list[str]:
     blocks: list[str | None] = [
         _header(view, locale),
         _claim_block(view, locale),
+        _group_block(view, locale),
+        _fact_block(view, locale),
+        _external_block(view, locale),
         _note_block(view, locale),
         _rationale_block(view, locale),
         _list_block(t(locale, "draft.not_in_sources.header"), view.get("not_in_sources") or []),
@@ -400,6 +496,304 @@ async def review_reject(
         acting, draft_id, decision="reject", reason=(reason or "").strip() or None
     )
     return _review_reply(locale, draft_id, result)
+
+
+# --- group, fact and band actions (buttons, modals, commands) -------------------------
+
+
+def _uuid_arg(value: str) -> str:
+    """A full public id typed by a member, or a clear input error."""
+    ref = value.strip()
+    if not _UUID.fullmatch(ref):
+        raise GateError(422, "TWR-GEN-001", "A full identifier is required")
+    return ref.lower()
+
+
+def _date_arg(value: str, what: str) -> str:
+    ref = value.strip()
+    if not _DATE.fullmatch(ref):
+        raise GateError(422, "TWR-GEN-001", f"{what}: expected YYYY-MM-DD")
+    return ref
+
+
+async def _draft_group(gate: GateClient, acting: int, draft_id: str) -> str:
+    view = await gate.get_draft(acting, draft_id)
+    group = view.get("group")
+    if not group:
+        raise GateError(404, "TWR-FCK-020", "Claim group not found")
+    return str(group["id"])
+
+
+@guarded
+async def group_merge_same(
+    gate: GateClient, acting: int, locale: str, draft_id: str, other_group: str, reason: str | None
+) -> Reply:
+    """Same-group button: the GIVEN group is merged INTO the draft's group (gate
+    refuses a direction that would lose a verdict)."""
+    target = await _draft_group(gate, acting, draft_id)
+    merged = await gate.merge_groups(
+        acting,
+        target,
+        source_id=_uuid_arg(other_group),
+        reason=(reason or "").strip() or "merged from the draft",
+    )
+    return ok(
+        t(locale, "group.merged", group_id=merged["id"], members=len(merged.get("members", [])))
+    )
+
+
+@guarded
+async def group_split_draft(
+    gate: GateClient, acting: int, locale: str, draft_id: str, claim_ids: str, reason: str | None
+) -> Reply:
+    """Split button: the claims (comma separated public ids) leave the draft's group."""
+    group_id = await _draft_group(gate, acting, draft_id)
+    return await _split(gate, acting, locale, group_id, claim_ids, reason or "")
+
+
+async def _split(
+    gate: GateClient, acting: int, locale: str, group_id: str, claim_ids: str, reason: str
+) -> Reply:
+    ids = [_uuid_arg(c) for c in re.split(r"[,\s]+", claim_ids.strip()) if c]
+    if not ids:
+        raise GateError(422, "TWR-GEN-001", "No claim id given")
+    new = await gate.split_group(
+        acting, group_id, claim_ids=ids, reason=reason.strip() or "split from the draft"
+    )
+    return ok(t(locale, "group.split", group_id=new["id"], members=len(new.get("members", []))))
+
+
+@guarded
+async def group_split(
+    gate: GateClient, acting: int, locale: str, group_id: str, claim_ids: str, reason: str
+) -> Reply:
+    return await _split(gate, acting, locale, _uuid_arg(group_id), claim_ids, reason)
+
+
+@guarded
+async def group_merge(
+    gate: GateClient, acting: int, locale: str, target: str, source: str, reason: str
+) -> Reply:
+    merged = await gate.merge_groups(
+        acting, _uuid_arg(target), source_id=_uuid_arg(source), reason=reason
+    )
+    return ok(
+        t(locale, "group.merged", group_id=merged["id"], members=len(merged.get("members", [])))
+    )
+
+
+@guarded
+async def group_show(gate: GateClient, acting: int, locale: str, group_id: str) -> Reply:
+    group = await gate.get_group(acting, _uuid_arg(group_id))
+    verdict = group.get("active_verdict")
+    lines = [
+        t(
+            locale,
+            "group.show.header",
+            group_id=group["id"],
+            level=group["level"],
+            state=group["state"],
+            members=len(group["members"]),
+        )
+    ]
+    if group.get("merged_into"):
+        lines.append(t(locale, "group.show.merged_into", group_id=group["merged_into"]))
+    if verdict:
+        lines.append(
+            t(
+                locale,
+                "group.show.verdict",
+                veracity=veracity_label(locale, str(verdict["veracity"])),
+                expires=_day(verdict.get("expires_at")),
+                rule=verdict.get("reuse_rule") or "-",
+            )
+        )
+    fact = group.get("reference_fact")
+    if fact:
+        lines.append(
+            t(
+                locale,
+                "group.show.fact",
+                label=fact["label"],
+                value=fact["value"],
+                unit=fact["unit"],
+                band=group.get("band") or "-",
+                side=group.get("band_side") or "-",
+            )
+        )
+    for m in group["members"][:8]:
+        links = " ".join(f"<{c['url']}>" for c in m["contents"] if c.get("url"))
+        lines.append(
+            t(
+                locale,
+                "group.show.member",
+                claim_id=m["claim_id"],
+                text=_clip(m["text_fr"] if locale == "fr" else m["text_original"], 120),
+                links=links,
+            )
+        )
+    for e in group["journal"][:5]:
+        lines.append(
+            t(
+                locale,
+                "group.show.event",
+                kind=e["kind"],
+                actor=e["actor"],
+                when=_day(e.get("created_at")),
+            )
+        )
+    return ok(listing(locale, lines[0], lines[1:]))
+
+
+def _day(value: object) -> str:
+    return str(value)[:10] if value else "-"
+
+
+_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+_MIN_PREFIX = 6
+
+
+def _fact_line(locale: str, f: dict[str, Any]) -> str:
+    return t(
+        locale,
+        "fact.line",
+        short_id=short(f["id"]),
+        status=_label(locale, "fact.status", f["status"]),
+        label=f["label"],
+        value=f["value"],
+        unit=f["unit"],
+        start=f["period_start"],
+        end=f["period_end"],
+        territory=f["territory"],
+    )
+
+
+async def _find_fact(gate: GateClient, acting: int, ref: str) -> dict[str, Any]:
+    """Fact by full id or unambiguous prefix of at least six characters."""
+    ref = ref.strip().lower()
+    if _UUID.fullmatch(ref):
+        return await gate.get_fact(acting, ref)
+    if len(ref) < _MIN_PREFIX:
+        raise GateError(422, "TWR-GEN-001", f"Identifier too short (min {_MIN_PREFIX} characters)")
+    rows = await gate.list_facts(acting, limit=500)
+    matches = [r for r in rows if str(r["id"]).lower().startswith(ref)]
+    if not matches:
+        raise GateError(404, "TWR-FCK-025", "Reference fact not found")
+    if len(matches) > 1:
+        raise _AmbiguousRef(ref)
+    return matches[0]
+
+
+class _AmbiguousRef(Exception):
+    def __init__(self, ref: str) -> None:
+        super().__init__(ref)
+        self.ref = ref
+
+
+@guarded
+async def fact_show(gate: GateClient, acting: int, locale: str, fact_id: str) -> Reply:
+    try:
+        f = await _find_fact(gate, acting, fact_id)
+    except _AmbiguousRef as exc:
+        return ok(t(locale, "common.ambiguous", ref=exc.ref))
+    return ok(
+        _fact_line(locale, f)
+        + "\n"
+        + t(
+            locale,
+            "fact.show.source",
+            source=f["source_name"],
+            url=f["source_url"],
+            published=f["published_at"],
+            next=f.get("next_publication") or "-",
+        )
+    )
+
+
+@guarded
+async def fact_list(gate: GateClient, acting: int, locale: str, status: str | None = None) -> Reply:
+    rows = await gate.list_facts(acting, status=status or None, limit=50)
+    if not rows:
+        return ok(t(locale, "fact.list.empty"))
+    return ok(
+        listing(
+            locale,
+            t(locale, "fact.list.header", count=len(rows)),
+            [_fact_line(locale, f) for f in rows],
+        )
+    )
+
+
+@guarded
+async def fact_validate(gate: GateClient, acting: int, locale: str, fact_id: str) -> Reply:
+    try:
+        found = await _find_fact(gate, acting, fact_id)
+    except _AmbiguousRef as exc:
+        return ok(t(locale, "common.ambiguous", ref=exc.ref))
+    f = await gate.validate_fact(acting, str(found["id"]))
+    return ok(t(locale, "fact.validated", short_id=short(f["id"])))
+
+
+@guarded
+async def fact_reject(
+    gate: GateClient, acting: int, locale: str, fact_id: str, reason: str
+) -> Reply:
+    try:
+        found = await _find_fact(gate, acting, fact_id)
+    except _AmbiguousRef as exc:
+        return ok(t(locale, "common.ambiguous", ref=exc.ref))
+    f = await gate.reject_fact(acting, str(found["id"]), reason=reason)
+    return ok(t(locale, "fact.rejected", short_id=short(f["id"])))
+
+
+@guarded
+async def fact_create(
+    gate: GateClient,
+    acting: int,
+    locale: str,
+    draft_id: str,
+    value: str,
+    period: str,
+    source_url: str,
+    source_name: str,
+    published_at: str,
+) -> Reply:
+    """ "Create fact" button: only once the verdict is validated (active)."""
+    view = await gate.get_draft(acting, draft_id)
+    if view.get("status") != "active":
+        return ok(t(locale, "fact.needs_validated"))
+    dates = [d for d in re.split(r"[\s/]+|\.\.", period.strip()) if d]
+    if len(dates) == 1:
+        dates = [dates[0], dates[0]]
+    if len(dates) != 2:
+        raise GateError(422, "TWR-GEN-001", "Period: expected 'YYYY-MM-DD YYYY-MM-DD'")
+    created = await gate.create_fact_from_verdict(
+        acting,
+        verdict_id=draft_id,
+        value=value.strip().replace(",", "."),
+        period_start=_date_arg(dates[0], "Period start"),
+        period_end=_date_arg(dates[1], "Period end"),
+        source_url=source_url.strip(),
+        source_name=source_name.strip(),
+        published_at=_date_arg(published_at, "Published date"),
+    )
+    return ok(t(locale, "fact.created", short_id=short(created["id"]), label=created["label"]))
+
+
+@guarded
+async def band_validate(gate: GateClient, acting: int, locale: str, verdict_id: str) -> Reply:
+    """ "Validate band" button and ``/fact band``: the verdict's outcome becomes the band's."""
+    band = await gate.validate_band_from_verdict(acting, _uuid_arg(verdict_id))
+    return ok(
+        t(
+            locale,
+            "band.validated",
+            label=_label(locale, "band.kind", band["band"]),
+            side=band["side"],
+            veracity=veracity_label(locale, str(band["veracity"])),
+        )
+    )
 
 
 @guarded

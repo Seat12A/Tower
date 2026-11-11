@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.config import get_settings
@@ -21,6 +21,7 @@ from tower.core.domain.dossiers import DossierKind, DossierStatus, allowed_trans
 from tower.core.domain.errors import Conflict, InvalidInput, NotFound
 from tower.core.domain.factcheck.checks import NOTE_MAX_CHARS, note_length
 from tower.core.domain.factcheck.expiry import parse_ttl_overrides, verdict_expiry
+from tower.core.domain.factcheck.reuse import ReuseContext, inheritable_note
 from tower.core.domain.factcheck.urls import content_url, parse_content_url
 from tower.core.domain.factcheck.values import (
     ClaimGroupState,
@@ -28,6 +29,7 @@ from tower.core.domain.factcheck.values import (
     FactStatus,
     NoteStatus,
     Regime,
+    ReuseRule,
     ReviewDecision,
     ReviewLabel,
     ReviewOutcome,
@@ -59,6 +61,7 @@ from tower.core.models.factcheck import (
 from tower.core.models.factcheck_v1 import ReferenceFact
 from tower.core.models.ingestion import ContentItem
 from tower.core.usecases import dossiers as dossier_uc
+from tower.core.usecases import group_views
 from tower.core.usecases import references as references_uc
 
 __all__ = [
@@ -116,6 +119,16 @@ class DraftView:
     sources: list[dict[str, Any]]
     drafted_at: datetime | None
     notified_at: datetime | None
+    group: dict[str, Any] | None = None
+    """``{id, level, members}`` of the claim group."""
+    other_posts: list[dict[str, Any]] = field(default_factory=list)
+    platforms: list[str] = field(default_factory=list)
+    reusable_verdict: dict[str, Any] | None = None
+    """Active verdict of the group suggested for a manual merge (``related`` journal)."""
+    reference_fact: dict[str, Any] | None = None
+    band: dict[str, Any] | None = None
+    outdated: bool = False
+    external_factchecks: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +163,9 @@ class PublicClaim:
     context_types: list[str]
     validated_at: datetime | None
     note: PublicNote | None
+    inherited: dict[str, Any] | None = None
+    """``{rule, origin_verdict_id, origin_url}`` when the verdict covers this claim through
+    an identical-signature group or a validated value band."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -267,6 +283,10 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         if content is not None
         else None
     )
+    info = await group_views.draft_group_info(
+        session, group, claim, content_id=content.id if content is not None else None
+    )
+    inv_flags = dict(investigation.flags or {}) if investigation is not None else {}
     return DraftView(
         draft_id=str(verdict.public_id),
         seq=verdict.id,
@@ -298,6 +318,14 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         sources=list(sources.values()),
         drafted_at=verdict.drafted_at,
         notified_at=verdict.notified_at,
+        group=info["group"],
+        other_posts=info["other_posts"],
+        platforms=info["platforms"],
+        reusable_verdict=info["reusable_verdict"],
+        reference_fact=info["reference_fact"],
+        band=info["band"],
+        outdated=bool(inv_flags.get("outdated")),
+        external_factchecks=[dict(e) for e in inv_flags.get("external_factchecks") or []],
     )
 
 
@@ -737,8 +765,9 @@ async def get_public_verdict(
     if content is None:
         raise not_found
     wanted = _norm_lang(lang)
+    now = datetime.now(UTC)
     rows = await session.execute(
-        select(Claim, Verdict)
+        select(Claim, Verdict, ClaimGroup.level)
         .join(ContentClaim, ContentClaim.claim_id == Claim.id)
         .join(
             ClaimGroupMember,
@@ -746,11 +775,20 @@ async def get_public_verdict(
         )
         .join(ClaimGroup, ClaimGroup.id == ClaimGroupMember.group_id)
         .join(Verdict, Verdict.id == ClaimGroup.active_verdict_id)
-        .where(ContentClaim.content_id == content.id, Verdict.status == VerdictStatus.ACTIVE.value)
+        .where(
+            ContentClaim.content_id == content.id,
+            Verdict.status == VerdictStatus.ACTIVE.value,
+            # An expired verdict is never shown.
+            or_(Verdict.expires_at.is_(None), Verdict.expires_at > now),
+        )
         .order_by(ContentClaim.position, Claim.id)
     )
     claims: list[PublicClaim] = []
-    for claim, verdict in rows.all():
+    for claim, verdict, level in rows.all():
+        inherited, note_owner, rule = await _inheritance(session, verdict, content.id)
+        note = await _public_note(
+            session, note_owner, wanted, content.lang, rule=rule, level=level, now=now
+        )
         claims.append(
             PublicClaim(
                 text=claim.text_fr if wanted == "fr" else claim.text_original,
@@ -759,7 +797,8 @@ async def get_public_verdict(
                 context_need=verdict.context_need,
                 context_types=list(verdict.context_types or []),
                 validated_at=verdict.validated_at,
-                note=await _public_note(session, verdict, wanted, content.lang),
+                note=note,
+                inherited=inherited,
             )
         )
     if not claims:
@@ -773,9 +812,69 @@ async def get_public_verdict(
     )
 
 
+async def _origin_url(session: AsyncSession, verdict: Verdict) -> str | None:
+    """Public link of the post an origin verdict was investigated for, if any."""
+    if verdict.investigation_id is None:
+        return None
+    row = (
+        await session.execute(
+            select(ContentItem.platform, ContentItem.external_id)
+            .join(Investigation, Investigation.content_id == ContentItem.id)
+            .where(Investigation.id == verdict.investigation_id)
+        )
+    ).first()
+    return content_url(row[0], row[1]) if row is not None else None
+
+
+async def _inheritance(
+    session: AsyncSession, verdict: Verdict, content_id: int
+) -> tuple[dict[str, Any] | None, Verdict, ReuseRule | None]:
+    """``(inherited block, verdict owning the note to show, reuse rule)``.
+
+    A band verdict is inherited from its source verdict. A verdict of the group
+    investigated for another post covers this post through an identical signature."""
+    if verdict.reuse_rule == ReuseRule.BAND.value and verdict.reused_from_verdict_id is not None:
+        origin = await session.get(Verdict, verdict.reused_from_verdict_id)
+        if origin is not None:
+            return (
+                {
+                    "rule": ReuseRule.BAND.value,
+                    "origin_verdict_id": str(origin.public_id),
+                    "origin_url": await _origin_url(session, origin),
+                },
+                origin,
+                ReuseRule.BAND,
+            )
+    if verdict.investigation_id is not None:
+        investigated = await session.scalar(
+            select(Investigation.content_id).where(Investigation.id == verdict.investigation_id)
+        )
+        if investigated is not None and investigated != content_id:
+            return (
+                {
+                    "rule": ReuseRule.IDENTICAL_SIGNATURE.value,
+                    "origin_verdict_id": str(verdict.public_id),
+                    "origin_url": await _origin_url(session, verdict),
+                },
+                verdict,
+                ReuseRule.IDENTICAL_SIGNATURE,
+            )
+    return None, verdict, None
+
+
 async def _public_note(
-    session: AsyncSession, verdict: Verdict, wanted: str | None, post_lang: str
+    session: AsyncSession,
+    verdict: Verdict,
+    wanted: str | None,
+    post_lang: str,
+    *,
+    rule: ReuseRule | None = None,
+    level: str = "N3",
+    now: datetime | None = None,
 ) -> PublicNote | None:
+    """Validated note of ``verdict``. With a reuse ``rule`` (inherited verdict) the note is
+    shown only when ``inheritable_note`` allows it (never provisional or expired, never a
+    formulation note across groups)."""
     note = await session.scalar(
         select(ContextNote).where(
             ContextNote.verdict_id == verdict.id,
@@ -784,6 +883,19 @@ async def _public_note(
     )
     if note is None:
         return None
+    if rule is not None:
+        moment = now or datetime.now(UTC)
+        ctx = ReuseContext(
+            level=level,
+            direct_reuse_allowed=True,
+            verdict_expires_at=verdict.expires_at,
+            verdict_status=verdict.status,
+            note_regime=note.regime,
+            note_expires_at=note.expires_at,
+            now=moment,
+        )
+        if not inheritable_note(ctx, rule):
+            return None
     by_lang = {
         tr.lang: tr
         for tr in await session.scalars(

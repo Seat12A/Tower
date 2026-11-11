@@ -216,4 +216,74 @@ MESSAGES: dict[str, str] = {
         "- `{short_id}` | {target_type} `{target}` -> {level} | until {expires} | {reason}"
     ),
     "level.revoke.done": "Override `{short_id}` revoked.",
+    # --- groups, reference facts and value bands -----------------------------------
+    "error.TWR-FCK-020": "Claim group not found. ({code})",
+    "error.TWR-FCK-021": "This group was already merged into another group. ({code})",
+    "error.TWR-FCK-022": (
+        "Both groups hold verdicts with different outcomes: a merge never overrides a verdict. "
+        "({code})"
+    ),
+    "error.TWR-FCK-023": (
+        "Only the group that absorbs the other may hold the active verdict. ({code})"
+    ),
+    "error.TWR-FCK-024": (
+        "Invalid split: the claims must be active members and the group cannot be emptied. ({code})"
+    ),
+    "error.TWR-FCK-025": "Reference fact not found. ({code})",
+    "error.TWR-FCK-026": "Invalid reference fact: {message} ({code})",
+    "error.TWR-FCK-027": "This reference fact is not validated yet. ({code})",
+    "error.TWR-FCK-028": "The value band cannot be validated: {message} ({code})",
+    "draft.group.line": "**Group** `{group_id}` | {members} claim(s) | platforms: {platforms}",
+    "draft.group.other_posts": "Other posts: {links}",
+    "draft.group.related": (
+        "Possible duplicate: group `{group_id}` already has a verdict ({veracity}). "
+        'Use "Same group as..." to merge it.'
+    ),
+    "draft.fact.line": (
+        "**Reference** {label}: {value} {unit} ({start} to {end}, {territory}, {status})"
+    ),
+    "draft.fact.band": "Band: {label}",
+    "draft.fact.outdated": "The claimed value matches the previous figure: outdated.",
+    "draft.external.header": "**Fact-checks elsewhere**",
+    "draft.external.line": "- {publisher}: {rating} <{url}>",
+    "fact.status.pending": "pending",
+    "fact.status.validated": "validated",
+    "fact.status.rejected": "rejected",
+    "band.kind.contains": "contains the fact",
+    "band.kind.within_1_tau": "within 1 tau of the fact",
+    "band.kind.within_3_tau": "within 3 tau of the fact",
+    "band.kind.beyond": "beyond 3 tau of the fact",
+    "draft.button.samegroup": "Same group as...",
+    "draft.button.split": "Split",
+    "draft.button.fact": "Create fact",
+    "draft.button.band": "Validate band",
+    "draft.modal.samegroup.title": "Merge another group into this one",
+    "draft.modal.samegroup.group": "Group id to absorb",
+    "draft.modal.split.title": "Split claims off this group",
+    "draft.modal.split.claims": "Claim ids (comma separated)",
+    "draft.modal.fact.title": "Create a reference fact",
+    "draft.modal.fact.value": "Value",
+    "draft.modal.fact.period": "Period (YYYY-MM-DD YYYY-MM-DD)",
+    "draft.modal.fact.url": "Source URL",
+    "draft.modal.fact.name": "Source name",
+    "draft.modal.fact.published": "Published on (YYYY-MM-DD)",
+    "group.merged": "Merge done: group `{group_id}` now has {members} claim(s).",
+    "group.split": "Split done: the claims moved to the new group `{group_id}` (no verdict yet).",
+    "group.show.header": "Group `{group_id}` | {level} | {state} | {members} claim(s)",
+    "group.show.merged_into": "Merged into `{group_id}`.",
+    "group.show.verdict": "Verdict: {veracity} (expires {expires}, rule {rule})",
+    "group.show.fact": "Fact: {label} = {value} {unit} | band {band} ({side})",
+    "group.show.member": "- `{claim_id}` {text} {links}",
+    "group.show.event": "  journal: {kind} by {actor} on {when}",
+    "fact.line": (
+        "- `{short_id}` {status} | {label}: {value} {unit} | {start} to {end} | {territory}"
+    ),
+    "fact.show.source": "Source: {source} <{url}> | published {published} | next {next}",
+    "fact.list.header": "Reference facts ({count}):",
+    "fact.list.empty": "No reference fact.",
+    "fact.validated": "Fact `{short_id}` validated.",
+    "fact.rejected": "Fact `{short_id}` rejected.",
+    "fact.created": "Fact `{short_id}` created ({label}). A reviewer must validate it.",
+    "fact.needs_validated": "Validate the verdict first: a fact is created from an active verdict.",
+    "band.validated": "Band validated: {label} ({side}) -> {veracity}.",
 }

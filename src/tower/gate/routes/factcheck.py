@@ -78,6 +78,7 @@ async def review_draft(
         labels=body.labels,
         reason=body.reason,
         expected_version=body.expected_version,
+        validate_band=body.validate_band,
     )
     return ReviewOut(outcome=result.outcome, draft=DraftOut.of(result.draft))
 
