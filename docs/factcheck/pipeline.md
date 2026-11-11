@@ -314,7 +314,7 @@ Contrôles déterministes, sans modèle (échec → brouillon rejeté ou rétrog
 | Chiffres officiels | Une statistique produite sous **indépendance statutaire** (attribut du registre, fondé sur des critères externes) est acceptée seule. Une **auto-déclaration de bilan** n'est primaire que pour l'attribution : sans corroboration, issue « Non vérifiable » et note qui attribue le chiffre, avec celui de l'autre partie s'il existe |
 | Dates | Toute source datée après le post est signalée ; une source plus vieille que la péremption du type est signalée |
 | Longueurs | Note de contexte ≤ 280 caractères hors liens ; fiche ≤ longueur du profil |
-| Lexique | Liste de mots chargés ou de jugements de valeur à éviter (« honteux », « mensonge éhonté »…) : alerte pour le relecteur |
+| Lexique | Liste de mots chargés ou de jugements de valeur à éviter (« honteux », « mensonge éhonté »…) : alerte pour le relecteur. Les qualifications juridiques ou historiques établies et sourcées (« génocide », « crime contre l'humanité ») sont autorisées ([objectivite.md](objectivite.md)) |
 | Liens | Chaque lien du brouillon pointe vers une source récupérée |
 
 ### E10 — Assemblage (code)

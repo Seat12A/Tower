@@ -52,3 +52,15 @@ réponse :
 - Décider de la publication de la liste des comptes suivis.
 - Phase 0 : jeu de référence, comptes et clés (Anthropic, OpenAI, PISTE, INSEE,
   Google Fact Check Tools, Brave) ; puis lot 1 (fondations).
+
+## Complément : objectivité plutôt que faux équilibre
+
+- Demande de Jules : être objectif, pas parfaitement neutre ; ne pas être neutre sur
+  le nazisme et les sujets du même ordre.
+- Nouvelle page `docs/factcheck/objectivite.md` : égalité de traitement sans faux
+  équilibre, registre `established_facts` à critères fermés et symétriques, effet
+  dans le pipeline, lien avec la modération, garde-fous.
+- Mises à jour : `CLAUDE.md` (règle 10 reformulée), `README.md`, `biais.md` (fausse
+  symétrie), `evaluation.md` (cas de négation de faits établis et cas réellement
+  débattus), `donnees.md`, `connaissances.md`, `pipeline.md` (lexique),
+  `docs/decisions.md`.

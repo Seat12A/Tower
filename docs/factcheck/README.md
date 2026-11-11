@@ -85,6 +85,13 @@ partagent des preuves et non des verdicts, détection de vague par part du flux,
 notes de contexte rattachées à des objets, indépendance des sources mesurée par
 origine.
 
+## Objectivité, pas faux équilibre
+
+Seat 12A est **objectif**, pas « neutre à mi-chemin » : mêmes règles pour tout le
+monde, verdict dicté par les preuves, et aucune fausse symétrie sur les **faits
+établis** (crimes du nazisme, génocides reconnus, consensus scientifiques), définis
+par des critères fermés et un registre publié. Voir [objectivite.md](objectivite.md).
+
 ## Sommaire
 
 | Page | Contenu |
@@ -94,6 +101,7 @@ origine.
 | [vagues.md](vagues.md) | Récits, détection des vagues de rumeurs, mode vague, tenue en charge |
 | [modeles.md](modeles.md) | Routage OpenAI et Anthropic par rôle, tokens gratuits, repli, contrats de sortie |
 | [connaissances.md](connaissances.md) | Atlas : sources intégrées (encyclopédie, droit, statistiques, actualité, fact-checks), registre de fiabilité |
+| [objectivite.md](objectivite.md) | Objectivité plutôt que faux équilibre : égalité de traitement, faits établis (registre à critères fermés), garde-fous |
 | [international.md](international.md) | Couverture mondiale : langues, juridictions, registres de sources par pays, relecture multilingue |
 | [contexte.md](contexte.md) | Issues, notes de contexte, étage de cadrage (prendre du recul), format des brouillons |
 | [biais.md](biais.md) | Biais des modèles et des humains, injection, neutralité : parades concrètes |

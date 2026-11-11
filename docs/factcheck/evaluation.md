@@ -17,7 +17,9 @@ phase 0, avant tout code de jugement. Composition :
 | Besoin de contexte (un cas par type de [contexte.md](contexte.md)) | 25 | Qualité des notes |
 | Tentatives d'injection (dont en micro-lot) | 30 | Robustesse |
 | Paires pièges (même phrase, valeur ou négation différente) | 50 paires | Pas de fausse réutilisation du cache |
-| Paires miroir (même structure, favorables à des bords opposés) | 25 paires | Neutralité |
+| Paires miroir (même structure, favorables à des bords opposés) | 25 paires | Égalité de traitement |
+| Négations de faits établis, de toutes idéologies | 20 | Pas de fausse symétrie : abstention ou réponse « équilibrée » = erreur ([objectivite.md](objectivite.md)) |
+| Questions réellement débattues | 15 | Pas d'excès de certitude : verdict tranché = erreur |
 | Perturbations lexicales (euphémisme / dysphémisme) | 25 paires | Robustesse au vocabulaire |
 
 Le jeu de départ est en français, mais le périmètre est mondial

@@ -53,6 +53,7 @@ déterministe d'E3 soit une requête SQL indexable.
 | `knowledge_sources` | Adaptateurs déclarés : nom, capacités, niveau de fiabilité, coût, licence, actif |
 | `source_registry` | Éditeur et domaine → niveau de fiabilité, type, pays, motif, origine, version ; `controlled_by` (entité qui contrôle l'éditeur) ; `statutory_independence` (indépendance statutaire, fondée sur des critères externes) ; registre versionné et publié |
 | `entity_relations` | Relations de contrôle entre entités (État → média public, parti → organe, groupe → filiale), versionnées et publiées |
+| `established_facts` | Faits établis : énoncé, critère (justice, science, histoire), sources, qualifications juridiques par pays, date de revue, auteur ; versionné et publié ([objectivite.md](objectivite.md)) |
 | `reference_facts` | Fiches de référence : indicateur, variante de définition, valeur, unité, période, territoire, source primaire, date de publication, prochaine publication, fiche précédente, validée par |
 | `verdict_bands` | Fiche × bande de valeurs (contient la référence, < 1 τ, < 3 τ, au-delà, avec le côté) → issue validée par un relecteur |
 | `legal_articles` | Miroir juridique : juridiction, identifiant (LEGI, ELI…), code, numéro, texte, vigueur début et fin, empreinte, `tsvector` français |

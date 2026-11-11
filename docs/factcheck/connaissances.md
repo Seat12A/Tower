@@ -15,7 +15,7 @@ arrive en dernier.
 ## Ordre de résolution
 
 ```
-1. Fiches de référence internes        gratuit, instantané, déjà vérifié
+1. Faits établis et fiches de référence  gratuit, instantané, déjà vérifié
 2. Fact-checks existants               ClaimReview (Google Fact Check Tools), nos verdicts publiés
 3. Sources structurées par type        statistiques, entités, droit
 4. Encyclopédies                       Wikipédia (comme carte vers les sources primaires)

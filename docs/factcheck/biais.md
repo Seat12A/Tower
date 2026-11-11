@@ -36,6 +36,7 @@ hésite. Conséquences pour Seat 12A :
 | **Refus sur sujets sensibles** | Les modèles refusent parfois (terrorisme, santé, violence) | Gestion de `refusal` côté Anthropic, repli, groupe signalé au relecteur ; jamais de verdict par défaut |
 | **Langue** | Les modèles sont plus faibles hors anglais, et plus encore dans les langues peu dotées | Jeu de référence multilingue ; seuils de qualité mesurés **par langue** ; langue sous le seuil → abstention ou relecture renforcée ; instructions en anglais, sorties dans la langue du post et en français |
 | **Géopolitique** | Des travaux 2025-2026 montrent des standards différents selon les pays en jeu | Paires « pays échangés » dans le jeu de référence ; une source partie prenante de l'affirmation ne compte pas comme source indépendante (voir [international.md](international.md)) |
+| **Fausse symétrie** | Les modèles alignés ont tendance à « équilibrer » (« certains disent… d'autres… ») même quand les preuves sont univoques | Consignes explicites contre la fausse symétrie ; registre des faits établis à critères fermés ; une abstention ou une réponse équilibrée sur un fait établi compte comme une erreur ([objectivite.md](objectivite.md)) |
 | **Accord de façade** (complaisance) | Un modèle tend à aller dans le sens de la formulation de la question | L'affirmation est présentée comme un objet à examiner, jamais comme « l'utilisateur pense que… » ; formulation neutre d'E2 |
 
 ## Biais humains et systémiques

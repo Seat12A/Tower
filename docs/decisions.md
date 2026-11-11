@@ -143,3 +143,15 @@ Détail : [factcheck/questions.md](factcheck/questions.md).
 | Jeton d'installation transformé en pseudonyme du jour (HMAC avec secret quotidien détruit), aucune IP stockée | Compter les observateurs indépendants sans possibilité technique de profilage ni de traçage |
 | Liens des sources toujours conservés, passages cités et empreinte ; lien d'archive publique à étudier | Traçabilité des verdicts ; droit d'auteur |
 | Pas de contrat AFP pour l'instant | Budget |
+
+### Objectivité plutôt que faux équilibre (2026-11-11)
+
+| Décision | Raison |
+|---|---|
+| Le projet vise l'**objectivité** (égalité de traitement, verdict dicté par les preuves), pas une neutralité à mi-chemin ; règle 10 de `CLAUDE.md` reformulée | Demande de Jules : pas de neutralité sur le nazisme et les sujets du même ordre |
+| Registre publié `established_facts` à critères fermés (décision de justice définitive, consensus scientifique des organismes de référence, consensus historiographique) ; mêmes critères pour toutes les idéologies | Éviter que l'exception devienne un biais politique |
+| Sur un fait établi : issue « Faux » ou « Trompeur », pas d'abstention ; qualifications juridiques et historiques établies autorisées dans les notes | Pas de fausse symétrie |
+| L'exception porte sur des faits, jamais sur des personnes ou partis actuels (pas de qualification morale d'un acteur actuel hors décision de justice) | Égalité de traitement |
+| Négation, apologie, incitation : signalées aussi à la modération | Relève du droit pénal et de la modération, pas seulement du fact-check |
+
+Détail : [factcheck/objectivite.md](factcheck/objectivite.md).
