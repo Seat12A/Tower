@@ -155,3 +155,28 @@ Détail : [factcheck/questions.md](factcheck/questions.md).
 | Négation, apologie, incitation : signalées aussi à la modération | Relève du droit pénal et de la modération, pas seulement du fact-check |
 
 Détail : [factcheck/objectivite.md](factcheck/objectivite.md).
+
+### Partie 1 : fondations et ingestion (2026-11-11)
+
+Détail : [llm.md](llm.md), [ingestion.md](ingestion.md).
+
+| Décision | Raison |
+|---|---|
+| Adaptateurs partagés (OpenAI, Anthropic, embeddings, récupération web) dans `core/adapters`, SDK importés dans les constructeurs | Un service n'importe que `tower.core` ; gate et les réplicas sans fact-check ne chargent jamais les SDK (test d'isolation des imports) |
+| Repli de modèle fait par le routeur, pas par le repli côté serveur d'Anthropic (`fallbacks`) | Le routeur doit connaître le modèle réellement servi pour le coût, le cache et le journal |
+| Un modèle à groupe gratuit n'est jamais appelé en payant : sans allocation suffisante (ou sans clé partagée), il est sauté au profit du repli | Certains sont chers hors allocation (`gpt-5.6-terra`) ; prudence |
+| Réservation atomique aussi sur l'allocation gratuite (`llm_free_usage`), puis ajustement au réel | Exact avec plusieurs réplicas, comme le budget |
+| Cache = index unique partiel sur la clé parmi les succès ; chaque tentative (refus, sortie invalide, échec) est journalisée et facturée | Le cache ne sert que des sorties valides ; le coût réel inclut les échecs |
+| Compteur de budget du mois créé à la première réservation depuis le plafond du mois précédent ; une portée sans aucun compteur n'est pas plafonnée | Pas de tâche planifiée nécessaire ; seul `global` est obligatoire (créé par `tower llm seed`) |
+| Famille GPT-6 non marquée gratuite | Éligibilité non vérifiée (à confirmer par Jules dans le tableau de bord) |
+| Domaine d'erreurs `TWR-WEB-*` pour la récupération web | Le plan ne prévoyait que `LLM` et `ING` ; les erreurs du fetcher (SSRF, taille, robots) ont leur propre domaine |
+| Fetcher : IP résolue et vérifiée à chaque saut, requête envoyée à cette IP (en-tête `Host`, SNI), ports 80 et 443 seulement, `Accept-Encoding: identity` | Protection SSRF sans fenêtre de rebinding DNS ; plafond de taille non contournable par compression |
+| Partitions hebdomadaires créées par la migration (semaine précédente à +2) puis par le service `ingest` ; pas de partition par défaut | Une partition par défaut remplie bloquerait la création des partitions suivantes |
+| `observed_at` du client accepté seulement dans les 24 dernières heures (5 min d'avance), sinon heure du serveur | Garantit une partition existante et borne la falsification |
+| Tâches périodiques singleton déclarées par les services (`Service.periodic`, verrou consultatif) | Partitions et secrets sans processus supplémentaire |
+| Liaison des copies écrite par le job sans cas d'usage ni événement | Donnée dérivée et idempotente ; un événement par copie gonflerait l'outbox pendant une vague |
+| Audit de la liste de suivi dans `watched_account_events` | Les événements de l'outbox sont purgés après 30 jours |
+| Item invalide refusé seul, le reste du lot traité ; quota dépassé : lot entier refusé | Un post mal formé ne doit pas faire perdre le lot ; le quota reste exact |
+| Limite par IP en mémoire par réplica, adresse = dernière entrée de `X-Forwarded-For` | Rien n'est persisté ; le quota en base reste la limite exacte |
+| Secret du jour créé à la demande par l'ingestion s'il manque, en plus de la maintenance | L'ingestion ne dépend pas du passage de la maintenance |
+| Filtres de l'extension publiés par la CLI (`tower ingest publish-filters`), une seule version active | Pas encore d'interface d'administration ; le bot pourra appeler le même cas d'usage |

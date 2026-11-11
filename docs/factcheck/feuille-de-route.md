@@ -19,6 +19,11 @@ les demandes de Jules.
 
 ## Lot 1 — Fondations communes
 
+**Livré le 2026-11-11** ([../llm.md](../llm.md)). Écarts : rôle factice testé avec des
+fournisseurs factices (aucune clé disponible : l'appel réel aux deux fournisseurs reste
+à faire avec les clés) ; `BatchLLMClient`, `KnowledgeSource` et `SearchClient` livrés
+comme contrats seulement ; codes `TWR-WEB-*` ajoutés pour la récupération web.
+
 Ports et briques réutilisés par tous les étages, sans encore de fact-check.
 
 - Ports étendus : `LLMClient`, `BatchLLMClient`, `Embedder`, `KnowledgeSource`,
@@ -34,6 +39,16 @@ rejeu sert depuis le cache sans appel ; la réservation de budget reste exacte a
 deux réplicas concurrents (test réel sur PostgreSQL) ; RSS mesuré.
 
 ## Lot 2 — Ingestion générique
+
+**Livré le 2026-11-11, en partie** ([../ingestion.md](../ingestion.md)) : tables,
+E0 (normalisation, empreintes, SimHash par bandes, langue), endpoint et configuration
+de l'extension, liste de suivi, service `ingest` (copies, partitions, secrets),
+`media_assets` avec colonnes d'empreinte perceptuelle prêtes. **Reportés** (hors
+périmètre de la partie 1) : processus `radar` et appels à l'API X, calcul de
+l'empreinte perceptuelle, registres par pays, test de charge à 20 000 contenus par
+jour et mesure du rappel des quasi-copies sur un corpus. Point à trancher : une
+substitution d'un mot dans un texte de 40 mots donne une distance SimHash de 4 à 7,
+au-delà du seuil de 3 (voir le résumé de session).
 
 - Tables `entities`, `platform_accounts`, `watched_accounts`, `content_items` (avec
   `x_post_id` généré), `content_snapshots`, `observations`, `observation_counters`,
