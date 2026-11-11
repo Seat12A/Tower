@@ -101,7 +101,7 @@ def apply_independence_rule(
     ):
         veracity = Veracity.UNVERIFIABLE
         downgraded = True
-    if has_partial_evidence and context_need is ContextNeed.NONE:
+    if downgraded and has_partial_evidence and context_need is ContextNeed.NONE:
         context_need = ContextNeed.USEFUL
     return veracity, context_need, downgraded
 

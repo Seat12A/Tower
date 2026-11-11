@@ -767,7 +767,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     for table in ("observations", "observation_counters"):
-        op.execute(f"DELETE FROM {table} WHERE source = 'manual'")
+        op.execute(f"DELETE FROM {table} WHERE source = 'manual'")  # noqa: S608 (constant table names)
         op.drop_constraint(op.f(f"ck_{table}_source"), table, type_="check")
         op.create_check_constraint(
             op.f(f"ck_{table}_source"), table, "source IN ('extension', 'radar', 'feed')"
