@@ -36,6 +36,8 @@ MAX_MESSAGE = 1900
 class Reply:
     text: str
     ephemeral: bool = False
+    final: bool = False
+    """The action settled the draft (validated or rejected): the app may remove its buttons."""
 
 
 def ok(text: str) -> Reply:

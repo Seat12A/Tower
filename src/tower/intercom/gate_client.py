@@ -106,6 +106,8 @@ class GateClient:
             ) from None
         if response.status_code >= 400:
             raise _error_from(response.status_code, response)
+        if response.status_code == 204:
+            return None
         try:
             return response.json()
         except ValueError:
@@ -214,6 +216,78 @@ class GateClient:
     async def get_usage(self, acting: int) -> dict[str, Any]:
         usage: dict[str, Any] = await self._request("GET", "/v1/llm/usage", acting)
         return usage
+
+    # --- fact-check drafts (acting=None: the service itself, e.g. notifier) -------------
+    async def request_factcheck(
+        self,
+        acting: int | None,
+        *,
+        url: str | None = None,
+        platform: str | None = None,
+        external_id: str | None = None,
+    ) -> dict[str, Any]:
+        body = {
+            k: v
+            for k, v in {"url": url, "platform": platform, "external_id": external_id}.items()
+            if v is not None
+        }
+        accepted: dict[str, Any] = await self._request(
+            "POST", "/v1/factcheck/requests", acting, body=body
+        )
+        return accepted
+
+    async def list_drafts(
+        self,
+        acting: int | None,
+        *,
+        notified: bool | None = None,
+        limit: int = 25,
+        before_id: int | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"status": "pending", "limit": limit}
+        if notified is not None:
+            params["notified"] = notified
+        if before_id is not None:
+            params["before_id"] = before_id
+        rows: list[dict[str, Any]] = await self._request("GET", "/v1/drafts", acting, params=params)
+        return rows
+
+    async def get_draft(self, acting: int | None, draft_id: str) -> dict[str, Any]:
+        draft: dict[str, Any] = await self._request(
+            "GET", f"/v1/drafts/{quote(draft_id, safe='')}", acting
+        )
+        return draft
+
+    async def review_draft(
+        self,
+        acting: int | None,
+        draft_id: str,
+        *,
+        decision: str,
+        veracity: str | None = None,
+        note_text: str | None = None,
+        note_lang: str | None = None,
+        labels: Sequence[str] = (),
+        reason: str | None = None,
+        expected_version: int | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"decision": decision, "labels": list(labels)}
+        for key, value in (
+            ("veracity", veracity),
+            ("note_text", note_text),
+            ("note_lang", note_lang),
+            ("reason", reason),
+            ("expected_version", expected_version),
+        ):
+            if value is not None:
+                body[key] = value
+        result: dict[str, Any] = await self._request(
+            "POST", f"/v1/drafts/{quote(draft_id, safe='')}/review", acting, body=body
+        )
+        return result
+
+    async def mark_draft_notified(self, acting: int | None, draft_id: str) -> None:
+        await self._request("POST", f"/v1/drafts/{quote(draft_id, safe='')}/notified", acting)
 
     # --- as the service itself --------------------------------------------------------
     async def get_cursor(self, name: str) -> str | None:
