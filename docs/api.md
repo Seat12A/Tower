@@ -100,6 +100,16 @@ Détail des corps, quotas et erreurs : [ingestion.md](ingestion.md).
 | POST | `/v1/watched-accounts` | `watchlist:write` (`201`) ; `external_id` **ou** `handle` (un compte ajouté par pseudo est résolu par le radar) |
 | PATCH | `/v1/watched-accounts/{public_id}` | `watchlist:write` (verrou optimiste `version`) |
 
-## À venir
+## Fact-check
 
-Verdicts publics.
+Voir [fact-check.md](fact-check.md). Identifiants en chaînes ; l'identifiant d'un
+brouillon est l'identifiant public du verdict.
+
+| Méthode | Chemin | Accès |
+|---|---|---|
+| POST | `/v1/factcheck/requests` | `factcheck:request` (`202`) ; corps `{url}` ou `{platform, external_id}` ; répond `{platform, external_id, accepted, duplicate}`. Enfile `factcheck.request` (N4) |
+| GET | `/v1/drafts?status=pending&notified=&limit=&before_id=` | `dossiers:read` ; brouillons en relecture (`drafted_at` posé), du plus récent au plus ancien ; `before_id` = champ `seq` |
+| GET | `/v1/drafts/{id}` | `dossiers:read` ; brouillon complet : issue, besoin et types de contexte, confiance et bande, affirmation, contenu et lien, dossier, notes par langue (texte, fiche, origine), liens, justification avec citations (source, passage, traduction française), ce que les sources ne disent pas, points à vérifier, objection, critique, contrôles, indicateurs, sources citées, `version` |
+| POST | `/v1/drafts/{id}/review` | `{decision: accept\|edit\|reject, veracity?, note_text?, note_lang?, labels?, reason?, expected_version?}` ; `dossiers:review` (avis favorable) ou `dossiers:decide` (validation, rejet) ; répond `{outcome, draft}`. Erreurs : `TWR-FCK-007` (inconnu), `TWR-FCK-008` (déjà décidé), `TWR-FCK-009` (revue invalide), conflit de version |
+| POST | `/v1/drafts/{id}/notified` | `dossiers:read` (`204`) ; marque le brouillon comme affiché par le bot (idempotent) |
+| GET | `/v1/content/{platform}/{external_id}/verdict?lang=` | **public** ; verdicts **validés** seulement, par affirmation : texte, issue, besoin et types de contexte, date de validation, note (langue choisie : `lang` demandée si elle existe, sinon langue du post, puis `en`, puis `fr`), fiche, liens, `machine_translated` ; en-tête `Cache-Control: public, max-age=300` ; `404` `TWR-FCK-013` sans verdict validé |

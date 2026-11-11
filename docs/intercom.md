@@ -37,11 +37,13 @@ caractères** ; pour un compte suivi, le bot relit la liste (500 au plus) pour o
 | `/dossier publish id lien` | Enregistre le lien du post publié ; **la publication sur X reste manuelle** | `dossiers:publish` |
 | `/incidents list` / `resolve empreinte [note]` | Erreurs stockées | `errors:read` / `errors:manage` |
 | `/usage` | Allocation gratuite du jour, dépense du mois par portée (`global`, fournisseurs, `provider:x`) | `usage:read` |
+| `/factcheck url` | Demande de fact-check manuelle (N4) d'un post X ; répond « acceptée » ou « déjà demandée » | `factcheck:request` |
 
 `/incidents` demande le rôle `admin` (seul rôle avec `errors:*`). Les droits effectifs sont l'intersection des rôles de la personne et des scopes du
 token du bot (voir [auth.md](auth.md)). Token du bot : `dossiers:read
 dossiers:create dossiers:review dossiers:decide dossiers:publish events:read
-errors:read errors:manage watchlist:read watchlist:write usage:read`.
+errors:read errors:manage watchlist:read watchlist:write usage:read
+factcheck:request`.
 
 ## Notifications
 
@@ -50,11 +52,42 @@ errors:read errors:manage watchlist:read watchlist:write usage:read`.
 | `incident.opened`, `incident.reopened` | `TOWER_DISCORD_CHANNEL_INCIDENTS` |
 | `budget.threshold_reached` | `TOWER_DISCORD_CHANNEL_BUDGET` |
 | `dossier.opened`, `dossier.transitioned` | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
+| `draft.ready` (brouillon de fact-check complet, avec boutons) | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
 | `watchlist.changed`, `extension_filters.published` | `TOWER_DISCORD_CHANNEL_ADMIN` |
 
 Messages courts, avec la plateforme d'origine quand l'événement en porte une, dans la
 langue `TOWER_DISCORD_LOCALE` (`fr` par défaut). Salon non configuré : notification
 ignorée. Aucun événement à haut volume : le bot ne s'abonne pas à `content.ingested`.
+
+### Brouillons de fact-check (E11)
+
+Sur `draft.ready`, le bot lit `GET /v1/drafts/{id}` et publie le brouillon (rendu pur
+dans `handlers/factcheck.py`, découpé sous les limites de Discord sans couper une URL) :
+en-tête (issue, besoin de contexte, confiance et bande, niveau), affirmation et lien du
+post, note proposée, justification avec citations (dans leur langue d'origine, avec la
+traduction française du passage pour les notifications en français) et liens, ce que
+les sources ne disent pas, points à vérifier (objection du second avis mise en avant),
+avertissements (rétrogradation, post supprimé ou modifié, budget incomplet, refus de
+modèle, citations invalides, mots chargés, remarques du critique). Puis il appelle
+`POST /v1/drafts/{id}/notified`.
+
+Boutons persistants (`fc:<action>:<id>`, `DynamicItem` enregistré au démarrage, donc
+valables après un redémarrage) :
+
+| Bouton | Effet |
+|---|---|
+| Valider | `review` `accept` |
+| Corriger | Fenêtre de saisie : issue (une des cinq valeurs, facultative), texte de la note (≤ 280 caractères hors liens, facultatif), motif → `review` `edit` ; la note corrigée est enregistrée dans la langue Discord de la personne (fr ou en) |
+| Rejeter | Fenêtre de saisie, motif obligatoire → `review` `reject` |
+
+Les droits suivent [auth.md](auth.md) : un `reviewer` qui valide ou corrige enregistre un
+avis favorable, un `editor` valide le verdict. Les boutons disparaissent une fois le
+brouillon validé ou rejeté. Réponses éphémères, dans la langue Discord de la personne.
+
+**Réconciliation au démarrage** : avant de lire le flux, le bot affiche les brouillons en
+attente non encore affichés (`GET /v1/drafts?status=pending&notified=false`, paginé). Cela
+couvre aussi la limite du notificateur (événements manqués au tout premier démarrage).
+Un `draft.ready` rejoué pour un brouillon déjà affiché ou déjà décidé est ignoré.
 
 ### Reprise sans perte
 
