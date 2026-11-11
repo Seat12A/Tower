@@ -56,9 +56,9 @@ Une base de code, une image Docker, plusieurs processus (services Railway) :
 | `tower gate` | API FastAPI (site, extension, bot), flux SSE d'événements |
 | `tower hangar` | Worker générique : jobs et abonnements des services activés |
 | `tower intercom` | Bot Discord interne, client de gate uniquement |
+| `tower migrate` | Migrations (pre-deploy Railway du service gate) |
 
 La surveillance de X est le **service hangar `radar`** (pas un processus dédié : RAM).
-| `tower migrate` | Migrations (pre-deploy Railway du service gate) |
 
 PostgreSQL est la seule infrastructure : données, outbox + LISTEN/NOTIFY, file de jobs
 (`SKIP LOCKED`), advisory locks, erreurs. Détails : `docs/architecture.md`.
