@@ -12,17 +12,20 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from datetime import datetime
 from typing import Annotated
 
 import orjson
 from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
 from tower.core.domain.security import Permission
 from tower.core.events.channels import EVENTS
 from tower.core.events.outbox import Cursor, read_events
-from tower.gate.deps import ActorDep, DbDep
+from tower.core.usecases import event_cursors as cursors_uc
+from tower.gate.deps import ActorDep, DbDep, ReadSession, WriteSession
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
 
@@ -33,6 +36,33 @@ _LATEST = text(
     ORDER BY xid DESC, id DESC LIMIT 1
     """
 )
+
+
+class CursorOut(BaseModel):
+    name: str
+    cursor: str | None
+    updated_at: datetime | None
+
+
+class CursorIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cursor: str = Field(max_length=64)
+
+
+@router.get("/cursors/{name}", response_model=CursorOut)
+async def get_cursor(name: str, actor: ActorDep, session: ReadSession) -> CursorOut:
+    """Stored SSE position of a service client (null when never stored)."""
+    c = await cursors_uc.get_client_cursor(session, actor, name)
+    return CursorOut(name=c.name, cursor=c.cursor, updated_at=c.updated_at)
+
+
+@router.put("/cursors/{name}", response_model=CursorOut)
+async def put_cursor(
+    name: str, body: CursorIn, actor: ActorDep, session: WriteSession
+) -> CursorOut:
+    """Store the SSE position of a service client (resume without loss)."""
+    c = await cursors_uc.set_client_cursor(session, actor, name, body.cursor)
+    return CursorOut(name=c.name, cursor=c.cursor, updated_at=c.updated_at)
 
 
 @router.get("")

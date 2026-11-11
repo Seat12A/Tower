@@ -62,6 +62,20 @@ X, CHECK de format (`^[0-9]{1,19}$`, borne `BIGINT`) sur `external_id`.
 | `installation_daily` | PK `(day, pseudonym)`, `items`, `quota` |
 | `extension_filter_versions` | `version` (unique), `filters` JSONB, `active` (une seule active : index unique partiel), `created_by` |
 
+## Radar, réservations et comptes en attente (migration 0004)
+
+Migration **expand** uniquement.
+
+| Table / colonne | Rôle |
+|---|---|
+| `watched_accounts.next_poll_at`, `last_polled_at`, `poll_interval_s`, `last_post_at`, `consecutive_empty` | Planification adaptative du radar (voir [radar.md](radar.md)) ; index partiel `next_poll_at WHERE active`. Écrites par le radar en SQL direct, **sans** incrémenter `version` (les éditions de l'équipe ne sont pas mises en conflit par la planification) |
+| `platform_accounts.external_id` | Désormais **nullable** : compte ajouté par pseudo, en attente de résolution. CHECK `external_id IS NOT NULL OR handle IS NOT NULL` ; index unique partiel `(platform, lower(handle)) WHERE external_id IS NULL` |
+| `budget_reservations` | Réservation en cours sur un compteur de budget ou sur l'allocation gratuite : `kind` (`budget`, `free`), `scope`, `counter_id` (budget seulement, FK `ON DELETE CASCADE`), `period_start` (période du compteur ou jour UTC), `amount` (micro-dollars ou tokens), `ref`, `created_at`, `expires_at` (indexé). Supprimée au règlement ou libérée par la maintenance après expiration (voir [llm.md](llm.md#budgets)) |
+
+Les curseurs SSE des clients de service réutilisent `event_cursors` (clé
+`sse:<client>:<nom>`), sans nouvelle table. Le retour arrière (`downgrade`) supprime
+les comptes encore en attente avant de rétablir `NOT NULL`.
+
 Tables à venir : affirmations, groupes, verdicts, sources, citations, profils de
 traitement (voir [factcheck/donnees.md](factcheck/donnees.md)).
 

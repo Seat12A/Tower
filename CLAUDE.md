@@ -55,7 +55,9 @@ Une base de code, une image Docker, plusieurs processus (services Railway) :
 |---|---|
 | `tower gate` | API FastAPI (site, extension, bot), flux SSE d'événements |
 | `tower hangar` | Worker générique : jobs et abonnements des services activés |
-| `tower radar` / `tower intercom` | Surveillance X / bot Discord (à venir) |
+| `tower intercom` | Bot Discord interne, client de gate uniquement |
+
+La surveillance de X est le **service hangar `radar`** (pas un processus dédié : RAM).
 | `tower migrate` | Migrations (pre-deploy Railway du service gate) |
 
 PostgreSQL est la seule infrastructure : données, outbox + LISTEN/NOTIFY, file de jobs
@@ -66,6 +68,7 @@ src/tower/core/domain     PUR (stdlib uniquement) : règles métier, sécurité,
 src/tower/core/usecases   seule porte d'entrée pour modifier l'état métier
 src/tower/core/{db,models,events,jobs,errors,auth,services,ports}
 src/tower/gate            HTTP      src/tower/hangar   worker
+src/tower/intercom        bot Discord (client de gate, discord.py seulement dans app.py)
 src/tower/services/<nom>  services enfichables (modèle : services/ping)
 src/tower/migrations      Alembic (livré dans le paquet)
 ```

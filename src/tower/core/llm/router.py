@@ -12,15 +12,23 @@ import math
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from tower.core.budget import (
+    BudgetHold,
+    BudgetRefused,
+    FreeHold,
+    reserve_budget,
+    reserve_free,
+    settle_budget,
+    settle_free,
+)
 from tower.core.db.database import Database
 from tower.core.domain import error_codes as ec
 from tower.core.domain.llm import (
@@ -31,13 +39,11 @@ from tower.core.domain.llm import (
     TokenUsage,
     cache_key,
     cost_usd_micros,
-    crossed_thresholds,
     estimate_usage,
     free_allowance,
     month_period,
 )
 from tower.core.errors import capture
-from tower.core.events.outbox import publish
 from tower.core.llm.errors import (
     AllRefused,
     BudgetExhausted,
@@ -75,64 +81,6 @@ _SHARED_KEY = "openai_shared"
 _PLAIN_OPENAI_KEY = "openai"
 _ANTHROPIC_KEY = "anthropic"
 
-_ENSURE_COUNTER = text(
-    """
-    INSERT INTO budget_counters (scope, period_start, period_end, cap_usd_micros)
-    SELECT scope, CAST(:ps AS date), CAST(:pe AS date), cap_usd_micros
-    FROM budget_counters
-    WHERE scope = :scope AND period_start < CAST(:ps AS date)
-    ORDER BY period_start DESC LIMIT 1
-    ON CONFLICT (scope, period_start) DO NOTHING
-    """
-)
-_RESERVE_BUDGET = text(
-    """
-    UPDATE budget_counters
-    SET reserved_usd_micros = reserved_usd_micros + :est, updated_at = now()
-    WHERE scope = :scope AND period_start = CAST(:ps AS date)
-      AND spent_usd_micros + reserved_usd_micros + :est <= cap_usd_micros
-    RETURNING id
-    """
-)
-_COUNTER_EXISTS = text(
-    "SELECT 1 FROM budget_counters WHERE scope = :scope AND period_start = CAST(:ps AS date)"
-)
-_SETTLE_BUDGET = text(
-    """
-    UPDATE budget_counters
-    SET spent_usd_micros = spent_usd_micros + :actual,
-        reserved_usd_micros = GREATEST(reserved_usd_micros - :est, 0),
-        updated_at = now()
-    WHERE id = :id
-    RETURNING spent_usd_micros, cap_usd_micros
-    """
-)
-_MARK_THRESHOLD = text(
-    """
-    UPDATE budget_counters
-    SET thresholds_notified = array_append(thresholds_notified, CAST(:t AS smallint))
-    WHERE id = :id AND NOT (CAST(:t AS smallint) = ANY(thresholds_notified))
-    RETURNING id
-    """
-)
-_RESERVE_FREE = text(
-    """
-    INSERT INTO llm_free_usage (provider, free_group, day, tokens)
-    SELECT CAST(:provider AS text), CAST(:grp AS text), CAST(:day AS date), CAST(:est AS bigint)
-    WHERE CAST(:need AS bigint) <= CAST(:allowance AS bigint)
-    ON CONFLICT (provider, free_group, day) DO UPDATE
-    SET tokens = llm_free_usage.tokens + EXCLUDED.tokens
-    WHERE llm_free_usage.tokens + CAST(:need AS bigint) <= CAST(:allowance AS bigint)
-    RETURNING tokens
-    """
-)
-_SETTLE_FREE = text(
-    """
-    UPDATE llm_free_usage SET tokens = GREATEST(tokens + :delta, 0)
-    WHERE provider = :provider AND free_group = :grp AND day = CAST(:day AS date)
-    """
-)
-
 
 @dataclass(frozen=True, slots=True)
 class _Candidate:
@@ -160,19 +108,9 @@ class _Call:
 
 
 @dataclass(frozen=True, slots=True)
-class _BudgetHold:
-    counter_id: int
-    scope: str
-    period_start: date
-
-
-@dataclass(frozen=True, slots=True)
 class _Reservation:
-    estimate_cost: int = 0
-    budget: tuple[_BudgetHold, ...] = ()
-    free_group: str | None = None
-    free_day: date | None = None
-    free_estimate: int = 0
+    budget: tuple[BudgetHold, ...] = ()
+    free: FreeHold | None = None
 
 
 class _Skip(Exception):
@@ -205,6 +143,7 @@ class LLMRouter:
         usage_tier: int = 1,
         free_margin: float = 0.10,
         clock: Clock | None = None,
+        reservation_ttl_s: int = 1800,
     ) -> None:
         self._db = db
         self._providers = providers
@@ -212,6 +151,7 @@ class LLMRouter:
         self._tier = usage_tier
         self._margin = Decimal(str(free_margin))
         self._clock: Clock = clock or SystemClock()
+        self._ttl_s = reservation_ttl_s
         self._warned_unbudgeted = False
 
     # ------------------------------------------------------------------ public
@@ -412,10 +352,10 @@ class LLMRouter:
         estimate = estimate_usage(call.estimate_chars, request.max_output_tokens)
         free = cand.free_group is not None and key_name == _SHARED_KEY
         if free:
-            reservation = await self._reserve_free(cand, estimate.total)
+            reservation = await self._reserve_free(cand, estimate.total, f"llm:{request.role}")
         else:
             reservation = await self._reserve_budget(
-                cand, cost_usd_micros(estimate, cand.prices), request.budget_scope
+                cost_usd_micros(estimate, cand.prices), request.budget_scope, f"llm:{request.role}"
             )
 
         started = time.monotonic()
@@ -513,62 +453,53 @@ class LLMRouter:
 
     # ------------------------------------------------------------- reservations
 
-    async def _reserve_free(self, cand: _Candidate, estimate: int) -> _Reservation:
+    async def _reserve_free(self, cand: _Candidate, estimate: int, ref: str) -> _Reservation:
         if cand.free_group is None:
             raise _Skip("free")
         group = FreeGroup(cand.free_group)
-        allowance = free_allowance(self._tier, group)
-        need = math.ceil(Decimal(estimate) * (1 + self._margin))
-        day = self._clock.now().astimezone(UTC).date()
-        async with self._db.transaction() as session:
-            reserved = (
-                await session.execute(
-                    _RESERVE_FREE,
-                    {
-                        "provider": _FREE_PROVIDER,
-                        "grp": group.value,
-                        "day": day,
-                        "est": estimate,
-                        "need": need,
-                        "allowance": allowance,
-                    },
-                )
-            ).first()
-        if reserved is None:
+        now = self._clock.now()
+        hold = await reserve_free(
+            self._db,
+            provider=_FREE_PROVIDER,
+            free_group=group.value,
+            day=now.astimezone(UTC).date(),
+            tokens=estimate,
+            need=math.ceil(Decimal(estimate) * (1 + self._margin)),
+            allowance=free_allowance(self._tier, group),
+            ref=ref,
+            now=now,
+            ttl_s=self._ttl_s,
+        )
+        if hold is None:
             raise _Skip("free")
-        return _Reservation(free_group=group.value, free_day=day, free_estimate=estimate)
+        return _Reservation(free=hold)
 
-    async def _reserve_budget(self, cand: _Candidate, estimate: int, scope: str) -> _Reservation:
+    async def _reserve_budget(self, estimate: int, scope: str, ref: str) -> _Reservation:
         """Reserve in ``global`` and the request scope in ONE transaction (all or nothing).
 
         A scope with no counter at all is not capped. That includes ``global``: a
         database never seeded (``tower llm seed``) runs unbudgeted, with one warning.
         """
-        start, end = month_period(self._clock.now())
-        scopes = sorted({GLOBAL_SCOPE, scope})  # fixed order: no deadlock between replicas
-        holds: list[_BudgetHold] = []
+        now = self._clock.now()
         try:
-            async with self._db.transaction() as session:
-                for name in scopes:
-                    params = {"scope": name, "ps": start, "pe": end}
-                    await session.execute(_ENSURE_COUNTER, params)
-                    counter_id = (
-                        await session.execute(_RESERVE_BUDGET, {**params, "est": estimate})
-                    ).scalar_one_or_none()
-                    if counter_id is not None:
-                        holds.append(_BudgetHold(counter_id, name, start))
-                        continue
-                    exists = (await session.execute(_COUNTER_EXISTS, params)).first()
-                    if exists is None:
-                        if name == GLOBAL_SCOPE and not self._warned_unbudgeted:
-                            self._warned_unbudgeted = True
-                            log.warning("llm.global_budget_missing", period_start=start.isoformat())
-                        continue
-                    # Raising rolls back every reservation made so far.
-                    raise BudgetExhausted(name, datetime.combine(end, datetime.min.time(), UTC))
-        except BudgetExhausted as exc:
-            raise _Skip("budget", exc) from exc
-        return _Reservation(estimate_cost=estimate, budget=tuple(holds))
+            holds = await reserve_budget(
+                self._db,
+                (GLOBAL_SCOPE, scope),
+                estimate,
+                ref=ref,
+                now=now,
+                ttl_s=self._ttl_s,
+            )
+        except BudgetRefused as exc:
+            raise _Skip("budget", BudgetExhausted(exc.scope, exc.retry_at)) from exc
+        if (
+            estimate > 0
+            and not any(h.scope == GLOBAL_SCOPE for h in holds)
+            and not self._warned_unbudgeted
+        ):
+            self._warned_unbudgeted = True
+            log.warning("llm.global_budget_missing", period_start=month_period(now)[0].isoformat())
+        return _Reservation(budget=holds)
 
     # --------------------------------------------------------------- settlement
 
@@ -586,7 +517,7 @@ class LLMRouter:
         latency_ms: int,
     ) -> int:
         """Record the attempt, charge the real cost, release the reservation. Returns cost."""
-        free = reservation.free_group is not None
+        free = reservation.free is not None
         cost = 0 if free else cost_usd_micros(usage, cand.prices)
         values = {
             "cache_key": cand.key,
@@ -618,18 +549,10 @@ class LLMRouter:
                 )
             await session.execute(insert)
 
-            if free and reservation.free_day is not None:
-                await session.execute(
-                    _SETTLE_FREE,
-                    {
-                        "delta": usage.total - reservation.free_estimate,
-                        "provider": _FREE_PROVIDER,
-                        "grp": reservation.free_group,
-                        "day": reservation.free_day,
-                    },
-                )
-            for hold in reservation.budget:
-                await self._settle_budget(session, hold, reservation.estimate_cost, cost)
+            if reservation.free is not None:
+                await settle_free(session, reservation.free, usage.total)
+            if reservation.budget:
+                await settle_budget(session, reservation.budget, cost, actor=_ACTOR)
 
         log.info(
             "llm.call",
@@ -640,33 +563,3 @@ class LLMRouter:
             cache_hit=False,
         )
         return cost
-
-    @staticmethod
-    async def _settle_budget(
-        session: AsyncSession, hold: _BudgetHold, estimate: int, actual: int
-    ) -> None:
-        row = (
-            await session.execute(
-                _SETTLE_BUDGET, {"id": hold.counter_id, "est": estimate, "actual": actual}
-            )
-        ).one()
-        spent_after, cap = int(row[0]), int(row[1])
-        for threshold in crossed_thresholds(spent_after - actual, spent_after, cap):
-            marked = (
-                await session.execute(_MARK_THRESHOLD, {"id": hold.counter_id, "t": threshold})
-            ).first()
-            if marked is not None:
-                await publish(
-                    session,
-                    "budget.threshold_reached",
-                    {
-                        "scope": hold.scope,
-                        "period_start": hold.period_start.isoformat(),
-                        "threshold_pct": threshold,
-                        "spent_usd_micros": spent_after,
-                        "cap_usd_micros": cap,
-                    },
-                    aggregate_type="budget",
-                    aggregate_id=hold.scope,
-                    actor=_ACTOR,
-                )

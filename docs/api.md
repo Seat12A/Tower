@@ -57,6 +57,28 @@ event: dossier.transitioned
 data: {"id":"1300-42","topic":"dossier.transitioned","aggregate_type":"dossier",...}
 ```
 
+### Curseurs stockés (clients de service)
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| GET | `/v1/events/cursors/{nom}` → `{name, cursor, updated_at}` (`cursor` nul si jamais stocké) | `events:read`, client de service ou membre via un service |
+| PUT | `/v1/events/cursors/{nom}` `{cursor: "<xid>-<id>"}` → idem | idem |
+
+Erreurs : `TWR-EVT-003` (nom invalide), `TWR-EVT-001` (curseur invalide). Voir
+[events.md](events.md#curseurs-stockés-des-clients-de-service).
+
+## Usage et budgets
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| GET | `/v1/llm/usage` | `usage:read` (`editor`, `admin`) |
+
+Réponse : `{day, usage_tier, free: [{provider, free_group, used_tokens,
+allowance_tokens}], period_start, period_end, scopes: [{scope, spent_usd_micros,
+reserved_usd_micros, cap_usd_micros}]}`. Même source que `tower llm usage`
+(`core/llm/usage.py`). Les portées incluent `global`, les portées de fournisseur et
+`provider:x` (radar).
+
 ## Erreurs stockées
 
 | Méthode | Chemin | Permission |
@@ -75,7 +97,7 @@ Détail des corps, quotas et erreurs : [ingestion.md](ingestion.md).
 | POST | `/v1/ingest/observations` | `X-Installation-Token` ou `content:ingest` ; réponse `202` avec compteurs |
 | GET | `/v1/ingest/config` | public (`ETag`, `If-None-Match` → `304`) |
 | GET | `/v1/watched-accounts?active=&platform=&limit=&offset=` | `watchlist:read` |
-| POST | `/v1/watched-accounts` | `watchlist:write` (`201`) |
+| POST | `/v1/watched-accounts` | `watchlist:write` (`201`) ; `external_id` **ou** `handle` (un compte ajouté par pseudo est résolu par le radar) |
 | PATCH | `/v1/watched-accounts/{public_id}` | `watchlist:write` (verrou optimiste `version`) |
 
 ## À venir

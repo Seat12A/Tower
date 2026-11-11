@@ -6,10 +6,12 @@ import asyncio
 import contextlib
 import time
 from collections.abc import Awaitable, Callable, Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tower.core.budget import release_expired
 from tower.core.config import Settings
 from tower.core.db.database import Database
 from tower.core.domain import error_codes as ec
@@ -57,6 +59,16 @@ async def run_maintenance(
             capture(ec.JOB_LEASE_EXPIRED, message=f"{count} job(s) recovered", jobs=count)
         return count
 
+    async def release(session: AsyncSession) -> int:
+        count = await release_expired(session, datetime.now(UTC))
+        if count:
+            capture(
+                ec.MNT_RESERVATIONS_RELEASED,
+                message=f"{count} reservation(s) released",
+                reservations=count,
+            )
+        return count
+
     async def purge(session: AsyncSession) -> int:
         jobs = await q.purge(session, older_than_days=settings.job_retention_days)
         events = await session.execute(_PURGE_EVENTS, {"days": settings.event_retention_days})
@@ -67,6 +79,7 @@ async def run_maintenance(
 
     schedule: list[tuple[str, float, Callable[[AsyncSession], Awaitable[int]]]] = [
         ("tower:jobs:reap", 30.0, reap),
+        ("tower:budget:release", 60.0, release),
         ("tower:retention:purge", 3600.0, purge),
         *extra,
     ]

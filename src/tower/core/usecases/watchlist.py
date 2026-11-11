@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -92,40 +93,91 @@ async def list_watched_accounts(
     return [(w, a) for w, a in (await session.execute(stmt)).all()]
 
 
+_X_HANDLE = re.compile(r"^[A-Za-z0-9_]{1,15}$")
+
+
+async def _account_by_handle(session: AsyncSession, platform: str, handle: str) -> PlatformAccount:
+    """Account of ``handle``: a resolved one if known, else the (created) pending one."""
+    lowered = func.lower(PlatformAccount.handle) == handle.lower()
+    known = await session.scalar(
+        select(PlatformAccount)
+        .where(
+            PlatformAccount.platform == platform,
+            lowered,
+            PlatformAccount.external_id.is_not(None),
+        )
+        .order_by(PlatformAccount.id)
+        .limit(1)
+    )
+    if known is not None:
+        return known
+    await session.execute(
+        insert(PlatformAccount)
+        .values(platform=platform, external_id=None, handle=handle)
+        .on_conflict_do_nothing(
+            index_elements=[PlatformAccount.platform, func.lower(PlatformAccount.handle)],
+            index_where=PlatformAccount.external_id.is_(None),
+        )
+    )
+    return (
+        await session.execute(
+            select(PlatformAccount).where(
+                PlatformAccount.platform == platform,
+                lowered,
+                PlatformAccount.external_id.is_(None),
+            )
+        )
+    ).scalar_one()
+
+
 async def add_watched_account(
     session: AsyncSession,
     actor: Actor,
     *,
     platform: str,
-    external_id: str,
+    external_id: str | None = None,
     handle: str | None = None,
     category: str,
     priority: int = 0,
     note: str | None = None,
 ) -> tuple[WatchedAccount, PlatformAccount]:
+    """Watch an account by native id, or by handle alone (pending until the radar
+    resolves the id with ``resolve_watched_account``)."""
     actor.require(Permission.WATCHLIST_WRITE)
     plat = parse_platform(platform)
-    validate_external_id(plat, external_id)
+    handle = _handle(handle)
+    if external_id is None and handle is None:
+        raise InvalidInput(
+            "external_id or handle is required", code=ec.ING_BAD_EXTERNAL_ID, platform=plat.value
+        )
+    if external_id is not None:
+        validate_external_id(plat, external_id)
+    elif handle is not None and plat.value == "x" and not _X_HANDLE.fullmatch(handle):
+        raise InvalidInput("Invalid X handle", code=ec.ING_BAD_EXTERNAL_ID, handle=handle[:64])
     category = _category(category)
     priority = _priority(priority)
-    handle = _handle(handle)
     note = _note(note)
 
-    stmt = insert(PlatformAccount).values(
-        platform=plat.value, external_id=external_id, handle=handle
-    )
-    account = (
-        await session.execute(
-            stmt.on_conflict_do_update(
-                index_elements=[PlatformAccount.platform, PlatformAccount.external_id],
-                set_={
-                    "handle": func.coalesce(stmt.excluded.handle, PlatformAccount.handle),
-                    "updated_at": func.now(),
-                },
-            ).returning(PlatformAccount)
+    if external_id is not None:
+        stmt = insert(PlatformAccount).values(
+            platform=plat.value, external_id=external_id, handle=handle
         )
-    ).scalar_one()
-    await session.refresh(account)
+        account = (
+            await session.execute(
+                stmt.on_conflict_do_update(
+                    index_elements=[PlatformAccount.platform, PlatformAccount.external_id],
+                    set_={
+                        "handle": func.coalesce(stmt.excluded.handle, PlatformAccount.handle),
+                        "updated_at": func.now(),
+                    },
+                ).returning(PlatformAccount)
+            )
+        ).scalar_one()
+        await session.refresh(account)
+    elif handle is not None:
+        account = await _account_by_handle(session, plat.value, handle)
+    else:  # unreachable: checked above
+        raise InvalidInput("external_id or handle is required", code=ec.ING_BAD_EXTERNAL_ID)
 
     existing = await session.scalar(
         select(WatchedAccount.id).where(WatchedAccount.account_id == account.id)
@@ -134,7 +186,8 @@ async def add_watched_account(
         "Account is already on the watchlist",
         code=ec.ING_WATCHED_EXISTS,
         platform=plat.value,
-        external_id=external_id,
+        external_id=account.external_id,
+        handle=account.handle,
     )
     if existing is not None:
         raise exists
@@ -162,6 +215,97 @@ async def add_watched_account(
         )
     )
     await _publish(session, actor, "added", watched, payload)
+    return watched, account
+
+
+async def resolve_watched_account(
+    session: AsyncSession,
+    actor: Actor,
+    *,
+    watched_public_id: str,
+    external_id: str,
+    handle: str | None,
+) -> tuple[WatchedAccount, PlatformAccount]:
+    """Attach the native id found by the radar to an account added by handle."""
+    actor.require(Permission.WATCHLIST_WRITE)
+    try:
+        public_id = uuid.UUID(watched_public_id)
+    except ValueError:
+        raise NotFound(
+            "Watched account not found",
+            code=ec.ING_WATCHED_NOT_FOUND,
+            public_id=str(watched_public_id)[:64],
+        ) from None
+    row = (
+        await session.execute(
+            select(WatchedAccount, PlatformAccount)
+            .join(PlatformAccount, PlatformAccount.id == WatchedAccount.account_id)
+            .where(WatchedAccount.public_id == public_id)
+            .with_for_update()
+        )
+    ).first()
+    if row is None:
+        raise NotFound(
+            "Watched account not found", code=ec.ING_WATCHED_NOT_FOUND, public_id=str(public_id)
+        )
+    watched, account = row
+    if account.external_id is not None:
+        if account.external_id == external_id:
+            return watched, account
+        raise Conflict(
+            "Watched account already has a different external_id",
+            public_id=str(public_id),
+            current=account.external_id,
+        )
+    validate_external_id(account.platform, external_id)
+    new_handle = _handle(handle)
+
+    other = await session.scalar(
+        select(PlatformAccount)
+        .where(
+            PlatformAccount.platform == account.platform,
+            PlatformAccount.external_id == external_id,
+        )
+        .with_for_update()
+    )
+    if other is not None:
+        if await session.scalar(
+            select(WatchedAccount.id).where(WatchedAccount.account_id == other.id)
+        ):
+            raise Conflict(
+                "Account is already on the watchlist",
+                code=ec.ING_WATCHED_EXISTS,
+                platform=account.platform,
+                external_id=external_id,
+            )
+        pending_id = account.id
+        watched.account_id = other.id
+        if new_handle is not None:
+            other.handle = new_handle
+        other.updated_at = func.now()
+        await session.flush()
+        await session.execute(delete(PlatformAccount).where(PlatformAccount.id == pending_id))
+        account = other
+    else:
+        account.external_id = external_id
+        if new_handle is not None:
+            account.handle = new_handle
+        account.updated_at = func.now()
+        await session.flush()
+    watched.updated_at = func.now()
+    await session.flush()
+    await session.refresh(watched)
+    await session.refresh(account)
+    payload = watched_account_payload(watched, account)
+    session.add(
+        WatchedAccountEvent(
+            watched_account_id=watched.id,
+            action="resolved",
+            actor=actor.label,
+            changes={"external_id": account.external_id, "handle": account.handle},
+        )
+    )
+    await _publish(session, actor, "resolved", watched, payload)
     return watched, account
 
 

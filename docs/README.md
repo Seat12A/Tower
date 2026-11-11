@@ -23,6 +23,8 @@ modération.
 | [api.md](api.md) | Référence de l'API HTTP (gate) |
 | [llm.md](llm.md) | Routeur de modèles : routes, cache de contenu, budgets, allocation gratuite, prompts, adaptateurs |
 | [ingestion.md](ingestion.md) | Ingestion multi-plateforme : API de l'extension, quotas, vie privée, partitions, copies, liste de suivi |
+| [radar.md](radar.md) | Radar : lecture des comptes suivis par l'API X, planification adaptative, coûts, vérifications de l'API |
+| [intercom.md](intercom.md) | Bot Discord : commandes, notifications, reprise du flux, langues, RAM |
 | [deployment-railway.md](deployment-railway.md) | Déploiement et exploitation sur Railway |
 | [development.md](development.md) | Environnement local, tests, commandes |
 | [decisions.md](decisions.md) | Journal des décisions (retenues et écartées) |

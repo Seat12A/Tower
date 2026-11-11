@@ -167,4 +167,5 @@ class PollingPlatformClient(PlatformClient, Protocol):
         since: str | None,
         max_results: int,
         pagination_token: str | None = None,
+        exclude: Sequence[str] = (),
     ) -> PollPage: ...

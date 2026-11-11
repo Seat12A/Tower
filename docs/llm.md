@@ -81,9 +81,7 @@ Détail des colonnes : [database.md](database.md).
 Tous les candidats épuisés : `TWR-LLM-004` si le dernier échec est un refus,
 `TWR-LLM-005` sinon. Chaque tentative, même échouée, est journalisée et facturée.
 
-Limites connues : un processus tué entre la réservation et le règlement laisse la
-réservation en place (pas encore de récupération automatique : à surveiller via
-`reserved_usd_micros`) ; si deux réplicas obtiennent le même succès en même temps, le
+Limites connues : si deux réplicas obtiennent le même succès en même temps, le
 second coût est bien imputé au budget mais une seule ligne `llm_calls` est gardée ; une
 sortie en cache qui ne valide plus le schéma est marquée `invalid_output` (le cache est
 libéré).
@@ -108,7 +106,33 @@ UPDATE budget_counters SET cap_usd_micros = 50000000
 WHERE scope = 'global' AND period_start = date_trunc('month', now())::date;
 ```
 
-(Une commande Discord viendra avec le bot.) Effets prévus des seuils (escalade Opus
+Ou en ligne de commande : `tower llm budget <portée> <usd>` (plafond du mois courant,
+compteur créé s'il manque). `tower llm seed` crée aussi `provider:x`
+(`TOWER_X_MONTHLY_CAP_USD`, 20 $) s'il n'existe aucun compteur pour cette portée.
+Consultation : `tower llm usage`, `GET /v1/llm/usage` et `/usage` dans Discord.
+
+### Réservations et récupération des réservations orphelines
+
+Le registre commun `core/budget.py` sert au routeur et au radar :
+
+1. `reserve_budget` : dans sa propre transaction, `reserved += estimation` sur chaque
+   portée plafonnée (tout ou rien), et une ligne `budget_reservations` par compteur
+   tenu, avec `expires_at = maintenant + TOWER_BUDGET_RESERVATION_TTL_S` (30 min).
+2. L'appel externe, sans transaction ouverte.
+3. `settle_budget` (transaction de l'appelant) : supprime les lignes de réservation ;
+   seules les lignes **réellement supprimées** rendent leur montant à `reserved`
+   (aucun double décrément si la maintenance est passée entre-temps) ; `spent +=
+   coût réel` dans tous les cas ; seuils publiés comme ci-dessous.
+
+L'allocation gratuite suit le même principe (`reserve_free`, `settle_free`, ligne
+`kind = 'free'`). La tâche de maintenance singleton `tower:budget:release` (toutes les
+60 s, dans tout hangar) supprime les réservations expirées (`FOR UPDATE SKIP LOCKED`)
+et rend leur montant ; elle journalise et stocke `TWR-MNT-002` (avertissement) quand
+elle libère quelque chose : signe qu'un processus est mort entre réservation et
+règlement.
+
+**Portées.** `global` est le budget des modèles ; le radar réserve sur `provider:x`
+seul (le coût de X ne consomme pas le budget des modèles). Effets prévus des seuils (escalade Opus
 suspendue à 80 %, etc.) : à la charge des étages du fact-check, à partir de
 l'événement et des compteurs.
 

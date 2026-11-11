@@ -180,3 +180,25 @@ Détail : [llm.md](llm.md), [ingestion.md](ingestion.md).
 | Limite par IP en mémoire par réplica, adresse = dernière entrée de `X-Forwarded-For` | Rien n'est persisté ; le quota en base reste la limite exacte |
 | Secret du jour créé à la demande par l'ingestion s'il manque, en plus de la maintenance | L'ingestion ne dépend pas du passage de la maintenance |
 | Filtres de l'extension publiés par la CLI (`tower ingest publish-filters`), une seule version active | Pas encore d'interface d'administration ; le bot pourra appeler le même cas d'usage |
+
+### Partie 2 : radar et intercom (2026-11-11)
+
+Détail : [radar.md](radar.md), [intercom.md](intercom.md), [llm.md](llm.md#budgets).
+
+| Décision | Raison |
+|---|---|
+| Radar en **service hangar** `radar`, pas en processus `tower radar` | Un processus coûte environ 70 Mo de RAM, un service hangar quelques Mo ; isolable sur un réplica dédié (`TOWER_SERVICES=radar`) |
+| Paramètres de l'API X tirés de la spécification OpenAPI officielle (v2.174) : `post.fields`, `referenced_posts`, `note_post` ; anciens noms lus aussi | Les noms ont changé depuis `tweet.fields` ; pas de clé pour vérifier en réel, les constantes sont isolées dans l'adaptateur |
+| Pas d'expansion des posts référencés pendant le polling ; contexte lu à la demande en un appel groupé | X facture chaque ressource renvoyée, `includes` compris |
+| `exclude=retweets` par défaut | Le texte d'un repost appartient à son auteur d'origine ; économie de lectures |
+| Coût réservé `max_results × prix` puis réglé au réel ; le radar réserve sur `provider:x` seul, pas sur `global` | Le budget des modèles et celui de X sont distincts ; une lecture vide ne coûte rien |
+| Radar jamais sans plafond : la planification crée `provider:x` (`TOWER_X_MONTHLY_CAP_USD`, 20 $) s'il manque | Une portée sans compteur n'est pas plafonnée ; inacceptable pour une dépense automatique |
+| Plafond quotidien = budget restant ÷ jours restants ÷ (posts attendus par lecture × prix), lectures du jour comptées sur les jobs créés depuis minuit UTC | Pas de table de comptage supplémentaire ; la réservation reste la garde stricte |
+| Bail à l'enfilage (`next_poll_at` repoussé d'un intervalle) | Un job en échec n'est pas réenfilé à chaque passage de la planification |
+| Lecture d'un compte : règlement, ingestion et planification dans **une** transaction finale | Idempotence : rejouer avant validation relit la même fenêtre (non refacturée sous 24 h), après validation ne trouve rien |
+| Colonnes de planification écrites en SQL direct, sans cas d'usage, événement ni incrément de `version` | Donnée opérationnelle dérivée ; incrémenter `version` mettrait en conflit les éditions de l'équipe |
+| Ajout par pseudo : `platform_accounts.external_id` nullable, compte « en attente », résolu par le job `radar.resolve_account` via le cas d'usage `resolve_watched_account` | gate ne doit pas appeler X ; l'abonnement reste court |
+| Registre commun des budgets `core/budget.py` et table `budget_reservations` (TTL 30 min, libération par la maintenance du socle) | Un processus tué entre réservation et règlement ne bloque plus de budget ; seul un règlement qui supprime réellement la réservation décrémente `reserved` (pas de double décrément) |
+| Curseurs SSE des clients rangés dans `event_cursors` (`sse:<client>:<nom>`), sans audit ni événement | Pas de nouvelle table ; un événement de curseur serait renvoyé dans le flux |
+| Bot : logique dans des gestionnaires purs, discord.py importé seulement par `intercom/app.py` ; notifications dans la langue `TOWER_DISCORD_LOCALE`, réponses dans la langue Discord de l'utilisateur | Testable sans Discord ; un salon est partagé, une réponse est personnelle |
+| Codes `TWR-BOT-*` seulement journalisés | Le bot n'a pas accès à la base (`error_reports`) |
