@@ -16,6 +16,15 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-AUTH-004` | Staff member unknown or inactive | 403 | warning | non | non | Add the member: tower staff <discord_id> --roles reviewer |
 | `TWR-AUTH-005` | Missing permission | 403 | info | non | non |  |
 
+## BOT : BOT
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-BOT-001` | Gate unreachable from the bot | 500 | warning | non | oui |  |
+| `TWR-BOT-002` | Event stream interrupted, resuming from the cursor | 500 | warning | non | oui |  |
+| `TWR-BOT-003` | Discord message could not be delivered | 500 | warning | non | oui |  |
+| `TWR-BOT-004` | Bot configuration missing or invalid | 500 | critical | non | non | TOWER_DISCORD_TOKEN, TOWER_GATE_URL and TOWER_GATE_TOKEN are required. |
+
 ## DB : Base de données
 
 | Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
@@ -40,6 +49,7 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 |---|---|---|---|---|---|---|
 | `TWR-EVT-001` | Invalid event cursor | 422 | info | non | non |  |
 | `TWR-EVT-002` | Event consumer failed (batch replayed) | 500 | error | oui | oui | The cursor does not advance while the batch fails: fix the handler. |
+| `TWR-EVT-003` | Invalid client cursor name (1-64 chars: a-z, 0-9, '.', '_', '-') | 422 | info | non | non |  |
 
 ## GEN : Général
 
@@ -104,6 +114,19 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
 |---|---|---|---|---|---|---|
 | `TWR-MNT-001` | Maintenance task failed | 500 | error | oui | non |  |
+| `TWR-MNT-002` | Expired budget reservations released | 500 | warning | oui | non | A process died between reserving and settling a cost; the hold was released. |
+
+## RAD : RAD
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-RAD-001` | Platform API refused the credentials (401/403) | 502 | error | oui | non | Check TOWER_X_BEARER_TOKEN and the app's access level on the developer portal. |
+| `TWR-RAD-002` | Platform API rate limit reached (429) | 503 | info | non | oui | The job waits until the reset time given by the API. |
+| `TWR-RAD-003` | Platform API unavailable (5xx, network, timeout) | 503 | warning | oui | oui |  |
+| `TWR-RAD-004` | Unexpected platform API response | 502 | error | oui | non |  |
+| `TWR-RAD-005` | Platform read budget exhausted for the period | 503 | warning | non | oui | Reads resume next period, or raise the provider:x cap. |
+| `TWR-RAD-006` | Watched account not found on the platform | 404 | warning | oui | non | Fix the handle with /watchlist edit, or deactivate the account. |
+| `TWR-RAD-007` | Platform API credentials not configured | 500 | error | oui | non | Set TOWER_X_BEARER_TOKEN on the hangar replica running radar. |
 
 ## WEB : WEB
 

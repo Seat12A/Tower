@@ -167,3 +167,31 @@ class BudgetCounter(Base):
         ARRAY(SmallInteger), server_default=text("'{}'::smallint[]")
     )
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class BudgetReservation(Base):
+    """Outstanding hold on a budget counter or the free allocation (released on settle,
+    or by maintenance once expired: a process may die between reserve and settle)."""
+
+    __tablename__ = "budget_reservations"
+    __table_args__ = (
+        CheckConstraint("kind IN ('budget', 'free')", name="kind"),
+        CheckConstraint("amount > 0", name="amount"),
+        CheckConstraint("(kind = 'budget') = (counter_id IS NOT NULL)", name="counter_for_budget"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text)
+    scope: Mapped[str] = mapped_column(Text)
+    """Budget scope (``global``, ``provider:x``...) or ``<provider>:<free_group>``."""
+    counter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("budget_counters.id", ondelete="CASCADE"), index=True
+    )
+    period_start: Mapped[date] = mapped_column(Date)
+    """Counter period, or the UTC day of the free allocation."""
+    amount: Mapped[int] = mapped_column(BigInteger)
+    """USD micros (budget) or tokens (free)."""
+    ref: Mapped[str] = mapped_column(Text)
+    """Short identifier of the call (``llm:<role>``, ``radar:poll:<id>``)."""
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(index=True)

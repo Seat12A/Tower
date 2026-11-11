@@ -74,11 +74,20 @@ class PlatformAccount(Base):
         UniqueConstraint("platform", "external_id"),
         check_in("platform", Platform, "platform"),
         CheckConstraint(X_ID_CHECK, name="x_id"),
+        CheckConstraint("external_id IS NOT NULL OR handle IS NOT NULL", name="identified"),
+        Index(
+            "uq_platform_accounts_pending_handle",
+            "platform",
+            func.lower(sa_text("handle")),
+            unique=True,
+            postgresql_where=sa_text("external_id IS NULL"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     platform: Mapped[str] = mapped_column(Text)
-    external_id: Mapped[str] = mapped_column(Text)
+    external_id: Mapped[str | None] = mapped_column(Text)
+    """Native id; NULL while an account added by handle awaits resolution (radar)."""
     handle: Mapped[str | None] = mapped_column(Text)
     entity_id: Mapped[int | None] = mapped_column(
         ForeignKey("entities.id", ondelete="SET NULL"), index=True
@@ -95,6 +104,13 @@ class WatchedAccount(Base):
         check_in("category", PublicRole, "category"),
         CheckConstraint("priority BETWEEN -100 AND 100", name="priority"),
         Index("ix_watched_accounts_active_priority", "active", "priority"),
+        Index(
+            "ix_watched_accounts_next_poll_at",
+            "next_poll_at",
+            postgresql_where=sa_text("active"),
+        ),
+        CheckConstraint("poll_interval_s IS NULL OR poll_interval_s > 0", name="poll_interval_s"),
+        CheckConstraint("consecutive_empty >= 0", name="consecutive_empty"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -108,6 +124,15 @@ class WatchedAccount(Base):
     priority: Mapped[int] = mapped_column(SmallInteger, server_default=sa_text("0"))
     since_cursor: Mapped[str | None] = mapped_column(Text)
     """Reading cursor of the radar (last native id seen)."""
+    next_poll_at: Mapped[datetime | None] = mapped_column()
+    """Next radar read; NULL = due now (new account)."""
+    last_polled_at: Mapped[datetime | None] = mapped_column()
+    poll_interval_s: Mapped[int | None] = mapped_column(Integer)
+    """Current adaptive interval (seconds)."""
+    last_post_at: Mapped[datetime | None] = mapped_column()
+    """Creation date of the newest item read by the radar."""
+    consecutive_empty: Mapped[int] = mapped_column(SmallInteger, server_default=sa_text("0"))
+    """Consecutive reads that returned nothing (exponential backoff)."""
     active: Mapped[bool] = mapped_column(server_default=sa_text("true"))
     note: Mapped[str | None] = mapped_column(Text)
     added_by: Mapped[str] = mapped_column(Text)

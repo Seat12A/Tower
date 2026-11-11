@@ -233,3 +233,8 @@ async def run_usage(settings: Settings) -> None:
             f"  {row.scope:<16} spent {_usd(row.spent_usd_micros):>10}"
             f"  reserved {_usd(row.reserved_usd_micros):>10}  cap {_usd(row.cap_usd_micros):>10}"
         )
+
+
+async def run_budget(settings: Settings, scope: str, usd: float) -> None:
+    """Set the monthly cap of ``scope`` for the current period (creates the counter)."""
+    raise NotImplementedError

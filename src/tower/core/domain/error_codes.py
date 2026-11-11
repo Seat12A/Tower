@@ -126,6 +126,12 @@ EVT_CONSUMER_FAILED = _define(
     retryable=True,
     hint="The cursor does not advance while the batch fails: fix the handler.",
 )
+EVT_BAD_CURSOR_NAME = _define(
+    "TWR-EVT-003",
+    "Invalid client cursor name (1-64 chars: a-z, 0-9, '.', '_', '-')",
+    http_status=422,
+    severity=_INFO,
+)
 
 # --- JOB: job queue -----------------------------------------------------
 JOB_UNKNOWN_KIND = _define(
@@ -188,6 +194,13 @@ DB_LISTENER_DOWN = _define(
 
 # --- MNT: maintenance ---------------------------------------------------------
 MNT_TASK_FAILED = _define("TWR-MNT-001", "Maintenance task failed", severity=_ERR, store=True)
+MNT_RESERVATIONS_RELEASED = _define(
+    "TWR-MNT-002",
+    "Expired budget reservations released",
+    severity=_WARN,
+    store=True,
+    hint="A process died between reserving and settling a cost; the hold was released.",
+)
 
 # --- INT: internal ----------------------------------------------------------------
 INT_UNEXPECTED = _define(
@@ -332,6 +345,82 @@ WEB_FETCH_FAILED = _define(
     "Fetch failed (network, timeout, too many redirects, HTTP error)",
     severity=_WARN,
     retryable=True,
+)
+
+# --- RAD: radar (official platform APIs) ---------------------------------------------
+RAD_AUTH_FAILED = _define(
+    "TWR-RAD-001",
+    "Platform API refused the credentials (401/403)",
+    http_status=502,
+    severity=_ERR,
+    store=True,
+    hint="Check TOWER_X_BEARER_TOKEN and the app's access level on the developer portal.",
+)
+RAD_RATE_LIMITED = _define(
+    "TWR-RAD-002",
+    "Platform API rate limit reached (429)",
+    http_status=503,
+    severity=_INFO,
+    retryable=True,
+    hint="The job waits until the reset time given by the API.",
+)
+RAD_UNAVAILABLE = _define(
+    "TWR-RAD-003",
+    "Platform API unavailable (5xx, network, timeout)",
+    http_status=503,
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+RAD_BAD_RESPONSE = _define(
+    "TWR-RAD-004",
+    "Unexpected platform API response",
+    http_status=502,
+    severity=_ERR,
+    store=True,
+)
+RAD_BUDGET_EXHAUSTED = _define(
+    "TWR-RAD-005",
+    "Platform read budget exhausted for the period",
+    http_status=503,
+    severity=_WARN,
+    retryable=True,
+    hint="Reads resume next period, or raise the provider:x cap.",
+)
+RAD_ACCOUNT_NOT_FOUND = _define(
+    "TWR-RAD-006",
+    "Watched account not found on the platform",
+    http_status=404,
+    severity=_WARN,
+    store=True,
+    hint="Fix the handle with /watchlist edit, or deactivate the account.",
+)
+RAD_NOT_CONFIGURED = _define(
+    "TWR-RAD-007",
+    "Platform API credentials not configured",
+    severity=_ERR,
+    store=True,
+    hint="Set TOWER_X_BEARER_TOKEN on the hangar replica running radar.",
+)
+
+# --- BOT: intercom (Discord bot; logged by the bot, which has no database) -----------
+BOT_GATE_UNREACHABLE = _define(
+    "TWR-BOT-001", "Gate unreachable from the bot", severity=_WARN, retryable=True
+)
+BOT_STREAM_INTERRUPTED = _define(
+    "TWR-BOT-002",
+    "Event stream interrupted, resuming from the cursor",
+    severity=_WARN,
+    retryable=True,
+)
+BOT_DELIVERY_FAILED = _define(
+    "TWR-BOT-003", "Discord message could not be delivered", severity=_WARN, retryable=True
+)
+BOT_BAD_CONFIG = _define(
+    "TWR-BOT-004",
+    "Bot configuration missing or invalid",
+    severity=_CRIT,
+    hint="TOWER_DISCORD_TOKEN, TOWER_GATE_URL and TOWER_GATE_TOKEN are required.",
 )
 
 

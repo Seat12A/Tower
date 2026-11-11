@@ -38,6 +38,14 @@ def cmd_hangar(_: argparse.Namespace) -> None:
     runtime.run(lambda stop: serve(settings, stop))
 
 
+def cmd_intercom(args: argparse.Namespace) -> None:
+    settings = _settings("intercom")
+    from tower.core import runtime
+    from tower.intercom.app import serve
+
+    runtime.run(lambda stop: serve(settings, stop, dry_run=args.dry_run))
+
+
 def cmd_migrate(args: argparse.Namespace) -> None:
     settings = _settings("migrate")
     from tower.core.migrations import downgrade, upgrade
@@ -83,9 +91,16 @@ def cmd_errors(args: argparse.Namespace) -> None:
 
 def cmd_llm(args: argparse.Namespace) -> None:
     settings = _settings("cli")
-    from tower.core.llm.admin import run_seed, run_usage
+    from tower.core.llm.admin import run_budget, run_seed, run_usage
 
-    asyncio.run(run_seed(settings) if args.action == "seed" else run_usage(settings))
+    if args.action == "seed":
+        asyncio.run(run_seed(settings))
+    elif args.action == "usage":
+        asyncio.run(run_usage(settings))
+    else:
+        if args.scope is None or args.usd is None:
+            raise SystemExit("usage: tower llm budget <scope> <usd>")
+        asyncio.run(run_budget(settings, args.scope, args.usd))
 
 
 def cmd_ingest(args: argparse.Namespace) -> None:
@@ -101,6 +116,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("gate", help="Public and internal API (FastAPI)").set_defaults(func=cmd_gate)
     sub.add_parser("hangar", help="Service worker").set_defaults(func=cmd_hangar)
+    p = sub.add_parser("intercom", help="Discord bot (gate client)")
+    p.add_argument("--dry-run", action="store_true", help="start without connecting to Discord")
+    p.set_defaults(func=cmd_intercom)
 
     p = sub.add_parser("migrate", help="Apply Alembic migrations")
     p.add_argument("revision", nargs="?", default="head")
@@ -127,8 +145,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--markdown", action="store_true", help="(catalog) Markdown output")
     p.set_defaults(func=cmd_errors)
 
-    p = sub.add_parser("llm", help="Model router: seed models, routes and budget; usage")
-    p.add_argument("action", choices=["seed", "usage"])
+    p = sub.add_parser("llm", help="Model router: seed models, routes and budgets; usage")
+    p.add_argument("action", choices=["seed", "usage", "budget"])
+    p.add_argument("scope", nargs="?", help="(budget) e.g. global, provider:x")
+    p.add_argument("usd", nargs="?", type=float, help="(budget) monthly cap in USD")
     p.set_defaults(func=cmd_llm)
 
     p = sub.add_parser("ingest", help="Ingestion administration")
