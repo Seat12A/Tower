@@ -405,12 +405,18 @@ def test_service_is_declared_and_valid(settings: Settings) -> None:
         names.JOB_REQUEST,
         names.JOB_ASSEMBLE,
         names.JOB_TRANSLATE,
+        names.JOB_EMBED_BATCH,
+        names.JOB_REVALIDATE,
+        names.JOB_INSEE_REFRESH,
     }
     assert {p.name for p in service.services[0].periodic} == {
         "factcheck:drain_quota",
         "factcheck:purge_source_cache",
+        "factcheck:embedding_partitions",
+        "factcheck:expire",
+        "factcheck:reference_feed",
     }
-    assert service.queues == [names.FC_FAST]
+    assert sorted(service.queues) == sorted([names.FC_FAST, names.FC_BULK])
     service.validate(lease_seconds=settings.job_lease_seconds * 10)
 
 

@@ -117,6 +117,32 @@ def cmd_factcheck(args: argparse.Namespace) -> None:
 
         asyncio.run(run_seed_registry(settings))
         return
+    if args.action == "train-router":
+        from tower.core.factcheck.training import run_train
+
+        code = asyncio.run(
+            run_train(
+                settings,
+                days=args.days,
+                min_samples=args.min_samples,
+                holdout=args.holdout,
+                per_stratum_cap=args.per_stratum_cap,
+                seed=args.seed,
+                dry_run=args.dry_run,
+            )
+        )
+        if code:
+            raise SystemExit(code)
+        return
+    if args.action == "activate-router":
+        from tower.core.factcheck.training import run_activate
+
+        code = asyncio.run(
+            run_activate(settings, version=args.version, force=args.force, reason=args.reason)
+        )
+        if code:
+            raise SystemExit(code)
+        return
     from tower.services.investigate.evaluation import run_command
 
     code = asyncio.run(
@@ -192,6 +218,19 @@ def build_parser() -> argparse.ArgumentParser:
     pe.set_defaults(func=cmd_factcheck)
     ps = fsub.add_parser("seed-registry", help="Seed the source registry")
     ps.set_defaults(func=cmd_factcheck)
+    pt = fsub.add_parser("train-router", help="Train the E1 router (inactive model, offline)")
+    pt.add_argument("--days", type=int, default=14, metavar="N", help="window of embeddings")
+    pt.add_argument("--min-samples", type=int, default=200, metavar="N")
+    pt.add_argument("--holdout", type=float, default=0.2, metavar="FRACTION")
+    pt.add_argument("--per-stratum-cap", type=int, default=2000, metavar="N")
+    pt.add_argument("--seed", type=int, default=0)
+    pt.add_argument("--dry-run", action="store_true", help="print the metrics only")
+    pt.set_defaults(func=cmd_factcheck)
+    pa = fsub.add_parser("activate-router", help="Activate a trained E1 router model")
+    pa.add_argument("--version", type=int, required=True)
+    pa.add_argument("--force", action="store_true", help="ignore the held-out recall target")
+    pa.add_argument("--reason", required=True)
+    pa.set_defaults(func=cmd_factcheck)
     return parser
 
 

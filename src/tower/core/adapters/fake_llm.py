@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
+import unicodedata
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
@@ -16,7 +18,7 @@ from tower.core.domain.llm import TokenUsage
 from tower.core.logging import get_logger
 from tower.core.ports.llm import ProviderInvalidOutput, ProviderResponse
 
-__all__ = ["FakeLLMProvider"]
+__all__ = ["FakeEmbedder", "FakeLLMProvider"]
 
 log = get_logger(__name__)
 
@@ -352,3 +354,59 @@ _BUILDERS: dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]] = {
     "CriticOutput": _critic,
     "TranslateOutput": _translate,
 }
+
+
+# ------------------------------------------------------------------- fake embeddings
+
+_EMBED_DIMS = 512
+_EMBED_MODEL = "fake-embedding-512"
+
+
+def _strip_accents(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+class FakeEmbedder:
+    """Deterministic embedder for tests and ``TOWER_LLM_FAKE=1`` (no network).
+
+    Features: accent-stripped, casefolded word unigrams (weight 1.0) and character
+    trigrams of each word (weight 0.5), hashed to 512 signed buckets, L2-normalized.
+    """
+
+    model = _EMBED_MODEL
+    version = _EMBED_MODEL
+
+    def __init__(self) -> None:
+        self.calls: list[int] = []
+        """Size of each ``embed`` call (tests)."""
+
+    @staticmethod
+    def _bucket(feature: str) -> tuple[int, float]:
+        digest = hashlib.blake2b(feature.encode("utf-8"), digest_size=8).digest()
+        number = int.from_bytes(digest, "big")
+        return number % _EMBED_DIMS, 1.0 if (number >> 63) & 1 else -1.0
+
+    def _vector(self, text: str) -> list[float]:
+        words = re.findall(r"\w+", _strip_accents(text))
+        vec = [0.0] * _EMBED_DIMS
+        for word in words:
+            idx, sign = self._bucket("w:" + word)
+            vec[idx] += sign
+            padded = f"^{word}$"
+            for i in range(len(padded) - 2):
+                idx, sign = self._bucket("t:" + padded[i : i + 3])
+                vec[idx] += 0.5 * sign
+        norm = math.sqrt(math.fsum(v * v for v in vec))
+        if norm == 0.0:
+            vec = [0.0] * _EMBED_DIMS
+            vec[0] = 1.0
+        else:
+            vec = [v / norm for v in vec]
+        return vec
+
+    async def embed(self, texts: Sequence[str], *, dimensions: int) -> list[list[float]]:
+        if dimensions != _EMBED_DIMS:
+            raise ValueError(f"fake embedder only produces {_EMBED_DIMS} dimensions")
+        self.calls.append(len(texts))
+        return [self._vector(t) for t in texts]
