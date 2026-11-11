@@ -64,3 +64,12 @@ réponse :
   symétrie), `evaluation.md` (cas de négation de faits établis et cas réellement
   débattus), `donnees.md`, `connaissances.md`, `pipeline.md` (lexique),
   `docs/decisions.md`.
+
+## Complément : prompt d'implémentation de la partie 1
+
+- `docs/factcheck/prompts/partie-1-fondations-ingestion.md` : prompt autonome pour une
+  session Claude Code (Opus 5.5) qui orchestre des sous-agents Claude Sonnet 5.5 sur
+  les lots 1 (fondations : ports, adaptateurs, routeur de modèles, budgets) et 2
+  (ingestion générique multi-plateforme), avec exigences de RAM, de langues, de
+  scalabilité et de documentation, découpage en sous-agents et vérifications.
+- Fusion de la branche du plan dans `main` à la demande de Jules.

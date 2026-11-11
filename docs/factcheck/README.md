@@ -113,6 +113,7 @@ par des critères fermés et un registre publié. Voir [objectivite.md](objectiv
 | [questions.md](questions.md) | Questions pour Jules |
 | [questions-fable.md](questions-fable.md) | Brief et questions d'architecture soumis à Fable |
 | [reponses-fable.md](reponses-fable.md) | Réponses de Fable (2026-11-10), archivées |
+| [prompts/partie-1-fondations-ingestion.md](prompts/partie-1-fondations-ingestion.md) | Prompt d'implémentation de la partie 1 (fondations et ingestion) pour une session Claude Code |
 | [recherche.md](recherche.md) | Sources consultées, ce qu'on en retient, dates de vérification |
 
 ## Écarts avec le plan de Fable
