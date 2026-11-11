@@ -16,6 +16,7 @@ from tower.core.errors import capture
 from tower.core.logging import get_logger
 from tower.intercom.gate_client import GateClient
 from tower.intercom.handlers import Reply
+from tower.intercom.handlers import factcheck as fc
 from tower.intercom.i18n import locale_of, t
 from tower.intercom.notifier import Notifier
 
@@ -105,8 +106,12 @@ def _build_client(
         tree: app_commands.CommandTree
         notifier: Notifier
         notifier_task: asyncio.Task[None] | None = None
+        draft_item: Any = None
 
         async def setup_hook(self) -> None:
+            if self.draft_item is not None:
+                # Buttons of draft messages posted before a restart keep working.
+                self.add_dynamic_items(self.draft_item)
             guild = discord.Object(settings.discord_guild_id) if settings.discord_guild_id else None
             if guild is not None:
                 self.tree.copy_global_to(guild=guild)
@@ -124,6 +129,8 @@ def _build_client(
     )
     client.tree = app_commands.CommandTree(client)
     _register_commands(client.tree, gate)
+    draft_button = _register_draft_ui(gate)
+    client.draft_item = draft_button
 
     async def send_discord(channel_key: str, text: str) -> None:
         channel_id = channel_ids.get(channel_key)
@@ -137,13 +144,160 @@ def _build_client(
     async def send_dry_run(channel_key: str, text: str) -> None:
         log.info("intercom.notification", channel=channel_key, text_length=len(text))
 
+    async def send_draft_discord(channel_key: str, parts: list[str], draft_id: str) -> bool:
+        """Post the draft parts; the three buttons go on the last message."""
+        channel_id = channel_ids.get(channel_key)
+        if not channel_id:
+            return False
+        channel = client.get_channel(channel_id) or await client.fetch_channel(channel_id)
+        if not isinstance(channel, discord.abc.Messageable):
+            raise TypeError(f"channel {channel_key} is not messageable")
+        mentions = discord.AllowedMentions.none()
+        for part in parts[:-1]:
+            await channel.send(part, allowed_mentions=mentions, suppress_embeds=True)
+        view = discord.ui.View(timeout=None)
+        for action in fc.ACTIONS:
+            view.add_item(draft_button(action, draft_id, default_locale))
+        await channel.send(parts[-1], view=view, allowed_mentions=mentions, suppress_embeds=True)
+        # The dynamic items answer clicks (also after a restart): drop this view from the
+        # in-memory store so memory stays flat and a click is not handled twice.
+        view.stop()
+        return True
+
+    async def send_draft_dry_run(channel_key: str, parts: list[str], draft_id: str) -> bool:
+        log.info("intercom.draft_notification", channel=channel_key, parts=len(parts))
+        return False
+
     client.notifier = Notifier(
         gate,
         send_dry_run if dry_run else send_discord,
         cursor_name=settings.intercom_cursor_name,
         locale=default_locale,
+        send_draft=send_draft_dry_run if dry_run else send_draft_discord,
     )
     return client
+
+
+def _register_draft_ui(gate: GateClient) -> Any:
+    """Persistent draft buttons (``fc:<action>:<draft id>``) and their modals. Return the
+    ``DynamicItem`` class: ``Intercom.setup_hook`` registers it so clicks on messages
+    posted before a restart still work."""
+    import discord
+
+    async def finish(interaction: Any, call: Callable[[str, int], Awaitable[Reply]]) -> None:
+        """Run a handler after the interaction was deferred, answer privately, and remove
+        the buttons once the draft is settled."""
+        locale = locale_of(str(interaction.locale))
+        try:
+            reply = await call(locale, interaction.user.id)
+        except Exception as exc:
+            capture(ec.INT_UNEXPECTED, exc, command="draft_review")
+            reply = Reply(
+                t(locale, "error.generic", message="Internal error", code=ec.INT_UNEXPECTED.code),
+                ephemeral=True,
+            )
+        await interaction.followup.send(reply.text, ephemeral=True)
+        if reply.final and interaction.message is not None:
+            with contextlib.suppress(Exception):
+                await interaction.message.edit(view=None)
+
+    class CorrectModal(discord.ui.Modal):
+        def __init__(self, draft_id: str, locale: str) -> None:
+            super().__init__(title=t(locale, "draft.modal.correct.title")[:45])
+            self.draft_id = draft_id
+            values = ", ".join(fc.veracity_label(locale, v) for v in fc.VERACITIES)
+            self.veracity: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                label=t(locale, "draft.modal.veracity.label")[:45],
+                placeholder=t(locale, "draft.modal.veracity.placeholder", values=values)[:100],
+                required=False,
+                max_length=40,
+            )
+            self.note: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                label=t(locale, "draft.modal.note.label")[:45],
+                style=discord.TextStyle.paragraph,
+                required=False,
+                max_length=1000,
+            )
+            self.reason: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                label=t(locale, "draft.modal.reason.label")[:45],
+                style=discord.TextStyle.paragraph,
+                required=False,
+                max_length=500,
+            )
+            for item in (self.veracity, self.note, self.reason):
+                self.add_item(item)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            await interaction.response.defer(ephemeral=True)
+            veracity, note, reason = self.veracity.value, self.note.value, self.reason.value
+            await finish(
+                interaction,
+                lambda loc, uid: fc.review_edit(
+                    gate, uid, loc, self.draft_id, veracity, note, reason
+                ),
+            )
+
+    class RejectModal(discord.ui.Modal):
+        def __init__(self, draft_id: str, locale: str) -> None:
+            super().__init__(title=t(locale, "draft.modal.reject.title")[:45])
+            self.draft_id = draft_id
+            self.reason: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                label=t(locale, "draft.modal.reject.reason")[:45],
+                style=discord.TextStyle.paragraph,
+                required=True,
+                max_length=500,
+            )
+            self.add_item(self.reason)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            await interaction.response.defer(ephemeral=True)
+            reason = self.reason.value
+            await finish(
+                interaction,
+                lambda loc, uid: fc.review_reject(gate, uid, loc, self.draft_id, reason),
+            )
+
+    styles = {
+        "validate": discord.ButtonStyle.success,
+        "correct": discord.ButtonStyle.primary,
+        "reject": discord.ButtonStyle.danger,
+    }
+
+    class DraftButton(
+        discord.ui.DynamicItem[discord.ui.Button[Any]],
+        template=r"fc:(?P<action>validate|correct|reject):(?P<draft>[0-9a-fA-F-]{36})",
+    ):
+        def __init__(self, action: str, draft_id: str, locale: str = "en") -> None:
+            super().__init__(
+                discord.ui.Button(
+                    label=t(locale, f"draft.button.{action}"),
+                    style=styles[action],
+                    custom_id=fc.custom_id(action, draft_id),
+                )
+            )
+            self.action = action
+            self.draft_id = draft_id
+
+        @classmethod
+        async def from_custom_id(
+            cls, interaction: discord.Interaction, item: Any, match: Any, /
+        ) -> Any:
+            return cls(match["action"], match["draft"])
+
+        async def callback(self, interaction: discord.Interaction) -> None:
+            locale = locale_of(str(interaction.locale))
+            if self.action == "validate":
+                await interaction.response.defer(ephemeral=True)
+                await finish(
+                    interaction, lambda loc, uid: fc.review_accept(gate, uid, loc, self.draft_id)
+                )
+            elif self.action == "correct":
+                # A modal must be the first response: no defer.
+                await interaction.response.send_modal(CorrectModal(self.draft_id, locale))
+            else:
+                await interaction.response.send_modal(RejectModal(self.draft_id, locale))
+
+    return DraftButton
 
 
 def _choices(values: type[Platform] | type[PublicRole]) -> list[Any]:
@@ -157,6 +311,7 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
     from discord import app_commands
 
     from tower.intercom.handlers import dossiers, incidents, usage, watchlist
+    from tower.intercom.handlers import factcheck as fc_handlers
 
     async def run(interaction: Any, call: HandlerCall) -> None:
         locale = locale_of(str(interaction.locale))
@@ -278,6 +433,13 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
     async def u_show(interaction: discord.Interaction) -> None:
         await run(interaction, lambda loc, uid: usage.show_usage(gate, uid, loc))
 
+    # --- /factcheck ----------------------------------------------------------------
+    @app_commands.command(name="factcheck", description="Request a fact-check of a post")
+    @app_commands.describe(url="https://x.com/<account>/status/<id>")
+    async def fc_request(interaction: discord.Interaction, url: str) -> None:
+        await run(interaction, lambda loc, uid: fc_handlers.request(gate, uid, loc, url))
+
     for group in (wl, dos, inc):
         tree.add_command(group)
     tree.add_command(u_show)
+    tree.add_command(fc_request)

@@ -52,11 +52,19 @@ src/tower/
     adapters/            adaptateurs partagés des ports (OpenAI, Anthropic, httpx),
                          SDK importés paresseusement
     llm/                 routeur de modèles, registre des prompts (voir llm.md)
+    factcheck/           contrats partagés du fact-check : schémas de sortie par rôle,
+                         entrées des modèles, noms (files, jobs, topics), signaux,
+                         accès paresseux (routeur, Atlas, plateformes)
+    adapters/knowledge/  Atlas : Wikipédia, Wikidata, Fact Check Tools, Brave,
+                         Légifrance, INSEE, cache des sources (voir fact-check.md)
     admin.py, migrations.py
   gate/                  FastAPI : app, routes, middleware, erreurs HTTP
   hangar/                worker
   services/ping/         service de démonstration (modèle à copier)
   services/ingest/       liaison des copies, maintenance des partitions et secrets
+  services/radar/        lecture des comptes suivis (API officielle de X)
+  services/factcheck/    déclenchement, extraction E2, assemblage E10, traductions
+  services/investigate/  enquêtes E6 à E9, outil d'évaluation
   migrations/            Alembic (livré dans le paquet)
 ```
 

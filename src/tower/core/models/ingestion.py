@@ -38,7 +38,7 @@ X_ID_CHECK = (
     "platform <> 'x' OR (external_id ~ '^[0-9]{1,19}$' "
     "AND external_id::numeric <= 9223372036854775807)"
 )
-OBSERVATION_SOURCES = ("extension", "radar", "feed")
+OBSERVATION_SOURCES = ("extension", "radar", "feed", "manual")
 SNAPSHOT_REASONS = ("dossier_opened", "recheck", "manual")
 MEDIA_KINDS = ("image", "video", "audio", "document")
 

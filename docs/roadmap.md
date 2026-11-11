@@ -17,6 +17,16 @@ observations partitionnées, pseudonymes d'installation du jour, configuration d
 l'extension), service `ingest` (copies, partitions, secrets). Voir [llm.md](llm.md) et
 [ingestion.md](ingestion.md).
 
+## Fait : lot 3, MVP du fact-check (2026-11-11, en développement)
+
+Comptes suivis (N3) et demandes manuelles (N4) de bout en bout : extraction E2,
+cadrage, collecte avec un Atlas minimal (Wikipédia, Wikidata, Fact Check Tools, Brave,
+Légifrance, INSEE), jugement, second avis aveugle, objection, escalade, rédaction de la
+note et contrôles déterministes, assemblage (confiance, revérification, quota),
+brouillons revus dans Discord, traductions, lecture publique du verdict validé, outil
+d'évaluation. Voir [fact-check.md](fact-check.md). **Reste** : session de validation et
+de réglage avec les clés et le jeu de référence (qualité des verdicts non mesurée).
+
 ## Prochaines étapes
 
 1. **Ingestion (suite)** : règles d'ouverture de dossier (plusieurs installations
@@ -28,8 +38,10 @@ l'extension), service `ingest` (copies, partitions, secrets). Voir [llm.md](llm.
 3. ✅ **intercom** (partie 2) : bot Discord client de gate, notifications, commandes
    `/watchlist`, `/dossier`, `/incidents`, `/usage`, reprise du flux par curseur
    stocké ([intercom.md](intercom.md)). Reste : premier lancement réel (token
-   Discord), revue des brouillons de fact-check (lot 3, E11).
-4. **Fact-check** : plan d'implémentation détaillé dans
+   Discord) ; la revue des brouillons de fact-check est livrée (lot 3).
+4. **Fact-check** : session de validation et de réglage du lot 3 (clés Anthropic,
+   OpenAI, Brave, Google, PISTE, INSEE ; au moins 50 affirmations du jeu de référence ;
+   `tower factcheck eval`), puis lot 4. Plan d'implémentation détaillé dans
    [factcheck/feuille-de-route.md](factcheck/feuille-de-route.md) (2026-11-10). Phase 0
    (jeu de référence de 300 affirmations, comptes et clés, validations juridiques),
    puis lots : fondations (routeur de modèles OpenAI et Anthropic, ports, budgets),

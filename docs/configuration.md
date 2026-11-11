@@ -68,6 +68,45 @@ Voir [ingestion.md](ingestion.md).
 | `TOWER_INGEST_DAILY_QUOTA` | `500` | Items acceptés par installation et par jour UTC |
 | `TOWER_HTTP_USER_AGENT` | `Seat12A-Tower/0.1` | User-Agent des récupérations web ; y ajouter une URL de contact générique, jamais une adresse personnelle |
 
+### Pipeline de fact-check (services `factcheck` et `investigate`)
+
+Voir [fact-check.md](fact-check.md#réglages).
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_LLM_FAKE` | `false` | Fournisseur de modèles factice (développement, smoke test, démonstration de l'évaluation). **Refusé** quand `TOWER_ENV=prod` (`TWR-FCK-016`) |
+| `TOWER_FC_DRAFT_DAILY_QUOTA` | `50` | Brouillons envoyés en relecture par jour UTC ; le surplus attend une place |
+| `TOWER_FC_CAP_STANDARD_USD` | `0.10` | Plafond de coût d'une enquête standard : au-delà, pas d'escalade |
+| `TOWER_FC_CAP_REINFORCED_USD` | `0.40` | Plafond d'une enquête renforcée (N3) |
+| `TOWER_FC_CAP_N4_USD` | `0.60` | Plafond d'une enquête N4 |
+| `TOWER_FC_SEARCHES_STANDARD` | `4` | Recherches web d'une enquête standard |
+| `TOWER_FC_SEARCHES_REINFORCED_EXTRA` | `4` | Recherches web supplémentaires en profondeur renforcée |
+| `TOWER_FC_PASSAGES_STANDARD` | `30` | Passages donnés au juge (environ 160 tokens chacun) |
+| `TOWER_FC_PASSAGES_REINFORCED` | `60` | Idem en profondeur renforcée |
+| `TOWER_FC_PASSAGE_WORDS` | `120` | Taille cible d'un passage (mots) |
+| `TOWER_FC_CONFIDENCE_COEFFICIENTS` | vide | Objet JSON qui remplace des coefficients de la confiance (noms de `Coefficients` dans `core/domain/factcheck/confidence.py`) |
+| `TOWER_FC_CONFIDENCE_CAP` | `0.90` | Plafond de la confiance avant calibration |
+| `TOWER_FC_CONFIDENCE_HIGH` | `0.80` | Seuil de la bande haute |
+| `TOWER_FC_CONFIDENCE_MEDIUM` | `0.55` | Seuil de la bande moyenne |
+| `TOWER_FC_ESCALATION_THRESHOLD` | `0.60` | Confiance provisoire sous laquelle une enquête passe en profondeur renforcée |
+| `TOWER_FC_LOADED_TERMS_FILE` | vide | Lexique chargé (JSON, par langue) ; vide : `core/factcheck/loaded_terms.json` |
+| `TOWER_FC_REFERENCE_LANGS` | `fr` | Langues de référence toujours rédigées en plus de la langue du post (l'anglais est ajouté pour un post en anglais) |
+| `TOWER_FC_REVIEW_LOCALE_FALLBACK` | `fr` | Langue de relecture par défaut |
+
+### Sources de connaissance (Atlas)
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_GOOGLE_API_KEY` | — | Clé Google Fact Check Tools (`claims:search`) ; absente : source sautée |
+| `TOWER_BRAVE_API_KEY` | — | Jeton Brave Search API ; absent : pas de recherche web |
+| `TOWER_PISTE_CLIENT_ID` / `TOWER_PISTE_CLIENT_SECRET` | — | Légifrance via PISTE (OAuth2, identifiants client) ; absents : source sautée |
+| `TOWER_PISTE_SANDBOX` | `false` | Utiliser les points d'accès bac à sable de PISTE |
+| `TOWER_INSEE_API_KEY` | — | Clé du portail des API de l'INSEE, si le portail l'exige |
+| `TOWER_INSEE_SERIES` | vide | Objet JSON `{"indicateur": "idbank"}` des séries BDM consultées ; vide : source sautée |
+| `TOWER_ATLAS_WIKIPEDIA_CONCURRENCY` | `3` | Requêtes Wikimedia simultanées par processus (limite Wikimedia : 3) |
+| `TOWER_ATLAS_CACHE_TTL_S` | `604800` | Fraîcheur par défaut de `source_cache` (7 jours ; résultats de recherche : 1 jour) |
+| `TOWER_ATLAS_HTTP_TIMEOUT_S` | `10` | Délai des appels aux sources |
+
 ## Budgets
 
 | Variable | Défaut | Description |

@@ -24,6 +24,21 @@ from tower.core.migrations import downgrade, upgrade
 from tower.core.models.auth import ServiceClient, StaffMember
 
 TABLES = [
+    "citations",
+    "context_note_translations",
+    "context_notes",
+    "reviews",
+    "dossier_claim_groups",
+    "evidence_passages",
+    "verdicts",
+    "investigations",
+    "claim_group_members",
+    "claim_groups",
+    "content_claims",
+    "claims",
+    "sources",
+    "source_registry",
+    "source_cache",
     "dossier_events",
     "dossiers",
     "events",

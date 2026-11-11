@@ -52,7 +52,7 @@ from tower.core.models.ingestion import (
 from tower.core.usecases.installations import daily_secret
 
 EXTENSION_SOURCE = "extension"
-SERVICE_SOURCES = frozenset({"radar", "feed"})
+SERVICE_SOURCES = frozenset({"radar", "feed", "manual"})
 INGEST_QUEUE = "ingest"
 _MAX_HANDLE = 100
 _MAX_HINT = 32

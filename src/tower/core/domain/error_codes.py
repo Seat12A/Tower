@@ -423,6 +423,168 @@ BOT_BAD_CONFIG = _define(
     hint="TOWER_DISCORD_TOKEN, TOWER_GATE_URL and TOWER_GATE_TOKEN are required.",
 )
 
+# --- FCK: fact-check pipeline -------------------------------------------------------
+FCK_EXTRACTION_UNFAITHFUL = _define(
+    "TWR-FCK-001",
+    "Extracted claim not faithful to its post (number or entity absent, omission)",
+    severity=_INFO,
+    hint="The post is replayed alone; repeated failures leave it without claims.",
+)
+FCK_MODEL_OUTPUT_INVALID = _define(
+    "TWR-FCK-002",
+    "Model output rejected by a pipeline check after validation",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+FCK_BUDGET_EXHAUSTED = _define(
+    "TWR-FCK-003",
+    "Model budget exhausted: the investigation waits for the next period",
+    http_status=503,
+    severity=_WARN,
+    retryable=True,
+    hint="Raise the level:N3/level:N4 or global cap with tower llm budget, or wait.",
+)
+FCK_INVESTIGATION_CAP = _define(
+    "TWR-FCK-004",
+    "Per-investigation cost cap reached: no escalation, draft flagged",
+    severity=_INFO,
+)
+FCK_MODEL_REFUSED = _define(
+    "TWR-FCK-005",
+    "Every model of the route refused: the draft is flagged for the reviewer",
+    severity=_WARN,
+    store=True,
+)
+FCK_STAGE_FAILED = _define(
+    "TWR-FCK-006",
+    "Investigation stage failed",
+    severity=_ERR,
+    store=True,
+    retryable=True,
+)
+FCK_DRAFT_NOT_FOUND = _define("TWR-FCK-007", "Draft not found", http_status=404, severity=_INFO)
+FCK_DRAFT_ALREADY_REVIEWED = _define(
+    "TWR-FCK-008",
+    "The draft was already decided",
+    http_status=409,
+    severity=_INFO,
+)
+FCK_BAD_REVIEW = _define(
+    "TWR-FCK-009",
+    "Invalid review (missing veracity or note for an edit, missing reason for a rejection)",
+    http_status=422,
+    severity=_INFO,
+)
+FCK_DRAFT_QUOTA_REACHED = _define(
+    "TWR-FCK-010",
+    "Daily draft quota reached: the draft waits for a free slot",
+    severity=_INFO,
+    hint="TOWER_FC_DRAFT_DAILY_QUOTA (50 by default).",
+)
+FCK_CONTENT_NOT_FOUND = _define(
+    "TWR-FCK-011",
+    "Content not found on the platform",
+    http_status=404,
+    severity=_INFO,
+)
+FCK_BAD_URL = _define(
+    "TWR-FCK-012",
+    "Unsupported or invalid content URL",
+    http_status=422,
+    severity=_INFO,
+)
+FCK_VERDICT_NOT_FOUND = _define(
+    "TWR-FCK-013",
+    "No validated verdict for this content",
+    http_status=404,
+    severity=_INFO,
+)
+FCK_CITATION_INVALID = _define(
+    "TWR-FCK-014",
+    "Quote not found verbatim in its passage",
+    severity=_WARN,
+    store=True,
+    hint="The citation is dropped from the draft; stored for prompt analysis.",
+)
+FCK_POST_CHANGED = _define(
+    "TWR-FCK-015",
+    "Post deleted or modified since its ingestion (recheck)",
+    severity=_INFO,
+)
+FCK_FAKE_LLM_IN_PROD = _define(
+    "TWR-FCK-016",
+    "TOWER_LLM_FAKE is refused in production",
+    severity=_CRIT,
+    hint="Unset TOWER_LLM_FAKE; the fake provider is for development and smoke tests only.",
+)
+FCK_TRANSLATION_FAILED = _define(
+    "TWR-FCK-017",
+    "Note translation failed",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+FCK_LANGUAGE_NOT_PROCESSED = _define(
+    "TWR-FCK-018",
+    "Content language not processed by the fact-check pipeline",
+    http_status=422,
+    severity=_INFO,
+    hint="TOWER_FC_LANGUAGES lists the processed languages.",
+)
+FCK_PLATFORM_UNAVAILABLE = _define(
+    "TWR-FCK-019",
+    "Platform read failed during a manual request or a recheck",
+    http_status=503,
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+
+# --- ATL: knowledge sources (Atlas) and web search ---------------------------------
+ATL_SOURCE_UNAVAILABLE = _define(
+    "TWR-ATL-001",
+    "Knowledge source unavailable (network, timeout, 5xx): skipped",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+ATL_RATE_LIMITED = _define(
+    "TWR-ATL-002",
+    "Knowledge source rate limit reached: skipped",
+    severity=_INFO,
+    retryable=True,
+)
+ATL_BAD_RESPONSE = _define(
+    "TWR-ATL-003",
+    "Unexpected knowledge source response",
+    severity=_ERR,
+    store=True,
+)
+ATL_NOT_CONFIGURED = _define(
+    "TWR-ATL-004",
+    "Knowledge source not configured (missing key): skipped",
+    severity=_INFO,
+    hint="TOWER_BRAVE_API_KEY, TOWER_GOOGLE_API_KEY, TOWER_PISTE_CLIENT_ID/SECRET…",
+)
+ATL_AUTH_FAILED = _define(
+    "TWR-ATL-005",
+    "Knowledge source refused the credentials",
+    severity=_ERR,
+    store=True,
+)
+ATL_REVISION_RISKY = _define(
+    "TWR-ATL-006",
+    "Recent Wikipedia revision with a high revert risk: last stable revision used",
+    severity=_INFO,
+)
+ATL_SEARCH_BUDGET = _define(
+    "TWR-ATL-007",
+    "Search budget exhausted: web search skipped",
+    severity=_WARN,
+    retryable=True,
+)
+
 
 def get(code: str) -> ErrorCode:
     return CATALOG[code]

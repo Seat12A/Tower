@@ -76,8 +76,32 @@ Les curseurs SSE des clients de service réutilisent `event_cursors` (clé
 `sse:<client>:<nom>`), sans nouvelle table. Le retour arrière (`downgrade`) supprime
 les comptes encore en attente avant de rétablir `NOT NULL`.
 
-Tables à venir : affirmations, groupes, verdicts, sources, citations, profils de
-traitement (voir [factcheck/donnees.md](factcheck/donnees.md)).
+## Fact-check, lot 3
+
+Migration `0005`, **expand** uniquement : nouvelles tables, colonne nullable
+`dossiers.content_id` (FK `content_items`, `ON DELETE SET NULL`), et source
+d'observation `manual` ajoutée aux CHECK de `observations` et `observation_counters`
+(élargissement). Définitions détaillées du plan : [factcheck/donnees.md](factcheck/donnees.md) ;
+seules les tables utilisées par le lot 3 sont créées (pas d'embedding). Voir
+[fact-check.md](fact-check.md).
+
+| Table | Rôle |
+|---|---|
+| `claims` | Affirmation canonique : `lang_original`, `text_original` et `text_fr` (≤ 300, CHECK), `claim_type` (CHECK), signature en colonnes typées (`subject`, `subject_qid`, `predicate`, `value_low`, `value_high` en `NUMERIC`, `unit`, `unit_scale`, `currency`, `value_date`, `period_start`, `period_end`, `place`, `polarity`, `invoked_source`, `definition_variant`, `comparison_base`), `jurisdictions text[]` (GIN) et `primary_jurisdiction` (indexé), `entities` JSONB (`name`, `role`, `qid`), `theme`, `verifiability` (0-1), `context_hints text[]`, `source_modality`, `thread_context`, `prompt_version` |
+| `content_claims` | PK `(content_id, claim_id)`, `position` : un post porte plusieurs affirmations |
+| `claim_groups` | `public_id`, affirmation représentative, `level` (N0-N4), `state` (`dormant`, `queued`, `investigating`, `verified`, `to_revalidate`, `passive`), `reach`, `active_verdict_id` (FK ajoutée après `verdicts`). Lot 3 : un groupe par affirmation |
+| `claim_group_members` | PK `(group_id, claim_id)`, `added_at`, `removed_at`, `reason` : historique des fusions et scissions (lot 4) ; une seule appartenance active par affirmation (index unique partiel) |
+| `investigations` | Enquête d'un groupe : `level`, `depth` (`standard`, `reinforced`), `stage` (`framing`, `collecting`, `judging`, `second_opinion`, `objection`, `escalating`, `drafting`, `completed`, `assembled`, `failed`), `round` (1, 2 après escalade), `cost_usd_micros`, sorties intermédiaires en JSONB (`framing`, `queries`, `judgement`, `second_opinion`, `objection`, `second_pass`), `agreement`, `flags`, `error`, `requested_by`, `content_id` (contenu représentatif) |
+| `sources` | Source récupérée, conservée même non citée : `canonical_url` (unique), `original_url`, `adapter`, `stable_id` (révision Wikipédia, QID, identifiant LEGI, série INSEE), `publisher`, `domain` (indexé), `tier` (`primary`, `secondary`, `tertiary`, `avoid`), `title`, `lang`, `published_at`, `retrieved_at`, `sha256`, `license` |
+| `evidence_passages` | Passage d'une enquête : `label` (`P1`…, unique par enquête), `position`, `text` (effacé en fin d'enquête s'il n'est pas cité), `lang`, `translation_fr`, `origin` (entité à qui l'information est attribuée), `simhash`, `score`, `round`, `kept` |
+| `verdicts` | `public_id` (= identifiant du brouillon), groupe, enquête (unique), `veracity`, `context_need`, `context_types text[]`, `confidence`, `status` (`draft`, `active`, `superseded`, `expired`, `rejected` ; un seul `active` par groupe, index unique partiel), `rationale` JSONB (assertions et citations), `not_in_sources`, `review_points`, `flags` JSONB, `prompt_versions`, `route_versions`, `expires_at`, `drafted_at` (entrée en relecture), `notified_at` (affiché par le bot), `validated_at`, `validated_by`, `version` (verrou optimiste) |
+| `citations` | Verdict ↔ passage : citation exacte, assertion appuyée, `valid` (trouvée mot pour mot dans l'original), `position` |
+| `context_notes` | Note d'un verdict : `context_type` (15 types), `regime` (`object`, `formulation`, `provisional`), `object_type`, `object_id`, texte et langue du rédacteur dans la langue du post, `links`, `status` (`draft`, `validated`, `rejected`, `expired`), `expires_at` (6 h au plus pour une note provisoire), `checks` (contrôles d'E9), `critic` (critique de pontage) |
+| `context_note_translations` | Une ligne par langue (langue du post comprise), unique `(note_id, lang)` : `text`, `fact_sheet`, `origin` (`original`, `human`, `machine`), `validated_by` |
+| `reviews` | Décision de revue : verdict, dossier, `reviewer`, `decision` (`accept`, `edit`, `reject`), `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `diff`, `labels text[]`, `reason`, `review_seconds` |
+| `dossier_claim_groups` | PK `(dossier_id, claim_group_id)` |
+| `source_registry` | Registre minimal : `domain` (unique, correspondance par suffixe), `publisher`, `tier`, `kind`, `country`, `reason`, `origin` (`seed`, `team`), `version`. Tout domaine absent est tertiaire |
+| `source_cache` | Cache des sources et des recherches : `key` (SHA-256 de l'adaptateur et de la requête canonique, PK), `adapter`, `response` JSONB, `fetched_at`, `expires_at` (indexé, purge horaire) |
 
 ## Index notables
 

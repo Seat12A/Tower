@@ -103,3 +103,50 @@ Un lot hebdomadaire `claude-fable-5-2` relit les désaccords (juge contre second
 juge contre relecteur, deux passes du juge), propose des réglages de seuils et de
 prompts, et génère des cas pièges pour le jeu de référence. Ses propositions sont des
 **suggestions** soumises à l'équipe, jamais appliquées automatiquement.
+
+## Format du jeu et commande
+
+Implémenté au lot 3 (voir [../fact-check.md](../fact-check.md#évaluation)).
+
+```bash
+uv run tower factcheck eval --set jeu.jsonl [--limit N] [--report rapport.md] [--level N3|N4]
+```
+
+Le jeu est un fichier **JSONL** : un cas par ligne, encodé en UTF-8.
+
+| Champ | Obligatoire | Contenu |
+|---|---|---|
+| `id` | oui | Identifiant stable du cas |
+| `claim` | oui | Affirmation canonique, dans sa langue d'origine (≤ 300 caractères) |
+| `lang` | oui | Langue de l'affirmation (BCP 47) |
+| `claim_fr` | non (recommandé si `lang` ≠ `fr`) | Version française pivot ; à défaut, `claim` est reprise telle quelle |
+| `jurisdiction` | oui | Code ISO 3166-1, `EU` ou `INT` |
+| `date` | oui | Date de publication de l'affirmation (`AAAA-MM-JJ`) : sert à résoudre « hier », « l'an dernier » |
+| `claim_type` | non | Type d'affirmation (valeurs de `ClaimType`) ; défaut `other` |
+| `post_text` | non | Texte du post, pour le rédacteur ; défaut : `claim` |
+| `expected_veracity` | oui | `true`, `mostly_true`, `misleading`, `false`, `unverifiable` |
+| `expected_context_need` | oui | `none`, `useful`, `necessary` |
+| `expected_context_types` | non | Liste des types de contexte attendus |
+| `category` | non | `published_factcheck`, `true_banal`, `unverifiable`, `context`, `injection`, `trap_pair`, `mirror_pair`, `established_fact_denial`, `debated`, `lexical`, `other` |
+| `pair_id` | non | Identifiant commun aux deux cas d'une paire (piège, miroir, perturbation lexicale, pays échangés) |
+| `source_url` | non | Fact-check publié qui fixe l'issue attendue (traçabilité) |
+| `notes` | non | Remarques libres |
+| `example` | non | `true` pour un cas d'exemple, exclu des métriques publiées |
+
+Chaque cas passe par E6 à E10 comme une enquête de production (même code, même
+routeur, mêmes contrôles), sans écrire d'enquête en base. Métriques du rapport :
+
+| Métrique | Définition |
+|---|---|
+| Exactitude | Issue identique à l'attendu ; aussi par côté (Vrai/Plutôt vrai, Trompeur/Faux, abstention) |
+| **Faux confiants** | Issue « Vrai » ou « Faux » erronée avec une confiance ≥ 0,80, rapportée au nombre de cas (métrique reine) |
+| Abstention | Part des issues « Non vérifiable » ; une abstention sur `established_fact_denial` est comptée comme erreur, un verdict tranché sur `debated` aussi |
+| Besoin de contexte | Exactitude du besoin ; rappel des types de contexte attendus |
+| Citations valides | Citations trouvées mot pour mot ÷ citations rendues par le juge |
+| Escalade | Part des enquêtes passées en profondeur renforcée |
+| Paires | Part des paires miroir ou de perturbation dont les deux issues sont identiques |
+| Coût et latence | Coût moyen par cas (micro-dollars, cache compris : un cas rejoué coûte 0) et latence moyenne et p95 |
+
+Les résultats sont aussi donnés par catégorie et par langue. Les cinq cas
+d'exemple de `tests/fixtures/factcheck_eval_examples.jsonl` ne servent qu'à démontrer
+l'outil : ce ne sont pas des cas du jeu de référence.

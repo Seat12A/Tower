@@ -22,7 +22,7 @@ membre ne peut pas dépasser ses rôles.
 | Rôle | Permissions |
 |---|---|
 | `reviewer` | lire, créer, prendre en revue ; lire la liste de suivi |
-| `editor` | + valider, rejeter, marquer comme publié ; modifier la liste de suivi ; consulter l'usage et les budgets |
+| `editor` | + valider, rejeter, marquer comme publié ; modifier la liste de suivi ; consulter l'usage et les budgets ; demander un fact-check manuel |
 | `admin` | tout (gestion de l'équipe, erreurs) |
 
 ## Permissions
@@ -31,7 +31,16 @@ membre ne peut pas dépasser ses rôles.
 `dossiers:decide`, `dossiers:publish`, `events:read`, `staff:manage`,
 `errors:read`, `errors:manage`, `content:ingest` (envoi de contenus : extension,
 radar), `watchlist:read`, `watchlist:write` (liste des comptes suivis), `usage:read`
-(allocation gratuite et budgets du mois : `GET /v1/llm/usage`, commande `/usage`).
+(allocation gratuite et budgets du mois : `GET /v1/llm/usage`, commande `/usage`),
+`factcheck:request` (demande de fact-check manuelle N4 : `POST /v1/factcheck/requests`,
+commande `/factcheck`).
+
+Brouillons de fact-check (voir [fact-check.md](fact-check.md#revue-e11-et-publication)) :
+lecture avec `dossiers:read` ; `accept` et `edit` avec `dossiers:review` enregistrent un
+avis favorable (`endorsed`), avec `dossiers:decide` ils valident le verdict ; `reject`
+exige `dossiers:decide`. La lecture publique d'un verdict validé
+(`GET /v1/content/{platform}/{external_id}/verdict`) relève de `dossiers:read_public`
+(accordée aux anonymes).
 
 Elles sont vérifiées **dans les cas d'usage**, pas seulement dans l'API.
 

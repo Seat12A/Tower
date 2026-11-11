@@ -16,9 +16,11 @@ from typing import Any
 
 from tower.core.domain import error_codes as ec
 from tower.core.errors import capture
+from tower.core.factcheck.names import DRAFT_READY
 from tower.core.logging import get_logger
 from tower.intercom.gate_client import GateClient, GateError, SseEvent
 from tower.intercom.handlers import fmt_usd, short
+from tower.intercom.handlers.factcheck import SendDraft, post_draft, reconcile_drafts
 from tower.intercom.i18n import t
 
 __all__ = ["TOPIC_CHANNELS", "Notifier", "format_event"]
@@ -31,6 +33,7 @@ TOPIC_CHANNELS: dict[str, str] = {
     "budget.threshold_reached": "budget",
     "dossier.opened": "dossiers",
     "dossier.transitioned": "dossiers",
+    DRAFT_READY: "dossiers",
     "watchlist.changed": "admin",
     "extension_filters.published": "admin",
 }
@@ -58,7 +61,7 @@ def _platform_suffix(p: dict[str, Any]) -> str:
 def format_event(event: SseEvent, locale: str) -> tuple[str, str] | None:
     """``(channel key, text)`` of an event, or ``None`` when it is not notified."""
     channel = TOPIC_CHANNELS.get(event.topic)
-    if channel is None:
+    if channel is None or event.topic == DRAFT_READY:  # drafts are rendered by the notifier
         return None
     p = _payload(event)
     topic = event.topic
@@ -131,6 +134,7 @@ class Notifier:
         locale: str,
         seen_capacity: int = 2048,
         initial_backoff: float = 1.0,
+        send_draft: SendDraft | None = None,
     ) -> None:
         self._gate = gate
         self._send = send
@@ -141,6 +145,8 @@ class Notifier:
         self._cursor: str | None = None
         self._progressed = False
         self._initial_backoff = initial_backoff
+        self._send_draft = send_draft
+        self._reconciled = send_draft is None
 
     def _mark_seen(self, event_id: str) -> None:
         self._seen[event_id] = None
@@ -152,11 +158,40 @@ class Notifier:
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop.wait(), delay)
 
+    async def _notify_draft(self, event: SseEvent) -> None:
+        """``draft.ready``: fetch the draft, post it with its buttons, mark it notified.
+        A failure is stored; the reconciliation of the next start posts it."""
+        if self._send_draft is None:
+            return
+        draft_id = _payload(event).get("draft_id")
+        if not draft_id:
+            return
+        try:
+            view = await self._gate.get_draft(None, str(draft_id))
+            if view.get("notified_at") or view.get("status") != "draft":
+                return  # already displayed (replayed event) or already decided
+            await post_draft(self._gate, self._send_draft, view, self._locale)
+        except Exception as exc:
+            capture(ec.BOT_DELIVERY_FAILED, exc, topic=event.topic, channel="dossiers")
+
+    async def reconcile(self) -> int:
+        """Post the pending drafts never displayed (startup, before reading events)."""
+        if self._send_draft is None:
+            return 0
+        send = self._send_draft
+
+        async def post(view: dict[str, Any]) -> bool:
+            return await post_draft(self._gate, send, view, self._locale)
+
+        return await reconcile_drafts(self._gate, post)
+
     async def _handle(self, event: SseEvent) -> None:
         if event.id in self._seen:
             return
         formatted = format_event(event, self._locale)
-        if formatted is not None:
+        if event.topic == DRAFT_READY:
+            await self._notify_draft(event)
+        elif formatted is not None:
             channel, text = formatted
             try:
                 await self._send(channel, text)
@@ -188,6 +223,15 @@ class Notifier:
             if self._cursor is None:
                 try:
                     self._cursor = await self._gate.get_cursor(self._cursor_name)
+                except GateError as exc:
+                    capture(ec.BOT_GATE_UNREACHABLE, exc, status=exc.status)
+                    await self._wait(stop, backoff)
+                    backoff = min(backoff * 2, _MAX_BACKOFF)
+                    continue
+            if not self._reconciled:
+                try:
+                    await self.reconcile()
+                    self._reconciled = True
                 except GateError as exc:
                     capture(ec.BOT_GATE_UNREACHABLE, exc, status=exc.status)
                     await self._wait(stop, backoff)

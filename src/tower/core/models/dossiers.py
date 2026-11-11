@@ -30,6 +30,10 @@ class Dossier(Base):
     kind: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text)
     x_post_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    content_id: Mapped[int | None] = mapped_column(
+        ForeignKey("content_items.id", ondelete="SET NULL"), index=True
+    )
+    """Content the dossier is about (any platform); ``x_post_id`` is kept for X."""
     title: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
     assigned_to: Mapped[int | None] = mapped_column(BigInteger)

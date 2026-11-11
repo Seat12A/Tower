@@ -94,4 +94,100 @@ MESSAGES: dict[str, str] = {
     "notify.watchlist.resolved": "Liste de suivi : {platform} {account} résolu.",
     "notify.watchlist.deactivated": "Liste de suivi : {platform} {account} désactivé.",
     "notify.extension_filters.published": "Filtres de l'extension publiés (version {version}).",
+    # --- brouillons de fact-check ----------------------------------------------------
+    "error.TWR-FCK-007": "Brouillon introuvable. ({code})",
+    "error.TWR-FCK-008": "Ce brouillon a déjà été tranché. ({code})",
+    "error.TWR-FCK-009": (
+        "Relecture invalide : une correction demande une véracité ou une note "
+        "(280 caractères, liens exclus), un rejet demande une raison. ({code})"
+    ),
+    "error.TWR-FCK-012": (
+        "Lien non pris en charge. Format attendu : https://x.com/<compte>/status/<id> ({code})"
+    ),
+    "veracity.true": "Vrai",
+    "veracity.mostly_true": "Plutôt vrai",
+    "veracity.misleading": "Trompeur",
+    "veracity.false": "Faux",
+    "veracity.unverifiable": "Non vérifiable",
+    "context_need.none": "Aucun besoin",
+    "context_need.useful": "Contexte utile",
+    "context_need.necessary": "Contexte nécessaire",
+    "band.high": "élevée",
+    "band.medium": "moyenne",
+    "band.low": "faible",
+    "draft.title": "Brouillon de fact-check",
+    "draft.header": (
+        "**{veracity}** | {context_need} | Confiance {confidence} ({band}) | Niveau {level}{depth}"
+    ),
+    "draft.depth.reinforced": " | renforcée",
+    "draft.claim.header": "**Affirmation**{tag}",
+    "draft.claim.fr_tag": " (FR)",
+    "draft.post_link": "Post : <{url}>",
+    "draft.note.header": "**Note proposée** ({lang})",
+    "draft.note.none": "Aucune note proposée.",
+    "draft.rationale.header": "**Justification**",
+    "draft.rationale.assertion": "- {assertion}",
+    "draft.rationale.citation": "  - [{label}] « {quote} » ({source})",
+    "draft.rationale.source": "{name} <{url}>",
+    "draft.rationale.translation": "    Traduction : {text}",
+    "draft.not_in_sources.header": "**Ce que les sources ne disent pas**",
+    "draft.review_points.header": "**À vérifier en priorité**",
+    "draft.objection": "> **OBJECTION** ({type}, {direction}) : {explanation}",
+    "objection.type.misread_evidence": "preuve mal lue",
+    "objection.type.insufficient_evidence": "preuves insuffisantes",
+    "objection.type.not_independent": "sources non indépendantes",
+    "objection.type.wrong_period_or_scope": "période ou périmètre erroné",
+    "objection.type.different_definition": "définition différente",
+    "objection.type.unfaithful_framing": "cadrage infidèle",
+    "objection.direction.more_severe": "plus sévère",
+    "objection.direction.less_severe": "moins sévère",
+    "objection.direction.abstain": "abstention",
+    "draft.warnings.header": "**Avertissements**",
+    "draft.warning.downgraded": "- Verdict rétrogradé par la règle d'indépendance.",
+    "draft.warning.post_deleted": "- Le post a été supprimé depuis son ingestion.",
+    "draft.warning.post_modified": "- Le post a été modifié depuis son ingestion.",
+    "draft.warning.budget_incomplete": "- Budget épuisé : la collecte est incomplète.",
+    "draft.warning.cap_reached": "- Plafond de coût de l'enquête atteint : pas d'escalade.",
+    "draft.warning.refused": "- Un modèle a refusé de répondre ({roles}).",
+    "draft.warning.invalid_citations": (
+        "- {count} citation(s) absente(s) mot pour mot de leur passage (écartée(s))."
+    ),
+    "draft.warning.loaded_terms": "- Termes chargés dans la note : {terms}.",
+    "draft.warning.note_too_long": "- La note dépasse 280 caractères.",
+    "draft.warning.unknown_links": (
+        "- {count} lien(s) de la note ne sont pas des sources consultées."
+    ),
+    "draft.warning.sources_after_post": "- {count} source(s) postérieure(s) au post.",
+    "draft.warning.sources_too_old": "- {count} source(s) trop ancienne(s) pour cette affirmation.",
+    "draft.warning.conflicting_sources": "- Les sources se contredisent.",
+    "draft.warning.critic_opinion": "- Critique : la note contient une opinion.",
+    "draft.warning.critic_generalization": "- Critique : la note contient une généralisation.",
+    "draft.warning.critic_judges_author": "- Critique : la note juge l'auteur.",
+    "draft.warning.critic_loaded_words": "- Critique : mots chargés ({words}).",
+    "draft.warning.critic_unsourced": "- Critique : {count} fait(s) sans source.",
+    "draft.warning.critic_comment": "- Critique : {text}",
+    "draft.button.validate": "Valider",
+    "draft.button.correct": "Corriger",
+    "draft.button.reject": "Rejeter",
+    "draft.modal.correct.title": "Corriger le brouillon",
+    "draft.modal.veracity.label": "Véracité (facultatif)",
+    "draft.modal.veracity.placeholder": "{values}",
+    "draft.modal.note.label": "Note (facultatif, 280 car. + liens)",
+    "draft.modal.reason.label": "Raison (facultatif)",
+    "draft.modal.reject.title": "Rejeter le brouillon",
+    "draft.modal.reject.reason": "Raison (obligatoire)",
+    "draft.bad_veracity": "Véracité inconnue `{value}`. Valeurs attendues : {values}.",
+    "draft.review.endorsed": (
+        "Votre approbation du brouillon `{short_id}` est enregistrée. "
+        "Un éditeur doit maintenant le valider."
+    ),
+    "draft.review.validated": (
+        "Brouillon `{short_id}` validé : le verdict est maintenant {veracity}."
+    ),
+    "draft.review.rejected": "Brouillon `{short_id}` rejeté.",
+    "factcheck.accepted": (
+        "Fact-check demandé pour le post {platform} `{external_id}`. "
+        "Le brouillon apparaîtra dans le salon des dossiers."
+    ),
+    "factcheck.duplicate": ("Un fact-check du post {platform} `{external_id}` est déjà en file."),
 }

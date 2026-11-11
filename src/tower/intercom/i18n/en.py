@@ -88,4 +88,97 @@ MESSAGES: dict[str, str] = {
     "notify.watchlist.resolved": "Watchlist: {platform} {account} resolved.",
     "notify.watchlist.deactivated": "Watchlist: deactivated {platform} {account}.",
     "notify.extension_filters.published": "Extension filters published (version {version}).",
+    # --- fact-check drafts ----------------------------------------------------------
+    "error.TWR-FCK-007": "Draft not found. ({code})",
+    "error.TWR-FCK-008": "This draft was already decided. ({code})",
+    "error.TWR-FCK-009": (
+        "Invalid review: an edit needs a veracity or a note (280 characters, links excluded), "
+        "a rejection needs a reason. ({code})"
+    ),
+    "error.TWR-FCK-012": (
+        "Unsupported link. Expected format: https://x.com/<account>/status/<id> ({code})"
+    ),
+    "veracity.true": "True",
+    "veracity.mostly_true": "Mostly true",
+    "veracity.misleading": "Misleading",
+    "veracity.false": "False",
+    "veracity.unverifiable": "Unverifiable",
+    "context_need.none": "No context needed",
+    "context_need.useful": "Context useful",
+    "context_need.necessary": "Context necessary",
+    "band.high": "high",
+    "band.medium": "medium",
+    "band.low": "low",
+    "draft.title": "Fact-check draft",
+    "draft.header": (
+        "**{veracity}** | {context_need} | Confidence {confidence} ({band}) | Level {level}{depth}"
+    ),
+    "draft.depth.reinforced": " | reinforced",
+    "draft.claim.header": "**Claim**{tag}",
+    "draft.claim.fr_tag": " (FR)",
+    "draft.post_link": "Post: <{url}>",
+    "draft.note.header": "**Proposed note** ({lang})",
+    "draft.note.none": "No note proposed.",
+    "draft.rationale.header": "**Rationale**",
+    "draft.rationale.assertion": "- {assertion}",
+    "draft.rationale.citation": '  - [{label}] "{quote}" ({source})',
+    "draft.rationale.source": "{name} <{url}>",
+    "draft.rationale.translation": "    Translation: {text}",
+    "draft.not_in_sources.header": "**What the sources do not say**",
+    "draft.review_points.header": "**To check first**",
+    "draft.objection": "> **OBJECTION** ({type}, {direction}): {explanation}",
+    "objection.type.misread_evidence": "evidence misread",
+    "objection.type.insufficient_evidence": "insufficient evidence",
+    "objection.type.not_independent": "sources not independent",
+    "objection.type.wrong_period_or_scope": "wrong period or scope",
+    "objection.type.different_definition": "different definition",
+    "objection.type.unfaithful_framing": "unfaithful framing",
+    "objection.direction.more_severe": "more severe",
+    "objection.direction.less_severe": "less severe",
+    "objection.direction.abstain": "abstain",
+    "draft.warnings.header": "**Warnings**",
+    "draft.warning.downgraded": "- Verdict downgraded by the independence rule.",
+    "draft.warning.post_deleted": "- The post was deleted since its ingestion.",
+    "draft.warning.post_modified": "- The post was modified since its ingestion.",
+    "draft.warning.budget_incomplete": "- Budget exhausted: the collection is incomplete.",
+    "draft.warning.cap_reached": "- Per-investigation cost cap reached: no escalation.",
+    "draft.warning.refused": "- A model refused to answer ({roles}).",
+    "draft.warning.invalid_citations": (
+        "- {count} citation(s) not found verbatim in their passage (dropped)."
+    ),
+    "draft.warning.loaded_terms": "- Loaded terms in the note: {terms}.",
+    "draft.warning.note_too_long": "- The note exceeds 280 characters.",
+    "draft.warning.unknown_links": "- {count} link(s) of the note are not retrieved sources.",
+    "draft.warning.sources_after_post": "- {count} source(s) are dated after the post.",
+    "draft.warning.sources_too_old": "- {count} source(s) are too old for this claim.",
+    "draft.warning.conflicting_sources": "- Sources contradict each other.",
+    "draft.warning.critic_opinion": "- Critic: the note contains an opinion.",
+    "draft.warning.critic_generalization": "- Critic: the note contains a generalization.",
+    "draft.warning.critic_judges_author": "- Critic: the note judges the author.",
+    "draft.warning.critic_loaded_words": "- Critic: loaded words ({words}).",
+    "draft.warning.critic_unsourced": "- Critic: {count} unsourced fact(s).",
+    "draft.warning.critic_comment": "- Critic: {text}",
+    "draft.button.validate": "Validate",
+    "draft.button.correct": "Correct",
+    "draft.button.reject": "Reject",
+    "draft.modal.correct.title": "Correct the draft",
+    "draft.modal.veracity.label": "Veracity (optional)",
+    "draft.modal.veracity.placeholder": "{values}",
+    "draft.modal.note.label": "Note (optional, 280 chars + links)",
+    "draft.modal.reason.label": "Reason (optional)",
+    "draft.modal.reject.title": "Reject the draft",
+    "draft.modal.reject.reason": "Reason (required)",
+    "draft.bad_veracity": "Unknown veracity `{value}`. Expected: {values}.",
+    "draft.review.endorsed": (
+        "Your approval of draft `{short_id}` is recorded. An editor must now validate it."
+    ),
+    "draft.review.validated": "Draft `{short_id}` validated: the verdict is now {veracity}.",
+    "draft.review.rejected": "Draft `{short_id}` rejected.",
+    "factcheck.accepted": (
+        "Fact-check requested for the {platform} post `{external_id}`. "
+        "The draft will appear in the dossiers channel."
+    ),
+    "factcheck.duplicate": (
+        "A fact-check of the {platform} post `{external_id}` is already queued."
+    ),
 }

@@ -18,7 +18,16 @@ from tower.core.logging import get_logger
 from tower.gate.errors import install_error_handlers
 from tower.gate.middleware import ObservabilityMiddleware
 from tower.gate.ratelimit import TokenBucketLimiter
-from tower.gate.routes import dossiers, errors, events, health, ingest, usage, watchlist
+from tower.gate.routes import (
+    dossiers,
+    errors,
+    events,
+    factcheck,
+    health,
+    ingest,
+    usage,
+    watchlist,
+)
 
 log = get_logger(__name__)
 
@@ -66,6 +75,7 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(ingest.router)
     app.include_router(watchlist.router)
     app.include_router(usage.router)
+    app.include_router(factcheck.router)
     if settings.cors_origin_list:
         app.add_middleware(
             CORSMiddleware,

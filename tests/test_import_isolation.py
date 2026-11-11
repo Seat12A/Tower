@@ -39,3 +39,46 @@ def test_hangar_does_not_load_llm_sdks_nor_fastapi(services: list[str]) -> None:
 def test_core_llm_does_not_load_sdks() -> None:
     code = "import tower.core.llm.router, tower.core.llm.prompts, tower.core.adapters.factory"
     assert _loaded_after(code, (*HEAVY_SDKS, "httpx")) == []
+
+
+KNOWLEDGE_ADAPTERS = (
+    "tower.core.adapters.knowledge.wikipedia",
+    "tower.core.adapters.knowledge.wikidata",
+    "tower.core.adapters.knowledge.brave",
+    "tower.core.adapters.knowledge.legifrance",
+    "tower.core.adapters.knowledge.insee",
+    "tower.core.adapters.knowledge.factcheck_tools",
+    "tower.core.adapters.knowledge.factory",
+)
+FACTCHECK_SERVICES = ("tower.services.factcheck", "tower.services.investigate")
+
+
+def test_gate_does_not_load_factcheck_adapters_nor_services() -> None:
+    code = "import tower.gate.app\ntower.gate.app.create_app"
+    assert _loaded_after(code, (*KNOWLEDGE_ADAPTERS, *FACTCHECK_SERVICES)) == []
+
+
+@pytest.mark.parametrize("services", [["ping", "ingest"], ["ping", "ingest", "radar"]])
+def test_hangar_without_factcheck_loads_none_of_it(services: list[str]) -> None:
+    code = (
+        "import tower.hangar.main\n"
+        "from tower.core.services.registry import load_services\n"
+        f"load_services({services!r}).validate(lease_seconds=300)\n"
+    )
+    modules = (
+        *HEAVY_SDKS,
+        *KNOWLEDGE_ADAPTERS,
+        *FACTCHECK_SERVICES,
+        "tower.core.factcheck.schemas",
+    )
+    assert _loaded_after(code, modules) == []
+
+
+def test_hangar_with_factcheck_loads_no_sdk_nor_httpx_at_start() -> None:
+    code = (
+        "import tower.hangar.main\n"
+        "from tower.core.services.registry import load_services\n"
+        "load_services(['ping', 'ingest', 'radar', 'factcheck', 'investigate'])"
+        ".validate(lease_seconds=300)\n"
+    )
+    assert _loaded_after(code, (*HEAVY_SDKS, "httpx", "fastapi", *KNOWLEDGE_ADAPTERS)) == []

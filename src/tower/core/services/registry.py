@@ -16,7 +16,8 @@ BUILTIN_SERVICES: dict[str, str] = {
     "ping": "tower.services.ping:service",
     "ingest": "tower.services.ingest:service",
     "radar": "tower.services.radar:service",
-    # "factcheck": "tower.services.factcheck:service",
+    "factcheck": "tower.services.factcheck:service",
+    "investigate": "tower.services.investigate:service",
     # "moderation": "tower.services.moderation:service",
 }
 
