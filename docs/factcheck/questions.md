@@ -10,7 +10,7 @@ Classées par effet sur la conception, de la plus structurante à la moins struc
    envoyés aux petits modèles servent à l'entraînement d'OpenAI ? Les posts contiennent
    des données personnelles de leurs auteurs (RGPD) ; un avis juridique est conseillé
    avant d'activer le programme. Alternative : organisation sans partage, coût
-   d'environ +19 $ par mois.
+   d'environ +25 $ par mois.
 3. **Palier d'usage OpenAI** de l'organisation et **liste exacte des modèles
    éligibles** à l'allocation gratuite (famille GPT-6 comprise, API Batch et Flex
    comprises ?), à relever dans le tableau de bord.
