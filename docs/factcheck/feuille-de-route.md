@@ -72,6 +72,13 @@ l'extension.
 
 ## Lot 3 — MVP : comptes ciblés (N3), verdict et contexte
 
+> **Livré en développement le 2026-11-11** (sans clé d'API : modèles et sources à clé
+> remplacés par des doublures ; Wikipédia et Wikidata appelées pour de vrai au smoke
+> test). Implémentation : [../fact-check.md](../fact-check.md). **Réglage à faire** :
+> session de validation avec les clés et au moins 50 affirmations du jeu de référence
+> (`tower factcheck eval`). Ajouts au périmètre initial : demandes manuelles N4
+> (`/factcheck`), lecture publique du verdict validé, traductions à la validation.
+
 - E2 (extraction temps réel), E6 (cadrage), E7 (collecte) avec un Atlas minimal :
   Google Fact Check Tools, Wikidata, Wikipédia (révision figée + revert risk),
   API Légifrance (PISTE), INSEE BDM, Brave Search.

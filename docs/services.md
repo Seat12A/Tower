@@ -63,8 +63,8 @@ maintenance du socle. Exemple : partitions et secrets du service `ingest`.
 | `ping` | Démonstration et supervision (`ping.requested` → `ping.done`) | ✅ |
 | `ingest` | Liaison des copies, partitions des observations, secrets d'installation (l'endpoint de l'extension est dans gate) | ✅ file `ingest`, voir [ingestion.md](ingestion.md) |
 | `radar` | Lecture des comptes suivis par l'API officielle de X (puis Bluesky) : planification adaptative, budget `provider:x`, résolution des pseudos | ✅ file `radar`, voir [radar.md](radar.md) |
-| `factcheck` | Étages rapides et par lots du fact-check (E0 à E5, E10, E11), ordonnanceur, vagues | voir [factcheck/pipeline.md](factcheck/pipeline.md) |
-| `investigate` | Enquêtes (E6 à E9) : cadrage, collecte, jugement, rédaction | idem |
+| `factcheck` | Déclenchement N3, extraction E2, demande manuelle N4, assemblage E10 (confiance, revérification, quota, dossier), traductions à la validation ; plus tard E0 à E5, ordonnanceur, vagues | ✅ (lot 3) file `fc-fast`, voir [fact-check.md](fact-check.md) |
+| `investigate` | Enquêtes (E6 à E9) : cadrage, collecte (Atlas), jugement, second avis, objection, escalade, rédaction | ✅ (lot 3) file `fc-deep`, réplica dédié possible, voir [fact-check.md](fact-check.md) |
 | `atlas` | Synchronisation des sources de connaissance (miroir LEGI, actualité, ClaimReview, registre) | voir [factcheck/connaissances.md](factcheck/connaissances.md) |
 | `media` | Empreintes, OCR, transcription, provenance des médias | futur |
 | `moderation` | Modération de contenus X | à définir |

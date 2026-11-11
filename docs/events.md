@@ -84,6 +84,12 @@ identifiant d'événement.
 | `watchlist.changed` | cas d'usage de la liste de suivi | `action` (`added`, `updated`, `resolved`), compte suivi (`external_id` nul tant qu'un compte ajouté par pseudo n'est pas résolu par le radar), (`public_id`, `platform`, `external_id`, `handle`, `category`, `priority`, `active`, `version`) |
 | `extension_filters.published` | `publish_filters` | `version` |
 | `budget.threshold_reached` | registre des budgets (`core/budget.py` : routeur de modèles et radar), au premier franchissement de 50, 80 ou 100 % d'une portée sur la période | `scope`, `period_start`, `threshold_pct`, `spent_usd_micros`, `cap_usd_micros` |
+| `claim.extracted` | cas d'usage `record_extraction` (service `factcheck`, E2), un par contenu | `content_id` (clé interne en chaîne), `content_public_id`, `platform`, `external_id`, `level`, `claim_ids`, `group_ids` |
+| `investigation.requested` | `record_extraction`, promotion N4 | `investigation_id`, `group_id`, `level`, `depth`, `content_id` |
+| `investigation.completed` | `complete_investigation` / `fail_investigation` (service `investigate`) | `investigation_id`, `group_id`, `level`, `depth`, `verdict_id`, `veracity`, `context_need`, `outcome` (`drafted`, `unverifiable_at_framing`, `failed`) |
+| `draft.ready` | cas d'usage `open_draft` (service `factcheck`, E10) | `draft_id` (= identifiant public du verdict), `dossier_id`, `group_id`, `level`, `veracity`, `context_need`, `confidence`, `platform`, `external_id`, `url` |
+| `draft.reviewed` | cas d'usage `review_draft` | `draft_id`, `dossier_id`, `decision`, `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `labels`, `reviewer` |
+| `verdict.published` | `review_draft`, à la validation (dossier `validated` ; la publication sur X reste manuelle) | `verdict_id`, `group_id`, `dossier_id`, `veracity`, `context_need`, `platform`, `external_id`, `retranslate_from` |
 
 Convention de nommage : `<agrégat>.<verbe au participe passé>`.
 
