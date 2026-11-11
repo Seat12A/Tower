@@ -1,4 +1,4 @@
-# Fact-check : implémentation (lot 3, MVP)
+# Fact-check : implémentation (lots 3 et 4)
 
 Cette page décrit ce qui est **implémenté** dans Tower pour le fact-check. Le plan
 complet (raisons, recherches, lots suivants) est dans [factcheck/](factcheck/README.md) ;
@@ -7,9 +7,13 @@ en cas d'écart, cette page décrit le code, et l'écart est noté dans
 
 Périmètre du lot 3 : les **comptes suivis** (niveau N3) et les **demandes manuelles** de
 l'équipe (niveau N4), de bout en bout jusqu'au brouillon relu dans Discord et au
-verdict publié en lecture publique. Hors périmètre : regroupement des affirmations,
-embeddings, cache de verdicts, flux de masse N1/N2, règle « partie prenante » complète,
-médias (voir [factcheck/feuille-de-route.md](factcheck/feuille-de-route.md)).
+verdict publié en lecture publique. Le **lot 4** (V1) ajoute les embeddings et le
+routage E1, l'appariement E3 et les groupes, la réutilisation des verdicts, les fiches de
+référence et les bandes de valeurs, la péremption, les profils de traitement et les
+forçages de niveau : voir [Lot 4](#lot-4--v1--embeddings-groupes-réutilisation-profils).
+Hors périmètre : flux de masse N1/N2 (extraction en lot, promotion N2), vérification
+légère E5, ordonnanceur et vagues (lot 5), règle « partie prenante » complète, médias
+(voir [factcheck/feuille-de-route.md](factcheck/feuille-de-route.md)).
 
 État : **livré en développement, sans clé d'API**. Les modèles et les sources à clé n'ont
 été appelés que par des doublures ; seules Wikipédia et Wikidata ont été appelées pour
@@ -248,7 +252,207 @@ d'exemple, qui **ne sont pas** le jeu de référence : `tests/fixtures/factcheck
 
 Clés des sources et réglages de l'Atlas : [configuration.md](configuration.md).
 
+## Lot 4 — V1 : embeddings, groupes, réutilisation, profils
+
+État : **livré en développement, sans clé d'API** (doublures `TOWER_LLM_FAKE=1`, y compris
+pour les embeddings). La qualité du regroupement n'est pas mesurée sur un vrai corpus.
+
+### Flux ajouté
+
+```
+content.ingested ──(factcheck, abonnement « embed »)──▶ factcheck.embed_batch (fc-bulk, E1)
+                                         │  content_embeddings (N0/N1, score, échantillon)
+factcheck.extract (E2) ─▶ E3 : embeddings des affirmations, groupes proches (HNSW),
+   signatures, fiche et bande, arbitre ─▶ record_extraction
+        ├─ rattachement à un groupe (signature identique) ─▶ verdict.reused ou rien
+        ├─ nouveau groupe couvert par une bande validée ─▶ verdict hérité, verdict.reused
+        └─ nouveau groupe ─▶ claim_group.created + investigation.requested (lot 3)
+factcheck:expire (600 s) ─▶ verdict.expired ─▶ factcheck.revalidate (fc-bulk)
+```
+
+### E1 : embeddings et routage
+
+- L'abonnement `embed` sur `content.ingested` (langue traitée) enfile un job
+  `factcheck.embed_batch` dédoublonné par minute (`emb:<AAAAMMJJHHMM>`), retardé de
+  `TOWER_FC_EMBED_DEBOUNCE_SECONDS` : les contenus d'une même minute partagent un lot.
+  Le job prend jusqu'à `TOWER_FC_EMBED_BATCH_SIZE` contenus sans vecteur (ni copie, ni
+  plus vieux que la rétention), les vectorise (`text-embedding-3-small`, 512 dimensions,
+  requêtes de 256 textes), puis enfile la suite s'il en reste.
+- Service d'embeddings (`core/llm/embeddings.py`) : route `embed`, tarif de
+  `llm_models`, réservation du budget sur `global` et sur le niveau du contenu (`N3` si
+  l'auteur est suivi, sinon `N1`), un `llm_calls` par requête (sans sortie), cache mémoire
+  borné par processus. En mode factice, `FakeEmbedder` : vecteurs déterministes par
+  hachage des mots et des trigrammes (deux textes proches donnent des vecteurs proches).
+- Score « vérifiable » : régression logistique en Python pur
+  (`core/domain/factcheck/router.py`, 512 poids, aucun numpy), modèle actif de
+  `router_models`. **Sans modèle actif, règle permissive** : `score` nul, niveau `N1`.
+  Avec un modèle : sous le seuil N1 du profil, niveau `N0`, et `sampled = true` pour
+  `TOWER_FC_E1_SAMPLE_RATE` (2 %) des contenus écartés.
+- Au lot 4, E1 **classe et enregistre** seulement : l'extraction des contenus N1 et des
+  contenus échantillonnés arrive au lot 5. Le déclenchement N3 du lot 3 reste immédiat.
+- `content_embeddings` : partitions hebdomadaires créées (semaine courante et deux
+  suivantes) et supprimées après 14 jours par la tâche `factcheck:embedding_partitions`
+  (1 h). Aucun index vectoriel.
+- Entraînement hors production : `uv run tower factcheck train-router [--days 14]
+  [--min-samples 200] [--holdout 0.2] [--per-stratum-cap 2000] [--dry-run]`. Étiquettes :
+  positif si E2 a extrait une affirmation vérifiable ; négatif si l'extraction n'a rien
+  donné ou si un relecteur a posé l'étiquette `triage_false_positive` ou
+  `not_worth_checking`. Échantillonnage stratifié par langue, niveau et étiquette ; le
+  modèle est enregistré **inactif** avec ses mesures. `uv run tower factcheck
+  activate-router --version N --reason "…"` refuse (`TWR-FCK-036`) un rappel < 90 %
+  sur l'échantillon de validation, sauf `--force`.
+
+### E3 : appariement et groupes
+
+Pour chaque affirmation extraite (service `factcheck`, dans le job `factcheck.extract`,
+hors transaction) :
+
+1. **Embeddings** du texte d'origine et, hors français, du texte pivot français ; un
+   vecteur déjà calculé pour le même texte est réutilisé.
+2. **Groupes proches** : les `TOWER_FC_MATCH_CANDIDATES` (5) plus proches par le vecteur
+   pivot (`claim_groups.representative_embedding`, HNSW `halfvec_cosine_ops`,
+   `hnsw.iterative_scan = relaxed_order`, groupes fusionnés exclus).
+3. **Signatures normalisées** comparées de façon déterministe
+   (`core/domain/factcheck/signatures.py`) : type, sujet (QID ou texte normalisé),
+   intervalle de valeur après échelle, unité, monnaie, période résolue (« actuellement »
+   = date du post), territoire, polarité, variante de définition, base de comparaison.
+   Le prédicat, texte libre, n'entre pas dans l'identité.
+4. **Décision** (`plan_match`) :
+
+   | Situation | Décision |
+   |---|---|
+   | Signature identique, même langue, similarité des vecteurs d'origine ≥ seuil (0,92) | Rattachement sans arbitre |
+   | Signature identique, paire interlingue (toujours) ou zone grise (0,80 à 0,92) | Arbitre `pair_arbiter` (2 appels au plus) ; rattachement seulement sur « même affirmation » |
+   | Signature compatible (un champ absent d'un côté), similarité ≥ 0,80 | Un appel d'arbitre ; même favorable : **nouveau groupe**, groupe proche suggéré (`related_group_id`) pour une fusion manuelle |
+   | Différence de valeur, polarité, période, territoire, définition, unité… | Nouveau groupe, sans arbitre |
+   | Similarité < 0,80 | Nouveau groupe |
+
+   L'arbitre reçoit les deux **textes d'origine** (chacun dans sa langue, datamarqués) et
+   la date de chaque post, jamais l'auteur ; raison fermée (`same_claim`,
+   `different_value`, `different_period`, `different_territory`, `different_definition`,
+   `opposite_polarity`, `different_subject`) ; « dans le doute : différent ». Un échec de
+   l'arbitre vaut « différent » (`TWR-FCK-034`).
+5. **Fiche de référence** pour une affirmation chiffrée (fiche validée seulement) et
+   **bande** de valeurs ; `outdated` détecté sans modèle quand la valeur correspond à la
+   fiche précédente.
+6. **Fact-checks externes** (Google Fact Check Tools, par le cache de l'Atlas) pour un
+   nouveau groupe : 3 liens au plus, dans les `flags` de l'enquête.
+
+Un **groupe** réunit des affirmations qui disent la même chose et se vérifient par les
+mêmes preuves : on n'y entre qu'à signature normalisée identique, et chaque membre est
+couvert par le verdict du groupe. Les variantes chiffrées de valeurs différentes forment
+des groupes distincts, reliés à la même fiche. Le vecteur représentatif est le vecteur
+pivot de l'affirmation représentative (médoïde des membres après fusion ou scission).
+Chaque création, rattachement, fusion, scission, changement de niveau ou de représentant
+est journalisé dans `claim_group_events` (auteur, motif, règle, similarité).
+
+**Fusion** (`merge_groups`) et **scission** (`split_group`), permission
+`claim_groups:manage` (éditeur), depuis l'API ou Discord :
+- fusion refusée si seule la source porte un verdict actif (`TWR-FCK-023`) ou si les
+  deux verdicts diffèrent (`TWR-FCK-022`) ; source en état `merged`
+  (`merged_into_id`) ; une fusion s'annule en scindant les affirmations déplacées
+  (listées dans l'événement) ;
+- scission : nouveau groupe **sans verdict**, nouvelle enquête ; le verdict du groupe
+  d'origine n'est jamais propagé.
+
+### Réutilisation des verdicts
+
+| Règle | Quand | Effet |
+|---|---|---|
+| `identical_signature` | Rattachement à un groupe dont le verdict est actif et non périmé, hors N4 | `verdict.reused`, aucune enquête, aucune place dans le quota |
+| `band` | Nouveau groupe chiffré dont la fiche est validée et dont la bande (fiche × bande × côté) a été validée par un relecteur, hors N4 | Nouveau verdict actif (`reuse_rule = band`, `reused_from_verdict_id`, issue de la bande, péremption = min(verdict d'origine, prochaine publication)), groupe `passive`, `verdict.reused`, hors quota et sans relecture |
+
+- **N4 : jamais de réutilisation directe** : une enquête N4 renforcée est toujours
+  ouverte (sources rechargées et rejugées).
+- Un groupe dont l'enquête est en cours, ou dont le brouillon attend la relecture,
+  accueille la variante sans seconde enquête.
+- Notes (régimes de [factcheck/contexte.md](factcheck/contexte.md)) : une note
+  provisoire n'est jamais héritée ; un verdict hérité par bande ne montre pas une note de
+  régime « formulation » d'un autre groupe (issue seule, avec le lien vers le verdict
+  d'origine).
+- Chaque réutilisation est tracée (règle, verdict d'origine) et réversible par une
+  scission.
+
+### Fiches de référence et bandes
+
+- `reference_facts` : indicateur, variante de définition, valeur, unité, période,
+  territoire, source primaire, dates de publication, fiche précédente. Créées depuis un
+  verdict validé (bouton « créer une fiche », `create_fact_from_verdict`), à la main
+  (`reference_facts:write`, relecteur), ou par l'alimentation INSEE ; toujours
+  `pending` jusqu'à la validation par un éditeur (`reference_facts:validate`,
+  `reference_fact.validated`). La validation calcule la bande des groupes reliés.
+- Correspondance affirmation → fiche, sans modèle : sujet (QID ou alias normalisé) ou
+  prédicat = suffixe de l'indicateur, même unité, même territoire, même définition, et
+  période contenue (ou fiche la plus récente publiée avant le post pour « actuellement »).
+- Bandes (Q9) : intervalle tiré de la précision (« 7 % » = [6,5 ; 7,5[), tolérance
+  τ = max(plancher, 5 % de la référence), plancher 0,2 point pour un taux ; bandes
+  `contains`, `within_1_tau`, `within_3_tau`, `beyond`, avec le côté (`above`,
+  `below`). Une bande se valide une fois (`validate_band`, depuis le brouillon, le bot ou
+  l'API ; `verdict_band.validated`) et ne s'applique qu'aux **nouvelles** variantes.
+- Alimentation INSEE : `TOWER_FC_INSEE_INDICATORS` (liste JSON) ; tâche
+  `factcheck:reference_feed` (24 h) qui enfile un job `factcheck.insee_refresh` par
+  indicateur ; la dernière observation de la série devient une fiche `pending`
+  (idempotence par `external_key`).
+
+### Péremption et revalidation
+
+- À la validation, `expires_at` = validation + durée du type d'affirmation, plafonnée
+  par la prochaine publication de la fiche et à 6 h si la note est provisoire. Durées par
+  défaut (jours) : statistique 120, fait historique 3 650, citation 3 650, texte
+  juridique 180, situation en cours 2, procédure 14, bilan 365, conduite 365,
+  accusation 90, prédiction 30, opinion 30, causalité 365, autre 180
+  (`TOWER_FC_VERDICT_TTL_DAYS` pour les changer).
+- Tâche `factcheck:expire` (10 min) : verdict périmé → `expired`, groupe
+  `to_revalidate` (`queued` pour un verdict hérité), notes expirées, `verdict.expired`,
+  job `factcheck.revalidate` ; notes provisoires périmées → `expired`.
+- `factcheck.revalidate` : pour une statistique, une fiche plus récente validée est
+  reliée et la bande recalculée ; une bande validée couvre-t-elle la variante, elle
+  hérite ; sinon nouvelle enquête au niveau du groupe.
+
+### Profils de traitement et niveaux
+
+- `processing_profiles` : réglages versionnés (par niveau : seuil E1, réutilisation
+  directe, plafond unitaire, budget mensuel ; seuils d'appariement ; quota de
+  brouillons ; échantillon E1). Sans version active, profil par défaut tiré de la
+  configuration (version 0). Le profil actif est lu avec un cache de 30 s par processus.
+- **Bornes de sécurité** (`TWR-FCK-030`) : seuil de rattachement entre 0,85 et 0,999 ;
+  zone grise entre 0,5 et le seuil ; quota ≤ 500 ; échantillon entre 0,5 % et 20 % ;
+  seuils E1 entre 0 et 1, N3 ≤ N1, N4 = 0 ; N4 sans réutilisation directe ; plafond
+  unitaire ≤ 5 $ et ≤ budget mensuel du niveau.
+- Activation et retour arrière : `admin` seulement (`profiles:manage`) ; l'activation
+  met à jour les plafonds de la période courante des portées `level:N0..N4` et publie
+  `processing_profile.activated` (différences, auteur, motif). Lecture :
+  `profiles:read` (relecteur, éditeur).
+- Ce que le profil commande : seuils E1 et échantillon, seuils et réutilisation d'E3,
+  quota de brouillons (`factcheck.assemble`, `factcheck:drain_quota`), plafond d'une
+  enquête en profondeur standard et en N4 (la profondeur renforcée hors N4 garde
+  `TOWER_FC_CAP_REINFORCED_USD`).
+- `level_overrides` : forçage d'un contenu, d'un groupe ou d'un compte, avec durée
+  (≤ 720 h) et motif obligatoires (`levels:override`, éditeur). Effet immédiat sur les
+  groupes (`claim_group.level_changed`, enquête N4 si forçage en N4) ; un forçage de
+  compte vaut pour les contenus suivants (extraction en N3 ou N4 même si le compte n'est
+  pas suivi). Le forçage le plus précis l'emporte (contenu > groupe > compte) ; jamais de
+  baisse pendant une enquête en cours ; l'expiration ne fait pas redescendre un groupe.
+- Budgets : `tower llm seed` crée les portées `level:N0..N4`
+  (`TOWER_FC_LEVEL_BUDGETS_USD`) ; les embeddings sont imputés au niveau du contenu,
+  l'arbitre au niveau de l'affirmation.
+
+### Réglages du lot 4
+
+Voir [configuration.md](configuration.md#fact-check-v1-lot-4).
+
+### Mesures du lot 4
+
+Voir le résumé de session [sessions/2026-11-11-lot-4-v1.md](sessions/2026-11-11-lot-4-v1.md)
+(RSS, index HNSW, évaluation). Index HNSW des groupes, jeu synthétique de 50 000 groupes
+à vecteurs aléatoires (cas défavorable) : 65 Mo d'index ; construction en 25 s avec
+`maintenance_work_mem = 64MB` (le graphe déborde après 36 870 vecteurs) et en 12 s avec
+128 Mo ; requête des 5 plus proches en 1,1 ms en moyenne (`ef_search = 40`). Pour
+~135 000 groupes par an, prévoir environ 175 Mo d'index et `maintenance_work_mem`
+≥ 256 Mo lors d'une reconstruction.
+
 ## Données
 
-Tables du lot 3 : [database.md](database.md#fact-check-lot-3). Événements :
+Tables du lot 3 : [database.md](database.md#fact-check-lot-3) ; du lot 4 :
+[database.md](database.md#fact-check-v1-lot-4). Événements :
 [events.md](events.md). Codes : `TWR-FCK-*` et `TWR-ATL-*` dans [errors.md](errors.md).
