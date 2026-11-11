@@ -12,6 +12,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.config import Settings
 from tower.core.db.database import Database
@@ -48,9 +49,24 @@ class Subscription:
     handler: EventHandler
 
 
+PeriodicFn = Callable[[AsyncSession, Settings], Awaitable[int]]
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodicTask:
+    """Singleton periodic task: one replica at a time runs it (advisory lock), inside one
+    transaction. ``fn`` returns the number of rows affected (logged when > 0)."""
+
+    name: str
+    """Lock name, prefixed by the service: ``ingest:partitions``."""
+    every_seconds: float
+    fn: PeriodicFn
+
+
 @dataclass(frozen=True, slots=True)
 class Service:
     name: str
     description: str = ""
     jobs: tuple[JobSpec, ...] = ()
     subscriptions: tuple[Subscription, ...] = field(default_factory=tuple)
+    periodic: tuple[PeriodicTask, ...] = field(default_factory=tuple)

@@ -27,6 +27,13 @@ service = Service(
 )
 ```
 
+### Tâches périodiques singleton
+
+`Service.periodic` déclare des tâches `PeriodicTask(name, every_seconds, fn)` :
+`fn(session, settings) -> int` s'exécute dans une transaction, sur un seul réplica à la
+fois (verrou consultatif `pg_try_advisory_xact_lock(hashtext(name))`), aux côtés de la
+maintenance du socle. Exemple : partitions et secrets du service `ingest`.
+
 ## Brancher un nouveau service
 
 1. Créer `src/tower/services/<nom>/__init__.py` qui expose `service`.
@@ -54,7 +61,7 @@ service = Service(
 | Service | Rôle | Notes |
 |---|---|---|
 | `ping` | Démonstration et supervision (`ping.requested` → `ping.done`) | ✅ |
-| `ingest` | Contenus de toutes plateformes (`content_items`, `observations`), endpoint de l'extension | à venir, voir [factcheck/plateformes-medias.md](factcheck/plateformes-medias.md) |
+| `ingest` | Liaison des copies, partitions des observations, secrets d'installation (l'endpoint de l'extension est dans gate) | ✅ file `ingest`, voir [ingestion.md](ingestion.md) |
 | `radar` | Polling de l'API X sur `watched_accounts` (puis flux Bluesky) | processus dédié prévu |
 | `factcheck` | Étages rapides et par lots du fact-check (E0 à E5, E10, E11), ordonnanceur, vagues | voir [factcheck/pipeline.md](factcheck/pipeline.md) |
 | `investigate` | Enquêtes (E6 à E9) : cadrage, collecte, jugement, rédaction | idem |

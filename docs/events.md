@@ -69,6 +69,10 @@ Le curseur public est la chaîne `"<xid>-<id>"` (opaque pour les clients).
 | `incident.reopened` | reporter (erreur résolue qui réapparaît) | idem |
 | `incident.resolved` | `errors.service.resolve` | empreinte, code, note |
 | `ping.requested` / `ping.done` | service ping | démonstration |
+| `content.ingested` | cas d'usage `ingest_items`, **nouveau contenu seulement** (jamais par observation) | `id` (clé interne en chaîne), `public_id`, `platform`, `external_id`, `lang`, `source` |
+| `watchlist.changed` | cas d'usage de la liste de suivi | `action` (`added`, `updated`), compte suivi (`public_id`, `platform`, `external_id`, `handle`, `category`, `priority`, `active`, `version`) |
+| `extension_filters.published` | `publish_filters` | `version` |
+| `budget.threshold_reached` | routeur de modèles, au premier franchissement de 50, 80 ou 100 % d'une portée sur la période | `scope`, `period_start`, `threshold_pct`, `spent_usd_micros`, `cap_usd_micros` |
 
 Convention de nommage : `<agrégat>.<verbe au participe passé>`.
 

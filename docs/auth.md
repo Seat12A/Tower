@@ -10,7 +10,7 @@ Sources : `core/domain/security.py`, `core/auth/`, `gate/deps.py`.
 | `service` | `Authorization: Bearer <token>` | scopes du client de service |
 | `staff` | token de service + `X-Acting-Discord-Id: <id>` | **rôles du membre ∩ scopes du service** |
 | `system` | processus internes (hangar, CLI) | tout |
-| `installation` | extension Chromium (token anonyme) | à venir, avec rate-limit |
+| `installation` | extension Chromium : en-tête `X-Installation-Token` (aléatoire, jamais stocké) | `content:ingest` seulement ; quota quotidien et limite par IP (voir [ingestion.md](ingestion.md)) |
 
 Le bot (intercom) s'authentifie avec son token et transmet l'ID Discord de la
 personne qui agit. L'ID est contrôlé contre `staff_members` (actif et rôles).
@@ -21,15 +21,16 @@ membre ne peut pas dépasser ses rôles.
 
 | Rôle | Permissions |
 |---|---|
-| `reviewer` | lire, créer, prendre en revue |
-| `editor` | + valider, rejeter, marquer comme publié |
+| `reviewer` | lire, créer, prendre en revue ; lire la liste de suivi |
+| `editor` | + valider, rejeter, marquer comme publié ; modifier la liste de suivi |
 | `admin` | tout (gestion de l'équipe, erreurs) |
 
 ## Permissions
 
 `dossiers:read_public`, `dossiers:read`, `dossiers:create`, `dossiers:review`,
 `dossiers:decide`, `dossiers:publish`, `events:read`, `staff:manage`,
-`errors:read`, `errors:manage`.
+`errors:read`, `errors:manage`, `content:ingest` (envoi de contenus : extension,
+radar), `watchlist:read`, `watchlist:write` (liste des comptes suivis).
 
 Elles sont vérifiées **dans les cas d'usage**, pas seulement dans l'API.
 

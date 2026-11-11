@@ -81,6 +81,20 @@ def cmd_errors(args: argparse.Namespace) -> None:
         asyncio.run(resolve_error(settings, args.fingerprint, args.note))
 
 
+def cmd_llm(args: argparse.Namespace) -> None:
+    settings = _settings("cli")
+    from tower.core.llm.admin import run_seed, run_usage
+
+    asyncio.run(run_seed(settings) if args.action == "seed" else run_usage(settings))
+
+
+def cmd_ingest(args: argparse.Namespace) -> None:
+    settings = _settings("cli")
+    from tower.core.admin import publish_filters_from_file
+
+    asyncio.run(publish_filters_from_file(settings, args.file, args.version))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tower", description="12A Tower")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -112,6 +126,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--note", help="resolution note")
     p.add_argument("--markdown", action="store_true", help="(catalog) Markdown output")
     p.set_defaults(func=cmd_errors)
+
+    p = sub.add_parser("llm", help="Model router: seed models, routes and budget; usage")
+    p.add_argument("action", choices=["seed", "usage"])
+    p.set_defaults(func=cmd_llm)
+
+    p = sub.add_parser("ingest", help="Ingestion administration")
+    isub = p.add_subparsers(dest="action", required=True)
+    pf = isub.add_parser("publish-filters", help="Publish and activate extension filters")
+    pf.add_argument("file", help="JSON file: {keywords, accounts, thresholds}")
+    pf.add_argument("--version", required=True)
+    pf.set_defaults(func=cmd_ingest)
     return parser
 
 

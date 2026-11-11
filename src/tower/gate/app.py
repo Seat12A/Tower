@@ -17,7 +17,8 @@ from tower.core.events.listener import PgListener
 from tower.core.logging import get_logger
 from tower.gate.errors import install_error_handlers
 from tower.gate.middleware import ObservabilityMiddleware
-from tower.gate.routes import dossiers, errors, events, health
+from tower.gate.ratelimit import TokenBucketLimiter
+from tower.gate.routes import dossiers, errors, events, health, ingest, watchlist
 
 log = get_logger(__name__)
 
@@ -56,17 +57,20 @@ def create_app(settings: Settings) -> FastAPI:
         redoc_url=None,
         openapi_url="/openapi.json" if settings.env != "prod" else None,
     )
+    app.state.limiter = TokenBucketLimiter()
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(dossiers.router)
     app.include_router(events.router)
     app.include_router(errors.router)
+    app.include_router(ingest.router)
+    app.include_router(watchlist.router)
     if settings.cors_origin_list:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.cors_origin_list,
-            allow_methods=["GET"],
-            allow_headers=["Authorization", "Content-Type"],
+            allow_methods=["GET", "POST"],
+            allow_headers=["Authorization", "Content-Type", "X-Installation-Token"],
         )
     app.add_middleware(ObservabilityMiddleware)
     return app

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import sys
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,7 @@ S = DossierStatus
 def test_domain_is_pure() -> None:
     """core/domain imports only the standard library and itself."""
     allowed_prefixes = ("tower.core.domain", "__future__")
-    stdlib = {"dataclasses", "enum", "re", "typing", "collections", "itertools"}
+    stdlib = sys.stdlib_module_names
     for path in (ROOT / "src/tower/core/domain").glob("*.py"):
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):

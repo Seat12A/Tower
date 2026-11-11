@@ -201,6 +201,139 @@ INT_SERVICE_CRASHED = _define(
     "TWR-INT-002", "Background task of a process stopped on error", severity=_CRIT, store=True
 )
 
+# --- LLM: model router and providers ----------------------------------------------
+LLM_BUDGET_EXHAUSTED = _define(
+    "TWR-LLM-001",
+    "LLM budget exhausted for the current period",
+    http_status=503,
+    severity=_WARN,
+    retryable=True,
+    hint="Jobs retry at the start of the next period; raise the cap in budget_counters if needed.",
+)
+LLM_NO_ROUTE = _define(
+    "TWR-LLM-002",
+    "No active model route for this role and level",
+    severity=_ERR,
+    store=True,
+    hint="Run `tower llm seed` or add a route in llm_routes.",
+)
+LLM_UNKNOWN_PROMPT = _define(
+    "TWR-LLM-003",
+    "Unknown prompt id",
+    severity=_ERR,
+    store=True,
+    hint="Add src/tower/services/<service>/prompts/<prompt_id>.md.",
+)
+LLM_ALL_REFUSED = _define(
+    "TWR-LLM-004",
+    "Every model of the route refused the request",
+    http_status=422,
+    severity=_WARN,
+    store=True,
+    hint="Sensitive topic: flag the item for a human reviewer.",
+)
+LLM_INVALID_OUTPUT = _define(
+    "TWR-LLM-005",
+    "No schema-valid output from any model of the route",
+    severity=_ERR,
+    store=True,
+    retryable=True,
+    hint="Check the prompt and the schema; compare the stored outputs in llm_calls.",
+)
+LLM_PROVIDER_UNAVAILABLE = _define(
+    "TWR-LLM-006",
+    "Model provider temporarily unavailable (rate limit, timeout, 5xx)",
+    http_status=503,
+    severity=_WARN,
+    retryable=True,
+)
+LLM_PROVIDER_FATAL = _define(
+    "TWR-LLM-007",
+    "Model provider rejected the request (authentication, bad request)",
+    severity=_ERR,
+    store=True,
+    hint="Check the API key and the request parameters of the route.",
+)
+LLM_PROVIDER_NOT_CONFIGURED = _define(
+    "TWR-LLM-008",
+    "No API key configured for the provider required by the route",
+    severity=_ERR,
+    store=True,
+    hint="Set TOWER_OPENAI_API_KEY, TOWER_OPENAI_API_KEY_SHARED or TOWER_ANTHROPIC_API_KEY.",
+)
+LLM_UNKNOWN_MODEL = _define(
+    "TWR-LLM-009",
+    "Route references an unknown or inactive model",
+    severity=_ERR,
+    store=True,
+    hint="Run `tower llm seed` or fix llm_routes.",
+)
+
+# --- ING: ingestion ------------------------------------------------------------------
+ING_INVALID_INSTALLATION_TOKEN = _define(
+    "TWR-ING-001",
+    "Invalid installation token",
+    http_status=401,
+    severity=_INFO,
+    hint="X-Installation-Token: base64url, 22 to 64 characters.",
+)
+ING_QUOTA_EXCEEDED = _define(
+    "TWR-ING-002",
+    "Daily ingestion quota exceeded for this installation",
+    http_status=429,
+    severity=_INFO,
+    hint="The quota resets at 00:00 UTC.",
+)
+ING_BATCH_TOO_LARGE = _define(
+    "TWR-ING-003", "Too many items in the batch", http_status=422, severity=_INFO
+)
+ING_BODY_TOO_LARGE = _define(
+    "TWR-ING-004", "Request body too large", http_status=413, severity=_INFO
+)
+ING_UNKNOWN_PLATFORM = _define("TWR-ING-005", "Unknown platform", http_status=422, severity=_INFO)
+ING_BAD_EXTERNAL_ID = _define(
+    "TWR-ING-006", "Invalid platform identifier", http_status=422, severity=_INFO
+)
+ING_RATE_LIMITED = _define(
+    "TWR-ING-007", "Too many ingestion requests", http_status=429, severity=_INFO
+)
+ING_WATCHED_NOT_FOUND = _define(
+    "TWR-ING-008", "Watched account not found", http_status=404, severity=_INFO
+)
+ING_WATCHED_EXISTS = _define(
+    "TWR-ING-009", "Account is already on the watchlist", http_status=409, severity=_INFO
+)
+ING_PARTITION_MISSING = _define(
+    "TWR-ING-010",
+    "No observations partition for this timestamp",
+    http_status=503,
+    severity=_ERR,
+    store=True,
+    retryable=True,
+    hint="The ingest service creates partitions ahead; check that a hangar runs it.",
+)
+ING_BAD_FILTERS = _define(
+    "TWR-ING-011", "Invalid extension filter definition", http_status=422, severity=_INFO
+)
+
+# --- WEB: outbound HTTP fetches ------------------------------------------------------
+WEB_BLOCKED_URL = _define(
+    "TWR-WEB-001",
+    "URL refused (scheme, port or non-public address)",
+    http_status=422,
+    severity=_WARN,
+    hint="SSRF protection: only public http(s) addresses are fetched.",
+)
+WEB_TOO_LARGE = _define("TWR-WEB-002", "Fetched content exceeds the size cap", severity=_INFO)
+WEB_BAD_CONTENT_TYPE = _define("TWR-WEB-003", "Content type not allowed", severity=_INFO)
+WEB_ROBOTS_DISALLOWED = _define("TWR-WEB-004", "Disallowed by robots.txt", severity=_INFO)
+WEB_FETCH_FAILED = _define(
+    "TWR-WEB-005",
+    "Fetch failed (network, timeout, too many redirects, HTTP error)",
+    severity=_WARN,
+    retryable=True,
+)
+
 
 def get(code: str) -> ErrorCode:
     return CATALOG[code]

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.config import Settings
 from tower.core.db.database import Database
@@ -12,9 +15,17 @@ from tower.core.events.listener import PgListener
 from tower.core.jobs.maintenance import run_maintenance
 from tower.core.jobs.runner import JobRunner
 from tower.core.logging import get_logger
+from tower.core.services.base import PeriodicTask
 from tower.core.services.registry import load_services
 
 log = get_logger(__name__)
+
+
+def _bind(task: PeriodicTask, settings: Settings) -> Callable[[AsyncSession], Awaitable[int]]:
+    async def run(session: AsyncSession) -> int:
+        return await task.fn(session, settings)
+
+    return run
 
 
 async def serve(settings: Settings, stop: asyncio.Event) -> None:
@@ -41,7 +52,10 @@ async def serve(settings: Settings, stop: asyncio.Event) -> None:
     try:
         async with asyncio.TaskGroup() as tg:
             tg.create_task(runner.run(stop), name="runner")
-            tg.create_task(run_maintenance(db, settings, stop), name="maintenance")
+            extra = [
+                (task.name, task.every_seconds, _bind(task, settings)) for task in services.periodic
+            ]
+            tg.create_task(run_maintenance(db, settings, stop, extra), name="maintenance")
             for name, sub in services.subscriptions:
                 tg.create_task(
                     run_consumer(

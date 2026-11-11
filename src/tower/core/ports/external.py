@@ -1,4 +1,8 @@
-"""Minimal contracts, to be extended when the corresponding services are written."""
+"""Legacy contracts kept for compatibility (expand/contract applied to code).
+
+``XClient`` predates ``PlatformClient`` (``tower.core.ports.platforms``), which
+generalises it to every platform; new code uses ``PlatformClient``.
+"""
 
 from __future__ import annotations
 
@@ -18,23 +22,11 @@ class XPost:
 
 
 class XClient(Protocol):
-    """Official X API (paid per read: each call has a cost)."""
+    """Official X API (paid per read: each call has a cost). Deprecated: PlatformClient."""
 
     async def get_post(self, post_id: int) -> XPost | None: ...
 
     async def user_posts(self, user_id: int, *, since_id: int | None) -> Sequence[XPost]: ...
-
-
-class LLMClient(Protocol):
-    """Call a model with structured output; also returns usage for cost tracking."""
-
-    async def complete(
-        self, *, model: str, system: str, messages: Sequence[dict[str, Any]], schema: dict[str, Any]
-    ) -> tuple[dict[str, Any], dict[str, int]]: ...
-
-
-class SearchClient(Protocol):
-    async def search(self, query: str, *, limit: int) -> Sequence[dict[str, Any]]: ...
 
 
 class Notifier(Protocol):

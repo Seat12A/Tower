@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +43,14 @@ async def run_singleton(
         return await fn(session)
 
 
-async def run_maintenance(db: Database, settings: Settings, stop: asyncio.Event) -> None:
+async def run_maintenance(
+    db: Database,
+    settings: Settings,
+    stop: asyncio.Event,
+    extra: Sequence[tuple[str, float, Callable[[AsyncSession], Awaitable[int]]]] = (),
+) -> None:
+    """Core tasks plus ``extra`` ones (periodic tasks of the enabled services)."""
+
     async def reap(session: AsyncSession) -> int:
         count = await q.reap(session)
         if count:
@@ -61,6 +68,7 @@ async def run_maintenance(db: Database, settings: Settings, stop: asyncio.Event)
     schedule: list[tuple[str, float, Callable[[AsyncSession], Awaitable[int]]]] = [
         ("tower:jobs:reap", 30.0, reap),
         ("tower:retention:purge", 3600.0, purge),
+        *extra,
     ]
     last_run = dict.fromkeys((name for name, _, _ in schedule), 0.0)
     while not stop.is_set():
