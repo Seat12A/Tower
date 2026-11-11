@@ -115,6 +115,7 @@ par des critères fermés et un registre publié. Voir [objectivite.md](objectiv
 | [reponses-fable.md](reponses-fable.md) | Réponses de Fable (2026-11-10), archivées |
 | [prompts/partie-1-fondations-ingestion.md](prompts/partie-1-fondations-ingestion.md) | Prompt d'implémentation de la partie 1 (fondations et ingestion) pour une session Claude Code |
 | [prompts/partie-2-radar-intercom.md](prompts/partie-2-radar-intercom.md) | Prompt d'implémentation de la partie 2 (radar X en service hangar, bot Discord, réservations orphelines) |
+| [prompts/partie-3-lot-3-mvp.md](prompts/partie-3-lot-3-mvp.md) | Prompt d'implémentation du lot 3 (MVP du fact-check, développement sans clés, évaluation prête) |
 | [recherche.md](recherche.md) | Sources consultées, ce qu'on en retient, dates de vérification |
 
 ## Écarts avec le plan de Fable

@@ -36,3 +36,17 @@ nouvelle session Claude Code (Opus 5.5) qui ne connaît pas le projet.
 - Jules doit fournir pour la partie 2 réelle : clé X, application et token Discord,
   identifiants des salons, plafond mensuel X.
 - Seuil SimHash toujours à trancher sur un corpus.
+
+## Complément : prompt du lot 3
+
+- `docs/factcheck/prompts/partie-3-lot-3-mvp.md` : prompt autonome du MVP du
+  fact-check (comptes suivis N3 et demandes manuelles N4).
+  - Développement **sans clés** : doublures, fournisseur factice
+    `TOWER_LLM_FAKE=1`, vrais appels à Wikipédia et Wikidata au smoke test.
+  - Étages E2 et E6 à E11 ; Atlas minimal ; revue dans Discord avec boutons et
+    réconciliation au démarrage ; lecture publique du verdict validé en fr, en et
+    langue du post.
+  - Outil `tower factcheck eval` prêt pour la session de validation avec les clés et
+    le jeu de référence.
+  - Prompts des modèles écrits par l'agent Opus lui-même ; six sous-agents
+    Sonnet 5.5.
