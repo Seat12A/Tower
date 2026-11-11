@@ -157,3 +157,14 @@ def test_hamming() -> None:
     assert hamming(0, 2**64 - 1) == 64
     assert hamming(-1, 2**64 - 1) == 0
     assert hamming(12345, -987654321) == hamming(-987654321, 12345)
+
+
+def test_simhash_ignores_added_links_and_mentions() -> None:
+    base = (
+        "Le gouvernement annonce que le taux de chomage a baisse de deux points cette "
+        "annee selon les derniers chiffres officiels publies ce matin par l institut"
+    )
+    copy = f"{base} https://example.org/?utm_source=x @someone"
+    a, b = normalize(base), normalize(copy)
+    assert content_hash(a) != content_hash(b)
+    assert hamming(simhash64(a), simhash64(b)) == 0

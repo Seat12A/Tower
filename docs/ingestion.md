@@ -21,7 +21,7 @@ plus 19, borne `BIGINT` (contrainte CHECK) et index sur `(external_id::bigint)`.
 | `normalize` | `core/domain/text.py` | NFKC, minuscules, paramètres de suivi retirés des URL (`utm_*`, `fbclid`, `gclid`, `ref_src`…), mentions → `@user`, emojis décoratifs retirés, espaces compactés |
 | `useful_word_count` | idem | Mots d'au moins deux lettres, hors URL et mentions |
 | `content_hash` | idem | SHA-256 du texte normalisé (copie exacte) |
-| `simhash64`, `simhash_bands`, `hamming` | idem | SimHash 64 bits (mots et bigrammes, `blake2b`), en entier signé pour `BIGINT` ; 4 bandes de 16 bits |
+| `simhash64`, `simhash_bands`, `hamming` | idem | SimHash 64 bits (mots et bigrammes, `blake2b` ; URL et `@user` exclus des traits, pour qu'un ajout de lien ou de mention garde la même empreinte), en entier signé pour `BIGINT` ; 4 bandes de 16 bits |
 | `detect_language` | `core/domain/language.py` | Indice de la plateforme s'il est valide, sinon écriture (arabe, cyrillique, hébreu, grec, CJK, dévanagari, thaï…), sinon mots outils (fr, en, es, de, it, pt, nl) ; `und` si incertain |
 
 Le texte d'origine est **conservé tel quel** ; la normalisation ne sert qu'aux
@@ -66,7 +66,10 @@ portant `content:ingest` (radar, plus tard). Corps (256 Ko au plus, sinon
 - `observed_at` est accepté s'il se situe dans les 24 dernières heures (5 minutes
   d'avance tolérées), sinon remplacé par l'heure du serveur.
 - Un item invalide (plateforme inconnue `TWR-ING-005`, identifiant invalide
-  `TWR-ING-006`, média invalide) est **refusé seul** ; le reste du lot est traité.
+  `TWR-ING-006`, y compris auteur, parent ou citation ; texte trop long ou média
+  invalide `TWR-GEN-001`) est **refusé seul** ; le reste du lot est traité. Un même
+  contenu présent deux fois dans le lot donne une ligne, deux observations et
+  `observation_count` augmenté d'autant.
 - Réponse `202` :
 
 ```json
@@ -98,7 +101,9 @@ uv run tower ingest publish-filters filters.json --version 2026-11-11.1
 
 Format : `{"keywords": [str ≤ 100 car.] (≤ 500), "accounts": [{"platform",
 "external_id"}] (≤ 2 000), "thresholds": {nom: nombre}}` ; toute autre clé est
-refusée (`TWR-ING-011`). Publie `extension_filters.published`.
+refusée (`TWR-ING-011` ; plateforme ou identifiant de compte invalide :
+`TWR-ING-005`/`006`) ; une version déjà publiée est refusée (`TWR-GEN-001`). Publie
+`extension_filters.published`.
 
 ### Liste de suivi : `/v1/watched-accounts`
 
@@ -113,7 +118,8 @@ refusée (`TWR-ING-011`). Publie `extension_filters.published`.
 `political_party`, `public_institution`, `media_outlet`, `journalist`,
 `public_figure`, `other`), **jamais un bord politique**. Priorité de -100 à 100.
 Doublon → `TWR-ING-009` ; introuvable → `TWR-ING-008` ; version périmée →
-`TWR-GEN-003`. Chaque écriture est auditée (`watched_account_events`) et publie
+`TWR-GEN-003`. `note: ""` efface la note ; un PATCH sans changement ne fait rien (ni
+audit, ni événement, ni version). Chaque écriture est auditée (`watched_account_events`) et publie
 `watchlist.changed`. Le suivi ne change que la surveillance et la latence, jamais le
 verdict (règle 10).
 

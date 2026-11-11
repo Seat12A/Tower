@@ -127,15 +127,25 @@ def content_hash(normalized: str) -> bytes:
     return hashlib.sha256(normalized.encode("utf-8")).digest()
 
 
+def _is_noise(token: str) -> bool:
+    return token.startswith(("http://", "https://")) or token.startswith("@user")
+
+
 def simhash64(normalized: str) -> int:
     """64-bit SimHash as a SIGNED integer (fits PostgreSQL BIGINT).
 
     Features: word tokens (split on whitespace, punctuation stripped at both ends)
-    and word bigrams, each weight 1; feature hash = ``blake2b(feature.encode(),
+    and word bigrams, each weight 1. URLs and ``@user`` are NOT features: a copy that
+    only adds a link or a mention ("retweet with a minor addition") keeps the same
+    SimHash (the exact hash still differs). Feature hash = ``blake2b(feature.encode(),
     digest_size=8)`` read big-endian. Empty text → 0. Unsigned results ≥ 2**63 are
     converted with ``value - 2**64``.
     """
-    tokens = [t for t in (_EDGE_PUNCT.sub("", raw) for raw in normalized.split()) if t]
+    tokens = [
+        t
+        for t in (_EDGE_PUNCT.sub("", raw) for raw in normalized.split() if not _is_noise(raw))
+        if t
+    ]
     if not tokens:
         return 0
     features = tokens + [f"{a} {b}" for a, b in itertools.pairwise(tokens)]

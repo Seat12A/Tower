@@ -60,9 +60,13 @@ Détail des colonnes : [database.md](database.md).
 6. **Budget** (appel payant) : coût estimé réservé dans `budget_counters` pour la
    portée `global` et la portée de la requête (si elle a un compteur), dans une
    transaction : `UPDATE … SET reserved = reserved + :est WHERE spent + reserved + :est
-   <= cap`. Une portée qui refuse annule tout → `BudgetExhausted` (`TWR-LLM-001`), que
-   les jobs traduisent en `RetryLater` jusqu'au début de la période suivante. La
-   réservation reste exacte avec plusieurs réplicas (testé avec deux connexions).
+   <= cap`. Une portée qui refuse annule toute la réservation et le routeur passe au
+   candidat suivant (un repli moins cher peut encore tenir dans le budget). Si aucun
+   candidat n'a pu être tenté → `BudgetExhausted` (`TWR-LLM-001`), que les jobs
+   traduisent en `RetryLater` jusqu'au début de la période suivante ; si seule
+   l'allocation gratuite manquait, la portée est `free_allowance` et la relance a lieu
+   au prochain minuit UTC. La réservation reste exacte avec plusieurs réplicas (testé
+   avec deux connexions).
 7. **Appel** du fournisseur, **sans transaction ouverte**.
 8. **Validation** pydantic. Sortie invalide : une nouvelle tentative sur le même
    modèle, puis candidat suivant. Refus : candidat suivant. Erreur relançable (quota,
@@ -76,6 +80,13 @@ Détail des colonnes : [database.md](database.md).
 
 Tous les candidats épuisés : `TWR-LLM-004` si le dernier échec est un refus,
 `TWR-LLM-005` sinon. Chaque tentative, même échouée, est journalisée et facturée.
+
+Limites connues : un processus tué entre la réservation et le règlement laisse la
+réservation en place (pas encore de récupération automatique : à surveiller via
+`reserved_usd_micros`) ; si deux réplicas obtiennent le même succès en même temps, le
+second coût est bien imputé au budget mais une seule ligne `llm_calls` est gardée ; une
+sortie en cache qui ne valide plus le schéma est marquée `invalid_output` (le cache est
+libéré).
 
 ## Coûts
 
@@ -103,7 +114,8 @@ l'événement et des compteurs.
 
 ## Routes par défaut (`tower llm seed`)
 
-Idempotent : met à jour les tarifs des modèles connus, crée la version 1 d'une route
+Idempotent : met à jour les tarifs des modèles connus (sans jamais écraser un
+`free_group` déjà renseigné), crée la version 1 d'une route
 seulement si aucune route n'existe pour (rôle, niveau) — une route modifiée par
 l'équipe n'est jamais écrasée. Tarifs relevés le 2026-11-10
 ([factcheck/modeles.md](factcheck/modeles.md)).
