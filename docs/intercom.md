@@ -18,8 +18,12 @@ par le bot seul. Source : `src/tower/intercom/`.
 
 ## Commandes
 
-Toutes les réponses sont **éphémères** (visibles seulement par la personne). Une erreur
-affiche le code `TWR-*` avec un message traduit.
+Toutes les réponses sont **éphémères** (visibles seulement par la personne) ; le bot
+diffère la réponse (`defer`) puis répond, gate pouvant dépasser les 3 s de Discord. Une
+erreur affiche le code `TWR-*` avec un message traduit. Les identifiants (`id` d'un
+compte suivi, empreinte d'incident) acceptent un **préfixe unique d'au moins 6
+caractères** ; pour un compte suivi, le bot relit la liste (500 au plus) pour obtenir la
+`version` exigée par le PATCH (gate n'a pas de lecture unitaire d'un compte suivi).
 
 | Commande | Effet | Permission gate |
 |---|---|---|
@@ -34,7 +38,7 @@ affiche le code `TWR-*` avec un message traduit.
 | `/incidents list` / `resolve empreinte [note]` | Erreurs stockées | `errors:read` / `errors:manage` |
 | `/usage` | Allocation gratuite du jour, dépense du mois par portée (`global`, fournisseurs, `provider:x`) | `usage:read` |
 
-Les droits effectifs sont l'intersection des rôles de la personne et des scopes du
+`/incidents` demande le rôle `admin` (seul rôle avec `errors:*`). Les droits effectifs sont l'intersection des rôles de la personne et des scopes du
 token du bot (voir [auth.md](auth.md)). Token du bot : `dossiers:read
 dossiers:create dossiers:review dossiers:decide dossiers:publish events:read
 errors:read errors:manage watchlist:read watchlist:write usage:read`.
@@ -57,7 +61,10 @@ ignorée. Aucun événement à haut volume : le bot ne s'abonne pas à `content.
 Une seule connexion SSE (`GET /v1/events?after=…&topics=…`). Le curseur est stocké côté
 gate (`PUT /v1/events/cursors/intercom`, voir [events.md](events.md)) après chaque
 événement traité ; au redémarrage, le bot le relit et reprend avec `?after=`. Premier
-démarrage sans curseur : départ à « maintenant » (pas d'inondation du salon). Livraison
+démarrage sans curseur : départ à « maintenant » (pas d'inondation du salon) ; limite
+connue : si le flux se coupe avant le tout premier événement, la reprise repart de
+« maintenant » et les événements de cet intervalle sont manqués (une seule fois, au
+tout premier démarrage). Livraison
 **au moins une fois** : les identifiants d'événements déjà notifiés sont mémorisés dans
 un ensemble borné (2 048) ; un doublon n'est pas renvoyé. Flux coupé : `TWR-BOT-002`
 journalisé, reprise avec recul (1 à 30 s) depuis le dernier curseur. Échec d'envoi
@@ -89,6 +96,6 @@ uv run tower intercom             # TOWER_DISCORD_TOKEN, TOWER_GATE_URL, TOWER_G
 uv run tower intercom --dry-run   # construit tout sans se connecter à Discord ; notifications journalisées
 ```
 
-Configuration manquante : `TWR-BOT-004` et arrêt (code 2). Variables :
+Configuration manquante ou token Discord refusé : `TWR-BOT-004` et arrêt (code 2). Variables :
 [configuration.md](configuration.md#intercom-bot-discord). Déploiement :
 [deployment-railway.md](deployment-railway.md).

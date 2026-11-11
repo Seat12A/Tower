@@ -59,12 +59,19 @@ async def serve(settings: Settings, stop: asyncio.Event, *, dry_run: bool = Fals
             log.info("intercom.dry_run", commands=len(client.tree.get_commands()))
             await stop.wait()
             return
+        import discord
+
         runner = asyncio.create_task(client.start(discord_token))
         waiter = asyncio.create_task(stop.wait())
         tasks += [runner, waiter]
         await asyncio.wait({runner, waiter}, return_when=asyncio.FIRST_COMPLETED)
         if runner.done() and not stop.is_set():
-            runner.result()  # login or connection failure: raise so the process restarts
+            exc = runner.exception()
+            if isinstance(exc, discord.LoginFailure):
+                # Rejected token: a clean, stored-free log line instead of a traceback.
+                capture(ec.BOT_BAD_CONFIG, exc, reason="discord_login_failed")
+                raise SystemExit(2)
+            runner.result()  # other connection failure: raise so the process restarts
     finally:
         stop.set()
         with contextlib.suppress(Exception):
