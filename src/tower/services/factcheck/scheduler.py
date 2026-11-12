@@ -72,7 +72,12 @@ _METRICS_SQL = text(
     FROM claim_groups g
     JOIN claim_group_members m ON m.group_id = g.id AND m.removed_at IS NULL
     JOIN content_claims cc ON cc.claim_id = m.claim_id
-    JOIN content_items c ON c.id = cc.content_id
+    CROSS JOIN LATERAL (
+        SELECT cc.content_id
+        UNION ALL
+        SELECT cp.id FROM content_items cp WHERE cp.copy_of_id = cc.content_id
+    ) AS x(content_id)
+    JOIN content_items c ON c.id = x.content_id
     LEFT JOIN observations o ON o.content_id = c.id AND o.observed_at >= :t6
     WHERE g.state NOT IN ('merged', 'passive') AND g.updated_at >= :t48
     GROUP BY g.id

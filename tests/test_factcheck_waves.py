@@ -191,6 +191,29 @@ async def test_window_stats_are_written_per_span(db: Database, cfg: Settings) ->
     assert stats["6h"][1] == 20
 
 
+async def test_exact_copies_count_through_their_original(db: Database, cfg: Settings) -> None:
+    # Mass-flow copies are never extracted: they carry no claim but must count in the wave.
+    g = await seed(db, "Claim", unit(211))
+    nid = await build_narrative(db, g)
+    (original,) = await bulk(db, g, 1)
+    copies = await bulk(db, None, 9)
+    async with db.transaction() as s:
+        await s.execute(
+            text("UPDATE content_items SET copy_of_id = :o WHERE id = ANY(:ids)"),
+            {"o": original, "ids": copies},
+        )
+    await bulk(db, None, 90)
+    await wave(db, cfg)
+    posts, accounts = (
+        await rows(
+            db,
+            "SELECT posts, accounts FROM narrative_stats WHERE narrative_id = :n AND span = '1h'",
+            n=nid,
+        )
+    )[0]
+    assert (posts, accounts) == (10, 10)
+
+
 async def test_the_score_compares_with_the_previous_window_scaled_by_the_flow(
     db: Database, cfg: Settings
 ) -> None:

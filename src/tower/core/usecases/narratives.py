@@ -62,14 +62,21 @@ OPEN_STATES = (
 MEDOID_ELECTION_INTERVAL = timedelta(days=1)
 
 NARRATIVE_CONTENTS = """
-SELECT DISTINCT ng.narrative_id, cc.content_id
+SELECT DISTINCT ng.narrative_id, x.content_id
 FROM narrative_groups ng
 JOIN claim_group_members m ON m.group_id = ng.group_id AND m.removed_at IS NULL
 JOIN content_claims cc ON cc.claim_id = m.claim_id
+CROSS JOIN LATERAL (
+    SELECT cc.content_id
+    UNION ALL
+    SELECT cp.id FROM content_items cp WHERE cp.copy_of_id = cc.content_id
+) AS x(content_id)
 WHERE ng.removed_at IS NULL AND ng.narrative_id = ANY(:nids)
 """
 """SQL: ``(narrative_id, content_id)`` of the contents carrying a claim of an active group
-of the given narratives (bind ``nids``)."""
+of the given narratives, plus their exact copies (bind ``nids``). Copies of a mass-flow
+post are never extracted (``copy_of_id`` points to the original), yet a wave is mostly
+copies: they count through their original."""
 
 
 # ------------------------------------------------------------------------- lookup
