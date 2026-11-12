@@ -260,3 +260,23 @@ Décisions prises en session ; Jules, absent, a demandé de trancher sans lui.
 | Fusion : les brouillons de la source passent en `superseded` ; la revue d'un brouillon d'un groupe fusionné est refusée (`TWR-FCK-021`) | Un verdict ne doit jamais devenir actif sur un groupe absorbé |
 | Copie exacte d'un post (même empreinte) : reliée aux mêmes affirmations par le chemin du lot 3, sans E3 ni `verdict.reused` | La copie porte déjà les affirmations du contenu d'origine, donc son verdict |
 | Plafond unitaire du profil : profondeur standard et N4 ; la profondeur renforcée hors N4 garde `TOWER_FC_CAP_REINFORCED_USD` | Le tableau des profondeurs de [factcheck/niveaux.md](factcheck/niveaux.md) distingue standard et renforcée |
+
+## Lot 5 (V2 du fact-check, 2026-11-12)
+
+Décisions de conception arrêtées au début du lot (contrat des sous-agents :
+`factcheck/prompts/lot-5-briefs/CONTRACT5.md`) et tranchées en session, Jules absent.
+
+| Décision | Raison |
+|---|---|
+| API Batch d'Anthropic reportée | L'allocation gratuite couvre le volume de départ ; les micro-lots synchrones suffisent |
+| Voie rapide des vagues : priorité 10 dans `fc-deep` pour tous les jobs d'une enquête marquée `flags.wave` (pas de nouvelle file) | Pas de processus ni de file supplémentaires (RAM) ; la file trie déjà par priorité |
+| Groupes N1 (et N2 issus des lots) créés dormants, sans enquête : l'ordonnanceur décide ; N3 et N4 ne l'attendent jamais | Le coût de masse reste borné ; aucun retard pour les comptes suivis |
+| Lot entier rejoué post par post dès 2 échecs de fidélité ou un canari contaminé ; les affirmations du canari ne sont jamais enregistrées | Dans le doute, ne pas faire confiance au lot |
+| Un post contenant un marqueur d'injection de prompt est extrait seul | Il ne doit pas pouvoir contaminer les autres posts du lot |
+| La promotion N1 → N2 relit toujours les métriques quand un client de plateforme existe ; une raison non métrique confirme dès que la lecture réussit ; lecture en échec ⇒ pas de promotion ; pas de client ⇒ promotion `unconfirmed` | Confirmer avant de dépenser, sans bloquer les plateformes sans API |
+| Vérification légère : une fiche validée passe toujours par la bande (déterministe, sans modèle) ; le modèle ne voit jamais la fiche comme preuve | Moins d'appels ; même issue qu'une variante couverte |
+| Quota quotidien de brouillons de l'ordonnanceur et de la vidange : brouillons de vague (`flags.surge`) exclus | Ils ont leur propre quota (`TOWER_FC_SURGE_DAILY_QUOTA`) |
+| Les règles « N3 » et « 2 plateformes » du palier `surge` exigent aussi les planchers de `watch` ; gel de 24 h après un changement des filtres de l'extension : la croissance ne peut pas être remplie | Un post isolé n'est jamais une vague ; un nouveau filtre fait monter le volume artificiellement |
+| Une vague qui monte de `surge` à `alert` republie `narrative.surge_detected` (`tier = alert`) ; la notification du bot est idempotente par récit et palier | L'alerte doit être signalée même si la vague était déjà annoncée |
+| Pas de topic `narrative.created` : la fondation d'un récit n'est inscrite qu'au journal `narrative_events` | Un récit par nouveau groupe serait un bruit sans consommateur |
+| Le chemin « copie qui hérite des affirmations » n'écrit pas `content_extractions` | Une copie n'est jamais en attente de lot (filtre « pas une copie ») ; écrire écraserait le niveau d'une promotion N4 |

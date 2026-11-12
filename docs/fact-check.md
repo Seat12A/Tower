@@ -451,8 +451,171 @@ Voir le résumé de session [sessions/2026-11-12-lot-4-v1.md](sessions/2026-11-1
 ~135 000 groupes par an, prévoir environ 175 Mo d'index et `maintenance_work_mem`
 ≥ 256 Mo lors d'une reconstruction.
 
+## Lot 5 — V2 : flux de masse, ordonnanceur, récits et vagues
+
+État : **livré en développement, sans clé d'API** (doublures `TOWER_LLM_FAKE=1`). Les
+seuils (promotion, paliers de vague, rattachement aux récits) sont ceux du plan, non
+calibrés sur un vrai flux. Décisions : [decisions.md](decisions.md#lot-5).
+
+### Flux ajouté
+
+```
+content_embeddings N1 (ou échantillon) sans content_extractions
+  └─ factcheck:compose_batches (60 s) ─ filter_for_surges (échantillonnage des vagues)
+       └─ factcheck.extract_batch (fc-bulk, E2 en micro-lots, rôle extract_batch)
+            └─ E3 + record_extraction(investigate=False) ─▶ groupes N1 « dormants »
+claim_group.created ─(abonnement « narratives »)─▶ factcheck.attach_narrative (fc-bulk)
+factcheck:schedule (tick 60 s, passe adaptative, singleton)
+  1. métriques des groupes actifs   2. promotions (factcheck.promotion_check) et rétrogradations
+  3. waves_step : statistiques, paliers, mode vague   4. priorités
+  5. enquêtes N2 (budget level:N2, quota, capacité fc-deep) et vérifications légères N1
+factcheck:narratives (1 h) : fermeture, médoïdes, scission suggérée, purges
+```
+
+Les niveaux N3 et N4 n'attendent jamais l'ordonnanceur (déclenchement immédiat du lot 3).
+`TOWER_FC_MASS_FLOW=false` coupe le composeur (les contenus N1 ne sont plus extraits).
+
+### E2 en micro-lots (N1)
+
+- Un contenu est **en attente** quand son embedding est `N1` ou `sampled`, sa langue
+  traitée, ce n'est pas une copie, son auteur n'est pas un compte suivi actif (N3 reste
+  immédiat) et il n'a pas de ligne `content_extractions`. Le composeur prend les 500 plus
+  anciens et ignore ceux déjà présents dans un job `factcheck.extract_batch` en attente.
+- Composition (pure, `core/domain/factcheck/batching.py`) : les plus anciens d'abord ;
+  jamais deux posts de cosinus > `TOWER_FC_BATCH_DISSIMILARITY` ni deux posts d'un même
+  récit dans un lot ; au plus `TOWER_FC_BATCH_SIZE` posts (plafond dur 12) et
+  `TOWER_FC_BATCH_MAX_TOKENS` ; un post qui contient un marqueur d'injection de prompt
+  (anglais et français) part **seul**. Un lot part quand il est plein ou quand son plus
+  ancien post a attendu `TOWER_FC_BATCH_MAX_WAIT_S`.
+- Job `factcheck.extract_batch` : rôle `extract_batch`, niveau N1, portée `level:N1`
+  (`BudgetExhausted` ⇒ relance plus tard). Un post absent de la réponse
+  (`TWR-FCK-039`) ou une affirmation infidèle au texte est rejoué seul (rôle `extract`).
+  **Deux échecs de fidélité dans un lot, ou un canari contaminé** (le chiffre unique du
+  post canari retrouvé dans l'affirmation d'un autre post, `TWR-FCK-040`) : tout le lot
+  est rejoué post par post (`replayed_solo`). Les affirmations du canari ne sont jamais
+  enregistrées.
+- Audit : chaque position a la probabilité `TOWER_FC_SOLO_AUDIT_RATE` d'être rejouée
+  seule (`extraction_audits`, `discordant`) ; le résultat du lot est conservé.
+- Enregistrement post par post : E3 puis `record_extraction(level='N1',
+  investigate=False)` : les nouveaux groupes sont créés **dormants, sans enquête** ;
+  rattachement et réutilisation inchangés (lot 4). Toute extraction, solo ou par lot,
+  écrit `content_extractions` (`extracted`, `no_claim`).
+
+### E4 : ordonnanceur
+
+- Intervalle adaptatif : `clamp(min, max, 3600 × cible ÷ débit)`, débit = contenus vus
+  dans la dernière heure. Une ligne `scheduler_runs` par passe.
+- **Promotion N1 → N2** (une condition suffit) : observateurs distincts (pseudonymes
+  d'installation) sur 6 h ≥ `TOWER_FC_PROMOTION_OBSERVERS` ; vélocité (observations de
+  la dernière heure ÷ heure précédente, au moins 10) ≥ `TOWER_FC_PROMOTION_VELOCITY_FACTOR` ;
+  vues > `TOWER_FC_PROMOTION_VIEWS` ; signal léger `likely_false` avec une portée
+  supérieure à la médiane des groupes N1 actifs ; groupe d'un récit en `surge` ou plus.
+  Avant toute dépense, le job `factcheck.promotion_check` relit les métriques du post
+  représentatif par l'API de la plateforme (portée `provider:x`) : une raison non
+  métrique, ou des métriques fraîches au-dessus du seuil, confirment. Sans client pour la
+  plateforme : promotion avec `unconfirmed`. Échec de lecture : pas de promotion
+  (`TWR-FCK-042`, info).
+- **Rétrogradation N2 → N1** après `TOWER_FC_DEMOTION_HOURS` sous toutes les conditions,
+  jamais pendant une enquête en cours. Chaque changement : `claim_groups.level`,
+  `level_changed_at`, événement de groupe `level_changed`, topic
+  `claim_group.level_changed` (raison `promotion`, `demotion`, `wave`).
+- **Priorité** (pure, sans terme lié à l'auteur) : `portée × risque du thème ×
+  vérifiabilité × nouveauté × facteur de vague ÷ coût du niveau`, avec `portée =
+  log1p(vues) + 2 log1p(observateurs) + vélocité` ; risque 3 (santé, élections, sécurité,
+  catastrophes), 2 (économie, justice, immigration, international), sinon 1 ; nouveauté 1
+  ou 0,3 (revalidation) ; facteur de vague 1, 2 (`watch`), 3 (`surge`), 5 (`alert`) ;
+  coût = coût moyen des enquêtes du niveau sur 30 jours (plancher 1 centime).
+- **Mise en file** par priorité : enquêtes N2 (profondeur standard, `flags.scheduled`)
+  tant que le budget `level:N2` couvre le coût moyen, que le quota quotidien de
+  brouillons (hors brouillons de vague) n'est pas atteint et que `fc-deep` compte moins
+  de `TOWER_FC_DEEP_QUEUE_CAPACITY` jobs ; sinon le groupe est retenu (`held_back_by` :
+  `budget`, `quota`, `capacity` ; `TWR-FCK-045` une fois par passe pour la capacité).
+  Vérifications légères pour la part `TOWER_FC_LIGHT_CHECK_SHARE` des nouveaux groupes N1
+  les plus prioritaires. Les groupes d'un récit en vague sont traités par l'étape des
+  vagues. Un groupe dont le verdict actif a plus de 48 h passe `passive`.
+
+### E5 : vérification légère
+
+Job `factcheck.light_check` (`fc-bulk`), **jamais publiée** : elle n'alimente que la
+priorité et la promotion. Affirmation chiffrée avec une fiche validée : signal
+déterministe par la bande, sans modèle (`contains` → `likely_true`, `within_1_tau` →
+`needs_context`, sinon `likely_false`). Sinon, preuves = fact-checks existants et sources
+structurées de l'Atlas (**ni encyclopédie, ni recherche web**), ou, pour un groupe d'un
+récit en vague, les passages retenus de l'enquête représentative du récit (dossier de
+preuves) ; rôle `light_check`. Aucune preuve : `uncertain` sans appel de modèle. Résultat
+dans `claim_groups.light_signal`, `light_checked_at`, `light_evidence`. Échec :
+`TWR-FCK-041`. Idempotent par groupe et version de profil.
+
+### Récits
+
+- Job `factcheck.attach_narrative` pour chaque nouveau groupe : candidats = récits actifs
+  des 10 groupes les plus proches. Rattachement si **tous** : au moins 2 signaux sur 4 dont
+  un non sémantique (sémantique : cosinus à un médoïde ≥
+  `TOWER_FC_NARRATIVE_SEMANTIC_THRESHOLD` ; cooccurrence : au moins 3 posts de plus de
+  3 comptes portent une affirmation des deux ; entité partagée ; média partagé), au moins
+  une ancre spécifique (entité rare, média non générique, lien partagé) et un cosinus
+  ≥ `TOWER_FC_NARRATIVE_MEDOID_FLOOR` à au moins un médoïde. Sinon le groupe fonde un
+  récit. Dans le doute, pas de rattachement. L'identité de l'auteur n'intervient jamais :
+  les comptes sont seulement comptés.
+- Médoïdes : fondateur (fixe) + les 2 groupes de plus grande portée, réélus au plus une
+  fois par jour. Fermeture après `TOWER_FC_NARRATIVE_CLOSE_DAYS` d'inactivité ; un
+  rattachement ultérieur à un récit fermé crée un nouveau récit
+  (`previous_narrative_id`). Scission suggérée au-delà de
+  `TOWER_FC_NARRATIVE_SPLIT_GROUPS` groupes. Fusion et scission manuelles par cas d'usage
+  (`claim_groups:manage`, `TWR-FCK-043`, `TWR-FCK-044`).
+- Titre : job `factcheck.narrative_title` (rôle `narrative_title`) quand un récit
+  atteint `watch` sans titre ; titre français en brouillon, validé ou corrigé par un
+  relecteur (`dossiers:review`).
+
+### Vagues
+
+- `waves_step` (passe de l'ordonnanceur) : pour les récits actifs dans les 6 dernières
+  heures (500 au plus), statistiques sur 5 min, 1 h et 6 h (`narrative_stats`) : part du
+  flux d'observations, auteurs distincts, plateformes, portée, score de Poisson.
+- Paliers (fenêtre d'une heure, `TOWER_FC_WAVE_THRESHOLDS`) : `watch` (part ≥ 1 %,
+  comptes ≥ 10) ; `surge` (part ≥ 3 %, comptes ≥ 30 et croissance ≥ 2× ; ou `watch` sur
+  2 plateformes séparément ; ou un groupe du récit en N3, toujours avec les planchers de
+  `watch`) ; `alert` (part ≥ 8 % et comptes ≥ 80 ; ou thème surveillé au palier `watch`).
+  Pendant 24 h après un changement de version des filtres de l'extension, la condition de
+  croissance ne peut pas être remplie. Montée immédiate ; fin de vague après
+  `TOWER_FC_SURGE_END_HOURS` sous `watch` (`narrative.surge_ended` avec le bilan).
+- **Mode vague** (entrée en `surge` ou `alert`) : groupes portés à N2 (N4 en alerte pour le
+  représentant), groupe représentatif (plus grande portée, puis affirmation chiffrée)
+  enquêté une fois, avec **priorité 10 dans `fc-deep`** pour tous les jobs de son enquête
+  (voie rapide, pas de file dédiée) ; les autres groupes reçoivent une vérification légère
+  sur le dossier de preuves dès que l'enquête a des passages retenus ;
+  `narrative.surge_detected`. Les brouillons de vague (`flags.surge`) ont leur quota
+  quotidien `TOWER_FC_SURGE_DAILY_QUOTA` ; quota plein : règles du quota quotidien. Un
+  verdict validé pendant une vague expire au plus tard
+  `TOWER_FC_SURGE_VERDICT_TTL_HOURS` après sa validation.
+- **Échantillonnage** : au-delà de `TOWER_FC_SAMPLING_PER_MINUTE` posts par minute proches
+  (cosinus ≥ 0,85 à un médoïde) d'un récit en vague, seul un échantillon aléatoire
+  stratifié (plateforme, heure) est extrait ; le reste est compté (`sampled_out`). Les
+  empreintes de nouveauté des posts écartés (nombres, liens, mentions, médias, entités ;
+  code seulement) sont comptées dans `narrative_novelty` : une empreinte vue dans
+  `TOWER_FC_NOVELTY_POSTS` posts de `TOWER_FC_NOVELTY_ACCOUNTS` comptes force
+  l'extraction de son post le plus engagé, dans la limite de
+  `TOWER_FC_NOVELTY_BUDGET_SHARE` des extractions horaires du récit.
+
+### Signaux de coordination
+
+Informatifs seulement (affichés dans le brouillon), jamais utilisés pour un verdict ni
+pour la priorité, jamais fondés sur un bord politique supposé : voir l'API des récits
+ci-dessous.
+
+<!-- lot5-api -->
+
+### Réglages du lot 5
+
+Voir [configuration.md](configuration.md#fact-check-v2-lot-5).
+
+### Mesures du lot 5
+
+Voir le résumé de session [sessions/2026-11-12-lot-5-v2.md](sessions/2026-11-12-lot-5-v2.md).
+
 ## Données
 
 Tables du lot 3 : [database.md](database.md#fact-check-lot-3) ; du lot 4 :
-[database.md](database.md#fact-check-v1-lot-4). Événements :
+[database.md](database.md#fact-check-v1-lot-4) ; du lot 5 :
+[database.md](database.md#fact-check-v2-lot-5). Événements :
 [events.md](events.md). Codes : `TWR-FCK-*` et `TWR-ATL-*` dans [errors.md](errors.md).

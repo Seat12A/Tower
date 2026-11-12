@@ -131,6 +131,29 @@ Colonnes ajoutées (nullables) :
 | `claim_groups` | `representative_embedding halfvec(512)` (vecteur pivot de l'affirmation représentative : **seul index vectoriel**, HNSW `halfvec_cosine_ops`), `reference_fact_id`, `band`, `band_side` (CHECK), `merged_into_id` ; état `merged` ajouté au CHECK de `state` (élargissement, même nom) |
 | `verdicts` | `reused_from_verdict_id` (verdict d'origine d'un héritage par bande), `reuse_rule` (`identical_signature`, `band`) |
 
+## Fact-check V2, lot 5
+
+Migration `0007`, **expand** uniquement (tables nouvelles, colonnes nullables ou avec
+défaut sur `claim_groups`). Statuts en `TEXT` + `CHECK`.
+
+| Table | Rôle |
+|---|---|
+| `extraction_batches` | Micro-lot E2 (N1) : `content_ids bigint[]`, `canary_token` (nul sans canari), `status` (`pending`, `done`, `replayed_solo`, `failed`), `fidelity_failures`, `contamination`, `prompt_version`, `cost_usd_micros`, `created_at`, `finished_at` |
+| `content_extractions` | Une ligne par contenu extrait, toute voie et tout niveau confondus (PK `content_id`) : `level`, `status` (`extracted`, `no_claim`, `sampled_out`, `failed`), `batch_id` et `position` (voie par lots), `narrative_id` (contenu écarté par l'échantillonnage d'une vague). Un contenu N1 sans ligne est « en attente de lot » |
+| `extraction_audits` | Rejeu solo d'un post de lot (audit stratifié par position) : `content_id`, `batch_id`, `position`, `batch_size`, `batch_claims`, `solo_claims`, `discordant` (nombres ou chiffres différents), `details` |
+| `scheduler_runs` | Une ligne par passe de l'ordonnanceur E4 : `started_at` (index), `finished_at`, `rate_per_hour`, `interval_s`, `stats` JSONB (`promotions`, `demotions`, `passive`, `investigations`, `light_checks`, `held_back`, `held_back_by`, `waves`) |
+| `narratives` | Récit : `public_id`, `title` (français) et `title_status` (`none`, `draft`, `validated`), `state` (`active`, `watch`, `surge`, `alert`, `closed`), `theme`, `founder_group_id` (médoïde fixe), `medoid_group_ids bigint[]` (au plus 3), `medoids_elected_at`, `previous_narrative_id` (récit fermé repris), `merged_into_id`, `representative_group_id`, `split_suggested`, `state_changed_at`, `surge_started_at`, `below_watch_since`, `opened_at`, `last_activity_at`, `closed_at` |
+| `narrative_groups` | Appartenance groupe → récit, historisée : `added_at`, `removed_at` (fusion, scission, détachement), `signals` JSONB (signaux et ancres du rattachement), `reason` |
+| `narrative_events` | Journal d'un récit : `kind` (`created`, `attached`, `detached`, `merged`, `split`, `state_changed`, `medoids_changed`, `title_set`, `closed`), `other_narrative_id`, `group_ids`, `from_state`, `to_state`, `actor`, `reason`, `data` |
+| `narrative_stats` | Statistiques de vague par fenêtre : `span` (`5m`, `1h`, `6h`), `window_end`, `posts` (observations du récit), `flow_posts` (toutes les observations), `share`, `accounts` (auteurs distincts, comptés seulement), `platforms`, `reach`, `score` (Poisson). Purgées après 30 jours |
+| `narrative_novelty` | Empreintes de nouveauté des posts écartés par l'échantillonnage : `fingerprint`, `kind` (`number`, `link`, `mention`, `media`, `entity`), `posts`, `accounts`, `account_ids` (10 au plus), `best_content_id`, `best_engagement`, `forced_at`, `first_seen_at`, `last_seen_at` |
+| `entity_rarity` | Compteur quotidien d'affirmations par entité (`entity_key`, `day`, `count`) : ancre « entité rare » des récits. Purgé après 31 jours |
+
+Colonnes ajoutées à `claim_groups` : `light_signal` (`likely_true`, `likely_false`,
+`uncertain`, `needs_context` ; jamais publié), `light_checked_at`, `light_evidence` JSONB,
+`observers_6h`, `velocity`, `priority`, `level_changed_at`, `below_threshold_since`
+(rétrogradation) ; index `(level, state)`.
+
 ## Index notables
 
 - `jobs` : index partiel `(queue, priority DESC, run_at, id) WHERE status = 'queued'`
