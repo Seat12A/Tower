@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, or_, select, text
@@ -63,6 +63,7 @@ from tower.core.models.ingestion import ContentItem
 from tower.core.usecases import dossiers as dossier_uc
 from tower.core.usecases import group_views
 from tower.core.usecases import references as references_uc
+from tower.core.usecases.narratives import group_in_surge
 
 __all__ = [
     "DraftView",
@@ -690,13 +691,18 @@ async def _expiry_of(
         fact = await session.get(ReferenceFact, group.reference_fact_id)
         if fact is not None and fact.status == FactStatus.VALIDATED.value:
             next_publication = fact.next_publication
-    return verdict_expiry(
-        validated_at=datetime.now(UTC),
+    validated_at = datetime.now(UTC)
+    expiry = verdict_expiry(
+        validated_at=validated_at,
         claim_type=claim_type,
         overrides=overrides,
         next_publication=next_publication,
         has_provisional_note=note is not None and note.regime == Regime.PROVISIONAL.value,
     )
+    if await group_in_surge(session, group.id):
+        # Wave mode: facts are incomplete, so the verdict expires soon (revalidation).
+        expiry = min(expiry, validated_at + timedelta(hours=settings.fc_surge_verdict_ttl_hours))
+    return expiry
 
 
 async def _content_of(

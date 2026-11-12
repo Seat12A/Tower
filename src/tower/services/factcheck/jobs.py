@@ -64,6 +64,7 @@ from tower.core.ports.platforms import (
 from tower.core.services.base import JobContext
 from tower.core.usecases import assembly as assembly_uc
 from tower.core.usecases import claims as claims_uc
+from tower.core.usecases import narratives as narratives_uc
 from tower.core.usecases.ingestion import ingest_items
 from tower.services.factcheck import assembly as asm
 from tower.services.factcheck import matching
@@ -578,9 +579,18 @@ async def assemble(ctx: JobContext) -> None:
             locked_verdict.confidence = confidence
             locked_verdict.flags = flags
             await asm.lock_quota(session)
-            used = await asm.today_count(session)
+            # Wave mode: a draft of a surging narrative uses the separate surge quota
+            # (``flags.surge``) and does not count in the daily one; when the surge quota is
+            # full, the daily rules apply.
+            surge_used = await narratives_uc.surge_drafts_today(session)
+            used = await asm.today_count(session) - surge_used
             quota = (await active_profile(session, settings)).draft_daily_quota
-            if used < quota:
+            in_surge = await narratives_uc.group_in_surge(session, locked_verdict.claim_group_id)
+            if in_surge and surge_used < settings.fc_surge_daily_quota:
+                flags["surge"] = True
+                locked_verdict.flags = flags
+                await assembly_uc.open_draft(session, _actor(), locked_verdict, locked)
+            elif used < quota:
                 await assembly_uc.open_draft(session, _actor(), locked_verdict, locked)
             else:
                 flags["over_quota_since"] = datetime.now(UTC).isoformat()
