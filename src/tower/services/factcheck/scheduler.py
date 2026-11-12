@@ -39,6 +39,7 @@ from tower.core.ports.platforms import (
 )
 from tower.core.services.base import JobContext
 from tower.core.usecases import scheduling as uc
+from tower.core.usecases.narratives import surge_drafts_today
 from tower.services.factcheck import assembly as asm
 
 __all__ = ["promotion_check", "schedule"]
@@ -339,7 +340,9 @@ async def _enqueue_investigations(
         return 0, held
     await asm.lock_quota(session)
     profile = await active_profile(session, settings)
-    slots = profile.draft_daily_quota - await asm.today_count(session, now)
+    # Wave-mode drafts (``flags.surge``) have their own quota and use no daily slot.
+    daily_used = await asm.today_count(session, now) - await surge_drafts_today(session, now)
+    slots = profile.draft_daily_quota - daily_used
     backlog = await _deep_backlog(session)
     remaining = await _n2_budget_remaining(session, now)
     costs = await _level_costs(session, now)

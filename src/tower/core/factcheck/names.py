@@ -7,6 +7,8 @@ from __future__ import annotations
 FC_FAST = "fc-fast"
 FC_DEEP = "fc-deep"
 FC_BULK = "fc-bulk"
+# Wave fast lane: priority of the jobs of an investigation of a surging narrative.
+WAVE_JOB_PRIORITY = 10
 
 # Jobs of the service ``factcheck`` (queue fc-fast)
 JOB_EXTRACT = "factcheck.extract"

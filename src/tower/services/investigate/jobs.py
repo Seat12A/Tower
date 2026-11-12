@@ -281,6 +281,7 @@ async def _apply(
             names.FC_DEEP,
             kind,
             {"investigation_id": inv.id, "round": round_},
+            priority=_priority_of(inv.flags),
             dedupe_key=names.stage_key(_STAGE_OF_JOB[kind], inv.claim_group_id, inv.id, round_),
         )
 
@@ -398,9 +399,9 @@ async def _fail(ctx: JobContext, state: _State, stage: _STAGES, exc: BaseExcepti
 # ------------------------------------------------------------------ subscription
 
 
-async def _resolve(session: AsyncSession, raw: object) -> tuple[int, int] | None:
-    """``(investigation id, group id)`` from a public UUID or an internal id."""
-    stmt = select(Investigation.id, Investigation.claim_group_id)
+async def _resolve(session: AsyncSession, raw: object) -> tuple[int, int, int] | None:
+    """``(investigation id, group id, job priority)`` from a public UUID or an internal id."""
+    stmt = select(Investigation.id, Investigation.claim_group_id, Investigation.flags)
     try:
         stmt = stmt.where(Investigation.public_id == uuid.UUID(str(raw)))
     except ValueError:
@@ -409,7 +410,12 @@ async def _resolve(session: AsyncSession, raw: object) -> tuple[int, int] | None
         except ValueError:
             return None
     row = (await session.execute(stmt)).first()
-    return None if row is None else (int(row[0]), int(row[1]))
+    return None if row is None else (int(row[0]), int(row[1]), _priority_of(row[2]))
+
+
+def _priority_of(flags: Mapping[str, Any] | None) -> int:
+    """Wave fast lane: an investigation of a surging narrative jumps the ``fc-deep`` queue."""
+    return names.WAVE_JOB_PRIORITY if (flags or {}).get("wave") else 0
 
 
 async def on_requested(session: AsyncSession, events: Sequence[EventRecord]) -> None:
@@ -419,12 +425,13 @@ async def on_requested(session: AsyncSession, events: Sequence[EventRecord]) -> 
         if found is None:
             log.warning("investigate.request_unknown", event_id=event.id)
             continue
-        inv_id, group_id = found
+        inv_id, group_id, priority = found
         await enqueue(
             session,
             names.FC_DEEP,
             names.JOB_FRAME,
             {"investigation_id": inv_id},
+            priority=priority,
             dedupe_key=names.stage_key("frame", group_id, inv_id, 1),
         )
 
