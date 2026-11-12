@@ -145,3 +145,30 @@ groupe proche suggéré), `reference_fact`, `band` (`band`, `side`, `label`), `o
 | POST | `/v1/level-overrides` | `levels:override` (`201`) ; `{target_type: content\|group\|account, target, level, hours, reason}` ; répond le forçage et `applied` ; `TWR-FCK-031`, `032` |
 | GET | `/v1/level-overrides?active=true` | `dossiers:read` |
 | POST | `/v1/level-overrides/{id}/revoke` | `levels:override` ; `{reason}` |
+
+### Fact-check V2 (lot 5) : récits et vagues
+
+Voir [fact-check.md](fact-check.md#lot-5--v2--flux-de-masse-ordonnanceur-récits-et-vagues).
+Tag OpenAPI `narratives`. Le brouillon (`GET /v1/drafts/{id}`) gagne `narrative`
+(`{id, title, state, groups}` quand son groupe appartient à un récit, sinon nul) et
+`coordination` (signaux informatifs, voir ci-dessous) ; `GET /v1/groups/{id}` (et les
+réponses de fusion et de scission) gagne `narrative` (`{id, state}` ou nul).
+
+| Méthode | Chemin | Accès |
+|---|---|---|
+| GET | `/v1/narratives?state=&limit=` | `dossiers:read` ; `state` parmi `active`, `watch`, `surge`, `alert`, `closed` ; sans `state` : récits ouverts, activité la plus récente d'abord. Par récit : `id`, `title`, `title_status`, `state`, `theme`, `groups`, `stats_1h` (`window_end`, `share`, `accounts`, `platforms`), `opened_at`, `last_activity_at` |
+| GET | `/v1/narratives/{id}` | `dossiers:read` ; en plus : `groups_count`, `closed_at`, `medoids`, `groups` (`id`, `level`, `state`, `verdict` `{id, status, veracity}`, `light_signal`, `reach`), `stats` (`5m`, `1h`, `6h` : 12 derniers points, du plus ancien au plus récent), `journal` (50 derniers), `representative_group`, `previous_narrative`, `merged_into`, `split_suggested`, `novelty` (10 empreintes qui ont forcé une extraction) ; `TWR-FCK-043` |
+| POST | `/v1/narratives/{target}/merge` | `claim_groups:manage` ; `{source_id, reason}` ; répond le récit cible ; `TWR-FCK-043`, `044` ; `narrative.merged` |
+| POST | `/v1/narratives/{id}/split` | `claim_groups:manage` ; `{group_ids, reason}` ; répond le nouveau récit ; `TWR-FCK-043`, `044` ; `narrative.split` |
+| POST | `/v1/narratives/{id}/title` | `dossiers:review` ; `{title?}` : sans titre, valide le brouillon de titre ; avec, enregistre le titre corrigé (validé) |
+
+**Signaux de coordination** (`coordination` du brouillon) : liste de `{kind, count,
+window_minutes, detail}`, **informative seulement**, jamais utilisée pour un verdict ni
+pour la priorité, jamais fondée sur un bord politique supposé :
+
+| `kind` | Condition |
+|---|---|
+| `near_identical_burst` | Au moins 10 comptes distincts publient des copies (même racine `copy_of_id` ou même empreinte) des posts du groupe en 10 minutes |
+| `new_accounts` | Au moins 50 % des auteurs (10 au moins) vus pour la première fois par Seat 12A depuis moins de 7 jours (date de première observation, pas l'âge réel du compte) |
+| `installation_burst` | Une installation de l'extension produit au moins 20 observations des posts du groupe en 10 minutes |
+| `media_reuse` | Un même média est attaché à des posts d'au moins 2 groupes (`window_minutes` = 0 ; les légendes peuvent se contredire : l'équipe vérifie) |

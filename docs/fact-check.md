@@ -603,10 +603,11 @@ dans `claim_groups.light_signal`, `light_checked_at`, `light_evidence`. Échec :
 ### Signaux de coordination
 
 Informatifs seulement (affichés dans le brouillon), jamais utilisés pour un verdict ni
-pour la priorité, jamais fondés sur un bord politique supposé : voir l'API des récits
-ci-dessous.
-
-<!-- lot5-api -->
+pour la priorité, jamais fondés sur un bord politique supposé : rafale de copies quasi
+identiques, part de comptes vus pour la première fois, rafale d'une installation,
+réutilisation d'un média. Conditions exactes et API des récits :
+[api.md](api.md#fact-check-v2-lot-5--récits-et-vagues) ; commandes du bot :
+[intercom.md](intercom.md#commandes).
 
 ### Réglages du lot 5
 
