@@ -321,6 +321,55 @@ class GateClient:
         )
         return new
 
+    # --- narratives --------------------------------------------------------------------
+    async def list_narratives(
+        self, acting: int, *, state: str | None = None, limit: int = 15
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if state:
+            params["state"] = state
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/narratives", acting, params=params
+        )
+        return rows
+
+    async def get_narrative(self, acting: int, narrative_id: str) -> dict[str, Any]:
+        narrative: dict[str, Any] = await self._request(
+            "GET", f"/v1/narratives/{quote(narrative_id, safe='')}", acting
+        )
+        return narrative
+
+    async def merge_narratives(
+        self, acting: int, target_id: str, *, source_id: str, reason: str
+    ) -> dict[str, Any]:
+        merged: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/narratives/{quote(target_id, safe='')}/merge",
+            acting,
+            body={"source_id": source_id, "reason": reason},
+        )
+        return merged
+
+    async def split_narrative(
+        self, acting: int, narrative_id: str, *, group_ids: Sequence[str], reason: str
+    ) -> dict[str, Any]:
+        new: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/narratives/{quote(narrative_id, safe='')}/split",
+            acting,
+            body={"group_ids": list(group_ids), "reason": reason},
+        )
+        return new
+
+    async def set_narrative_title(
+        self, acting: int, narrative_id: str, *, title: str | None
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"title": title} if title else {}
+        done: dict[str, Any] = await self._request(
+            "POST", f"/v1/narratives/{quote(narrative_id, safe='')}/title", acting, body=body
+        )
+        return done
+
     async def list_facts(
         self,
         acting: int,

@@ -41,6 +41,7 @@ from tower.core.domain.platforms import Platform, parse_platform, validate_exter
 from tower.core.domain.security import Actor, Permission
 from tower.core.events.outbox import publish
 from tower.core.factcheck import names
+from tower.core.factcheck.coordination import coordination_signals
 from tower.core.jobs.queue import enqueue
 from tower.core.logging import get_logger
 from tower.core.models.dossiers import Dossier
@@ -61,7 +62,7 @@ from tower.core.models.factcheck import (
 from tower.core.models.factcheck_v1 import ReferenceFact
 from tower.core.models.ingestion import ContentItem
 from tower.core.usecases import dossiers as dossier_uc
-from tower.core.usecases import group_views
+from tower.core.usecases import group_views, narrative_views
 from tower.core.usecases import references as references_uc
 from tower.core.usecases.narratives import group_in_surge
 
@@ -130,6 +131,10 @@ class DraftView:
     band: dict[str, Any] | None = None
     outdated: bool = False
     external_factchecks: list[dict[str, Any]] = field(default_factory=list)
+    narrative: dict[str, Any] | None = None
+    """``{id, title, state, groups}`` of the narrative of the group, if any."""
+    coordination: list[dict[str, Any]] = field(default_factory=list)
+    """Coordination signals (informative only, never a verdict input)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,6 +293,8 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         session, group, claim, content_id=content.id if content is not None else None
     )
     inv_flags = dict(investigation.flags or {}) if investigation is not None else {}
+    narrative = await narrative_views.draft_narrative_info(session, group.id)
+    coordination = await coordination_signals(session, group_id=group.id)
     return DraftView(
         draft_id=str(verdict.public_id),
         seq=verdict.id,
@@ -327,6 +334,8 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         band=info["band"],
         outdated=bool(inv_flags.get("outdated")),
         external_factchecks=[dict(e) for e in inv_flags.get("external_factchecks") or []],
+        narrative=narrative,
+        coordination=coordination,
     )
 
 

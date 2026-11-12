@@ -424,6 +424,7 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
 
     from tower.intercom.handlers import dossiers, incidents, usage, watchlist
     from tower.intercom.handlers import factcheck as fc_handlers
+    from tower.intercom.handlers import narratives as narrative_handlers
     from tower.intercom.handlers import profiles as profile_handlers
 
     async def run(interaction: Any, call: HandlerCall) -> None:
@@ -680,7 +681,72 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
             interaction, lambda loc, uid: fc_handlers.band_validate(gate, uid, loc, verdict_id)
         )
 
-    for group in (wl, dos, inc, prof, lvl, grp, fct):
+    # --- /narrative -------------------------------------------------------------------
+    nar = app_commands.Group(name="narrative", description="Narratives and waves")
+    nar_state_choices = [
+        app_commands.Choice(name=v, value=v)
+        for v in ("active", "watch", "surge", "alert", "closed")
+    ]
+
+    @nar.command(name="list", description="List narratives (open ones by default)")
+    @app_commands.choices(state=nar_state_choices)
+    async def n_list(
+        interaction: discord.Interaction, state: app_commands.Choice[str] | None = None
+    ) -> None:
+        value = state.value if state else None
+        await run(
+            interaction, lambda loc, uid: narrative_handlers.narrative_list(gate, uid, loc, value)
+        )
+
+    @nar.command(name="show", description="Show a narrative")
+    @app_commands.describe(narrative_id="Narrative id")
+    async def n_show(interaction: discord.Interaction, narrative_id: str) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: narrative_handlers.narrative_show(gate, uid, loc, narrative_id),
+        )
+
+    @nar.command(name="merge", description="Merge the source narrative into the target")
+    @app_commands.describe(
+        target="Narrative that absorbs", source="Narrative absorbed", reason="Why"
+    )
+    async def n_merge(
+        interaction: discord.Interaction, target: str, source: str, reason: str
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: narrative_handlers.narrative_merge(
+                gate, uid, loc, target, source, reason
+            ),
+        )
+
+    @nar.command(name="split", description="Move groups into a new narrative")
+    @app_commands.describe(
+        narrative_id="Narrative id", groups="Group ids, comma separated", reason="Why"
+    )
+    async def n_split(
+        interaction: discord.Interaction, narrative_id: str, groups: str, reason: str
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: narrative_handlers.narrative_split(
+                gate, uid, loc, narrative_id, groups, reason
+            ),
+        )
+
+    @nar.command(name="title", description="Validate the draft title, or set a corrected one")
+    @app_commands.describe(narrative_id="Narrative id", title="Corrected title (optional)")
+    async def n_title(
+        interaction: discord.Interaction, narrative_id: str, title: str | None = None
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: narrative_handlers.narrative_title(
+                gate, uid, loc, narrative_id, title
+            ),
+        )
+
+    for group in (wl, dos, inc, prof, lvl, grp, fct, nar):
         tree.add_command(group)
     tree.add_command(u_show)
     tree.add_command(fc_request)

@@ -197,6 +197,22 @@ class DraftBandOut(BaseModel):
     label: str
 
 
+class DraftNarrativeOut(BaseModel):
+    id: str
+    title: str | None
+    state: str
+    groups: int
+
+
+class DraftCoordinationOut(BaseModel):
+    """Informative signal; never a verdict input."""
+
+    kind: str
+    count: int
+    window_minutes: int
+    detail: dict[str, Any]
+
+
 class DraftOut(BaseModel):
     """A fact-check draft as shown to reviewers (``draft_id`` = public verdict id)."""
 
@@ -234,6 +250,8 @@ class DraftOut(BaseModel):
     band: DraftBandOut | None = None
     outdated: bool = False
     external_factchecks: list[dict[str, str]] = []
+    narrative: DraftNarrativeOut | None = None
+    coordination: list[DraftCoordinationOut] = []
 
     @classmethod
     def of(cls, view: DraftView) -> DraftOut:

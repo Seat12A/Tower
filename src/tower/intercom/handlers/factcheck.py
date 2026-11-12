@@ -244,6 +244,49 @@ def _group_block(view: dict[str, Any], locale: str) -> str | None:
     return "\n".join(lines)
 
 
+def _narrative_block(view: dict[str, Any], locale: str) -> str | None:
+    narrative = view.get("narrative")
+    if not narrative:
+        return None
+    key = f"narrative.state.{narrative.get('state')}"
+    return t(
+        locale,
+        "draft.narrative.line",
+        narrative_id=narrative["id"],
+        title=_clip(narrative["title"], 100)
+        if narrative.get("title")
+        else t(locale, "narrative.untitled"),
+        state=t(locale, key) if has(locale, key) else narrative.get("state", "?"),
+        groups=narrative.get("groups", 0),
+    )
+
+
+def _coordination_block(view: dict[str, Any], locale: str) -> str | None:
+    signals = view.get("coordination") or []
+    if not signals:
+        return None
+    lines = [t(locale, "draft.coordination.header")]
+    for signal in signals:
+        kind = str(signal.get("kind", "?"))
+        key = f"draft.coordination.{kind}"
+        detail = signal.get("detail") or {}
+        if not has(locale, key):
+            key, extra = "draft.coordination.other", {"kind": kind}
+        else:
+            extra = {}
+        lines.append(
+            t(
+                locale,
+                key,
+                count=signal.get("count", 0),
+                minutes=signal.get("window_minutes", 0),
+                authors=detail.get("authors", "?"),
+                **extra,
+            )
+        )
+    return "\n".join(lines)
+
+
 def _fact_block(view: dict[str, Any], locale: str) -> str | None:
     fact = view.get("reference_fact")
     lines: list[str] = []
@@ -420,6 +463,8 @@ def render_draft(view: dict[str, Any], locale: str) -> list[str]:
         _header(view, locale),
         _claim_block(view, locale),
         _group_block(view, locale),
+        _narrative_block(view, locale),
+        _coordination_block(view, locale),
         _fact_block(view, locale),
         _external_block(view, locale),
         _note_block(view, locale),

@@ -305,4 +305,74 @@ MESSAGES: dict[str, str] = {
     "fact.created": "Fait `{short_id}` créé ({label}). Un relecteur doit le valider.",
     "fact.needs_validated": "Validez d'abord le verdict : un fait se crée depuis un verdict actif.",
     "band.validated": "Bande validée : {label} ({side}) -> {veracity}.",
+    # --- narratifs, vagues et signaux de coordination -------------------------------
+    "error.TWR-FCK-043": "Narratif introuvable. ({code})",
+    "error.TWR-FCK-044": "Opération de narratif invalide : {message} ({code})",
+    "notify.narrative.surge": (
+        "VAGUE `{short_id}` | {title}\nPart du flux {share}% | {accounts} comptes | "
+        "plateformes : {platforms}\nNiveau : surge. "
+        "À vérifier avec `/narrative show {narrative_id}`."
+    ),
+    "notify.narrative.alert": (
+        "ALERTE VAGUE `{short_id}` | {title}\nPart du flux {share}% | {accounts} comptes | "
+        "plateformes : {platforms}\nNiveau : alerte, l'équipe est sollicitée. "
+        "`/narrative show {narrative_id}`."
+    ),
+    "notify.narrative.ended": (
+        "Vague terminée `{short_id}` | durée {duration} | {posts} posts | plateformes : "
+        "{platforms} | coût LLM {cost} $ | premier brouillon : {first_draft}"
+    ),
+    "narrative.state.active": "actif",
+    "narrative.state.watch": "veille",
+    "narrative.state.surge": "vague",
+    "narrative.state.alert": "alerte",
+    "narrative.state.closed": "clos",
+    "narrative.untitled": "(sans titre)",
+    "narrative.title_status.draft": "titre provisoire",
+    "narrative.title_status.validated": "titre validé",
+    "narrative.title_status.none": "pas de titre",
+    "narrative.list.header": "Narratifs ({count}) :",
+    "narrative.list.empty": "Aucun narratif.",
+    "narrative.list.line": (
+        "- `{short_id}` {state} | {title} | {groups} groupe(s) | {share}% | {accounts} comptes"
+    ),
+    "narrative.show.header": "Narratif `{narrative_id}` | {state} | {title} ({title_status})",
+    "narrative.show.stats": (
+        "Dernière heure : {share}% du flux, {accounts} comptes, {platforms} plateforme(s)"
+    ),
+    "narrative.show.split_suggested": (
+        "Scission suggérée : le narratif mélange peut-être plusieurs histoires."
+    ),
+    "narrative.show.previous": "Résurgence du narratif `{narrative_id}`.",
+    "narrative.show.representative": "Groupe représentatif : `{group_id}`",
+    "narrative.show.group": "- `{group_id}` {level} | {verdict} | signal {signal} | portée {reach}",
+    "narrative.show.event": "  journal : {kind} par {actor} le {when}",
+    "narrative.show.novelty": (
+        "Nouveauté : {kind} {fingerprint} ({posts} posts, {accounts} comptes)"
+    ),
+    "narrative.merged": "Fusion faite : le narratif `{narrative_id}` compte {groups} groupe(s).",
+    "narrative.split": (
+        "Scission faite : les groupes sont passés dans le nouveau narratif `{narrative_id}`."
+    ),
+    "narrative.title.done": "Titre validé pour `{narrative_id}` : {title}",
+    "draft.narrative.line": (
+        "**Narratif** `{narrative_id}` | {title} | {state} | {groups} groupe(s)"
+    ),
+    "draft.coordination.header": (
+        "**Signaux de coordination** (informatifs, jamais une entrée du verdict) :"
+    ),
+    "draft.coordination.near_identical_burst": (
+        "- {count} comptes ont posté des copies quasi identiques en {minutes} min"
+    ),
+    "draft.coordination.new_accounts": (
+        "- {count} auteurs sur {authors} ont été vus pour la première fois par Tower "
+        "ces 7 derniers jours (première observation, pas l'âge réel des comptes)"
+    ),
+    "draft.coordination.installation_burst": (
+        "- une même installation a observé ces posts {count} fois en {minutes} min"
+    ),
+    "draft.coordination.media_reuse": (
+        "- le même média apparaît dans {count} groupes (les légendes peuvent différer : à vérifier)"
+    ),
+    "draft.coordination.other": "- {kind} : {count}",
 }

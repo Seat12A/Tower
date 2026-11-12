@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
 
-from tower.core.usecases import group_views
+from tower.core.usecases import group_views, narrative_views
 from tower.core.usecases import groups as uc
 from tower.gate.deps import ActorDep, ReadSession, WriteSession
 
@@ -42,6 +42,9 @@ class GroupOut(BaseModel):
     )
     members: list[MemberOut]
     journal: list[dict[str, Any]] = Field(description="Newest first, at most 50 rows.")
+    narrative: dict[str, Any] | None = Field(
+        default=None, description="id and state of the narrative of the group, if any."
+    )
 
 
 class MergeIn(BaseModel):
@@ -56,10 +59,16 @@ class SplitIn(BaseModel):
     reason: str = Field(max_length=1000)
 
 
+async def _group_out(session: ReadSession, actor: ActorDep, group_id: uuid.UUID) -> GroupOut:
+    view = await group_views.get_group(session, actor, group_id)
+    view["narrative"] = await narrative_views.group_narrative_by_public(session, group_id)
+    return GroupOut.model_validate(view)
+
+
 @router.get("/{group_id}", response_model=GroupOut)
 async def get_group(group_id: uuid.UUID, actor: ActorDep, session: ReadSession) -> GroupOut:
     """Group with its reference fact and band, active verdict, active members, journal."""
-    return GroupOut.model_validate(await group_views.get_group(session, actor, group_id))
+    return await _group_out(session, actor, group_id)
 
 
 @router.get("/{group_id}/members", response_model=list[MemberOut])
@@ -82,7 +91,7 @@ async def merge(
     await uc.merge_groups(
         session, actor, target_id=target, source_id=body.source_group_id, reason=body.reason
     )
-    return GroupOut.model_validate(await group_views.get_group(session, actor, target))
+    return await _group_out(session, actor, target)
 
 
 @router.post("/{group_id}/split", response_model=GroupOut)
@@ -93,4 +102,4 @@ async def split(
     new = await uc.split_group(
         session, actor, group_id=group_id, claim_ids=body.claim_ids, reason=body.reason
     )
-    return GroupOut.model_validate(await group_views.get_group(session, actor, new.public_id))
+    return await _group_out(session, actor, new.public_id)

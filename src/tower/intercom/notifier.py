@@ -16,11 +16,12 @@ from typing import Any
 
 from tower.core.domain import error_codes as ec
 from tower.core.errors import capture
-from tower.core.factcheck.names import DRAFT_READY
+from tower.core.factcheck.names import DRAFT_READY, NARRATIVE_SURGE_DETECTED, NARRATIVE_SURGE_ENDED
 from tower.core.logging import get_logger
 from tower.intercom.gate_client import GateClient, GateError, SseEvent
 from tower.intercom.handlers import fmt_usd, short
 from tower.intercom.handlers.factcheck import SendDraft, post_draft, reconcile_drafts
+from tower.intercom.handlers.narratives import format_surge_detected, format_surge_ended
 from tower.intercom.i18n import t
 
 __all__ = ["TOPIC_CHANNELS", "Notifier", "format_event"]
@@ -34,6 +35,8 @@ TOPIC_CHANNELS: dict[str, str] = {
     "dossier.opened": "dossiers",
     "dossier.transitioned": "dossiers",
     DRAFT_READY: "dossiers",
+    NARRATIVE_SURGE_DETECTED: "dossiers",
+    NARRATIVE_SURGE_ENDED: "dossiers",
     "watchlist.changed": "admin",
     "extension_filters.published": "admin",
 }
@@ -101,6 +104,10 @@ def format_event(event: SseEvent, locale: str) -> tuple[str, str] | None:
             from_status=_status(locale, p.get("from")),
             to_status=_status(locale, p.get("to")),
         )
+    elif topic == NARRATIVE_SURGE_DETECTED:
+        text = format_surge_detected(p, locale)
+    elif topic == NARRATIVE_SURGE_ENDED:
+        text = format_surge_ended(p, locale)
     elif topic == "watchlist.changed":
         action = str(p.get("action", "updated"))
         key = f"notify.watchlist.{action}"
@@ -124,6 +131,15 @@ def _status(locale: str, status: object) -> str:
     return str(status) if translated == key else translated
 
 
+def _wave_key(event: SseEvent) -> tuple[str, str] | None:
+    """``(narrative, tier)`` of a surge notification: one message per pair, even when
+    gate replays the event (the surge may be published twice: ``surge`` then ``alert``)."""
+    if event.topic != NARRATIVE_SURGE_DETECTED:
+        return None
+    p = _payload(event)
+    return str(p.get("narrative_id", "")), str(p.get("tier", ""))
+
+
 class Notifier:
     def __init__(
         self,
@@ -141,6 +157,7 @@ class Notifier:
         self._cursor_name = cursor_name
         self._locale = locale
         self._seen: OrderedDict[str, None] = OrderedDict()
+        self._waves: OrderedDict[tuple[str, str], None] = OrderedDict()
         self._capacity = seen_capacity
         self._cursor: str | None = None
         self._progressed = False
@@ -153,6 +170,22 @@ class Notifier:
         self._seen.move_to_end(event_id)
         while len(self._seen) > self._capacity:
             self._seen.popitem(last=False)
+
+    def _wave_already_notified(self, event: SseEvent) -> bool:
+        """Records a surge notification; the end of a wave frees its narrative so a later
+        wave of the same narrative is notified again."""
+        key = _wave_key(event)
+        if key is not None:
+            if key in self._waves:
+                return True
+            self._waves[key] = None
+            while len(self._waves) > self._capacity:
+                self._waves.popitem(last=False)
+        elif event.topic == NARRATIVE_SURGE_ENDED:
+            narrative = str(_payload(event).get("narrative_id", ""))
+            for tier in ("surge", "alert"):
+                self._waves.pop((narrative, tier), None)
+        return False
 
     async def _wait(self, stop: asyncio.Event, delay: float) -> None:
         with contextlib.suppress(TimeoutError):
@@ -191,7 +224,7 @@ class Notifier:
         formatted = format_event(event, self._locale)
         if event.topic == DRAFT_READY:
             await self._notify_draft(event)
-        elif formatted is not None:
+        elif formatted is not None and not self._wave_already_notified(event):
             channel, text = formatted
             try:
                 await self._send(channel, text)

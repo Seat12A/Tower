@@ -286,4 +286,69 @@ MESSAGES: dict[str, str] = {
     "fact.created": "Fact `{short_id}` created ({label}). A reviewer must validate it.",
     "fact.needs_validated": "Validate the verdict first: a fact is created from an active verdict.",
     "band.validated": "Band validated: {label} ({side}) -> {veracity}.",
+    # --- narratives, waves and coordination signals --------------------------------
+    "error.TWR-FCK-043": "Narrative not found. ({code})",
+    "error.TWR-FCK-044": "Invalid narrative operation: {message} ({code})",
+    "notify.narrative.surge": (
+        "WAVE `{short_id}` | {title}\nShare of the flow {share}% | {accounts} accounts | "
+        "platforms: {platforms}\nLevel: surge. Check with `/narrative show {narrative_id}`."
+    ),
+    "notify.narrative.alert": (
+        "WAVE ALERT `{short_id}` | {title}\nShare of the flow {share}% | {accounts} accounts | "
+        "platforms: {platforms}\nLevel: alert, the team is needed. "
+        "`/narrative show {narrative_id}`."
+    ),
+    "notify.narrative.ended": (
+        "Wave over `{short_id}` | duration {duration} | {posts} posts | platforms: {platforms} "
+        "| LLM cost ${cost} | first draft: {first_draft}"
+    ),
+    "narrative.state.active": "active",
+    "narrative.state.watch": "watch",
+    "narrative.state.surge": "surge",
+    "narrative.state.alert": "alert",
+    "narrative.state.closed": "closed",
+    "narrative.untitled": "(untitled)",
+    "narrative.title_status.draft": "draft title",
+    "narrative.title_status.validated": "validated title",
+    "narrative.title_status.none": "no title",
+    "narrative.list.header": "Narratives ({count}):",
+    "narrative.list.empty": "No narrative.",
+    "narrative.list.line": (
+        "- `{short_id}` {state} | {title} | {groups} group(s) | {share}% | {accounts} accounts"
+    ),
+    "narrative.show.header": "Narrative `{narrative_id}` | {state} | {title} ({title_status})",
+    "narrative.show.stats": (
+        "Last hour: {share}% of the flow, {accounts} accounts, {platforms} platform(s)"
+    ),
+    "narrative.show.split_suggested": (
+        "A split is suggested: the narrative may mix several stories."
+    ),
+    "narrative.show.previous": "Resurgence of the narrative `{narrative_id}`.",
+    "narrative.show.representative": "Representative group: `{group_id}`",
+    "narrative.show.group": "- `{group_id}` {level} | {verdict} | signal {signal} | reach {reach}",
+    "narrative.show.event": "  journal: {kind} by {actor} on {when}",
+    "narrative.show.novelty": "Novelty: {kind} {fingerprint} ({posts} posts, {accounts} accounts)",
+    "narrative.merged": "Merge done: narrative `{narrative_id}` now has {groups} group(s).",
+    "narrative.split": "Split done: the groups moved to the new narrative `{narrative_id}`.",
+    "narrative.title.done": "Title validated for `{narrative_id}`: {title}",
+    "draft.narrative.line": (
+        "**Narrative** `{narrative_id}` | {title} | {state} | {groups} group(s)"
+    ),
+    "draft.coordination.header": (
+        "**Coordination signals** (informational, never a verdict input):"
+    ),
+    "draft.coordination.near_identical_burst": (
+        "- {count} accounts posted near-identical copies within {minutes} min"
+    ),
+    "draft.coordination.new_accounts": (
+        "- {count} of {authors} authors were first seen by Tower in the last 7 days "
+        "(first sighting, not the real age of the accounts)"
+    ),
+    "draft.coordination.installation_burst": (
+        "- one installation observed these posts {count} times within {minutes} min"
+    ),
+    "draft.coordination.media_reuse": (
+        "- the same media appears in {count} groups (captions may differ: check)"
+    ),
+    "draft.coordination.other": "- {kind}: {count}",
 }
