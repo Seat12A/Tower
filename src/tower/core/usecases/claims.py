@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func, select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.domain.factcheck.matching import MatchDecision
@@ -25,6 +26,7 @@ from tower.core.domain.factcheck.values import (
     UNVERIFIABLE_CLAIM_TYPES,
     ClaimGroupState,
     ClaimType,
+    ExtractionStatus,
     GroupEventKind,
     MatchOutcome,
     ReuseRule,
@@ -48,12 +50,14 @@ from tower.core.models.factcheck import (
     Verdict,
 )
 from tower.core.models.factcheck_v1 import ClaimGroupEvent, ReferenceFact
+from tower.core.models.factcheck_v2 import ContentExtraction
 from tower.core.models.ingestion import ContentItem
 from tower.core.usecases.reuse import inherit_band_verdict
 
 __all__ = [
     "ExtractionRecord",
     "journal_event",
+    "mark_extraction",
     "promote_to_n4",
     "raise_group_level",
     "record_extraction",
@@ -329,6 +333,7 @@ async def _after_join(
     flags: Mapping[str, Any],
     language_not_processed: bool,
     record: ExtractionRecord,
+    investigate: bool = True,
 ) -> None:
     """What happens to a claim that joined ``group`` (every member is covered by the
     group verdict: joining is direct reuse)."""
@@ -377,6 +382,8 @@ async def _after_join(
             aggregate_id=str(group.public_id),
             actor=actor.label,
         )
+        return
+    if not investigate:
         return
     if await _has_open_work(session, group):
         return
@@ -476,6 +483,10 @@ async def record_extraction(
     post_date: date | None = None,
     profile: Profile | None = None,
     current_period_days: int = 31,
+    investigate: bool = True,
+    extraction_status: ExtractionStatus | None = ExtractionStatus.EXTRACTED,
+    batch_id: int | None = None,
+    position: int | None = None,
 ) -> ExtractionRecord:
     """Store the claims of ``content``; publish ``claim.extracted`` and
     ``investigation.requested``.
@@ -486,11 +497,22 @@ async def record_extraction(
     nothing when work is under way), or creates a group that may inherit a verdict
     through a validated value band.
 
-    No claim (absence reason only) writes nothing."""
+    ``investigate=False`` (N1 mass flow): new groups are ``dormant`` and no investigation is
+    requested (the scheduler decides); joins and verdict reuse are unchanged.
+
+    ``extraction_status`` (default ``extracted``; ``None`` writes nothing) upserts the
+    ``content_extractions`` row of the content: ``no_claim`` when no claim was kept.
+    ``batch_id`` and ``position`` locate a batched post.
+
+    No claim (absence reason only) writes no claim."""
     actor.require(Permission.FACTCHECK_REQUEST)
     record = ExtractionRecord()
     if not claims:
         log.info("factcheck.no_claim", content=content.id, reason=absence_reason)
+        if extraction_status is not None:
+            await mark_extraction(
+                session, content.id, level, ExtractionStatus.NO_CLAIM, batch_id, position
+            )
         return record
     if matches is not None and len(matches) != len(claims):
         raise ValueError("matches must have one decision per claim")
@@ -498,6 +520,7 @@ async def record_extraction(
         post_date = content.created_at_platform.date()
 
     base_flags: dict[str, Any] = {"language_not_processed": True} if language_not_processed else {}
+    new_state = ClaimGroupState.QUEUED if investigate else ClaimGroupState.DORMANT
     claim_rows: list[Claim] = []
     group_rows: list[ClaimGroup] = []
     created_in_call: list[tuple[NormalizedSignature, Claim, ClaimGroup]] = []
@@ -552,7 +575,7 @@ async def record_extraction(
                 public_id=uuid.uuid4(),
                 representative_claim_id=claim.id,
                 level=level,
-                state=ClaimGroupState.QUEUED.value,
+                state=new_state.value,
                 reach=_impressions(content),
             )
             session.add(group)
@@ -560,7 +583,7 @@ async def record_extraction(
             session.add(ClaimGroupMember(group_id=group.id, claim_id=claim.id))
             group_rows.append(group)
             record.group_ids.append(group.id)
-            if ClaimType(claim.claim_type) not in UNVERIFIABLE_CLAIM_TYPES:
+            if investigate and ClaimType(claim.claim_type) not in UNVERIFIABLE_CLAIM_TYPES:
                 investigation = await request_investigation(
                     session,
                     actor,
@@ -638,6 +661,7 @@ async def record_extraction(
                 flags=base_flags,
                 language_not_processed=language_not_processed,
                 record=record,
+                investigate=investigate,
             )
             group_rows.append(joined)
             record.group_ids.append(joined.id)
@@ -647,7 +671,7 @@ async def record_extraction(
             public_id=uuid.uuid4(),
             representative_claim_id=claim.id,
             level=level,
-            state=ClaimGroupState.QUEUED.value,
+            state=new_state.value,
             reach=_impressions(content),
             representative_embedding=(
                 list(decision.embedding_pivot or decision.embedding or ()) or None
@@ -725,7 +749,7 @@ async def record_extraction(
             profile=profile,
         ):
             continue
-        if ClaimType(claim.claim_type) not in UNVERIFIABLE_CLAIM_TYPES:
+        if investigate and ClaimType(claim.claim_type) not in UNVERIFIABLE_CLAIM_TYPES:
             flags = dict(base_flags)
             if decision.outdated:
                 flags["outdated"] = True
@@ -760,7 +784,37 @@ async def record_extraction(
         aggregate_id=str(content.public_id),
         actor=actor.label,
     )
+    if extraction_status is not None:
+        await mark_extraction(
+            session, content.id, level, ExtractionStatus.EXTRACTED, batch_id, position
+        )
     return record
+
+
+async def mark_extraction(
+    session: AsyncSession,
+    content_id: int,
+    level: str,
+    status: ExtractionStatus,
+    batch_id: int | None,
+    position: int | None,
+) -> None:
+    """Upsert the ``content_extractions`` row (one per content)."""
+    values = {
+        "content_id": content_id,
+        "level": level,
+        "status": status.value,
+        "batch_id": batch_id,
+        "position": position,
+    }
+    await session.execute(
+        pg_insert(ContentExtraction)
+        .values(**values)
+        .on_conflict_do_update(
+            index_elements=[ContentExtraction.content_id],
+            set_={k: v for k, v in values.items() if k != "content_id"},
+        )
+    )
 
 
 async def promote_to_n4(

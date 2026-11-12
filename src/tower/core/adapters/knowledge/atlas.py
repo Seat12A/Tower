@@ -83,6 +83,9 @@ class AtlasRequest:
     fact_checks_only: bool = False
     """Query only the existing fact-checks (E3 lookup for a new group): no structured
     source, no encyclopedia, no web search."""
+    skip_encyclopedia: bool = False
+    """Skip the encyclopedia (and its followed references): light check (E5) only reads
+    existing fact-checks and structured sources."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -314,7 +317,8 @@ class Atlas:
         await self._fact_checks(run)
         if not request.fact_checks_only:
             await self._structured(run)
-            await self._encyclopedia(run)
+            if not request.skip_encyclopedia:
+                await self._encyclopedia(run)
             await self._web(run)
         run.result.paid_cost_usd_micros = run.result.web_searches * self._search_cost
         log.info(
