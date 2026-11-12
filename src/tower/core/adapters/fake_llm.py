@@ -397,6 +397,34 @@ def _pair_arbiter(data: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _extract_batch(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Each post extracted alone, exactly like the solo fake (no contamination)."""
+    today = data.get("today")
+    return {"posts": [_extract({"today": today, "post": post}) for post in data["posts"]]}
+
+
+def _light_check(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Deterministic: a reference fact or fact-check whose numbers differ from the claim's
+    gives ``likely_false``; one that repeats them ``likely_true``; else ``uncertain``."""
+    claim_numbers = set(_numbers_of(str(data["claim"].get("text_original", ""))))
+    for item in data.get("evidence") or []:
+        numbers = set(_numbers_of(str(item.get("text", ""))))
+        if not claim_numbers or not numbers:
+            continue
+        signal = "likely_true" if claim_numbers & numbers else "likely_false"
+        return {
+            "signal": signal,
+            "explanation": f"Fake light check against evidence {item.get('id')}.",
+            "evidence_ids": [str(item.get("id"))],
+        }
+    return {"signal": "uncertain", "explanation": "No comparable evidence.", "evidence_ids": []}
+
+
+def _narrative_title(data: Mapping[str, Any]) -> dict[str, Any]:
+    first = str((data.get("claims") or ["Récit"])[0])
+    return {"title_fr": _cut("Récit : " + first, 120), "title_en": _cut("Narrative: " + first, 120)}
+
+
 _BUILDERS: dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]] = {
     "ExtractOutput": _extract,
     "FrameOutput": _frame,
@@ -408,6 +436,9 @@ _BUILDERS: dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]] = {
     "CriticOutput": _critic,
     "TranslateOutput": _translate,
     "PairArbiterOutput": _pair_arbiter,
+    "ExtractBatchOutput": _extract_batch,
+    "LightCheckOutput": _light_check,
+    "NarrativeTitleOutput": _narrative_title,
 }
 
 
