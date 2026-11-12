@@ -35,3 +35,12 @@ async def waves_step(session: AsyncSession, settings: Settings, now: datetime) -
 async def maintain_narratives(session: AsyncSession, settings: Settings) -> int:
     """Periodic ``factcheck:narratives``: closure after 7 days, medoid re-election."""
     return 0
+
+
+async def filter_for_surges(
+    session: AsyncSession, settings: Settings, content_ids: Sequence[int]
+) -> tuple[list[int], dict[int, int]]:
+    """Called by the batch composer before extraction: returns the contents to extract
+    and ``{content_id: narrative_id}`` of the contents only counted (surge sampling);
+    forced novelties are part of the first list."""
+    return list(content_ids), {}
