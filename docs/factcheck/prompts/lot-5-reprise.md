@@ -12,6 +12,57 @@ dernier commit, pas de `main`). Jules peut être absent : prends les décisions 
 note-les dans `docs/decisions.md`, et sois économe en tokens (sous-agents Claude Sonnet
 seulement pour l'implémentation, briefs précis, sorties de commandes courtes).
 
+## Rôle et économie d'usage (forfait Claude de Jules)
+
+- **Toi (Opus)** : tu conçois, relis, intègres et vérifies. **Les sous-agents Claude
+  Sonnet** (`model: "sonnet"`, vérifie dans leur premier rapport que c'est bien Sonnet)
+  implémentent. Aucun sous-agent Opus, aucun sous-agent d'exploration.
+- Briefs autonomes et précis (fichiers autorisés seulement, signatures, cas limites,
+  tests, commandes, interdits), rapport de 10 lignes au plus qui commence par le modèle.
+  Les briefs du lot 5 existent déjà : réutilise-les, ne les réécris pas.
+- Le moins de sous-agents possible, lancés en parallèle quand leurs fichiers sont
+  disjoints ; une base de test par sous-agent. Ne commite jamais en `git commit -a`
+  pendant que des sous-agents travaillent : ajoute les fichiers un par un.
+- Lecture ciblée (sections utiles seulement), chemins plutôt que copies, sorties de
+  commandes courtes (`pytest -q`, `| tail`), suite complète aux points de contrôle
+  seulement, appels d'outils indépendants regroupés, recherche web limitée à la
+  documentation officielle, pas de réécriture complète ni de documentation en double.
+- Messages à Jules courts, un point par phase.
+
+## Exigences transversales (non négociables, détail dans `CLAUDE.md`)
+
+- **RAM** (Railway facture environ 10 $ par Go et par mois) : imports paresseux, aucun
+  numpy, pandas ni modèle local, vecteurs en listes, calculs lourds dans PostgreSQL,
+  tout cache ou tampon borné, processus sans état. Mesure du RSS avant et après le lot
+  (méthode du lot 4 : processus lancé directement, mesure à 8 s, « avant » dans un
+  worktree) ; cibles : gate au plus +5 Mo, hangar au plus +20 Mo au repos (rapporte aussi
+  la valeur après traitement), intercom au plus +10 Mo. Tests d'isolation des imports :
+  gate ne charge ni SDK ni adaptateur, un hangar sans `factcheck` ne charge rien du
+  fact-check.
+- **Coût minimal** : masse sous 0,00001 $ par post, lots, cache de contenu des appels,
+  pas d'appel de modèle évitable, budgets par niveau respectés.
+- **Scalabilité** : réplicas sans état, PostgreSQL seule infrastructure (outbox,
+  `SKIP LOCKED`, verrous consultatifs), contre-pression sur les files.
+- **Socle** : toute écriture métier par un cas d'usage avec permission, audit et
+  événement dans la même transaction ; abonnements courts (ils enfilent des jobs) ;
+  handlers idempotents ; services qui n'importent que `tower.core` ; erreurs `TWR-*`
+  (jamais renuméroter) et `capture` ; logs JSON courts sur stdout ; migrations
+  expand/contract ; IDs en `BIGINT` en base et en chaînes dans l'API.
+- **Langues** : tout contenu porte sa langue. Code, commentaires, logs, tests et commits
+  en **anglais** ; documentation en **français**.
+- **Objectivité et égalité de traitement** sans faux équilibre : ni le regroupement, ni
+  les récits, ni la priorité, ni les verdicts ne dépendent de l'auteur ou de son bord ;
+  les modèles ne reçoivent jamais l'auteur ni le niveau ; les signaux de coordination
+  sont informatifs seulement.
+- **Aucune publication automatique, aucun scraping de X.**
+- **Sûreté** : dans le doute, ne pas regrouper et ne pas réutiliser un verdict.
+- **Base de test réelle** (jamais simulée) ; doublures de modèles `TOWER_LLM_FAKE=1`
+  faute de clés, et dis clairement dans le rapport ce qui a été appelé pour de vrai.
+- **Définition de « terminé »** (`CLAUDE.md`) : ruff, mypy strict, pytest verts ; tests
+  du nominal et des erreurs ; migration relue et `alembic check` ; documentation à jour
+  dans le même commit ; `docs/errors.md` régénéré ; résumé de session ; décisions dans
+  `docs/decisions.md` ; pas de pull request sans demande explicite.
+
 ## Lire d'abord
 
 1. `CLAUDE.md` (règles non négociables).
