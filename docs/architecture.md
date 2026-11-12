@@ -51,19 +51,23 @@ src/tower/
     ports/               interfaces des dépendances externes (LLM, plateformes, web…)
     adapters/            adaptateurs partagés des ports (OpenAI, Anthropic, httpx),
                          SDK importés paresseusement
-    llm/                 routeur de modèles, registre des prompts (voir llm.md)
+    llm/                 routeur de modèles, service d'embeddings, registre des
+                         prompts (voir llm.md)
     factcheck/           contrats partagés du fact-check : schémas de sortie par rôle,
                          entrées des modèles, noms (files, jobs, topics), signaux,
                          accès paresseux (routeur, Atlas, plateformes)
     adapters/knowledge/  Atlas : Wikipédia, Wikidata, Fact Check Tools, Brave,
                          Légifrance, INSEE, cache des sources (voir fact-check.md)
     admin.py, migrations.py
+    db/vector.py         type halfvec (pgvector) sans le paquet Python pgvector
   gate/                  FastAPI : app, routes, middleware, erreurs HTTP
   hangar/                worker
   services/ping/         service de démonstration (modèle à copier)
   services/ingest/       liaison des copies, maintenance des partitions et secrets
   services/radar/        lecture des comptes suivis (API officielle de X)
-  services/factcheck/    déclenchement, extraction E2, assemblage E10, traductions
+  services/factcheck/    déclenchement, extraction E2, assemblage E10, traductions ;
+                         lot 4 : embeddings et routage E1, appariement E3, péremption,
+                         revalidation, alimentation des fiches de référence
   services/investigate/  enquêtes E6 à E9, outil d'évaluation
   migrations/            Alembic (livré dans le paquet)
 ```

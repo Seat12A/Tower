@@ -27,6 +27,17 @@ brouillons revus dans Discord, traductions, lecture publique du verdict validé,
 d'évaluation. Voir [fact-check.md](fact-check.md). **Reste** : session de validation et
 de réglage avec les clés et le jeu de référence (qualité des verdicts non mesurée).
 
+## Fait : lot 4, V1 du fact-check (2026-11-12, en développement)
+
+Embeddings par API et routage E1 (règle permissive, `train-router`), appariement E3
+(pgvector, signatures, arbitre), groupes avec fusion et scission réversibles,
+réutilisation stricte des verdicts (signature identique, bandes de valeurs validées,
+jamais en N4), fiches de référence (dont INSEE automatique), péremption et
+revalidation, profils de traitement versionnés et forçages de niveau, budgets par
+niveau, évaluation E3. Voir [fact-check.md](fact-check.md#lot-4--v1--embeddings-groupes-réutilisation-profils).
+**Reste** : bascule de la base Railway sur une image avec pgvector, appels réels
+(embeddings, arbitre) et mesure du regroupement sur un vrai corpus.
+
 ## Prochaines étapes
 
 1. **Ingestion (suite)** : règles d'ouverture de dossier (plusieurs installations
@@ -41,7 +52,7 @@ de réglage avec les clés et le jeu de référence (qualité des verdicts non m
    Discord) ; la revue des brouillons de fact-check est livrée (lot 3).
 4. **Fact-check** : session de validation et de réglage du lot 3 (clés Anthropic,
    OpenAI, Brave, Google, PISTE, INSEE ; au moins 50 affirmations du jeu de référence ;
-   `tower factcheck eval`), puis lot 4. Plan d'implémentation détaillé dans
+   `tower factcheck eval`) ; lot 4 livré ; lot 5 (flux de masse, ordonnanceur, vagues). Plan d'implémentation détaillé dans
    [factcheck/feuille-de-route.md](factcheck/feuille-de-route.md) (2026-11-10). Phase 0
    (jeu de référence de 300 affirmations, comptes et clés, validations juridiques),
    puis lots : fondations (routeur de modèles OpenAI et Anthropic, ports, budgets),

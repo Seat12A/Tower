@@ -99,6 +99,15 @@ relus avec temps de relecture médian ≤ 10 min.
 
 ## Lot 4 — V1 : embeddings, groupes, cache, profils
 
+> **Livré en développement le 2026-11-12** (sans clé d'API : embeddings et arbitre
+> remplacés par des doublures). Implémentation :
+> [../fact-check.md](../fact-check.md#lot-4--v1--embeddings-groupes-réutilisation-profils).
+> Écarts : E1 classe et enregistre sans déclencher l'extraction des N1 (lot 5) ; une
+> variante chiffrée de valeur différente forme son propre groupe relié à la fiche ;
+> pgvector impose le template PostgreSQL de Railway avec pgvector. Mesures sur exemples
+> seulement (fausse réutilisation 0 % sur 2 paires pièges d'exemple) ; la mesure sur
+> les 50 paires pièges du jeu de référence reste à faire.
+
 - E1 (embeddings, classifieur en règle permissive), E3 (appariement, signature,
   arbitre), groupes, fusions et scissions réversibles.
 - Fiches de référence, cache de verdicts avec péremption par type, revalidation.

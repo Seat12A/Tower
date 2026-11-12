@@ -178,7 +178,11 @@ tant que Jules ne l'a pas vérifiée dans le tableau de bord OpenAI : la marquer
   (`fallbacks`) n'est pas utilisé : le routeur fait le repli lui-même pour connaître
   le modèle réellement facturé.
 - **Embeddings** : `text-embedding-3-small`, `dimensions=512`, lots de 256 textes.
-  Port seulement utilisé à partir du lot 4.
+  Utilisé à partir du lot 4 par le service d'embeddings (`core/llm/embeddings.py`) : route
+  `embed`, budget réservé sur `global` et sur le niveau du contenu, un `llm_calls` par
+  requête (sans sortie), cache mémoire borné par processus. Doublure `FakeEmbedder`
+  avec `TOWER_LLM_FAKE=1`. Le rôle `pair_arbiter` (E3) passe par le routeur comme les
+  autres (prompt `services/factcheck/prompts/pair_arbiter.md`).
 
 ## Prompts
 

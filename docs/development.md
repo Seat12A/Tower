@@ -3,7 +3,7 @@
 ## Prérequis
 
 - Python 3.13, [uv](https://docs.astral.sh/uv/)
-- PostgreSQL 16 (local ou Docker)
+- PostgreSQL 16 avec l'extension **pgvector ≥ 0.8** (lot 4 ; local ou Docker)
 
 ```bash
 uv sync
@@ -14,7 +14,18 @@ cp .env.example .env    # puis ajuster TOWER_DATABASE_URL
 ```
 
 ```bash
-docker run -d --name tower-pg -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres:16
+docker run -d --name tower-pg -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 pgvector/pgvector:0.8.1-pg16
+```
+
+Sans Docker (Debian/Ubuntu) : le paquet `postgresql-16-pgvector` des dépôts Debian peut
+être trop ancien (0.6 : pas de `halfvec`). Compiler alors depuis les sources :
+
+```bash
+apt-get install -y postgresql-server-dev-16 build-essential
+```
+
+```bash
+git clone --depth 1 --branch v0.8.1 https://github.com/pgvector/pgvector.git /tmp/pgvector && make -C /tmp/pgvector && sudo make -C /tmp/pgvector install
 ```
 
 ```bash
