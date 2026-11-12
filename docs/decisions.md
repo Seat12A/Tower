@@ -280,3 +280,11 @@ Décisions de conception arrêtées au début du lot (contrat des sous-agents :
 | Une vague qui monte de `surge` à `alert` republie `narrative.surge_detected` (`tier = alert`) ; la notification du bot est idempotente par récit et palier | L'alerte doit être signalée même si la vague était déjà annoncée |
 | Pas de topic `narrative.created` : la fondation d'un récit n'est inscrite qu'au journal `narrative_events` | Un récit par nouveau groupe serait un bruit sans consommateur |
 | Le chemin « copie qui hérite des affirmations » n'écrit pas `content_extractions` | Une copie n'est jamais en attente de lot (filtre « pas une copie ») ; écrire écraserait le niveau d'une promotion N4 |
+
+## Périmètre après le lot 5 (Jules, 2026-11-12)
+
+| Décision | Raison |
+|---|---|
+| Lot 7 (multi-plateforme) reporté : aucune nouvelle plateforme pour l'instant, X seulement | Choix de Jules ; le modèle de données reste multi-plateforme (`platform`) |
+| Lot 8 (médias) reporté : ni image ni vidéo pour l'instant | Choix de Jules |
+| Lot 9 traité comme un audit (mesure de neutralité), pas comme un lot de fonctionnalités | Choix de Jules ; il suppose des verdicts réels |

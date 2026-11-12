@@ -165,12 +165,16 @@ rappel au-delà de 2 points.
 
 ## Lot 7 — Multi-plateforme
 
+> **Reporté** (Jules, 2026-11-12) : pas de nouvelle plateforme pour l'instant.
+
 - Adaptateur et ingestion Bluesky (Jetstream), puis Threads et Mastodon.
 - Comptes multi-plateformes par entité.
 
 Critère : une vague présente sur X et Bluesky est reconnue comme un seul récit.
 
 ## Lot 8 — Médias
+
+> **Reporté** (Jules, 2026-11-12) : ni image ni vidéo pour l'instant.
 
 - `media_assets`, service `media` : M0 (empreintes, images clés), M1 (OCR,
   transcription), M2 (provenance, première apparition).
@@ -180,6 +184,8 @@ Critère : ≥ 90 % des images recyclées du corpus datées correctement ; RSS d
 `media` mesuré et borné.
 
 ## Lot 9 — V4 : audit et neutralité
+
+> Traité comme un **audit** (Jules, 2026-11-12), après le passage au réel.
 
 - Audit hebdomadaire Fable, tableau de bord de neutralité (quatre mesures), exemples
   dynamiques dans les prompts ; brouillons pièges seulement si le taux d'acceptation
