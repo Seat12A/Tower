@@ -4,6 +4,7 @@ a real gate (ASGI), in French and English."""
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Callable, Coroutine
 from typing import Any
 
@@ -173,7 +174,8 @@ async def test_split_button_and_command(gate: GateClient, db: Database, locale: 
     two, _ = await add_post(db, built.group_id, "bluesky", "bsky-2")
     claims = f"{await claim_public(db, one)}, {await claim_public(db, two)}"
     reply = await fc.group_split_draft(gate, EDITOR, locale, str(built.verdict), claims, "other")
-    assert "2" in reply.text and "TWR" not in reply.text
+    # The reply names the new group (a random UUID: never test for a given digit).
+    assert re.search(r"`[0-9a-f-]{36}`", reply.text) and "TWR" not in reply.text
     assert len((await gate.get_group(EDITOR, await group_public(db, built)))["members"]) == 1
 
     group = await group_public(db, built)
