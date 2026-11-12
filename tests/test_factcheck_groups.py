@@ -448,3 +448,36 @@ async def test_join_decision_follows_a_concurrent_merge(db: Database, h: Harness
     assert record.group_ids == [live]
     assert len(await active_members(db, live)) == 3
     assert await active_members(db, old) == []
+
+
+async def test_merge_supersedes_the_drafts_of_the_source_and_review_is_refused(
+    db: Database,
+) -> None:
+    from tower.core.domain.errors import Conflict
+    from tower.core.domain.security import Actor, ActorKind, Permission
+    from tower.core.usecases.drafts import review_draft
+
+    a = await seed_group(db, "a", vec(1.0))
+    b = await seed_group(db, "b", vec(0.9))
+    draft = await give_verdict(db, b, status="draft")
+    await merge(db, a, b)
+    async with db.session() as session:
+        status = await session.scalar(
+            text("SELECT status FROM verdicts WHERE id = :i"), {"i": draft}
+        )
+        public = await session.scalar(
+            text("SELECT public_id FROM verdicts WHERE id = :i"), {"i": draft}
+        )
+    assert status == "superseded"
+
+    # A draft still pending on a merged group (e.g. assembled after the merge) is refused.
+    async with db.transaction() as session:
+        await session.execute(
+            text("UPDATE verdicts SET status = 'draft', drafted_at = now() WHERE id = :i"),
+            {"i": draft},
+        )
+    editor = Actor(kind=ActorKind.STAFF, id="1", permissions=frozenset(Permission))
+    with pytest.raises(Conflict) as err:
+        async with db.transaction() as session:
+            await review_draft(session, editor, public, decision="accept")
+    assert err.value.code == "TWR-FCK-021"

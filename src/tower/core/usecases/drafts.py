@@ -483,6 +483,14 @@ async def review_draft(
             code=ec.FCK_DRAFT_ALREADY_REVIEWED,
             status=verdict.status,
         )
+    merged_into = await session.scalar(
+        select(ClaimGroup.merged_into_id).where(ClaimGroup.id == verdict.claim_group_id)
+    )
+    if merged_into is not None:
+        raise Conflict(
+            "The group of this draft was merged into another group",
+            code=ec.FCK_GROUP_MERGED,
+        )
     if expected_version is not None and verdict.version != expected_version:
         raise Conflict(
             "The draft was modified in the meantime",

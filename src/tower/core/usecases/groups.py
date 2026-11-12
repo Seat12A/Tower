@@ -217,6 +217,13 @@ async def merge_groups(
         source_verdict.updated_at = func.now()
         source.active_verdict_id = None
 
+    # Drafts of the source never reach review: the target group carries the claims now.
+    await session.execute(
+        update(Verdict)
+        .where(Verdict.claim_group_id == source.id, Verdict.status == VerdictStatus.DRAFT.value)
+        .values(status=VerdictStatus.SUPERSEDED.value, updated_at=func.now())
+    )
+
     members = await _active_member_claims(session, source.id)
     claim_ids = [c.id for c in members]
     await _move_members(session, source=source, target=target, claim_ids=claim_ids, reason=reason)
