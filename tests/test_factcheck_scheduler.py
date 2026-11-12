@@ -40,7 +40,6 @@ from .conftest import make_settings
 from .test_factcheck_matching import events_of, give_verdict
 from .test_factcheck_service import ctx, make_content, rows, scalar
 
-NOW = datetime.now(UTC)
 SYSTEM = Actor.system("test")
 
 
@@ -68,7 +67,7 @@ class MetricsPlatform:
             raise self.error
         if self.views is None:
             return None
-        return Metrics(values={"impression_count": self.views}, measured_at=NOW)
+        return Metrics(values={"impression_count": self.views}, measured_at=datetime.now(UTC))
 
     async def get_account(self, account_ref: str) -> None:
         return None
@@ -132,12 +131,12 @@ async def make_group(
         if created_ago is not None:
             await session.execute(
                 text("UPDATE claim_groups SET created_at = :t WHERE id = :g"),
-                {"t": NOW - created_ago, "g": group.id},
+                {"t": datetime.now(UTC) - created_ago, "g": group.id},
             )
         if updated_ago is not None:
             await session.execute(
                 text("UPDATE claim_groups SET updated_at = :t WHERE id = :g"),
-                {"t": NOW - updated_ago, "g": group.id},
+                {"t": datetime.now(UTC) - updated_ago, "g": group.id},
             )
         return int(group.id), content_id
 
@@ -156,7 +155,11 @@ async def observe(
                     "INSERT INTO observations (observed_at, content_id, platform, source,"
                     " installation_pseudonym) VALUES (:t, :c, 'x', 'extension', :p)"
                 ),
-                {"t": NOW - timedelta(minutes=minutes_ago), "c": content_id, "p": pseudonym},
+                {
+                    "t": datetime.now(UTC) - timedelta(minutes=minutes_ago),
+                    "c": content_id,
+                    "p": pseudonym,
+                },
             )
 
 
@@ -202,7 +205,7 @@ async def seed_run(db: Database, *, ago: timedelta) -> None:
                 "INSERT INTO scheduler_runs (started_at, rate_per_hour, interval_s)"
                 " VALUES (:t, 0, 60)"
             ),
-            {"t": NOW - ago},
+            {"t": datetime.now(UTC) - ago},
         )
 
 
@@ -578,7 +581,7 @@ async def set_below(db: Database, group_id: int, ago: timedelta) -> None:
     async with db.transaction() as session:
         await session.execute(
             text("UPDATE claim_groups SET below_threshold_since = :t WHERE id = :g"),
-            {"t": NOW - ago, "g": group_id},
+            {"t": datetime.now(UTC) - ago, "g": group_id},
         )
 
 
