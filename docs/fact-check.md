@@ -443,7 +443,7 @@ Voir [configuration.md](configuration.md#fact-check-v1-lot-4).
 
 ### Mesures du lot 4
 
-Voir le résumé de session [sessions/2026-11-11-lot-4-v1.md](sessions/2026-11-11-lot-4-v1.md)
+Voir le résumé de session [sessions/2026-11-12-lot-4-v1.md](sessions/2026-11-12-lot-4-v1.md)
 (RSS, index HNSW, évaluation). Index HNSW des groupes, jeu synthétique de 50 000 groupes
 à vecteurs aléatoires (cas défavorable) : 65 Mo d'index ; construction en 25 s avec
 `maintenance_work_mem = 64MB` (le graphe déborde après 36 870 vecteurs) et en 12 s avec
