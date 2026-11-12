@@ -13,7 +13,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.domain.factcheck.matching import MatchDecision
@@ -30,10 +30,11 @@ from tower.core.domain.factcheck.values import (
     ReuseRule,
     VerdictStatus,
 )
+from tower.core.domain.factcheck.vectors import cosine
 from tower.core.domain.security import Actor, Permission
 from tower.core.events.outbox import publish
 from tower.core.factcheck import names
-from tower.core.factcheck.candidates import claim_signature, post_dates
+from tower.core.factcheck.candidates import claim_signature, nearest_groups, post_dates
 from tower.core.factcheck.references import active_band
 from tower.core.factcheck.schemas import ExtractedClaim
 from tower.core.logging import get_logger
@@ -221,6 +222,51 @@ async def _live_group(session: AsyncSession, group_id: int) -> ClaimGroup | None
             return None
         current = group.merged_into_id
     return None
+
+
+async def _recheck_concurrent(
+    session: AsyncSession,
+    *,
+    claim: Claim,
+    normalized: NormalizedSignature,
+    decision: MatchDecision,
+    profile: Profile | None,
+    current_period_days: int,
+) -> tuple[ClaimGroup | None, dict[str, Any]]:
+    """Before creating a group: serialize the creations of the same signature family
+    (transaction advisory lock) and look again, in the database only, for a group a
+    concurrent extraction created after E3 ran. Only the no-arbiter rule applies here
+    (identical signature, same language, cosine of original vectors >= threshold); any
+    other case stays a new group (the arbiter cannot be called inside a transaction)."""
+    key = "|".join(
+        [
+            "fc-group",
+            normalized.claim_type,
+            normalized.subject_key or "",
+            normalized.territory or "",
+        ]
+    )
+    await session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": key})
+    pivot = decision.embedding_pivot or decision.embedding
+    if not pivot or not decision.embedding:
+        return None, {}
+    threshold = profile.match_same_threshold if profile is not None else 0.92
+    for row in await nearest_groups(session, list(pivot), limit=5):
+        if row.claim_lang != claim.lang_original or row.original_embedding is None:
+            continue
+        comparison = compare_signatures(
+            normalized, row.signature, current_period_days=current_period_days
+        )
+        if not comparison.identical:
+            continue
+        similarity = cosine(decision.embedding, row.original_embedding)
+        if similarity < threshold:
+            continue
+        group = await _live_group(session, row.group_id)
+        if group is not None:
+            log.info("factcheck.join_on_recheck", group=group.id, claim=claim.id)
+            return group, {"rule": "identical_signature:recheck", "similarity": similarity}
+    return None, {}
 
 
 async def _identical_to_representative(
@@ -556,6 +602,16 @@ async def record_extraction(
                     joined = earlier_group
                     join_data = {"rule": "same_post:identical_signature"}
                     break
+
+        if joined is None:
+            joined, join_data = await _recheck_concurrent(
+                session,
+                claim=claim,
+                normalized=normalized,
+                decision=decision,
+                profile=profile,
+                current_period_days=current_period_days,
+            )
 
         if joined is not None:
             session.add(ClaimGroupMember(group_id=joined.id, claim_id=claim.id))

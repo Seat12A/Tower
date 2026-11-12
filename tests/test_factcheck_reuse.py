@@ -457,3 +457,53 @@ async def test_watched_account_path_is_unchanged(db: Database) -> None:
     jobs = await jobs_of(db, names.JOB_EXTRACT)
     # watched => N3 as before (one job, same dedupe key as lot 3)
     assert [(j["content_id"], j["level"]) for j in jobs] == [(cid, "N3")]
+
+
+# --------------------------------------------------------------- concurrent creation
+
+
+async def test_concurrent_extractions_of_the_same_claim_create_one_group(
+    db: Database, h: Harness
+) -> None:
+    """Two extractions decided "new" in parallel (neither saw the other's group): the
+    advisory lock and the in-transaction recheck make the second one join."""
+    import asyncio
+
+    from tower.core.domain.factcheck.matching import MatchDecision
+    from tower.core.domain.security import Actor, ActorKind, Permission
+    from tower.core.models.ingestion import ContentItem
+    from tower.core.usecases.claims import record_extraction
+
+    actor = Actor(
+        kind=ActorKind.SYSTEM,
+        id="test",
+        permissions=frozenset({Permission.FACTCHECK_REQUEST}),
+    )
+    first = await make_content(db, "9101", A)
+    second = await make_content(db, "9102", A)
+    decision = MatchDecision.new(embedding=tuple(vec(1.0)), embedding_model="m")
+
+    async def record(content_id: int) -> None:
+        async with db.transaction() as session:
+            content = await session.get(ContentItem, content_id)
+            assert content is not None
+            await record_extraction(
+                session,
+                actor,
+                content=content,
+                claims=[stat(A)],
+                level="N3",
+                requested_by="test",
+                prompt_version="v",
+                thread_context=None,
+                matches=[decision],
+                post_date=date(2026, 11, 11),
+            )
+            await asyncio.sleep(0.3)  # keep the lock while the other one waits
+
+    await asyncio.gather(record(first), record(second))
+    assert len(await group_rows(db)) == 1
+    assert await scalar(db, "SELECT count(*) FROM claim_group_members") == 2
+    rule = await scalar(db, "SELECT data->>'rule' FROM claim_group_events WHERE kind = 'joined'")
+    assert rule == "identical_signature:recheck"
+    assert await scalar(db, "SELECT count(*) FROM investigations") == 1

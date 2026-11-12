@@ -123,6 +123,10 @@ def _first_number(sentence: str) -> float | None:
     return None
 
 
+_YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
+_TOPIC = re.compile(r"chomage|unemployment|arbeitslos")
+
+
 def _extract(data: Mapping[str, Any]) -> dict[str, Any]:
     post = data["post"]
     text = str(post["text"]).strip()
@@ -136,19 +140,21 @@ def _extract(data: Mapping[str, Any]) -> dict[str, Any]:
     if len(text.split()) < 4:
         return {**out, "claims": [], "absence_reason": "no_claim"}
     sentence = _cut(_SENTENCE_END.split(text, maxsplit=1)[0], 280)
-    number = _first_number(sentence)
+    year = _YEAR.search(sentence)
+    number = _first_number(_YEAR.sub(" ", sentence))
+    topic = _TOPIC.search(_strip_accents(sentence).lower())
     signature = {
-        "subject": None,
+        "subject": "unemployment rate" if topic else None,
         "subject_qid": None,
-        "predicate": None,
+        "predicate": "unemployment_rate" if topic else None,
         "value_low": number,
         "value_high": number,
-        "unit": None,
+        "unit": "percent" if number is not None and "%" in sentence else None,
         "unit_scale": None,
         "currency": None,
         "value_date": None,
-        "period_start": None,
-        "period_end": None,
+        "period_start": f"{year.group(0)}-01-01" if year else None,
+        "period_end": f"{year.group(0)}-12-31" if year else None,
         "place": None,
         "polarity": "affirmative",
         "invoked_source": None,
