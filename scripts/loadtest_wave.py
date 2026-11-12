@@ -30,6 +30,7 @@ import secrets
 import statistics
 import sys
 import time
+import zlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -293,6 +294,13 @@ async def report_database(
 # ------------------------------------------------------------------------- injection
 
 
+def fake_ip(token: str) -> str:
+    """One stable private address per installation: gate rate-limits per IP (token bucket),
+    and real installations come from many addresses. Local load tests only."""
+    n = zlib.crc32(token.encode())
+    return f"10.{(n >> 16) & 255}.{(n >> 8) & 255}.{n & 255}"
+
+
 async def post_batches(
     client: Any,
     url: str,
@@ -314,7 +322,7 @@ async def post_batches(
             try:
                 response = await client.post(
                     f"{url}/v1/ingest/observations",
-                    headers={"X-Installation-Token": token},
+                    headers={"X-Installation-Token": token, "X-Forwarded-For": fake_ip(token)},
                     json={"filter_version": FILTER_VERSION, "items": items},
                     timeout=60,
                 )
