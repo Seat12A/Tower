@@ -497,6 +497,7 @@ async def request(ctx: JobContext) -> None:
             QUEUE,
             names.JOB_EXTRACT,
             {"content_id": content_id, "level": "N4", "requested_by": requested_by},
+            priority=names.FAST_LANE_PRIORITY,
             dedupe_key=names.extract_key(content_id, "N4"),
         )
     log.info("factcheck.requested", content=content_id, platform=platform)
@@ -751,6 +752,7 @@ async def on_content_ingested(session: AsyncSession, events: Sequence[EventRecor
                 QUEUE,
                 names.JOB_EXTRACT,
                 {"content_id": content_id, "level": "N3", "requested_by": names.FACTCHECK_ACTOR},
+                priority=names.FAST_LANE_PRIORITY,
                 dedupe_key=names.extract_key(content_id, "N3"),
             )
     authored = (
@@ -777,6 +779,7 @@ async def on_content_ingested(session: AsyncSession, events: Sequence[EventRecor
             QUEUE,
             names.JOB_EXTRACT,
             {"content_id": content_id, "level": level, "requested_by": names.FACTCHECK_ACTOR},
+            priority=names.FAST_LANE_PRIORITY,
             dedupe_key=names.extract_key(content_id, level),
         )
 
@@ -793,17 +796,18 @@ async def on_investigation_completed(session: AsyncSession, events: Sequence[Eve
             continue
     if not public_ids:
         return
-    rows = await session.scalars(
-        select(Investigation.id)
+    rows = await session.execute(
+        select(Investigation.id, Investigation.level, Investigation.flags)
         .where(Investigation.public_id.in_(public_ids))
         .order_by(Investigation.id)
     )
-    for investigation_id in rows:
+    for investigation_id, level, flags in rows.all():
         await enqueue(
             session,
             QUEUE,
             names.JOB_ASSEMBLE,
             {"investigation_id": investigation_id},
+            priority=names.job_priority(level, flags),
             dedupe_key=names.assemble_key(investigation_id),
         )
 

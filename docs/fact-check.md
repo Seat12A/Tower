@@ -472,7 +472,10 @@ factcheck:schedule (tick 60 s, passe adaptative, singleton)
 factcheck:narratives (1 h) : fermeture, médoïdes, scission suggérée, purges
 ```
 
-Les niveaux N3 et N4 n'attendent jamais l'ordonnanceur (déclenchement immédiat du lot 3).
+Les niveaux N3 et N4 n'attendent jamais l'ordonnanceur (déclenchement immédiat du lot 3)
+et prennent la **voie rapide** : priorité 10 pour leur extraction, chaque étape de leur
+enquête et leur assemblage, devant les jobs de masse (priorité 0) quand un même worker
+sert plusieurs files.
 `TOWER_FC_MASS_FLOW=false` coupe le composeur (les contenus N1 ne sont plus extraits).
 
 ### E2 en micro-lots (N1)

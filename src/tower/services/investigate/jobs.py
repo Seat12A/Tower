@@ -281,7 +281,7 @@ async def _apply(
             names.FC_DEEP,
             kind,
             {"investigation_id": inv.id, "round": round_},
-            priority=_priority_of(inv.flags),
+            priority=names.job_priority(inv.level, inv.flags),
             dedupe_key=names.stage_key(_STAGE_OF_JOB[kind], inv.claim_group_id, inv.id, round_),
         )
 
@@ -401,7 +401,9 @@ async def _fail(ctx: JobContext, state: _State, stage: _STAGES, exc: BaseExcepti
 
 async def _resolve(session: AsyncSession, raw: object) -> tuple[int, int, int] | None:
     """``(investigation id, group id, job priority)`` from a public UUID or an internal id."""
-    stmt = select(Investigation.id, Investigation.claim_group_id, Investigation.flags)
+    stmt = select(
+        Investigation.id, Investigation.claim_group_id, Investigation.level, Investigation.flags
+    )
     try:
         stmt = stmt.where(Investigation.public_id == uuid.UUID(str(raw)))
     except ValueError:
@@ -410,12 +412,7 @@ async def _resolve(session: AsyncSession, raw: object) -> tuple[int, int, int] |
         except ValueError:
             return None
     row = (await session.execute(stmt)).first()
-    return None if row is None else (int(row[0]), int(row[1]), _priority_of(row[2]))
-
-
-def _priority_of(flags: Mapping[str, Any] | None) -> int:
-    """Wave fast lane: an investigation of a surging narrative jumps the ``fc-deep`` queue."""
-    return names.WAVE_JOB_PRIORITY if (flags or {}).get("wave") else 0
+    return None if row is None else (int(row[0]), int(row[1]), names.job_priority(row[2], row[3]))
 
 
 async def on_requested(session: AsyncSession, events: Sequence[EventRecord]) -> None:

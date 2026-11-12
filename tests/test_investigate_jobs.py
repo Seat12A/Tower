@@ -284,7 +284,20 @@ async def test_wave_investigation_jobs_jump_the_deep_queue(db: Database) -> None
         )
     await _request(db, inv_id)
     jobs = await rows(db, "SELECT kind, priority FROM jobs")
-    assert [(j.kind, j.priority) for j in jobs] == [(names.JOB_FRAME, names.WAVE_JOB_PRIORITY)]
+    assert [(j.kind, j.priority) for j in jobs] == [(names.JOB_FRAME, names.FAST_LANE_PRIORITY)]
+
+
+@pytest.mark.parametrize(("level", "expected"), [("N2", 0), ("N3", 10), ("N4", 10)])
+async def test_immediate_levels_take_the_fast_lane(db: Database, level: str, expected: int) -> None:
+    inv_id = await seed(db)
+    async with db.transaction() as session:
+        await session.execute(
+            text("UPDATE investigations SET level = :l, flags = '{}' WHERE id = :id"),
+            {"l": level, "id": inv_id},
+        )
+    await _request(db, inv_id)
+    jobs = await rows(db, "SELECT priority FROM jobs")
+    assert [j.priority for j in jobs] == [expected]
 
 
 async def _request(db: Database, inv_id: int) -> None:

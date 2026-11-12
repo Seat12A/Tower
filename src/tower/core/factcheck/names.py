@@ -3,12 +3,24 @@ kinds, topics, dedupe keys, budget scopes, model roles and prompt ids."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 # Queues
 FC_FAST = "fc-fast"
 FC_DEEP = "fc-deep"
 FC_BULK = "fc-bulk"
-# Wave fast lane: priority of the jobs of an investigation of a surging narrative.
-WAVE_JOB_PRIORITY = 10
+# Fast lane: N3/N4 work and the investigation of a surging narrative jump the queues
+# (one worker serves several queues in priority order; mass-flow jobs keep priority 0).
+FAST_LANE_PRIORITY = 10
+
+
+def job_priority(level: str | None, flags: Mapping[str, Any] | None = None) -> int:
+    """Queue priority of a fact-check job from the level and flags of its work."""
+    if level in ("N3", "N4") or (flags or {}).get("wave"):
+        return FAST_LANE_PRIORITY
+    return 0
+
 
 # Jobs of the service ``factcheck`` (queue fc-fast)
 JOB_EXTRACT = "factcheck.extract"

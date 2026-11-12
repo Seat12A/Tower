@@ -269,7 +269,7 @@ Décisions de conception arrêtées au début du lot (contrat des sous-agents :
 | Décision | Raison |
 |---|---|
 | API Batch d'Anthropic reportée | L'allocation gratuite couvre le volume de départ ; les micro-lots synchrones suffisent |
-| Voie rapide des vagues : priorité 10 dans `fc-deep` pour tous les jobs d'une enquête marquée `flags.wave` (pas de nouvelle file) | Pas de processus ni de file supplémentaires (RAM) ; la file trie déjà par priorité |
+| Voie rapide : priorité 10 (`FAST_LANE_PRIORITY`) pour l'extraction N3/N4, toutes les étapes d'une enquête N3/N4 ou marquée `flags.wave`, et leur assemblage (pas de nouvelle file) | Pas de processus ni de file supplémentaires (RAM) ; un worker qui sert plusieurs files les trie par priorité : sans elle, une vague retardait les N3 de 40 s au smoke test |
 | Groupes N1 (et N2 issus des lots) créés dormants, sans enquête : l'ordonnanceur décide ; N3 et N4 ne l'attendent jamais | Le coût de masse reste borné ; aucun retard pour les comptes suivis |
 | Lot entier rejoué post par post dès 2 échecs de fidélité ou un canari contaminé ; les affirmations du canari ne sont jamais enregistrées | Dans le doute, ne pas faire confiance au lot |
 | Un post contenant un marqueur d'injection de prompt est extrait seul | Il ne doit pas pouvoir contaminer les autres posts du lot |
