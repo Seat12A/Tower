@@ -105,6 +105,13 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-FCK-036` | Invalid E1 router model (weights, dimensions or metrics) | 422 | info | non | non |  |
 | `TWR-FCK-037` | Verdict revalidation failed | 500 | warning | oui | oui |  |
 | `TWR-FCK-038` | Automatic reference fact feed failed (INSEE) | 500 | warning | oui | oui |  |
+| `TWR-FCK-039` | Batch extraction output invalid (missing or unknown post ids) | 500 | warning | oui | oui | Missing posts are replayed alone. |
+| `TWR-FCK-040` | Batch extraction contamination detected (canary or foreign figure) | 500 | error | oui | non | The batch is replayed post by post; lower TOWER_FC_BATCH_SIZE if it repeats. |
+| `TWR-FCK-041` | Light check (E5) failed: the group keeps its priority without signal | 500 | warning | oui | oui |  |
+| `TWR-FCK-042` | Promotion not confirmed by the platform (metrics read failed or below threshold) | 500 | info | non | non |  |
+| `TWR-FCK-043` | Narrative not found | 404 | info | non | non |  |
+| `TWR-FCK-044` | Invalid narrative operation (closed narrative, same narrative, unknown groups) | 422 | info | non | non |  |
+| `TWR-FCK-045` | Scheduler held work back: queue at capacity | 500 | info | non | non |  |
 
 ## GEN : Général
 

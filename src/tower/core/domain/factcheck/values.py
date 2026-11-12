@@ -370,3 +370,65 @@ class OverrideTarget(StrEnum):
     CONTENT = "content"
     GROUP = "group"
     ACCOUNT = "account"
+
+
+# ----------------------------------------------------------------------------- lot 5
+
+
+class ExtractionStatus(StrEnum):
+    """What E2 did with a content (``content_extractions``)."""
+
+    EXTRACTED = "extracted"  # at least one claim
+    NO_CLAIM = "no_claim"  # extracted, nothing checkable
+    SAMPLED_OUT = "sampled_out"  # surge sampling: counted, not extracted
+    FAILED = "failed"
+
+
+class BatchStatus(StrEnum):
+    PENDING = "pending"
+    DONE = "done"
+    REPLAYED_SOLO = "replayed_solo"  # fidelity or contamination failures: posts replayed alone
+    FAILED = "failed"
+
+
+class LightSignal(StrEnum):
+    """E5 preliminary signal: never published, only used for priority."""
+
+    LIKELY_TRUE = "likely_true"
+    LIKELY_FALSE = "likely_false"
+    UNCERTAIN = "uncertain"
+    NEEDS_CONTEXT = "needs_context"
+
+
+class NarrativeState(StrEnum):
+    ACTIVE = "active"
+    WATCH = "watch"  # >= 1 % of the hourly flow and >= 10 accounts
+    SURGE = "surge"  # wave mode
+    ALERT = "alert"  # N4, immediate Discord alert
+    CLOSED = "closed"  # 7 days without activity
+
+
+class TitleStatus(StrEnum):
+    NONE = "none"
+    DRAFT = "draft"  # written by the model, waiting for a reviewer
+    VALIDATED = "validated"
+
+
+class NarrativeEventKind(StrEnum):
+    CREATED = "created"
+    ATTACHED = "attached"
+    DETACHED = "detached"
+    MERGED = "merged"
+    SPLIT = "split"
+    STATE_CHANGED = "state_changed"
+    MEDOIDS_CHANGED = "medoids_changed"
+    TITLE_SET = "title_set"
+    CLOSED = "closed"
+
+
+class NoveltyKind(StrEnum):
+    NUMBER = "number"
+    LINK = "link"
+    MENTION = "mention"
+    MEDIA = "media"
+    ENTITY = "entity"

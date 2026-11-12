@@ -77,6 +77,7 @@ def _effort(role: str, level: str, effort: str, model: str, *fallbacks: str) -> 
 
 _ROUTES: tuple[_RouteSeed, ...] = (
     _low("extract", "gpt-5.6-luna", "gpt-6-luna", "claude-haiku-5-5"),
+    _low("extract_batch", "gpt-5.6-luna", "gpt-6-luna", "claude-haiku-5-5"),
     _low("pair_arbiter", "gpt-5-nano", "gpt-6-luna"),
     _low("light_check", "gpt-5.6-terra", "gpt-6.1-terra", "claude-haiku-5-5"),
     _low("query_writer", "gpt-5.6-terra", "gpt-6-luna"),

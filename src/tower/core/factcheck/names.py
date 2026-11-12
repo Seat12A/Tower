@@ -19,6 +19,13 @@ JOB_EMBED_BATCH = "factcheck.embed_batch"
 JOB_REVALIDATE = "factcheck.revalidate"
 JOB_INSEE_REFRESH = "factcheck.insee_refresh"
 
+# Lot 5 jobs (queue fc-bulk unless stated)
+JOB_EXTRACT_BATCH = "factcheck.extract_batch"
+JOB_LIGHT_CHECK = "factcheck.light_check"
+JOB_ATTACH_NARRATIVE = "factcheck.attach_narrative"
+JOB_NARRATIVE_TITLE = "factcheck.narrative_title"
+JOB_PROMOTION_CHECK = "factcheck.promotion_check"  # platform read confirming N2 metrics
+
 # Jobs of the service ``investigate`` (queue fc-deep), one per stage
 JOB_FRAME = "investigate.frame"
 JOB_COLLECT = "investigate.collect"
@@ -47,6 +54,11 @@ REFERENCE_FACT_VALIDATED = "reference_fact.validated"
 VERDICT_BAND_VALIDATED = "verdict_band.validated"
 PROCESSING_PROFILE_ACTIVATED = "processing_profile.activated"
 LEVEL_OVERRIDE_CREATED = "level_override.created"
+# Lot 5
+NARRATIVE_SURGE_DETECTED = "narrative.surge_detected"
+NARRATIVE_SURGE_ENDED = "narrative.surge_ended"
+NARRATIVE_MERGED = "narrative.merged"
+NARRATIVE_SPLIT = "narrative.split"
 
 # Actors
 FACTCHECK_ACTOR = "system:factcheck"
@@ -66,6 +78,9 @@ ROLE_CRITIC = "critic"
 ROLE_TRANSLATE = "translate"
 ROLE_PAIR_ARBITER = "pair_arbiter"
 ROLE_EMBED = "embed"
+ROLE_EXTRACT_BATCH = "extract_batch"
+ROLE_LIGHT_CHECK = "light_check"
+ROLE_NARRATIVE_TITLE = "narrative_title"
 """Prompt id = role, except the reinforced roles which reuse ``frame`` and ``judge``."""
 
 PROMPT_OF_ROLE = {
@@ -115,3 +130,26 @@ def revalidate_key(verdict_id: int) -> str:
 
 def insee_key(indicator: str, day: str) -> str:
     return f"insee:{indicator}:{day}"
+
+
+def extract_batch_key(content_ids: list[int], prompt_version: str) -> str:
+    import hashlib
+
+    digest = hashlib.sha256(",".join(map(str, sorted(content_ids))).encode()).hexdigest()[:16]
+    return f"extb:{digest}:{prompt_version}"
+
+
+def light_check_key(group_id: int, profile_version: int) -> str:
+    return f"light:{group_id}:{profile_version}"
+
+
+def attach_key(group_id: int) -> str:
+    return f"narr:{group_id}"
+
+
+def title_key(narrative_id: int) -> str:
+    return f"title:{narrative_id}"
+
+
+def promotion_key(group_id: int, hour: str) -> str:
+    return f"promo:{group_id}:{hour}"

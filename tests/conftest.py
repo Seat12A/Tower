@@ -24,8 +24,18 @@ from tower.core.migrations import downgrade, upgrade
 from tower.core.models.auth import ServiceClient, StaffMember
 
 TABLES = [
+    "narrative_novelty",
+    "narrative_stats",
+    "narrative_events",
+    "narrative_groups",
+    "content_extractions",
+    "extraction_audits",
+    "extraction_batches",
+    "scheduler_runs",
+    "entity_rarity",
     "verdict_bands",
     "claim_group_events",
+    "narratives",
     "content_embeddings",
     "level_overrides",
     "processing_profiles",

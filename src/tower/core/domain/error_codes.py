@@ -647,6 +647,49 @@ FCK_REFERENCE_FEED_FAILED = _define(
     retryable=True,
 )
 
+# Lot 5: mass flow, scheduler, light check, narratives and waves
+FCK_BATCH_INVALID = _define(
+    "TWR-FCK-039",
+    "Batch extraction output invalid (missing or unknown post ids)",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+    hint="Missing posts are replayed alone.",
+)
+FCK_BATCH_CONTAMINATION = _define(
+    "TWR-FCK-040",
+    "Batch extraction contamination detected (canary or foreign figure)",
+    severity=_ERR,
+    store=True,
+    hint="The batch is replayed post by post; lower TOWER_FC_BATCH_SIZE if it repeats.",
+)
+FCK_LIGHT_CHECK_FAILED = _define(
+    "TWR-FCK-041",
+    "Light check (E5) failed: the group keeps its priority without signal",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+FCK_PROMOTION_UNCONFIRMED = _define(
+    "TWR-FCK-042",
+    "Promotion not confirmed by the platform (metrics read failed or below threshold)",
+    severity=_INFO,
+)
+FCK_NARRATIVE_NOT_FOUND = _define(
+    "TWR-FCK-043", "Narrative not found", http_status=404, severity=_INFO
+)
+FCK_NARRATIVE_INVALID = _define(
+    "TWR-FCK-044",
+    "Invalid narrative operation (closed narrative, same narrative, unknown groups)",
+    http_status=422,
+    severity=_INFO,
+)
+FCK_SCHEDULER_BACKPRESSURE = _define(
+    "TWR-FCK-045",
+    "Scheduler held work back: queue at capacity",
+    severity=_INFO,
+)
+
 # --- ATL: knowledge sources (Atlas) and web search ---------------------------------
 ATL_SOURCE_UNAVAILABLE = _define(
     "TWR-ATL-001",

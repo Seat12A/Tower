@@ -344,3 +344,30 @@ def pair_arbiter_input(
         "claim_a": {"text": a_text, "lang": a_lang, "post_date": _iso(a_date)},
         "claim_b": {"text": b_text, "lang": b_lang, "post_date": _iso(b_date)},
     }
+
+
+def extract_batch_input(*, posts: Sequence[Mapping[str, Any]], today: date) -> dict[str, Any]:
+    """E2 micro-batch: each post is the dict built by :func:`extract_input` for one post
+    (``post`` value), already datamarked and pseudonymized. Never the author."""
+    return {"today": _iso(today), "posts": [dict(p) for p in posts]}
+
+
+def light_check_input(
+    *,
+    claim: ClaimView,
+    post_date: date | None,
+    evidence: Sequence[Mapping[str, str]],
+) -> dict[str, Any]:
+    """E5: the claim (as for the frame) and short evidence items ``{id, kind, source,
+    text}`` (reference facts, existing fact-checks, structured sources, or passages of the
+    narrative's evidence dossier), texts datamarked by the caller."""
+    return {
+        "claim": claim.as_input(),
+        "post_date": _iso(post_date),
+        "evidence": [dict(e) for e in evidence],
+    }
+
+
+def narrative_title_input(*, claims: Sequence[str]) -> dict[str, Any]:
+    """Representative claims (French pivot texts, datamarked) of a narrative."""
+    return {"claims": list(claims)[:5]}

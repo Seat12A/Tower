@@ -19,6 +19,7 @@ from tower.core.domain.factcheck.values import (
     ContextNeed,
     ContextType,
     EntityRole,
+    LightSignal,
     ObjectionDirection,
     ObjectionType,
     Polarity,
@@ -30,12 +31,15 @@ __all__ = [
     "ContextPoint",
     "CriticOutput",
     "Definition",
+    "ExtractBatchOutput",
     "ExtractOutput",
     "ExtractedClaim",
     "FrameOutput",
     "JudgeAssertion",
     "JudgeCitation",
     "JudgeOutput",
+    "LightCheckOutput",
+    "NarrativeTitleOutput",
     "ObjectionOutput",
     "PairArbiterOutput",
     "PassageOrigin",
@@ -324,3 +328,33 @@ class PairArbiterOutput(_Out):
     reason: ArbiterReason
     explanation: Line
     """One sentence in English naming the decisive element (never the author)."""
+
+
+# ------------------------------------------------------------- E2 micro-batches (lot 5)
+
+
+class ExtractBatchOutput(_Out):
+    """One entry per input post, in any order; every input id must come back (a missing
+    id is replayed alone, an unknown id is ignored)."""
+
+    posts: Annotated[list[ExtractOutput], _max_items(12)]
+
+
+# ------------------------------------------------------------------- E5 light check
+
+
+class LightCheckOutput(_Out):
+    signal: LightSignal
+    explanation: Line
+    """One English sentence for the scheduler logs and the team (never published)."""
+    evidence_ids: Annotated[list[Short], _max_items(6)]
+    """Identifiers of the evidence items the signal rests on (copied from the input)."""
+
+
+# -------------------------------------------------------------- narrative titles
+
+
+class NarrativeTitleOutput(_Out):
+    title_fr: Annotated[str, _max_len(120)]
+    """Short neutral title in French (the team's language)."""
+    title_en: Annotated[str, _max_len(120)]

@@ -45,6 +45,7 @@ from tower.core.domain.factcheck.values import (
     ContextType,
     Depth,
     InvestigationStage,
+    LightSignal,
     NoteStatus,
     Polarity,
     Regime,
@@ -166,6 +167,8 @@ class ClaimGroup(Base):
         check_in("state", ClaimGroupState, "state"),
         check_in("band", Band, "band"),
         check_in("band_side", BandSide, "band_side"),
+        check_in("light_signal", LightSignal, "light_signal"),
+        Index("ix_claim_groups_level_state", "level", "state"),
         Index(
             "ix_claim_groups_representative_embedding",
             "representative_embedding",
@@ -197,6 +200,17 @@ class ClaimGroup(Base):
     merged_into_id: Mapped[int | None] = mapped_column(
         ForeignKey("claim_groups.id", ondelete="SET NULL")
     )
+    # Lot 5 (scheduler E4, light check E5)
+    light_signal: Mapped[str | None] = mapped_column(Text)
+    light_checked_at: Mapped[datetime | None] = mapped_column()
+    light_evidence: Mapped[dict[str, Any] | None] = mapped_column()
+    observers_6h: Mapped[int] = mapped_column(Integer, server_default=sa_text("0"))
+    velocity: Mapped[float] = mapped_column(Float, server_default=sa_text("0"))
+    """Observations of the last hour / previous hour (0 when unknown)."""
+    priority: Mapped[float] = mapped_column(Float, server_default=sa_text("0"))
+    level_changed_at: Mapped[datetime | None] = mapped_column()
+    below_threshold_since: Mapped[datetime | None] = mapped_column()
+    """Start of the period below the N2 entry threshold (demotion after 24 h)."""
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
