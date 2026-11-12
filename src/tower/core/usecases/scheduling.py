@@ -114,9 +114,7 @@ async def apply_group_metrics(
     return len(ids)
 
 
-async def set_priorities(
-    session: AsyncSession, actor: Actor, values: Mapping[int, float]
-) -> None:
+async def set_priorities(session: AsyncSession, actor: Actor, values: Mapping[int, float]) -> None:
     actor.require(Permission.FACTCHECK_REQUEST)
     if not values:
         return
@@ -269,6 +267,8 @@ async def record_light_signal(
     explanation: str,
     evidence: Sequence[Mapping[str, str]],
     now: datetime,
+    profile_version: int = 0,
+    dossier_investigation_id: int | None = None,
 ) -> bool:
     """Store the E5 signal of a group (never published). False for a merged group."""
     actor.require(Permission.FACTCHECK_REQUEST)
@@ -284,5 +284,7 @@ async def record_light_signal(
     group.light_evidence = {
         "explanation": explanation[:_MAX_EXPLANATION],
         "evidence": [dict(item) for item in evidence],
+        "profile_version": profile_version,
+        "dossier_investigation_id": dossier_investigation_id,
     }
     return True

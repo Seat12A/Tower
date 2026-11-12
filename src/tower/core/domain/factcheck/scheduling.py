@@ -64,11 +64,7 @@ def interval_s(rate_per_hour: float, *, target: float, min_s: int, max_s: int) -
 
 def reach(views: float, observers: float, velocity: float) -> float:
     """``log1p(views) + 2 log1p(observers) + velocity`` (negative inputs count as 0)."""
-    return (
-        math.log1p(max(views, 0.0))
-        + 2.0 * math.log1p(max(observers, 0.0))
-        + max(velocity, 0.0)
-    )
+    return math.log1p(max(views, 0.0)) + 2.0 * math.log1p(max(observers, 0.0)) + max(velocity, 0.0)
 
 
 def theme_risk(theme: str | None) -> float:
@@ -154,7 +150,9 @@ def promotion_reasons(metrics: GroupMetrics, thresholds: PromotionThresholds) ->
     return reasons
 
 
-def promotion_confirmed(reasons: list[str], fresh_views: int, thresholds: PromotionThresholds) -> bool:
+def promotion_confirmed(
+    reasons: list[str], fresh_views: int, thresholds: PromotionThresholds
+) -> bool:
     """A promotion stands when one reason is not metric-based, or when the fresh platform
     metrics still exceed the views threshold."""
     if not reasons:
