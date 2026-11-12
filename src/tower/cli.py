@@ -143,6 +143,21 @@ def cmd_factcheck(args: argparse.Namespace) -> None:
         if code:
             raise SystemExit(code)
         return
+    if args.batch:
+        from tower.services.investigate.evaluation_batch import run_batch_command
+
+        code = asyncio.run(
+            run_batch_command(
+                settings,
+                set_path=args.set,
+                limit=args.limit,
+                report=args.report,
+                batch_size=args.batch_size,
+            )
+        )
+        if code:
+            raise SystemExit(code)
+        return
     from tower.services.investigate.evaluation import run_command
 
     code = asyncio.run(
@@ -217,6 +232,10 @@ def build_parser() -> argparse.ArgumentParser:
     pe.add_argument("--level", choices=["N3", "N4"], default="N3")
     pe.add_argument("--concurrency", type=int, default=2, metavar="K")
     pe.add_argument("--e3-only", action="store_true", help="matching layer only (skip E6-E10)")
+    pe.add_argument(
+        "--batch", action="store_true", help="E2 micro-batch contamination and omission instead"
+    )
+    pe.add_argument("--batch-size", type=int, default=10, metavar="N", help="(--batch) 1 to 12")
     pe.set_defaults(func=cmd_factcheck)
     ps = fsub.add_parser("seed-registry", help="Seed the source registry")
     ps.set_defaults(func=cmd_factcheck)

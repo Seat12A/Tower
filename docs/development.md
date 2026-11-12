@@ -77,6 +77,42 @@ contre un vrai uvicorn (httpx `ASGITransport` ne diffuse pas une réponse infini
 | `tower errors resolve <empreinte> [--note]` | Résoudre une erreur |
 | `tower errors catalog --markdown` | Catalogue (régénère `docs/errors.md`) |
 
+## Test de charge
+
+`scripts/loadtest_wave.py` (script autonome, hors paquet, non collecté par pytest) injecte
+une vague synthétique contre des processus en marche : variantes d'une même rumeur
+française (copies, quasi-copies, chiffres nouveaux, traductions avec le marqueur
+`[fr: …]`), réparties sur de nombreux faux auteurs et installations, plus du bruit de fond
+sans rapport, via `POST /v1/ingest/observations` (lots de 50, un jeton d'installation
+local par tranche de 400 posts pour respecter le quota par installation).
+
+Critère du lot 5 : 100 000 posts en 24 h sur un récit, sans retard des files N3, sans
+dépassement de budget, premier brouillon en moins de 2 h, flux de masse sous 0,00001 $ par
+post. Le script mesure : débit d'ingestion, délai `content.ingested` → `draft.ready` des
+posts du compte surveillé (p50, p95), file d'attente par file (SQL sur `jobs`, pic),
+transitions d'état des récits et heure du premier brouillon de vague, part `sampled_out`,
+coût modèle et embeddings par post (`llm_calls`), compteurs de budget au-delà du plafond.
+
+Lancement local (outils du smoke test de la session précédente dans
+`docs/factcheck/prompts/lot-5-briefs/` : `start.sh`, `env.sh`, `fake_x.py`) :
+
+```bash
+source docs/factcheck/prompts/lot-5-briefs/env.sh   # TOWER_LLM_FAKE=1, gate sur 0.0.0.0, services du fact-check
+uv run tower migrate && uv run tower llm seed
+uv run tower gate &  uv run tower hangar &          # hangar avec TOWER_SERVICES=...,factcheck,investigate
+python docs/factcheck/prompts/lot-5-briefs/fake_x.py posts.json 8799 &   # faux serveur X (radar)
+uv run python scripts/loadtest_wave.py --gate-url http://127.0.0.1:8765 \
+    --database-url "$TOWER_DATABASE_URL" --posts 5000 --minutes 10 \
+    --narrative-variants 30 --watched-post-every 60 --watched-post-file posts.json
+```
+
+Posts du compte surveillé (N3, immédiat) : soit via le faux serveur X (`--watched-post-file`,
+le radar les récupère), soit en ingestion directe avec un jeton de service portant
+`content:ingest` (`--watched-service-token`, source `radar`). Le compte doit être dans la
+liste de suivi (`--watched-handle`, `--watched-author-id`). `--drain-seconds` laisse le
+temps aux files de se vider avant les mesures. `python scripts/loadtest_wave.py --help`
+liste tous les arguments.
+
 ## Nouvelle table
 
 1. Modèle dans `core/models/`, importé dans `core/models/__init__.py`.

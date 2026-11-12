@@ -112,6 +112,31 @@ Implémenté au lot 3 (voir [../fact-check.md](../fact-check.md#évaluation)).
 uv run tower factcheck eval --set jeu.jsonl [--limit N] [--report rapport.md] [--level N3|N4] [--e3-only]
 ```
 
+### Mode lot (`--batch`)
+
+```bash
+uv run tower factcheck eval --set jeu.jsonl --batch [--batch-size 10] [--limit N] [--report rapport.md]
+```
+
+Évalue les micro-batchs E2 du lot 5 (`services/investigate/evaluation_batch.py`) à la
+place du pipeline E6-E10. Pour le `post_text` (à défaut `claim`) de chaque cas : les
+batchs sont composés avec le composeur de production (`compose` pur, vecteurs de
+`runtime.get_embedder`, mêmes seuils `TOWER_FC_BATCH_*`), un **canari** (nombre de six
+chiffres unique, position tirée) est inséré dans chaque batch, le rôle `extract_batch`
+est exécuté sur le batch et le rôle `extract` sur chaque post seul (référence ; le cache
+`llm_calls` rend les rejeux gratuits). Aucune écriture en base hors caches.
+
+| Métrique | Définition |
+|---|---|
+| Contamination | Part des posts dont les affirmations du batch contiennent le chiffre du canari ou un chiffre d'un autre post du batch absent de leur propre texte ; nombre de batchs dont le canari est contaminé |
+| Omission | Part des posts pour lesquels la référence seule trouve un chiffre que le résultat du batch ne contient pas (un post absent de la sortie compte comme omis) |
+| Omission par position | Même taux par position d'envoi dans le batch (canari compris) : révèle une dégradation en fin de batch |
+| Écart d'affirmations | Moyenne de (affirmations du batch − affirmations seul) par post |
+| Coût par post | Coût moyen du batch (canari compris) par post, comparé au coût seul |
+
+Avec `TOWER_LLM_FAKE=1` la sortie est déterministe et la contamination vaut 0. Cible de
+production : contamination 0 sur le jeu, omission proche de celle de l'extraction seule.
+
 Le jeu est un fichier **JSONL** : un cas par ligne, encodé en UTF-8.
 
 | Champ | Obligatoire | Contenu |
