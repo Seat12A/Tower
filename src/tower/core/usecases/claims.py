@@ -524,8 +524,8 @@ async def record_extraction(
     claim_rows: list[Claim] = []
     group_rows: list[ClaimGroup] = []
     created_in_call: list[tuple[NormalizedSignature, Claim, ClaimGroup]] = []
-    for position, extracted in enumerate(claims):
-        decision = matches[position] if matches is not None else None
+    for claim_position, extracted in enumerate(claims):
+        decision = matches[claim_position] if matches is not None else None
         sig = extracted.signature
         claim = Claim(
             public_id=uuid.uuid4(),
@@ -566,7 +566,7 @@ async def record_extraction(
         )
         session.add(claim)
         await session.flush()
-        session.add(ContentClaim(content_id=content.id, claim_id=claim.id, position=position))
+        session.add(ContentClaim(content_id=content.id, claim_id=claim.id, position=claim_position))
         record.claim_ids.append(claim.id)
         claim_rows.append(claim)
 
