@@ -126,3 +126,37 @@ def test_hangar_with_factcheck_loads_no_embedder_at_start() -> None:
         ),
     )
     assert loaded == []
+
+
+FACTCHECK_V2 = (
+    "tower.core.domain.factcheck.batching",
+    "tower.core.domain.factcheck.scheduling",
+    "tower.core.domain.factcheck.waves",
+    "tower.core.usecases.scheduling",
+    "tower.core.usecases.narratives",
+    "tower.core.factcheck.coordination",
+    "tower.core.usecases.narrative_views",
+)
+"""Lot 5 modules: none of them may load in a hangar without the fact-check services."""
+
+
+@pytest.mark.parametrize("services", [["ping", "ingest"], ["ping", "ingest", "radar"]])
+def test_hangar_without_factcheck_loads_no_lot5_module(services: list[str]) -> None:
+    code = (
+        "import tower.hangar.main\n"
+        "from tower.core.services.registry import load_services\n"
+        f"load_services({services!r}).validate(lease_seconds=300)\n"
+    )
+    assert _loaded_after(code, FACTCHECK_V2) == []
+
+
+def test_gate_loads_no_lot5_service_logic() -> None:
+    # Gate reads narratives (views, coordination) but never the batching, scheduling or
+    # wave logic, which belong to the hangar services.
+    code = "import tower.gate.app\ntower.gate.app.create_app"
+    loaded = _loaded_after(code, FACTCHECK_V2)
+    assert not {
+        "tower.core.domain.factcheck.batching",
+        "tower.core.domain.factcheck.scheduling",
+        "tower.core.usecases.scheduling",
+    } & set(loaded)
