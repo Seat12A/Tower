@@ -38,6 +38,19 @@ niveau, évaluation E3. Voir [fact-check.md](fact-check.md#lot-4--v1--embeddings
 **Reste** : bascule de la base Railway sur une image avec pgvector, appels réels
 (embeddings, arbitre) et mesure du regroupement sur un vrai corpus.
 
+## Fait : lot 5, V2 du fact-check (2026-11-12, en développement)
+
+Flux de masse N1 de l'extension (groupes dormants, copies jamais extraites), micro-lots
+E2 (dissimilarité, canari, audit), ordonnanceur E4 singleton (promotion confirmée,
+rétrogradation, quota de brouillons), vérification légère E5, voie rapide des N3/N4 et
+des vagues, récits et mode vague (paliers watch/surge/alert, quota et TTL de vague,
+échantillonnage, nouveautés), signaux de coordination informatifs, commandes
+`/narrative`. Voir [fact-check.md](fact-check.md#lot-5--v2--flux-de-masse-ordonnanceur-récits-et-vagues).
+**Reste** : coût de masse au-dessus de la cible sous doublures (0,0000155 $ par post
+une fois l'allocation gratuite épuisée), rattachement aux récits et échantillonnage non
+exercés sans vrais embeddings, appels réels. Mesures :
+[sessions/2026-11-12-lot-5-v2.md](sessions/2026-11-12-lot-5-v2.md).
+
 ## Prochaines étapes
 
 1. **Ingestion (suite)** : règles d'ouverture de dossier (plusieurs installations
@@ -52,7 +65,7 @@ niveau, évaluation E3. Voir [fact-check.md](fact-check.md#lot-4--v1--embeddings
    Discord) ; la revue des brouillons de fact-check est livrée (lot 3).
 4. **Fact-check** : session de validation et de réglage du lot 3 (clés Anthropic,
    OpenAI, Brave, Google, PISTE, INSEE ; au moins 50 affirmations du jeu de référence ;
-   `tower factcheck eval`) ; lot 4 livré ; lot 5 (flux de masse, ordonnanceur, vagues). Plan d'implémentation détaillé dans
+   `tower factcheck eval`) ; lots 4 et 5 livrés en développement ; lot 6 (Atlas complet et qualité). Plan d'implémentation détaillé dans
    [factcheck/feuille-de-route.md](factcheck/feuille-de-route.md) (2026-11-10). Phase 0
    (jeu de référence de 300 affirmations, comptes et clés, validations juridiques),
    puis lots : fondations (routeur de modèles OpenAI et Anthropic, ports, budgets),

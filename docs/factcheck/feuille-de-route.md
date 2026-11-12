@@ -120,6 +120,20 @@ sécurité.
 
 ## Lot 5 — V2 : flux de masse, ordonnanceur, vagues
 
+> **Livré en développement le 2026-11-12** (sans clé d'API : modèles, embeddings et
+> API X remplacés par des doublures). Implémentation :
+> [../fact-check.md](../fact-check.md#lot-5--v2--flux-de-masse-ordonnanceur-récits-et-vagues).
+> Écarts : API Batch reportée (micro-lots synchrones) ; voie rapide étendue aux N3/N4
+> (sinon une vague retardait les N3) ; les signaux de coordination restent informatifs.
+> Test de charge (100 000 posts en 1 h, soit 24 h accélérées 24 fois, un réplica
+> hangar) : délai N3 jusqu'au brouillon p50 5,9 s et p95 21,3 s, première enquête de
+> vague assemblée 1,4 s après la bascule en surge, aucun budget dépassé. **Critère de
+> coût non atteint sous doublures** : 0,0000155 $ par post pour la masse (N1), 0,0000208 $
+> tout compris, car l'allocation gratuite s'épuise et le modèle payant prend le relais.
+> Rattachement aux récits et échantillonnage non exercés (les doublures ne produisent ni
+> entités ni similarités réalistes). Détails :
+> [../sessions/2026-11-12-lot-5-v2.md](../sessions/2026-11-12-lot-5-v2.md).
+
 - Flux de l'extension en N1, micro-lots E2 (avec test de contamination), API Batch.
 - E4 ordonnanceur (singleton), promotion et rétrogradation, quota de brouillons.
 - E5 vérification légère.
