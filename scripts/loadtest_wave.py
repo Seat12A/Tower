@@ -378,7 +378,8 @@ async def watched_posts(args: argparse.Namespace, client: Any, stop: asyncio.Eve
     while not stop.is_set():
         text = f"Communiqué officiel numéro {sent + 1} : le gouvernement publie {random.randrange(10, 999)} mesures."
         stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        post_id = str(random.randrange(10**18, 2 * 10**18))
+        # Increasing like X snowflake ids: radar polls with ``since_id``.
+        post_id = str((int(time.time() * 1000) << 22) + sent)
         if args.watched_post_file:
             data = await asyncio.to_thread(_read_json, args.watched_post_file)
             data["posts"].append(
