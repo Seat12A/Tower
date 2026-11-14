@@ -1,4 +1,4 @@
-# Fact-check : implémentation (lots 3 et 4)
+# Fact-check : implémentation (lots 3 à 6)
 
 Cette page décrit ce qui est **implémenté** dans Tower pour le fact-check. Le plan
 complet (raisons, recherches, lots suivants) est dans [factcheck/](factcheck/README.md) ;
@@ -626,9 +626,206 @@ Voir [configuration.md](configuration.md#fact-check-v2-lot-5).
 
 Voir le résumé de session [sessions/2026-11-12-lot-5-v2.md](sessions/2026-11-12-lot-5-v2.md).
 
+## Lot 6 — V3 : Atlas complet et qualité
+
+Le lot 6 complète l'Atlas (statistiques internationales, droit de plusieurs juridictions,
+actualité, registre de fiabilité éditable, registres par pays) et pose l'outillage de
+qualité (recalibrage de la confiance, distillation E1). Le recalibrage et le classifieur
+distillé ne sont **pas activés** : il n'existe pas encore de revues réelles ; l'outillage
+refuse de produire ou d'activer un modèle sans données ni mesure.
+
+### Ordre de résolution et sélection par juridiction
+
+`core/adapters/knowledge/atlas.py` suit l'ordre de
+[factcheck/connaissances.md](factcheck/connaissances.md) : fact-checks existants →
+sources structurées → Wikipédia (et ses références) → **actualité** → recherche web
+payante (en dernier). Les sources structurées sont choisies par la juridiction de
+l'affirmation, pays par pays, à partir de `jurisdiction_sources` (lignes actives à
+adaptateur) ; un pays sans ligne prend les valeurs par défaut
+(`DEFAULT_COUNTRY_ADAPTERS`) :
+
+| Type d'affirmation | Adaptateurs |
+|---|---|
+| `statistic` | adaptateurs `statistics` du pays (FR : `insee` ; EU : `eurostat`), puis toujours `eurostat`, `worldbank`, `oecd`, `imf` (ils ne répondent que pour un indicateur configuré du territoire : un échec de correspondance ne coûte aucun appel) |
+| `legal_text`, `procedure` | adaptateurs `law` du pays : FR `legi_mirror` puis `legifrance` (API PISTE, seulement si le miroir n'a rien trouvé), EU `eurlex`, CH `fedlex`, CA `canada_laws` |
+| tous (hors vérification légère E5) | `news_index` après l'encyclopédie ; `gdelt` en plus pour une `ongoing_situation` |
+
+La recherche web est restreinte d'abord aux domaines primaires du registre **et** aux
+domaines officiels du pays (`jurisdiction_sources.domain` de niveau primaire) : c'est le
+repli d'un pays sans adaptateur dédié. Chaque source passe par `source_cache` (ou par
+PostgreSQL pour les miroirs locaux) ; les sources gratuites restent avant la recherche
+payante.
+
+### Statistiques (Eurostat, Banque mondiale, OCDE, FMI)
+
+`stat_common.py` + un adaptateur par API (`eurostat.py`, `worldbank.py`, `oecd.py`,
+`imf.py`), chacun avec sa section « Verified » (documentation officielle et appels réels
+du 2026-11-14). Ils renvoient une **valeur structurée** : `Evidence.extra` porte
+`indicator`, `definition_variant`, `value`, `unit`, `period` (`2025`, `2025-Q3`,
+`2025-07`), `territory`, `series_key`, et le texte n'est qu'une ligne déterministe. Les
+indicateurs suivis viennent de `TOWER_ATLAS_STAT_INDICATORS` (format dans
+[configuration.md](configuration.md)) : mots-clés (`aliases`), territoires, filtres.
+
+- Eurostat : API Statistics JSON-stat 2.0 (`GR` → `EL`, `EU` → `EU27_2020`) ; `as_of`
+  pris en compte pour les séries annuelles.
+- Banque mondiale : API v2 (`[meta, lignes]`, valeurs nulles sautées) ; `EU` → `EUU`.
+- OCDE : SDMX REST `format=jsondata`, gabarit de clé `{geo3}` ; `as_of` ignoré (signalé
+  dans `extra["as_of"]`).
+- FMI : DataMapper ; les projections (année future) sont exclues. **Non vérifié en
+  réel** : l'API a répondu 403 (Akamai) depuis le bac à sable ; un 403 donne
+  `TWR-ATL-005` et la source est sautée.
+
+Le job `atlas.stat_refresh` (quotidien, un par indicateur et territoire) crée une **fiche
+de référence en attente** (`origin = statistics`, clé
+`<source>:<série>:<territoire>:<période>`, idempotent) : un relecteur la valide avant
+qu'elle serve, comme pour l'INSEE.
+
+### Droit
+
+- **Miroir LEGI** (`legi_sync.py`) : listing de la DILA, plan (dump global puis
+  différences quotidiennes après la dernière archive appliquée, `atlas_sync_state`),
+  décompression gzip et lecture du format tar **en flux** (en-têtes analysés à la main,
+  noms longs GNU et pax), seuls les articles des textes choisis sont lus (2 Mo au plus
+  par membre), analysés par `safe_xml`, écrits par lots de 500
+  (`ON CONFLICT … DO UPDATE` seulement si le contenu ou les dates changent) ; la liste
+  de suppression de chaque différence est appliquée ; l'état est enregistré après chaque
+  archive (reprise). Textes : `TOWER_ATLAS_LEGI_TEXTS`, par défaut les 9 textes
+  prioritaires. Le **dump global** (1,3 Go) ne tient pas dans un bail de job : il
+  s'importe une fois par `tower atlas legi-sync` ; le job quotidien `atlas.legi_sync`
+  n'applique que des différences (10 au plus par passe) et journalise
+  `atlas.legi_needs_bootstrap` tant que l'import initial manque.
+- **`legi_mirror`** : référence exacte (« article 432-13 du code pénal », « art. L.
+  1234-5 », « 49.3 » de la Constitution) puis recherche plein texte
+  (`websearch_to_tsquery('french')`, `ts_rank`). La version retenue est celle **en
+  vigueur à la date de l'affirmation** (`as_of`, sinon aujourd'hui) ; à défaut, la plus
+  récente avec son état. Le texte transmis au juge **commence par les dates de
+  vigueur** (« en vigueur du … au … ; état ABROGE »).
+- **EUR-Lex** (SPARQL CELLAR : numéro CELEX, « règlement (UE) 2016/679 », mots du
+  titre), **Fedlex** (SPARQL, numéro RS/SR ou titre en fr/de/it, ELI), **Lois du
+  Canada** (index `Legis.xml` réduit et mis en cache 7 jours, puis lecture en flux de la
+  loi jusqu'à l'article demandé) : métadonnées et passages seulement, jamais l'acte
+  complet ; cache 7 jours.
+- Non retenus : Justel, Legilux, LégisQuébec (accès automatisé non confirmé : portails
+  `unverified` dans `legal_portals`, recherche restreinte à leur domaine).
+
+### Actualité
+
+- `news_feeds` amorcés par `tower atlas seed` (`core/atlas_seed_feeds.py`, 29 flux
+  vérifiés un par un) : service public (franceinfo, France Inter, RFI, France 24, RTBF,
+  RTS, Radio-Canada), presse nationale de sensibilités diverses (Le Monde, Le Figaro,
+  Libération, L'Humanité, Valeurs actuelles, 20 Minutes, L'Express, Mediapart, Le JDD,
+  Reporterre, La Libre Belgique), presse régionale (Ouest-France, La Dépêche du Midi, Sud
+  Ouest, Le Progrès, DNA, Midi Libre), international (BBC, DW, Euronews, ONU Info,
+  Commission européenne). Aucune agence : AFP et Reuters n'ont pas de flux gratuit
+  officiel. Flux écartés faute de réponse valide le jour de l'amorçage : Les Échos, La
+  Croix, Marianne, Le Télégramme, Le Soir, Le Point, L'Opinion, Le Parisien, La Voix du
+  Nord. Tous les flux sont traités de la même façon : aucune règle ne dépend de leur
+  orientation. Liste à relire par l'équipe.
+- Job `atlas.news_poll` (créneau de 15 min, dédoublonné : une relève lente n'est jamais
+  doublée) : lecture parallèle bornée (`TOWER_ATLAS_NEWS_CONCURRENCY`), GET
+  conditionnel (ETag, Last-Modified), 2 Mo au plus par flux, analyse RSS 2.0, RSS 1.0 et
+  Atom par `safe_xml`. Stockés : titre, chapeau (≤ 600 caractères, HTML retiré), date,
+  URL, éditeur ; **jamais l'article**. Un flux en échec n'interrompt pas la relève
+  (`failures`, `TWR-ATL-009` au 1er puis tous les 10 échecs). Purge horaire au-delà de
+  90 jours.
+- Reprises : SimHash du titre et du chapeau, distance ≤ 3 sur 72 h → même `cluster_id`.
+  `news_index` (source de l'Atlas) renvoie **une seule preuve par grappe** (l'article le
+  plus ancien), avec `cluster_size` informatif : une dépêche reprise par dix titres
+  compte pour une seule source. Fenêtre : 30 jours avant `as_of`.
+- **GDELT DOC 2.0** (`gdelt.py`, sans clé) : mode `artlist`, JSON, 5 s au moins entre deux
+  appels du processus, cache 1 h, 429 → `TWR-ATL-002`. Titre, domaine et date seulement.
+
+### Registre de fiabilité éditable
+
+`core/usecases/registry.py` : création, modification (verrouillage optimiste sur
+`version`), désactivation, historique (`source_registry_versions`), export publié,
+toujours avec permission (`registry:read`, `registry:write`), instantané de version et
+événement `source_registry.changed` dans la même transaction. API : voir
+[api.md](api.md#lot-6--registre-de-fiabilité-et-registres-par-pays) ; bot :
+`/registry` ([intercom.md](intercom.md)).
+
+- Le niveau dépend du **processus éditorial**, jamais de l'orientation politique : un
+  motif est exigé pour toute création, tout changement de niveau et toute
+  désactivation.
+- `controlled_by` est amorcé par le job `atlas.control_seed` (Wikidata, propriétés P749
+  « organisation mère » puis P127 « propriétaire », relation terminée ignorée, libellés
+  fr/en en alias) et **jamais réécrit** après une correction de l'équipe
+  (`control_origin = team`). Une entrée sans QID n'est pas amorcée.
+- `statutory_independence` exige un critère externe (`imf_sdds`, `imf_sdds_plus`,
+  `ess_peer_review`, `statute`).
+
+**Règle partie prenante (E7)** : `core/domain/factcheck/atlas.py`, `is_stakeholder`. Une
+source est partie prenante quand l'affirmation est un bilan (`record`), une conduite ou
+une accusation **et** que son éditeur, ou l'entité qui le contrôle selon le registre
+(`controlled_by` et alias), figure parmi les entités de l'affirmation avec le rôle
+`actor`, `accuser` ou `accused`. Jointure sur noms normalisés (accents, casse, formes
+juridiques retirés), symétrique, sans modèle. Le passage ne compte alors ni comme origine
+indépendante ni comme source primaire (`flags.stakeholder_passages` du brouillon).
+
+### Registres par pays
+
+`jurisdiction_sources`, `legal_portals`, `election_calendar` : amorcés par
+`tower atlas seed` (`core/atlas_seed_registries.py` : FR, EU, CH, CA, BE, INT ; portails
+FR, EU, CH, CA, BE, LU, CA-QC), éditables par l'API (`country_registry.changed`), jamais
+écrasés après une modification humaine. **Aucun scrutin amorcé** : aucune date n'a pu
+être confirmée sur une source officielle pendant la session (pages officielles en
+erreur) ; à saisir par l'équipe. Ajouter un pays = remplir ces lignes ; passer un pays
+en couverture A ou activer une langue exige d'abord un sous-ensemble de référence
+étiqueté par l'équipe (procédure : [factcheck/international.md](factcheck/international.md)) :
+rien n'est activé dans ce lot.
+
+### Qualité : recalibrage de la confiance
+
+`core/domain/factcheck/calibration.py` (pur) et `core/factcheck/calibration.py` :
+
+- un échantillon par brouillon relu (dernière revue) : signaux reconstruits comme à
+  l'assemblage (`stored_signals`), avec l'issue **proposée** par le modèle ; étiquette 1
+  si l'issue est gardée, 0 si refus ou issue changée ;
+- **modèle réduit** à partir de 200 revues : ordonnée et 4 coefficients
+  (`primary_direct`, `two_independent_origins`, `second_opinion_identical`,
+  `conflicting_sources`), rétrécis vers les valeurs actuelles ; **modèle complet** à
+  partir de 100 refus ; en dessous, `tower factcheck calibrate` ne produit rien (code de
+  sortie 2, `TWR-FCK-046`) ;
+- mesure hors échantillon (25 %) : ECE (10 classes) et Brier du candidat **et** des
+  coefficients courants ; le candidat est stocké inactif (`confidence_models`) ;
+- `tower factcheck activate-calibration` refuse un modèle dont l'ECE ne bat pas la
+  calibration courante (`TWR-FCK-048`). Un modèle actif remplace les coefficients à
+  l'assemblage (le plafond et les seuils restent ceux des réglages).
+
+### Qualité : distillation du classifieur E1
+
+`train-router` mesure en plus, sur l'échantillon tenu à part, la part d'appels E2 évités
+(posts sous le seuil N1) et la perte de rappel contre E2, ainsi que le seuil le plus haut
+qui tient la perte sous 2 points (`metrics.distillation`). L'activation
+(`activate-router`) exige désormais le critère du lot : **au moins la moitié des appels
+E2 évités et au plus 2 points de rappel perdus** (en plus du rappel ≥ 0,90 existant ;
+`--force` reste possible).
+
+### Évaluation étendue
+
+`tower factcheck eval` ajoute : part des affirmations **tranchées** (issue décisive) sans
+recherche web payante (cible ≥ 70 %) et écart de calibration (ECE de la confiance contre
+l'exactitude des issues décisives, cible < 0,1). Sous doublures, ces chiffres ne mesurent
+rien de réel : seuls les outils sont livrés.
+
+### N4 complet
+
+Déjà en place avant le lot 6 : profondeur renforcée d'office, jamais de réutilisation
+directe, plafond unitaire 0,60 $, budget `level:N4` (15 $) avec alertes de seuil,
+priorité de quota. Ajouté : **revalidation continue** — un verdict N4 expire au plus tard
+`TOWER_FC_N4_REVALIDATE_HOURS` (24 h) après sa validation et repart en enquête renforcée.
+
+### RAM
+
+Les synchronisations tournent dans le service hangar `atlas` (réplica dédié). Gate ne
+charge aucun adaptateur ; un hangar sans `atlas` ne charge ni `legi_sync`, ni `rss`, ni
+`safe_xml`, ni les amorces (tests d'isolation). Aucun corpus en mémoire : recherche
+plein texte dans PostgreSQL.
+
 ## Données
 
 Tables du lot 3 : [database.md](database.md#fact-check-lot-3) ; du lot 4 :
 [database.md](database.md#fact-check-v1-lot-4) ; du lot 5 :
-[database.md](database.md#fact-check-v2-lot-5). Événements :
+[database.md](database.md#fact-check-v2-lot-5) ; du lot 6 :
+[database.md](database.md#atlas-complet-lot-6). Événements :
 [events.md](events.md). Codes : `TWR-FCK-*` et `TWR-ATL-*` dans [errors.md](errors.md).

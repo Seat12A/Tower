@@ -308,3 +308,29 @@ Décisions de conception arrêtées au début du lot (contrat des sous-agents :
 | Consensus entre installations comme preuve | Le jeton d'installation est généré par l'extension et aucune IP n'est stockée : un attaquant peut simuler autant d'installations qu'il veut. Reste un signal, pas une preuve |
 | Lecture par l'API X de chaque post de l'extension | Coût (environ 0,005 $ par lecture) |
 
+## Lot 6 (V3 du fact-check, 2026-11-14)
+
+Décisions tranchées en session, Jules absent.
+
+| Décision | Raison |
+|---|---|
+| Synchronisations dans un service hangar `atlas` (file `atlas`, réplica dédié) | RAM : aucun autre réplica ne charge les synchronisations (tests d'isolation) |
+| Dump LEGI global importé une fois par `tower atlas legi-sync` ; le job quotidien n'applique que des différences (10 au plus par passe) | 1,3 Go ne tiennent pas dans le bail d'un job (300 s) ; une différence fait environ 6 Mo |
+| Tar et gzip lus en flux avec un analyseur d'en-têtes maison, XML par `pyexpat` avec rejet de toute déclaration d'entité et de toute entité externe (`safe_xml.py`) | Mémoire bornée sans `tarfile` à accès aléatoire ; protection explicite quelle que soit la version d'expat (2.9.0 ici, déjà protégée contre l'expansion) ; pas de dépendance ajoutée |
+| `legal_articles` : une ligne par version d'article (identifiant LEGIARTI), `valid_to` nul pour « en vigueur » | Répondre « que disait l'article à la date du post ? » ; le juge reçoit toujours les dates |
+| Légifrance (PISTE) seulement si le miroir n'a rien trouvé | Le miroir est gratuit et local ; PISTE a des quotas |
+| Pas de `country_profiles` ni d'`official_domains` dans ce lot : domaines officiels = `jurisdiction_sources.domain` de niveau primaire + domaines primaires du registre | Évite une table en double ; suffit pour restreindre la recherche d'un pays sans adaptateur |
+| Indicateurs statistiques internationaux en variable JSON (`TOWER_ATLAS_STAT_INDICATORS`), comme l'INSEE | Même mécanisme que le lot 4 ; une table viendra si l'équipe veut les éditer depuis Discord |
+| Fiches statistiques internationales créées **en attente** (`origin = statistics`) | Même règle que l'INSEE : une fiche ne sert qu'après validation |
+| FMI gardé malgré un 403 depuis le bac à sable | API publique documentée ; le 403 (Akamai) semble lié à l'IP de sortie partagée ; la source est sautée proprement (`TWR-ATL-005`) |
+| Aucun flux d'agence amorcé | AFP et Reuters n'ont pas de flux gratuit officiel |
+| Une grappe de reprises (SimHash ≤ 3 sur 72 h) = une seule preuve | « Une dépêche reprise par dix titres compte pour une seule source » |
+| Règle partie prenante : rôles `actor`, `accuser`, `accused` des entités extraites en E2, types `record`, `conduct`, `accusation`, jointure sur noms normalisés avec l'éditeur, ses alias et `controlled_by` | Règle fermée de Q11, symétrique, sans modèle ; les entités et rôles existent déjà en E2 |
+| `controlled_by` amorcé par l'API Action de Wikidata (P749 puis P127), jamais au-dessus d'une correction `team` ; pas de résolution du QID par le domaine | Le graphe SPARQL est scindé (2025) ; une erreur d'amorçage ne doit pas écraser un choix humain |
+| Motif obligatoire pour tout changement de niveau ; indépendance statutaire seulement avec un critère externe fermé | Neutralité : le niveau dépend du processus éditorial, jamais de l'orientation |
+| Aucun scrutin amorcé dans `election_calendar` | Aucune date confirmée sur une source officielle pendant la session |
+| Recalibrage : seuils fixes dans le domaine (200 revues, 100 refus), rétrécissement vers les coefficients actuels, activation seulement si l'ECE hors échantillon baisse | « N'active rien sans mesure » ; pas de réglage qui contournerait les garde-fous |
+| Distillation E1 : critère du lot (≥ 50 % d'appels E2 évités, ≤ 2 points de rappel perdus) exigé à l'activation, en plus du rappel ≥ 0,90 | Rappel mesuré contre les étiquettes E2 (rappel de E2 = 1 par définition) |
+| N4 : revalidation continue par une durée de vie plafonnée (24 h, `TOWER_FC_N4_REVALIDATE_HOURS`) | Seul élément de `niveaux.md` absent du code ; réutilise la péremption et la revalidation existantes |
+| Date de vérification de l'évaluation fixée à son jour | Cause de l'échec intermittent du test de bout en bout : la minute courante changeait le prompt du rédacteur |
+

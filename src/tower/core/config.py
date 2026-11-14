@@ -111,6 +111,9 @@ class Settings(BaseSettings):
     """Per-investigation cost cap at the standard depth: no escalation beyond it."""
     fc_cap_reinforced_usd: float = Field(default=0.40, ge=0)
     fc_cap_n4_usd: float = Field(default=0.60, ge=0)
+    fc_n4_revalidate_hours: int = Field(default=24, ge=1)
+    """N4 continuous revalidation: an N4 verdict expires (and is re-investigated) at most
+    this many hours after its validation."""
     fc_searches_standard: int = Field(default=4, ge=0, le=20)
     """Web searches of a standard investigation (after the free sources)."""
     fc_searches_reinforced_extra: int = Field(default=4, ge=0, le=20)

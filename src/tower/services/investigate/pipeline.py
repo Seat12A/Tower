@@ -25,6 +25,7 @@ from tower.core.adapters.knowledge.atlas import (
 )
 from tower.core.config import Settings
 from tower.core.domain import error_codes as ec
+from tower.core.domain.factcheck.atlas import is_stakeholder
 from tower.core.domain.factcheck.checks import (
     NOTE_MAX_CHARS,
     CheckReport,
@@ -77,6 +78,7 @@ from tower.core.domain.text import hamming
 from tower.core.errors import capture
 from tower.core.factcheck import inputs, names, runtime
 from tower.core.factcheck.inputs import ClaimView, PassageView, SourceView
+from tower.core.factcheck.publishers import PublisherLookup
 from tower.core.factcheck.schemas import (
     CriticOutput,
     FrameOutput,
@@ -763,9 +765,28 @@ class Assessment:
         return [c for c in self.citations if not c.valid]
 
 
-def assess_judgement(judge: JudgeOutput, passages: Sequence[PassageData]) -> Assessment:
+def assess_judgement(
+    judge: JudgeOutput,
+    passages: Sequence[PassageData],
+    *,
+    claim: ClaimView | None = None,
+    publishers: PublisherLookup | None = None,
+) -> Assessment:
     """Validate every citation against the ORIGINAL passage text, then apply the
-    independence rule (pipeline.md E9)."""
+    independence rule (pipeline.md E9). With ``claim`` and ``publishers`` (registry), the
+    closed stakeholder rule (E7, lot 6) marks the passages whose publisher, or its
+    controller, is a party to a record/conduct/accusation claim: they do not count."""
+    parties = (
+        [(str(e.get("name", "")), str(e.get("role", ""))) for e in claim.entities]
+        if claim is not None
+        else []
+    )
+
+    def stakeholder(p: PassageData) -> bool:
+        if claim is None or publishers is None:
+            return False
+        return is_stakeholder(claim.claim_type, parties, publishers(p.source_url))
+
     by_label = {p.label: p for p in passages}
     citations: list[CitationCheck] = []
     position = 0
@@ -796,7 +817,7 @@ def assess_judgement(judge: JudgeOutput, passages: Sequence[PassageData]) -> Ass
             domain=by_label[label].domain,
             tier=by_label[label].tier,
             simhash=by_label[label].simhash,
-            stakeholder=False,  # stakeholder rule arrives with lot 6
+            stakeholder=stakeholder(by_label[label]),
         )
         for label in valid_labels
     ]
@@ -952,6 +973,7 @@ async def compose_draft(
     investigation_id: int | None = None,
     versions: Mapping[str, Mapping[str, Any]] | None = None,
     checked_at: datetime | None = None,
+    publishers: PublisherLookup | None = None,
 ) -> DraftOutcome:
     """E9: validate the citations, apply the independence rule, write the note, run the
     deterministic checks and the critic, translate the cited foreign passages.
@@ -964,7 +986,10 @@ async def compose_draft(
     ``today`` so a rerun hits the model-call cache (a wall-clock minute changed the writer
     prompt between two runs)."""
     out_flags: dict[str, Any] = dict(flags)
-    assessment = assess_judgement(judge, passages)
+    assessment = assess_judgement(judge, passages, claim=claim, publishers=publishers)
+    stakeholders = [r.passage_id for r in assessment.refs if r.stakeholder]
+    if stakeholders:
+        out_flags["stakeholder_passages"] = stakeholders
     for bad in assessment.invalid:
         capture(
             ec.FCK_CITATION_INVALID,

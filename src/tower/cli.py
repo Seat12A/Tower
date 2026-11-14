@@ -110,12 +110,40 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     asyncio.run(publish_filters_from_file(settings, args.file, args.version))
 
 
+def cmd_atlas(args: argparse.Namespace) -> None:
+    settings = _settings("cli")
+    from tower.core.atlas_admin import run_legi_sync, run_seed
+
+    if args.action == "seed":
+        asyncio.run(run_seed(settings))
+    else:
+        asyncio.run(run_legi_sync(settings))
+
+
 def cmd_factcheck(args: argparse.Namespace) -> None:
     settings = _settings("cli")
     if args.action == "seed-registry":
         from tower.core.factcheck.registry_seed import run_seed_registry
 
         asyncio.run(run_seed_registry(settings))
+        return
+    if args.action == "calibrate":
+        from tower.core.factcheck.calibration import run_calibrate
+
+        code = asyncio.run(
+            run_calibrate(settings, holdout=args.holdout, seed=args.seed, dry_run=args.dry_run)
+        )
+        if code:
+            raise SystemExit(code)
+        return
+    if args.action == "activate-calibration":
+        from tower.core.factcheck.calibration import run_activate_calibration
+
+        code = asyncio.run(
+            run_activate_calibration(settings, model_id=args.model, reason=args.reason)
+        )
+        if code:
+            raise SystemExit(code)
         return
     if args.action == "train-router":
         from tower.core.factcheck.training import run_train
@@ -223,6 +251,14 @@ def build_parser() -> argparse.ArgumentParser:
     pf.add_argument("--version", required=True)
     pf.set_defaults(func=cmd_ingest)
 
+    p = sub.add_parser("atlas", help="Atlas tools: seeds and LEGI mirror synchronization")
+    asub = p.add_subparsers(dest="action", required=True)
+    asub.add_parser(
+        "seed", help="Seed the reference news feeds and the country registries"
+    ).set_defaults(func=cmd_atlas)
+    asub.add_parser(
+        "legi-sync", help="Synchronize the LEGI mirror now (global dump, then daily diffs)"
+    ).set_defaults(func=cmd_atlas)
     p = sub.add_parser("factcheck", help="Fact-check tools: evaluation and registry seed")
     fsub = p.add_subparsers(dest="action", required=True)
     pe = fsub.add_parser("eval", help="Run an evaluation set (JSONL) through the pipeline")
@@ -252,6 +288,22 @@ def build_parser() -> argparse.ArgumentParser:
     pa.add_argument("--force", action="store_true", help="ignore the held-out recall target")
     pa.add_argument("--reason", required=True)
     pa.set_defaults(func=cmd_factcheck)
+    pc = fsub.add_parser(
+        "calibrate",
+        help="Refit the confidence on the reviews (inactive candidate; refused below "
+        "200 reviews, full model from 100 refusals)",
+    )
+    pc.add_argument("--holdout", type=float, default=0.25, metavar="FRACTION")
+    pc.add_argument("--seed", type=int, default=0)
+    pc.add_argument("--dry-run", action="store_true", help="print the measurement only")
+    pc.set_defaults(func=cmd_factcheck)
+    pac = fsub.add_parser(
+        "activate-calibration",
+        help="Activate a confidence model (refused unless its held-out ECE beats the current)",
+    )
+    pac.add_argument("--model", type=int, required=True, metavar="ID")
+    pac.add_argument("--reason", required=True)
+    pac.set_defaults(func=cmd_factcheck)
     return parser
 
 

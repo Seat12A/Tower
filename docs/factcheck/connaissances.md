@@ -12,6 +12,13 @@ la recherche web générale n'apporte qu'un gain modéré, alors qu'un contexte 
 (voir [recherche.md](recherche.md)). Atlas applique ce constat : la recherche web
 arrive en dernier.
 
+> **Implémenté (lot 6, 2026-11-14)** : sélecteur par juridiction, Eurostat, Banque
+> mondiale, OCDE, FMI, miroir LEGI (codes prioritaires), EUR-Lex, Fedlex, Lois du Canada,
+> index d'actualité et GDELT, registre de fiabilité éditable (`controlled_by`,
+> indépendance statutaire). Détails et écarts : [../fact-check.md](../fact-check.md#lot-6--v3--atlas-complet-et-qualité).
+> Restent : ONU, data.gouv.fr, EUvsDisinfo, AFP (contrat), Justel, Legilux, LégisQuébec
+> (accès non confirmé), lien d'archive Internet Archive.
+
 ## Ordre de résolution
 
 ```

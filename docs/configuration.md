@@ -86,6 +86,7 @@ Voir [fact-check.md](fact-check.md#réglages).
 | `TOWER_FC_CAP_STANDARD_USD` | `0.10` | Plafond de coût d'une enquête standard : au-delà, pas d'escalade |
 | `TOWER_FC_CAP_REINFORCED_USD` | `0.40` | Plafond d'une enquête renforcée (N3) |
 | `TOWER_FC_CAP_N4_USD` | `0.60` | Plafond d'une enquête N4 |
+| `TOWER_FC_N4_REVALIDATE_HOURS` | `24` | Revalidation continue du N4 : un verdict N4 expire (et repart en enquête renforcée, sans réutilisation directe) au plus tard N heures après sa validation |
 | `TOWER_FC_SEARCHES_STANDARD` | `4` | Recherches web d'une enquête standard |
 | `TOWER_FC_SEARCHES_REINFORCED_EXTRA` | `4` | Recherches web supplémentaires en profondeur renforcée |
 | `TOWER_FC_PASSAGES_STANDARD` | `30` | Passages donnés au juge (environ 160 tokens chacun) |
@@ -175,6 +176,30 @@ Voir [fact-check.md](fact-check.md#lot-5--v2--flux-de-masse-ordonnanceur-récits
 | `TOWER_ATLAS_WIKIPEDIA_CONCURRENCY` | `3` | Requêtes Wikimedia simultanées par processus (limite Wikimedia : 3) |
 | `TOWER_ATLAS_CACHE_TTL_S` | `604800` | Fraîcheur par défaut de `source_cache` (7 jours ; résultats de recherche : 1 jour) |
 | `TOWER_ATLAS_HTTP_TIMEOUT_S` | `10` | Délai des appels aux sources |
+| `TOWER_ATLAS_LEGI_BASE_URL` | `https://echanges.dila.gouv.fr/OPENDATA/LEGI/` | Répertoire open data de la DILA (dump global + différences quotidiennes) |
+| `TOWER_ATLAS_LEGI_TEXTS` | vide | Identifiants LEGI miroités, séparés par des virgules ; vide = les 9 textes prioritaires (pénal, procédure pénale, civil, travail, CESEDA, électoral, santé publique, sécurité intérieure, Constitution) |
+| `TOWER_ATLAS_LEGI_MAX_ARCHIVE_MB` | `2000` | Téléchargement refusé au-delà (le dump global fait environ 1,3 Go) |
+| `TOWER_ATLAS_NEWS_POLL_S` | `900` | Période de relève des flux d'actualité (un job par créneau de 15 min) |
+| `TOWER_ATLAS_NEWS_RETENTION_DAYS` | `90` | Rétention de `news_index` |
+| `TOWER_ATLAS_NEWS_MAX_ITEMS` | `50` | Entrées lues par flux et par relève |
+| `TOWER_ATLAS_NEWS_CONCURRENCY` | `4` | Flux lus en parallèle |
+| `TOWER_ATLAS_STAT_INDICATORS` | vide | Liste JSON des indicateurs internationaux (Eurostat, Banque mondiale, OCDE, FMI) : sélecteur de l'Atlas et fiches de référence quotidiennes (format ci-dessous) |
+| `TOWER_ATLAS_ON_DEMAND_LEGAL` | `eurlex,fedlex,canada_laws` | Adaptateurs juridiques gratuits à la demande activés |
+| `TOWER_ATLAS_GDELT_ENABLED` | `true` | GDELT DOC 2.0 (gratuit, sans clé, une requête toutes les 5 s au plus) |
+
+Format de `TOWER_ATLAS_STAT_INDICATORS` (une entrée par indicateur suivi) :
+
+```json
+[{"indicator": "eu.unemployment_rate", "label": "Taux de chômage (Eurostat, 15-74 ans)",
+  "source": "eurostat", "series": "une_rt_a",
+  "filters": {"unit": "PC_ACT", "sex": "T", "age": "Y15-74"}, "unit": "%",
+  "territories": ["FR", "DE", "EU"], "aliases": ["chômage", "unemployment"],
+  "period": "year", "source_name": "Eurostat"}]
+```
+
+`source` vaut `eurostat`, `worldbank` (série = code d'indicateur), `oecd` (série =
+`flux|clé`, `{geo3}` remplacé par le code ISO3) ou `imf` (série = indicateur DataMapper).
+Une entrée invalide est ignorée (journalisée une fois).
 
 ## Budgets
 

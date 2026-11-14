@@ -96,6 +96,7 @@ async def build_atlas(settings: Settings, db: Database) -> Atlas:
                 series=series, cache=cache, cache_ttl_s=settings.atlas_cache_ttl_s, **common
             ),
         )
+    _add_lot6_sources(settings, db, cache, common, sources)
     search = None
     if settings.brave_api_key is not None:
         brave_key = settings.brave_api_key.get_secret_value()
@@ -118,10 +119,97 @@ async def build_atlas(settings: Settings, db: Database) -> Atlas:
             )
             for row in rows
         }
+        country_adapters, official_domains = await _country_registry(session)
     return Atlas(
         sources=sources,
         search=search,
         fetcher=fetcher,
         cache=cache,
         registry=registry,
+        country_adapters=country_adapters,
+        official_domains=official_domains,
     )
+
+
+def _add_lot6_sources(
+    settings: Settings, db: Database, cache: Any, common: dict[str, Any], sources: dict[str, Any]
+) -> None:
+    """Lot 6 sources: free statistics adapters (only with configured indicators), local
+    mirrors (LEGI, news index: PostgreSQL, no HTTP), free on-demand legal APIs and GDELT."""
+    from tower.core.adapters.knowledge.legi_mirror import LegiMirrorSource
+    from tower.core.adapters.knowledge.news_index import NewsIndexSource
+    from tower.core.adapters.knowledge.stat_common import parse_stat_indicators
+
+    ttl = settings.atlas_cache_ttl_s
+    sources["legi_mirror"] = _singleton("legi_mirror", lambda: LegiMirrorSource(db))
+    sources["news_index"] = _singleton("news_index", lambda: NewsIndexSource(db))
+    indicators = parse_stat_indicators(settings.atlas_stat_indicators)
+    if indicators:
+        from tower.core.adapters.knowledge.eurostat import EurostatSource
+        from tower.core.adapters.knowledge.imf import ImfSource
+        from tower.core.adapters.knowledge.oecd import OecdSource
+        from tower.core.adapters.knowledge.worldbank import WorldBankSource
+
+        classes: dict[str, Any] = {
+            "eurostat": EurostatSource,
+            "worldbank": WorldBankSource,
+            "oecd": OecdSource,
+            "imf": ImfSource,
+        }
+        for name, cls in classes.items():
+            mine = [i for i in indicators if i.source == name]
+            if mine:
+                sources[name] = _singleton(
+                    name,
+                    lambda cls=cls, mine=mine: cls(
+                        indicators=mine, cache=cache, cache_ttl_s=ttl, **common
+                    ),
+                )
+    enabled = {n.strip() for n in settings.atlas_on_demand_legal.split(",") if n.strip()}
+    if "eurlex" in enabled:
+        from tower.core.adapters.knowledge.eurlex import EurLexSource
+
+        sources["eurlex"] = _singleton(
+            "eurlex", lambda: EurLexSource(cache=cache, cache_ttl_s=ttl, **common)
+        )
+    if "fedlex" in enabled:
+        from tower.core.adapters.knowledge.fedlex import FedlexSource
+
+        sources["fedlex"] = _singleton(
+            "fedlex", lambda: FedlexSource(cache=cache, cache_ttl_s=ttl, **common)
+        )
+    if "canada_laws" in enabled:
+        from tower.core.adapters.knowledge.canada_laws import CanadaLawsSource
+
+        sources["canada_laws"] = _singleton(
+            "canada_laws", lambda: CanadaLawsSource(cache=cache, cache_ttl_s=ttl, **common)
+        )
+    if settings.atlas_gdelt_enabled:
+        from tower.core.adapters.knowledge.gdelt import GdeltSource
+
+        sources["gdelt"] = _singleton("gdelt", lambda: GdeltSource(cache=cache, **common))
+
+
+async def _country_registry(
+    session: Any,
+) -> tuple[dict[tuple[str, str], list[str]], dict[str, list[str]]]:
+    """``jurisdiction_sources`` → (country, type) adapters and country official domains."""
+    from sqlalchemy import select
+
+    from tower.core.models.atlas import JurisdictionSource
+
+    rows = (
+        await session.execute(
+            select(JurisdictionSource)
+            .where(JurisdictionSource.active.is_(True))
+            .order_by(JurisdictionSource.id)
+        )
+    ).scalars()
+    adapters: dict[tuple[str, str], list[str]] = {}
+    domains: dict[str, list[str]] = {}
+    for row in rows:
+        if row.adapter:
+            adapters.setdefault((row.country, row.source_type), []).append(row.adapter)
+        if row.domain and row.tier == "primary":
+            domains.setdefault(row.country, []).append(row.domain)
+    return adapters, domains

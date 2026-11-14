@@ -308,6 +308,11 @@ async def test_end_to_end_examples_with_fake_provider_and_cache(db: Database) ->
     assert first.total_cost_usd_micros >= 0
     report = ev.render_report(first, high=settings.fc_confidence_high)
     assert "Example cases: 13" in report
+    assert "Decided without paid web search (lot 6, target >= 70%)" in report
+    assert "Calibration error, ECE (lot 6, target < 0.1)" in report
+    m = ev.compute_metrics(first.results, high=settings.fc_confidence_high)
+    assert m.decided_measured <= m.paid_search_measured
+    assert m.calibration_error is None or 0 <= m.calibration_error <= 1
     second = await ev.run_eval(
         router,
         FakeAtlas([default_docs()]),

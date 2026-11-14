@@ -321,6 +321,36 @@ class GateClient:
         )
         return new
 
+    # --- reliability registry ------------------------------------------------------------
+    async def get_registry_entry(self, acting: int, ref: str) -> dict[str, Any]:
+        entry: dict[str, Any] = await self._request(
+            "GET", f"/v1/registry/{quote(ref, safe='')}", acting
+        )
+        return entry
+
+    async def update_registry_entry(
+        self, acting: int, ref: str, *, version: int, reason: str, changes: dict[str, Any]
+    ) -> dict[str, Any]:
+        done: dict[str, Any] = await self._request(
+            "PATCH",
+            f"/v1/registry/{quote(ref, safe='')}",
+            acting,
+            body={"version": version, "reason": reason, **changes},
+        )
+        return done
+
+    async def registry_history(self, acting: int, ref: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", f"/v1/registry/{quote(ref, safe='')}/history", acting
+        )
+        return rows
+
+    async def seed_registry_control(self, acting: int, ref: str) -> dict[str, Any]:
+        done: dict[str, Any] = await self._request(
+            "POST", f"/v1/registry/{quote(ref, safe='')}/seed-control", acting
+        )
+        return done
+
     # --- narratives --------------------------------------------------------------------
     async def list_narratives(
         self, acting: int, *, state: str | None = None, limit: int = 15

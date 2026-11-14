@@ -11,9 +11,13 @@ import math
 import random
 from collections import defaultdict
 from collections.abc import Callable, Hashable, Sequence
+from typing import Any
 
 __all__ = [
+    "DISTILLATION_MAX_RECALL_LOSS",
+    "DISTILLATION_MIN_REDUCTION",
     "MIN_RECALL_TO_ACTIVATE",
+    "distillation_report",
     "evaluate",
     "score",
     "stratified_split",
@@ -21,6 +25,11 @@ __all__ = [
 ]
 
 MIN_RECALL_TO_ACTIVATE = 0.90
+DISTILLATION_MIN_REDUCTION = 0.5
+"""Lot 6 criterion: the distilled E1 avoids at least half of the E2 calls…"""
+DISTILLATION_MAX_RECALL_LOSS = 0.02
+"""…losing at most 2 points of recall against E2 (the labels: E2 recall is 1 by
+definition)."""
 """Held-out recall required to activate a router model (evaluation.md, E0-E1)."""
 
 
@@ -165,3 +174,46 @@ def stratified_split[T](
         held.extend(group[:n_hold])
         train.extend(group[n_hold:])
     return train, held
+
+
+def distillation_report(
+    weights: Sequence[float],
+    bias: float,
+    samples: Sequence[tuple[Sequence[float], int]],
+    *,
+    threshold: float,
+) -> dict[str, Any]:
+    """Distillation criterion on held-out samples (lot 6): share of E2 calls avoided
+    (posts scored below ``threshold`` are discarded by E1, so never sent to E2), recall
+    against E2 and whether the criterion is met. Also the highest threshold that keeps
+    the recall loss within ``DISTILLATION_MAX_RECALL_LOSS`` (``suggested_threshold``)."""
+    scored = sorted(((score(weights, bias, x), y) for x, y in samples), key=lambda t: t[0])
+    n = len(scored)
+    n_pos = sum(y for _, y in scored)
+
+    def at(t: float) -> tuple[float, float]:
+        kept_pos = sum(1 for s, y in scored if s >= t and y == 1)
+        discarded = sum(1 for s, _ in scored if s < t)
+        recall = kept_pos / n_pos if n_pos else 1.0
+        return (discarded / n if n else 0.0), recall
+
+    reduction, recall = at(threshold)
+    best_t, best_reduction = 0.0, 0.0
+    for candidate, _ in scored:
+        red, rec = at(candidate)
+        if 1.0 - rec <= DISTILLATION_MAX_RECALL_LOSS and red >= best_reduction:
+            best_t, best_reduction = candidate, red
+    return {
+        "threshold": threshold,
+        "e2_call_reduction": round(reduction, 4),
+        "recall": round(recall, 4),
+        "recall_loss": round(1.0 - recall, 4),
+        "meets_criterion": bool(
+            n_pos > 0
+            and reduction >= DISTILLATION_MIN_REDUCTION
+            and 1.0 - recall <= DISTILLATION_MAX_RECALL_LOSS
+        ),
+        "suggested_threshold": round(best_t, 4),
+        "suggested_reduction": round(best_reduction, 4),
+        "holdout_size": n,
+    }

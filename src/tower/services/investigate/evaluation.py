@@ -23,6 +23,7 @@ from typing import Any
 
 from tower.core.config import Settings
 from tower.core.domain.errors import InvalidInput
+from tower.core.domain.factcheck.calibration import expected_calibration_error
 from tower.core.domain.factcheck.profiles import Profile
 from tower.core.domain.factcheck.values import (
     Band,
@@ -367,6 +368,15 @@ class Metrics:
     """E7: share of investigated cases settled without any paid web search."""
     no_paid_search: int = 0
     paid_search_measured: int = 0
+    decided_without_paid_rate: float | None = None
+    """Lot 6 criterion (>= 70 %): among cases with a decisive outcome (not an abstention)
+    whose searches were measured, share settled without any paid web search."""
+    decided_without_paid: int = 0
+    decided_measured: int = 0
+    calibration_error: float | None = None
+    """Lot 6 criterion (< 0.1): expected calibration error of the confidence against the
+    exact correctness of decisive outcomes (10 equal-width bins)."""
+    calibration_pairs: int = 0
 
 
 def _ratio(num: float, den: float) -> float | None:
@@ -431,6 +441,13 @@ def compute_metrics(results: Sequence[CaseResult], *, high: float) -> Metrics:
 
     measured = [r for r in scored if r.paid_searches is not None]
     no_paid = sum(1 for r in measured if r.paid_searches == 0)
+    decided = [r for r in measured if r.predicted in _DECISIVE]
+    decided_free = sum(1 for r in decided if r.paid_searches == 0)
+    calibration = [
+        (float(outcome(r).confidence or 0.0), int(r.predicted == r.case.expected_veracity))
+        for r in scored
+        if r.predicted in _DECISIVE and outcome(r).confidence is not None
+    ]
     costs = [outcome(r).cost_usd_micros for r in scored]
     latencies = [float(outcome(r).latency_ms) for r in scored]
     return Metrics(
@@ -458,6 +475,11 @@ def compute_metrics(results: Sequence[CaseResult], *, high: float) -> Metrics:
         no_paid_search_rate=_ratio(no_paid, len(measured)),
         no_paid_search=no_paid,
         paid_search_measured=len(measured),
+        decided_without_paid_rate=_ratio(decided_free, len(decided)),
+        decided_without_paid=decided_free,
+        decided_measured=len(decided),
+        calibration_error=expected_calibration_error(calibration),
+        calibration_pairs=len(calibration),
     )
 
 
@@ -642,6 +664,12 @@ def _search_mark(m: Metrics) -> str:
     return f"{_pct(m.no_paid_search_rate)} ({m.no_paid_search}/{m.paid_search_measured}) {mark}"
 
 
+def _target(rate: float | None, num: int, den: int, target: float) -> str:
+    if rate is None:
+        return "not available"
+    return f"{_pct(rate)} ({num}/{den}) {'✅' if rate >= target else '❌'}"
+
+
 def _metric_rows(m: Metrics, high: float) -> list[tuple[str, str]]:
     return [
         ("Cases (scored / errors)", f"{m.scored} / {m.errors}"),
@@ -667,6 +695,17 @@ def _metric_rows(m: Metrics, high: float) -> list[tuple[str, str]]:
         (
             "Settled without paid web search (E7, target >= 50%)",
             _search_mark(m),
+        ),
+        (
+            "Decided without paid web search (lot 6, target >= 70%)",
+            _target(m.decided_without_paid_rate, m.decided_without_paid, m.decided_measured, 0.7),
+        ),
+        (
+            "Calibration error, ECE (lot 6, target < 0.1)",
+            "not available"
+            if m.calibration_error is None
+            else f"{m.calibration_error:.3f} ({m.calibration_pairs} decisive cases) "
+            + ("✅" if m.calibration_error < 0.1 else "❌"),
         ),
         ("Mean cost per case", _usd(m.mean_cost_usd_micros)),
         ("Mean latency (ms)", _num(m.mean_latency_ms)),

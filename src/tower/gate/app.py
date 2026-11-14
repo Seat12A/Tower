@@ -30,6 +30,7 @@ from tower.gate.routes import (
     narratives,
     profiles,
     references,
+    registry,
     usage,
     watchlist,
 )
@@ -86,6 +87,7 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(groups.router)
     app.include_router(narratives.router)
     app.include_router(references.router)
+    app.include_router(registry.router)
     if settings.cors_origin_list:
         app.add_middleware(
             CORSMiddleware,

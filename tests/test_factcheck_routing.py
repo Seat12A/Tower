@@ -374,7 +374,7 @@ async def test_router_model_versions_and_activation_rules(db: Database) -> None:
             embedding_model=MODEL,
             weights=weights,
             bias=0.0,
-            metrics={"recall": 0.95},
+            metrics={"recall": 0.95, "distillation": {"meets_criterion": True}},
             sample_size=10,
         )
         b = await create_router_model(
@@ -420,7 +420,7 @@ async def test_router_model_versions_and_activation_rules(db: Database) -> None:
     async with db.transaction() as s:
         await activate_router_model(s, SYSTEM, version=1, expected_model=MODEL, reason="ok")
     async with db.transaction() as s:
-        with pytest.raises(InvalidInput):  # recall 0.5 < 0.90
+        with pytest.raises(InvalidInput):  # distillation not measured, recall 0.5 < 0.90
             await activate_router_model(s, SYSTEM, version=2, expected_model=MODEL, reason="x")
     async with db.transaction() as s:
         with pytest.raises(InvalidInput):  # model mismatch, even with force
@@ -483,3 +483,23 @@ async def test_partitions_are_created_and_expired(db: Database) -> None:
     assert changed >= 3
     async with db.transaction() as s:
         assert await embedding_partitions(s, settings) == 0
+
+
+async def test_activation_requires_the_distillation_criterion(db: Database) -> None:
+    async with db.transaction() as s:
+        for met in (False, True):
+            await create_router_model(
+                s,
+                SYSTEM,
+                embedding_model=MODEL,
+                weights=[0.1] * 512,
+                bias=0.0,
+                metrics={"recall": 0.99, "distillation": {"meets_criterion": met}},
+                sample_size=300,
+            )
+    async with db.transaction() as s:
+        with pytest.raises(InvalidInput, match="Distillation criterion"):
+            await activate_router_model(s, SYSTEM, version=1, expected_model=MODEL, reason="x")
+    async with db.transaction() as s:
+        await activate_router_model(s, SYSTEM, version=2, expected_model=MODEL, reason="ok")
+    assert await scalar(db, "SELECT version FROM router_models WHERE active") == 2

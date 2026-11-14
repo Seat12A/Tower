@@ -711,6 +711,10 @@ async def _expiry_of(
     if await group_in_surge(session, group.id):
         # Wave mode: facts are incomplete, so the verdict expires soon (revalidation).
         expiry = min(expiry, validated_at + timedelta(hours=settings.fc_surge_verdict_ttl_hours))
+    if group.level == "N4":
+        # N4 (niveaux.md): continuous revalidation, the verdict is re-investigated (sources
+        # reloaded and rejudged, never a direct reuse) at least every N hours.
+        expiry = min(expiry, validated_at + timedelta(hours=settings.fc_n4_revalidate_hours))
     return expiry
 
 

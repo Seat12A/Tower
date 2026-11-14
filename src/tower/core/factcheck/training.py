@@ -20,6 +20,7 @@ from tower.core.db.vector import parse_vector
 from tower.core.domain.errors import DomainError
 from tower.core.domain.factcheck.router import (
     MIN_RECALL_TO_ACTIVATE,
+    distillation_report,
     evaluate,
     stratified_split,
     train_logistic,
@@ -156,9 +157,9 @@ def fit(
         seed=seed,
     )
     weights, bias = train_logistic([(s.vector, s.label) for s in train], seed=seed)
-    metrics: dict[str, Any] = dict(
-        evaluate(weights, bias, [(s.vector, s.label) for s in held], threshold=threshold)
-    )
+    held_pairs = [(s.vector, s.label) for s in held]
+    metrics: dict[str, Any] = dict(evaluate(weights, bias, held_pairs, threshold=threshold))
+    metrics["distillation"] = distillation_report(weights, bias, held_pairs, threshold=threshold)
     counts = Counter(s.stratum for s in train + held)
     metrics.update(
         threshold=threshold,
@@ -171,12 +172,22 @@ def fit(
 
 
 def _summary(metrics: dict[str, Any]) -> str:
-    return (
+    text = (
         f"recall={metrics['recall']:.3f} precision={metrics['precision']:.3f} "
         f"accuracy={metrics['accuracy']:.3f} auc={metrics['auc']:.3f} "
         f"holdout={metrics['holdout_size']} (pos={int(metrics['n_pos'])}, "
         f"neg={int(metrics['n_neg'])}) threshold={metrics['threshold']}"
     )
+    d = metrics.get("distillation")
+    if isinstance(d, dict):
+        text += (
+            f"\ndistillation: E2 calls avoided={d['e2_call_reduction']:.1%} "
+            f"recall loss={d['recall_loss']:.1%} criterion "
+            f"{'MET' if d['meets_criterion'] else 'NOT MET'} (>= 50% avoided, <= 2 points "
+            f"lost); suggested threshold {d['suggested_threshold']} "
+            f"({d['suggested_reduction']:.1%} avoided)"
+        )
+    return text
 
 
 async def run_train(

@@ -837,3 +837,66 @@ async def test_run_in_memory_downgrades_without_independent_primary() -> None:
     out = await _run(llm)
     assert out.veracity is Veracity.UNVERIFIABLE and out.flags["downgraded"] is True
     assert out.context_need is ContextNeed.USEFUL
+
+
+def test_stakeholder_rule_excludes_the_party_and_its_controller() -> None:
+    from tower.core.domain.factcheck.atlas import PublisherIdentity
+
+    passages = [
+        _pd("P1", "The ministry says the plan worked.", source="https://gouv.example/a"),
+        _pd("P2", "Channel One reports the plan worked.", source="https://chan.example/b"),
+        _pd("P3", "An audit office found the plan worked.", source="https://audit.example/c"),
+    ]
+    judge = _judge(
+        [_cite("P1", "plan worked"), _cite("P2", "plan worked"), _cite("P3", "plan worked")],
+        [
+            PassageOrigin(passage_id="P1", origin="Ministry", primary=True),
+            PassageOrigin(passage_id="P2", origin="Channel One", primary=False),
+            PassageOrigin(passage_id="P3", origin="Audit office", primary=False),
+        ],
+    )
+    registry = {
+        "gouv.example": PublisherIdentity(names=("Government of Ruritania",)),
+        "chan.example": PublisherIdentity(
+            names=("Channel One",), controllers=("Government of Ruritania",)
+        ),
+        "audit.example": PublisherIdentity(names=("Audit Office",)),
+    }
+
+    def lookup(url: str) -> PublisherIdentity | None:
+        return registry.get(url.split("/")[2])
+
+    record = make_view(
+        claim_type="record",
+        entities=({"name": "Government of Ruritania", "role": "actor"},),
+    )
+    a = pl.assess_judgement(judge, passages, claim=record, publishers=lookup)
+    assert [r.stakeholder for r in a.refs] == [True, True, False]
+    assert a.independence.independent_origins == 1
+    # the same sources on a statistic: no stakeholder exclusion (closed claim types)
+    stat = make_view(entities=({"name": "Government of Ruritania", "role": "actor"},))
+    b = pl.assess_judgement(judge, passages, claim=stat, publishers=lookup)
+    assert not any(r.stakeholder for r in b.refs)
+    # symmetric: an accused opposition party's own outlet is excluded the same way
+    opposition = make_view(
+        claim_type="accusation",
+        entities=({"name": "Channel One", "role": "accused"},),
+    )
+    c = pl.assess_judgement(judge, passages, claim=opposition, publishers=lookup)
+    assert [r.stakeholder for r in c.refs] == [False, True, False]
+
+
+def test_normalize_entity_and_subjects_are_not_parties() -> None:
+    from tower.core.domain.factcheck.atlas import (
+        PublisherIdentity,
+        is_stakeholder,
+        normalize_entity,
+    )
+
+    assert normalize_entity("Groupe TF1 SA") == "tf1"
+    assert normalize_entity("Élysée") == "elysee"
+    pub = PublisherIdentity(names=("TF1",))
+    assert is_stakeholder("conduct", [("TF1", "accuser")], pub)
+    assert not is_stakeholder("conduct", [("TF1", "subject")], pub)
+    assert not is_stakeholder("conduct", [("TF1", "actor")], None)
+    assert not is_stakeholder("not_a_type", [("TF1", "actor")], pub)

@@ -154,6 +154,31 @@ Colonnes ajoutées à `claim_groups` : `light_signal` (`likely_true`, `likely_fa
 `observers_6h`, `velocity`, `priority`, `level_changed_at`, `below_threshold_since`
 (rétrogradation) ; index `(level, state)`.
 
+## Atlas complet, lot 6
+
+Migration `0009`, **expand** uniquement : tables nouvelles ; sur `source_registry`,
+colonnes nullables ou à défaut constant et CHECK sur ces seules colonnes ;
+`reference_facts.origin` accepte en plus `statistics`. Le code du lot 5 tourne sans
+changement sur ce schéma.
+
+| Table | Rôle |
+|---|---|
+| `legal_articles` | Miroir LEGI : une ligne par **version** d'article (`source`, `article_id` LEGIARTI unique), `jurisdiction`, `text_id` (LEGITEXT), `text_title`, `number`, `status` (`ETAT` de LEGI), `valid_from`, `valid_to` (nul = en vigueur, `2999-01-01` de LEGI), `section_path`, `body` (Licence Ouverte : texte complet), `url`, `sha256`, `tsv` (colonne générée `to_tsvector('french', numéro + texte)`, index GIN), `synced_at` ; index `(jurisdiction, text_id, number, valid_from)` |
+| `legal_portals` | Portail juridique officiel par pays : `url`, `domain`, `eli`, `access` (`bulk`, `api`, `web`, `unverified`), `adapter`, `notes`, `active`, `version`, `updated_by` |
+| `jurisdiction_sources` | Pays × type (`statistics`, `law`, `electoral`, `central_bank`, `health`, `justice`, `news`, `other`) → `adapter` et/ou `domain`, `tier` ; clé unique `(country, source_type, key)` ; lu par le sélecteur de l'Atlas |
+| `election_calendar` | Scrutins : `country`, `kind`, `name`, `first_round`, `second_round`, `source_url` |
+| `news_feeds` | Flux de référence : `country`, `lang`, `publisher`, `kind` (`public_service`, `national`, `regional`, `agency`, `international`), `url` (unique), `domain`, `active`, `etag`, `last_modified`, `last_polled_at`, `last_status`, `failures` (échecs consécutifs) |
+| `news_index` | Titres récents (90 jours) : `feed_id`, `origin` (`rss`, `gdelt`), `url`, `canonical_url` (unique), `publisher`, `domain`, `country`, `lang`, `title`, `summary` (chapeau ≤ 600 caractères), `published_at`, `simhash` + 4 bandes indexées, `cluster_id` (premier article de la grappe de reprises), `tsv` (`simple`, GIN). Jamais l'article complet |
+| `source_registry_versions` | Instantané de chaque version d'une entrée du registre : `snapshot`, `change`, `reason`, `changed_by` |
+| `atlas_sync_state` | Avancement des synchronisations (`legi` : dernière archive appliquée, compteurs) |
+| `confidence_models` | Modèles de confiance recalibrés : `kind` (`reduced`, `full`), `coefficients`, `metrics` (ECE et Brier hors échantillon, du candidat et des coefficients courants), `reviews`, `refusals`, `active` (un seul, index unique partiel), `activated_at`, `activated_by` |
+
+Colonnes ajoutées à `source_registry` : `aliases`, `qid`, `controlled_by`,
+`controlled_by_qid`, `controlled_by_aliases`, `control_origin` (`wikidata`, `team`,
+`official`), `statutory_independence` (CHECK : exige `independence_basis` parmi
+`imf_sdds`, `imf_sdds_plus`, `ess_peer_review`, `statute`), `active`, `updated_by`,
+`reviewed_at`.
+
 ## Index notables
 
 - `jobs` : index partiel `(queue, priority DESC, run_at, id) WHERE status = 'queued'`

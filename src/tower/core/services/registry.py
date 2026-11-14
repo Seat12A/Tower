@@ -18,6 +18,7 @@ BUILTIN_SERVICES: dict[str, str] = {
     "radar": "tower.services.radar:service",
     "factcheck": "tower.services.factcheck:service",
     "investigate": "tower.services.investigate:service",
+    "atlas": "tower.services.atlas:service",
     # "moderation": "tower.services.moderation:service",
 }
 

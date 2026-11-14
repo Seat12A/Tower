@@ -73,7 +73,7 @@ gratuite et bornée par l'intégration publique d'X (oEmbed). Voir
    Discord) ; la revue des brouillons de fact-check est livrée (lot 3).
 4. **Fact-check** : session de validation et de réglage du lot 3 (clés Anthropic,
    OpenAI, Brave, Google, PISTE, INSEE ; au moins 50 affirmations du jeu de référence ;
-   `tower factcheck eval`) ; lots 4 et 5 livrés en développement ; lot 6 (Atlas complet et qualité). Plan d'implémentation détaillé dans
+   `tower factcheck eval`) ; lots 4, 5 et 6 (Atlas complet et outillage de qualité, recalibrage et distillation non activés faute de revues réelles) livrés en développement. Plan d'implémentation détaillé dans
    [factcheck/feuille-de-route.md](factcheck/feuille-de-route.md) (2026-11-10). Phase 0
    (jeu de référence de 300 affirmations, comptes et clés, validations juridiques),
    puis lots : fondations (routeur de modèles OpenAI et Anthropic, ports, budgets),

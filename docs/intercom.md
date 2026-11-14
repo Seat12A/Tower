@@ -49,13 +49,17 @@ caractères** ; pour un compte suivi, le bot relit la liste (500 au plus) pour o
 | `/narrative list [état]` / `/narrative show id` | Récits (état, part, comptes, plateformes) ; détail : groupes, statistiques, journal, scission suggérée | `dossiers:read` |
 | `/narrative merge cible source motif` / `/narrative split id groupes motif` | Fusion et scission de récits | `claim_groups:manage` |
 | `/narrative title id [titre]` | Valide le titre proposé, ou enregistre un titre corrigé | `dossiers:review` |
+| `/registry show domaine` / `/registry history domaine` | Entrée du registre de fiabilité (niveau, type, pays, motif, `controlled_by` et son origine, indépendance statutaire), versions | `registry:read` |
+| `/registry set-tier domaine niveau motif` / `/registry set-control domaine entité\|none motif` | Changement de niveau (motif obligatoire, processus éditorial seulement) ; relation de contrôle corrigée par l'équipe (`control_origin = team`, jamais écrasée par l'amorçage Wikidata) | `registry:write` |
+| `/registry seed-control domaine` | Enfile l'amorçage de `controlled_by` depuis Wikidata | `registry:write` |
 
 `/incidents` demande le rôle `admin` (seul rôle avec `errors:*`). Les droits effectifs sont l'intersection des rôles de la personne et des scopes du
 token du bot (voir [auth.md](auth.md)). Token du bot : `dossiers:read
 dossiers:create dossiers:review dossiers:decide dossiers:publish events:read
 errors:read errors:manage watchlist:read watchlist:write usage:read
 factcheck:request claim_groups:manage reference_facts:write reference_facts:validate
-profiles:read profiles:manage levels:override` (lot 4 : à ajouter au token existant).
+profiles:read profiles:manage levels:override registry:read registry:write` (lot 4 et
+lot 6 : à ajouter au token existant).
 
 ## Notifications
 

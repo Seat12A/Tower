@@ -208,6 +208,10 @@ async def test_train_then_activate_end_to_end(db: Database) -> None:
     assert metrics["recall"] >= 0.9 and metrics["auc"] >= 0.95
     assert metrics["train_size"] + metrics["holdout_size"] == 240
     assert metrics["strata"] == {"fr|N1|0": 120, "fr|N1|1": 120}
+    distillation = metrics["distillation"]
+    assert distillation["holdout_size"] == metrics["holdout_size"]
+    assert distillation["recall_loss"] <= 0.02 and distillation["e2_call_reduction"] >= 0.5
+    assert distillation["meets_criterion"] is True
 
     assert await run_activate(settings, version=1, force=False, reason="first model") == 0
     assert await scalar(db, "SELECT active FROM router_models WHERE version = 1") is True
