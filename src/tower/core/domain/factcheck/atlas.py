@@ -116,7 +116,9 @@ LEGI_PRIORITY_TEXTS: Mapping[str, str] = {
     "LEGITEXT000006070239": "Code électoral",
     "LEGITEXT000006072665": "Code de la santé publique",
     "LEGITEXT000025503132": "Code de la sécurité intérieure",
-    "LEGITEXT000006071194": "Constitution du 4 octobre 1958",
+    # The Constitution sits under its JORF id in the LEGI dump (articles carry cid=JORF…;
+    # LEGITEXT000006071194 only names its structure file).
+    "JORFTEXT000000571356": "Constitution du 4 octobre 1958",
 }
 """Priority French texts of the LEGI mirror (connaissances.md), by LEGI text id."""
 

@@ -83,7 +83,11 @@ async def run_maintenance(
         ("tower:retention:purge", 3600.0, purge),
         *extra,
     ]
-    last_run = dict.fromkeys((name for name, _, _ in schedule), 0.0)
+    # Every task runs once at startup: the monotonic clock starts at boot, so a 0.0
+    # origin silently delayed daily tasks on a machine up for less than a day (and a
+    # replica redeployed more often than daily never ran them). Tasks are singletons and
+    # their jobs are deduplicated, so a run at each start is harmless.
+    last_run = dict.fromkeys((name for name, _, _ in schedule), float("-inf"))
     while not stop.is_set():
         now = time.monotonic()
         for name, every, fn in schedule:

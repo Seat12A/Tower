@@ -369,13 +369,13 @@ class Metrics:
     no_paid_search: int = 0
     paid_search_measured: int = 0
     decided_without_paid_rate: float | None = None
-    """Lot 6 criterion (>= 70 %): among cases with a decisive outcome (not an abstention)
+    """Lot 6 criterion (>= 70 %): among cases with an outcome other than an abstention
     whose searches were measured, share settled without any paid web search."""
     decided_without_paid: int = 0
     decided_measured: int = 0
     calibration_error: float | None = None
     """Lot 6 criterion (< 0.1): expected calibration error of the confidence against the
-    exact correctness of decisive outcomes (10 equal-width bins)."""
+    exact correctness of the non-abstaining outcomes (10 equal-width bins)."""
     calibration_pairs: int = 0
 
 
@@ -441,12 +441,12 @@ def compute_metrics(results: Sequence[CaseResult], *, high: float) -> Metrics:
 
     measured = [r for r in scored if r.paid_searches is not None]
     no_paid = sum(1 for r in measured if r.paid_searches == 0)
-    decided = [r for r in measured if r.predicted in _DECISIVE]
+    decided = [r for r in measured if r.predicted not in (None, Veracity.UNVERIFIABLE)]
     decided_free = sum(1 for r in decided if r.paid_searches == 0)
     calibration = [
         (float(outcome(r).confidence or 0.0), int(r.predicted == r.case.expected_veracity))
         for r in scored
-        if r.predicted in _DECISIVE and outcome(r).confidence is not None
+        if r.predicted not in (None, Veracity.UNVERIFIABLE) and outcome(r).confidence is not None
     ]
     costs = [outcome(r).cost_usd_micros for r in scored]
     latencies = [float(outcome(r).latency_ms) for r in scored]

@@ -333,4 +333,6 @@ Décisions tranchées en session, Jules absent.
 | Distillation E1 : critère du lot (≥ 50 % d'appels E2 évités, ≤ 2 points de rappel perdus) exigé à l'activation, en plus du rappel ≥ 0,90 | Rappel mesuré contre les étiquettes E2 (rappel de E2 = 1 par définition) |
 | N4 : revalidation continue par une durée de vie plafonnée (24 h, `TOWER_FC_N4_REVALIDATE_HOURS`) | Seul élément de `niveaux.md` absent du code ; réutilise la péremption et la revalidation existantes |
 | Date de vérification de l'évaluation fixée à son jour | Cause de l'échec intermittent du test de bout en bout : la minute courante changeait le prompt du rédacteur |
+| Tâches périodiques lancées une fois au démarrage du hangar | Correctif : l'origine 0 de l'horloge monotone empêchait les tâches quotidiennes de tourner sur un conteneur démarré depuis moins d'un jour |
+| Constitution identifiée par `JORFTEXT000000571356` | C'est l'identifiant du dossier et du `cid` des articles dans le dump LEGI (mesuré à la synchronisation réelle) |
 

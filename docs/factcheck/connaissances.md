@@ -142,7 +142,7 @@ Miroir local (France) :
   consultés, pas pour tout le corpus ;
 - codes prioritaires pour commencer : pénal, procédure pénale, civil, travail, entrée
   et séjour des étrangers (CESEDA), électoral, santé publique, sécurité intérieure,
-  Constitution ; taille à mesurer avant d'étendre ;
+  Constitution ; taille mesurée le 2026-11-14 : 136 450 versions d'articles pour les 8 codes, 342 Mo avec index ;
 - synchronisation par le service `atlas` : téléchargement en flux, analyse XML
   incrémentale (bibliothèque standard), mise à jour par différence quotidienne.
 

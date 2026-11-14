@@ -693,7 +693,17 @@ qu'elle serve, comme pour l'INSEE.
   prioritaires. Le **dump global** (1,3 Go) ne tient pas dans un bail de job : il
   s'importe une fois par `tower atlas legi-sync` ; le job quotidien `atlas.legi_sync`
   n'applique que des différences (10 au plus par passe) et journalise
-  `atlas.legi_needs_bootstrap` tant que l'import initial manque.
+  `atlas.legi_needs_bootstrap` tant que l'import initial manque. **Ajouter un texte** :
+  l'ajouter à `TOWER_ATLAS_LEGI_TEXTS`, supprimer la ligne `legi` de `atlas_sync_state`
+  et relancer `tower atlas legi-sync` (le dump est relu pour ce texte).
+- **Mesure réelle (2026-11-14)** : dump du 2026-11-08 et 6 différences, 1,28 Go lus en
+  flux, 2,83 millions de membres parcourus, **136 450 versions d'articles** des 8 codes
+  (dont environ 42 500 en vigueur ; santé publique 48 052, travail 41 947, procédure
+  pénale 19 137, sécurité intérieure 6 971, CESEDA 6 640, civil 6 358, pénal 3 791,
+  électoral 3 530), 1 107 membres ignorés, **16,6 min**, RSS de pointe **118 Mo**.
+  Table : **342 Mo** (195 Mo de données, 55 Mo d'index). La Constitution est rangée sous
+  son identifiant JORF (`JORFTEXT000000571356`) dans le dump ; elle a été chargée par une
+  seconde passe (voir le résumé de session).
 - **`legi_mirror`** : référence exacte (« article 432-13 du code pénal », « art. L.
   1234-5 », « 49.3 » de la Constitution) puis recherche plein texte
   (`websearch_to_tsquery('french')`, `ts_rank`). La version retenue est celle **en
@@ -808,6 +818,15 @@ recherche web payante (cible ≥ 70 %) et écart de calibration (ECE de la confi
 l'exactitude des issues décisives, cible < 0,1). Sous doublures, ces chiffres ne mesurent
 rien de réel : seuls les outils sont livrés.
 
+### Tâches périodiques au démarrage (correctif)
+
+Les tâches périodiques s'exécutent désormais **une fois au démarrage** de chaque
+processus hangar. Avant, l'origine 0 de l'horloge monotone (temps depuis le démarrage de
+la machine) retardait les tâches quotidiennes d'un conteneur démarré depuis moins d'un
+jour : un réplica redéployé plus souvent que tous les jours ne lançait jamais
+l'alimentation INSEE ni les synchronisations. Les tâches sont des singletons et leurs
+jobs sont dédoublonnés : une exécution par démarrage est sans effet de bord.
+
 ### N4 complet
 
 Déjà en place avant le lot 6 : profondeur renforcée d'office, jamais de réutilisation
@@ -817,7 +836,9 @@ priorité de quota. Ajouté : **revalidation continue** — un verdict N4 expire
 
 ### RAM
 
-Les synchronisations tournent dans le service hangar `atlas` (réplica dédié). Gate ne
+Les synchronisations tournent dans le service hangar `atlas` (réplica dédié) : 79 Mo au
+repos (8 s), 95 Mo après une relève réelle des 29 flux ; synchronisation LEGI complète :
+118 Mo de pointe. Gate +1 Mo, hangar +1 Mo, intercom +0 Mo par rapport au lot 5. Gate ne
 charge aucun adaptateur ; un hangar sans `atlas` ne charge ni `legi_sync`, ni `rss`, ni
 `safe_xml`, ni les amorces (tests d'isolation). Aucun corpus en mémoire : recherche
 plein texte dans PostgreSQL.

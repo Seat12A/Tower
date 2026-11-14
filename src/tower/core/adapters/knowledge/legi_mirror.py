@@ -45,7 +45,7 @@ _CODES: tuple[tuple[str, str], ...] = (
     ("ceseda", "LEGITEXT000006070158"),
     ("etrangers", "LEGITEXT000006070158"),
     ("entree et du sejour", "LEGITEXT000006070158"),
-    ("constitution", "LEGITEXT000006071194"),
+    ("constitution", "JORFTEXT000000571356"),
 )
 _ARTICLE_REF = re.compile(
     r"\b(?:articles?|art\.?)\s*((?:[LRDA]\.?\s*)?\d+(?:\s*[-.]\s*\d+)*)", re.IGNORECASE
