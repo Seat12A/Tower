@@ -87,6 +87,20 @@ class Settings(BaseSettings):
     ingest_daily_quota: int = Field(default=500, ge=1)
     """Items per installation and per UTC day."""
 
+    # --- Verification of extension contents (X oEmbed, service ingest) ----------
+    oembed_enabled: bool = True
+    """Check what the extension declares against the public embed of the post."""
+    oembed_url: str = "https://publish.x.com/oembed"
+    oembed_per_minute: int = Field(default=30, ge=1, le=120)
+    """Embed requests per minute, all replicas together (one batch job per minute)."""
+    oembed_daily_max: int = Field(default=20_000, ge=0)
+    """Embed requests per UTC day; beyond, contents stay unverified."""
+    oembed_concurrency: int = Field(default=2, ge=1, le=8)
+    """Simultaneous embed requests within a batch."""
+    oembed_max_age_h: int = Field(default=24, ge=1, le=168)
+    """Only contents first seen within this window are checked."""
+    oembed_timeout_s: float = Field(default=10.0, gt=0, le=60)
+
     # --- Fact-check pipeline (lot 3, services factcheck and investigate) ----------
     llm_fake: bool = False
     """Fake model provider producing schema-valid outputs (dev, smoke tests, eval demo).

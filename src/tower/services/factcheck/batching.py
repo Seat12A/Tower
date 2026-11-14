@@ -24,6 +24,7 @@ from tower.core.domain.factcheck.fidelity import extract_numbers
 from tower.core.domain.factcheck.values import BatchStatus, ExtractionStatus
 from tower.core.domain.llm import Level
 from tower.core.domain.security import Actor
+from tower.core.domain.verification import Verification
 from tower.core.errors import capture
 from tower.core.factcheck import inputs, names
 from tower.core.factcheck.profiles import active_profile
@@ -100,6 +101,7 @@ async def compose_batches(session: AsyncSession, settings: Settings) -> int:
                 (ContentEmbedding.level == "N1") | ContentEmbedding.sampled.is_(True),
                 ContentItem.lang.in_(settings.fc_language_list),
                 ContentItem.copy_of_id.is_(None),
+                ContentItem.verification != Verification.MISMATCH.value,
                 ~watched,
                 ~exists().where(ContentExtraction.content_id == ContentItem.id),
                 ~exists().where(ContentClaim.content_id == ContentItem.id),

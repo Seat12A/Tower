@@ -31,6 +31,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from tower.core.db.base import Base
 from tower.core.domain.platforms import Platform, PublicRole
+from tower.core.domain.verification import Verification
 from tower.core.models._helpers import check_in
 
 #: Format of X identifiers (digits, BIGINT bound), shared by the X-aware tables.
@@ -176,6 +177,17 @@ class ContentItem(Base):
         Index("ix_content_items_simhash_b1", "simhash_b1", "first_seen_at"),
         Index("ix_content_items_simhash_b2", "simhash_b2", "first_seen_at"),
         Index("ix_content_items_simhash_b3", "simhash_b3", "first_seen_at"),
+        check_in("verification", Verification, "verification"),
+        Index(
+            "ix_content_items_to_check",
+            "first_seen_at",
+            postgresql_where=sa_text("verification = 'unverified' AND checked_at IS NULL"),
+        ),
+        Index(
+            "ix_content_items_checked_at",
+            "checked_at",
+            postgresql_where=sa_text("checked_at IS NOT NULL"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -218,6 +230,10 @@ class ContentItem(Base):
     first_seen_at: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)
     last_seen_at: Mapped[datetime] = mapped_column(server_default=func.now())
     observation_count: Mapped[int] = mapped_column(Integer, server_default=sa_text("1"))
+    verification: Mapped[str] = mapped_column(Text, server_default=sa_text("'unverified'"))
+    """``core/domain/verification.py``: trust of the stored text and author."""
+    checked_at: Mapped[datetime | None] = mapped_column()
+    """Time of the public embed check (any outcome); counts the daily embed requests."""
 
 
 class ContentSnapshot(Base):

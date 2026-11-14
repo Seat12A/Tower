@@ -328,6 +328,30 @@ ING_PARTITION_MISSING = _define(
 ING_BAD_FILTERS = _define(
     "TWR-ING-011", "Invalid extension filter definition", http_status=422, severity=_INFO
 )
+ING_CONTENT_MISMATCH = _define(
+    "TWR-ING-012",
+    "Extension content contradicts the public embed of the post",
+    severity=_WARN,
+    store=True,
+    hint="Text or author declared by an installation differs from X: possible forged "
+    "submission. The content is marked mismatch and never opens a targeted fact-check.",
+)
+ING_EMBED_UNAVAILABLE = _define(
+    "TWR-ING-013",
+    "Public embed (X oEmbed) unavailable",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+    hint="Network error, 5xx or 403 from publish.x.com; the content stays unverified.",
+)
+ING_EMBED_RATE_LIMITED = _define(
+    "TWR-ING-014",
+    "Public embed (X oEmbed) rate limited: verification paused",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+    hint="Lower TOWER_OEMBED_PER_MINUTE if it recurs.",
+)
 
 # --- WEB: outbound HTTP fetches ------------------------------------------------------
 WEB_BLOCKED_URL = _define(

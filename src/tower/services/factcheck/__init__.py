@@ -64,7 +64,9 @@ service = Service(
         ),
     ),
     subscriptions=(
-        Subscription("ingested", (names.CONTENT_INGESTED,), on_content_ingested),
+        Subscription(
+            "ingested", (names.CONTENT_INGESTED, names.CONTENT_VERIFIED), on_content_ingested
+        ),
         Subscription("embed", (names.CONTENT_INGESTED,), on_content_to_embed),
         Subscription("investigated", (names.INVESTIGATION_COMPLETED,), on_investigation_completed),
         Subscription("published", (names.VERDICT_PUBLISHED,), on_verdict_published),

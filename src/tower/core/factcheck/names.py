@@ -51,6 +51,7 @@ JOB_DRAFT = "investigate.draft"
 
 # Topics
 CONTENT_INGESTED = "content.ingested"
+CONTENT_VERIFIED = "content.verified"
 CLAIM_EXTRACTED = "claim.extracted"
 INVESTIGATION_REQUESTED = "investigation.requested"
 INVESTIGATION_COMPLETED = "investigation.completed"

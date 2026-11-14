@@ -288,3 +288,23 @@ Décisions de conception arrêtées au début du lot (contrat des sous-agents :
 | Lot 7 (multi-plateforme) reporté : aucune nouvelle plateforme pour l'instant, X seulement | Choix de Jules ; le modèle de données reste multi-plateforme (`platform`) |
 | Lot 8 (médias) reporté : ni image ni vidéo pour l'instant | Choix de Jules |
 | Lot 9 traité comme un audit (mesure de neutralité), pas comme un lot de fonctionnalités | Choix de Jules ; il suppose des verdicts réels |
+
+## Vérification des contenus de l'extension (2026-11-14)
+
+| Décision | Raison |
+|---|---|
+| Le texte et l'auteur déclarés par l'extension ne sont jamais crus sur parole : ils n'ouvrent pas de fact-check ciblé (N3, forçage de compte) tant que le contenu n'est pas `platform` ou `verified` | Une extension modifiée pouvait inventer un post attribué à un compte suivi (enquête payante, place dans le quota, brouillon sur une déclaration inexistante), ou empoisonner un vrai post avant le radar |
+| Une lecture de la plateforme (radar, demande manuelle, flux) remplace un texte déclaré par l'extension et non confirmé | Le « premier écrit gagne » laissait un faux texte en place pour toujours et empêchait le déclenchement N3 du vrai post |
+| Vérification par l'intégration publique d'X (oEmbed) : gratuite, sans quota de l'API X ; usage validé par Jules | Lire chaque post par l'API X serait ruineux (la majorité des posts vient de l'extension) |
+| Volume borné : un lot par minute tous réplicas confondus (30 requêtes), 2 simultanées, 20 000 par jour, contenus de moins de 24 h vérifiés une seule fois, pause sur 429 et sur panne | Demande de Jules de « ne pas spammer » ; la documentation d'X annonce l'absence de limite, des sources tierces de 2026 signalent un bridage des appels en masse |
+| Un 403 d'oEmbed est une panne, pas un post absent | Un refus d'X ne doit pas marquer tous les posts `unavailable` |
+| Post long possiblement tronqué : non concluant, jamais `verified` | Format des posts longs dans oEmbed non vérifié |
+
+### Écartées
+
+| Option | Raison |
+|---|---|
+| Point d'accès non documenté `cdn.syndication.twimg.com/tweet-result` | Non officiel, déjà cassé par le passé, assimilable à du scraping (règle 9) |
+| Consensus entre installations comme preuve | Le jeton d'installation est généré par l'extension et aucune IP n'est stockée : un attaquant peut simuler autant d'installations qu'il veut. Reste un signal, pas une preuve |
+| Lecture par l'API X de chaque post de l'extension | Coût (environ 0,005 $ par lecture) |
+

@@ -337,11 +337,13 @@ async def test_service_declaration() -> None:
     services = load_services(["ping", "ingest"])
     services.validate(lease_seconds=120)
     assert {t.name: t.every_seconds for t in services.periodic} == {
+        "ingest:verify": 60,
         "ingest:partitions": 3600,
         "ingest:secrets": 600,
     }
     assert QUEUE in services.queues
     assert "ingest.link_copies" in services.handlers
+    assert "ingest.verify" in services.handlers
     assert service.name == "ingest"
 
 

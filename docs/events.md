@@ -81,6 +81,7 @@ identifiant d'événement.
 | `incident.resolved` | `errors.service.resolve` | empreinte, code, note |
 | `ping.requested` / `ping.done` | service ping | démonstration |
 | `content.ingested` | cas d'usage `ingest_items`, **nouveau contenu seulement** (jamais par observation) | `id` (clé interne en chaîne), `public_id`, `platform`, `external_id`, `lang`, `source` |
+| `content.verified` | un contenu déclaré par l'extension devient de confiance : intégration publique conforme (`record_verification`, `source` = `oembed`) ou correction par une lecture de la plateforme (`ingest_items`, `source` = `radar`, `manual` ou `feed`). Voir [ingestion.md](ingestion.md#vérification-des-contenus) | idem `content.ingested` |
 | `watchlist.changed` | cas d'usage de la liste de suivi | `action` (`added`, `updated`, `resolved`), compte suivi (`external_id` nul tant qu'un compte ajouté par pseudo n'est pas résolu par le radar), (`public_id`, `platform`, `external_id`, `handle`, `category`, `priority`, `active`, `version`) |
 | `extension_filters.published` | `publish_filters` | `version` |
 | `budget.threshold_reached` | registre des budgets (`core/budget.py` : routeur de modèles et radar), au premier franchissement de 50, 80 ou 100 % d'une portée sur la période | `scope`, `period_start`, `threshold_pct`, `spent_usd_micros`, `cap_usd_micros` |

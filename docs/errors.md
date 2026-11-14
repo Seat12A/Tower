@@ -137,6 +137,9 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-ING-009` | Account is already on the watchlist | 409 | info | non | non |  |
 | `TWR-ING-010` | No observations partition for this timestamp | 503 | error | oui | oui | The ingest service creates partitions ahead; check that a hangar runs it. |
 | `TWR-ING-011` | Invalid extension filter definition | 422 | info | non | non |  |
+| `TWR-ING-012` | Extension content contradicts the public embed of the post | 500 | warning | oui | non | Text or author declared by an installation differs from X: possible forged submission. The content is marked mismatch and never opens a targeted fact-check. |
+| `TWR-ING-013` | Public embed (X oEmbed) unavailable | 500 | warning | oui | oui | Network error, 5xx or 403 from publish.x.com; the content stays unverified. |
+| `TWR-ING-014` | Public embed (X oEmbed) rate limited: verification paused | 500 | warning | oui | oui | Lower TOWER_OEMBED_PER_MINUTE if it recurs. |
 
 ## INT : Interne
 

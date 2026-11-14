@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from hashlib import sha256
 from typing import Any
 
-from sqlalchemy import Boolean, case, func, literal_column, select, text, update
+from sqlalchemy import Boolean, case, func, literal_column, select, text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +38,7 @@ from tower.core.domain.text import (
     simhash64,
     useful_word_count,
 )
+from tower.core.domain.verification import CORRECTABLE, Verification
 from tower.core.errors import capture
 from tower.core.events.outbox import publish
 from tower.core.jobs.queue import enqueue
@@ -53,6 +54,8 @@ from tower.core.usecases.installations import daily_secret
 
 EXTENSION_SOURCE = "extension"
 SERVICE_SOURCES = frozenset({"radar", "feed", "manual"})
+"""Sources whose text is read from the platform itself: trusted (``platform``)."""
+CONTENT_VERIFIED = "content.verified"
 INGEST_QUEUE = "ingest"
 _MAX_HANDLE = 100
 _MAX_HINT = 32
@@ -181,8 +184,15 @@ async def _upsert_contents(
     prepared: Sequence[_Prepared],
     accounts: dict[tuple[str, str], int],
     now: datetime,
+    *,
+    trusted: bool,
 ) -> list[Any]:
-    """One multi-row upsert. In-batch duplicates are merged (one row per content)."""
+    """One multi-row upsert. In-batch duplicates are merged (one row per content).
+
+    A trusted batch (platform read) marks its contents ``platform`` and replaces the
+    text, author and fingerprints of a content still in a ``CORRECTABLE`` state (declared
+    by the extension): the first writer no longer wins. A ``platform`` or ``verified``
+    text is never replaced (claims were extracted from it)."""
     merged: dict[tuple[str, str], dict[str, Any]] = {}
     for p in prepared:
         item = p.item
@@ -206,6 +216,9 @@ async def _upsert_contents(
                 "metrics_at": now if metrics else None,
                 "created_at_platform": as_utc(item.created_at) if item.created_at else None,
                 "observation_count": 1,
+                "verification": (
+                    Verification.PLATFORM.value if trusted else Verification.UNVERIFIED.value
+                ),
             }
         else:
             row["observation_count"] += 1
@@ -215,9 +228,26 @@ async def _upsert_contents(
     rows = [merged[k] for k in sorted(merged)]
     ins = insert(ContentItem).values(rows)
     has_metrics = ins.excluded.metrics != literal_column("'{}'::jsonb")
+    correctable = ContentItem.verification.in_(sorted(CORRECTABLE))
+    corrections: dict[str, Any] = {}
+    if trusted:
+        for column in _CORRECTED_COLUMNS:
+            corrections[column] = case(
+                (correctable, getattr(ins.excluded, column)),
+                else_=getattr(ContentItem, column),
+            )
+        corrections["author_account_id"] = case(
+            (
+                correctable,
+                func.coalesce(ins.excluded.author_account_id, ContentItem.author_account_id),
+            ),
+            else_=ContentItem.author_account_id,
+        )
+        corrections["verification"] = Verification.PLATFORM.value
     stmt = ins.on_conflict_do_update(
         index_elements=[ContentItem.platform, ContentItem.external_id],
         set_={
+            **corrections,
             "last_seen_at": func.now(),
             "observation_count": ContentItem.observation_count + ins.excluded.observation_count,
             "metrics": case((has_metrics, ins.excluded.metrics), else_=ContentItem.metrics),
@@ -234,6 +264,37 @@ async def _upsert_contents(
         literal_column("(xmax = 0)", Boolean).label("inserted"),
     )
     return list((await session.execute(stmt)).all())
+
+
+_CORRECTED_COLUMNS = (
+    "text",
+    "lang",
+    "lang_confidence",
+    "lang_hint",
+    "useful_words",
+    "content_hash",
+    "simhash",
+    "parent_external_id",
+    "quoted_external_id",
+    "created_at_platform",
+)
+
+
+async def _correctable_keys(
+    session: AsyncSession, prepared: Sequence[_Prepared]
+) -> set[tuple[str, str]]:
+    """Keys of existing contents a trusted batch will correct (rows locked)."""
+    keys = sorted({p.key for p in prepared})
+    rows = await session.execute(
+        select(ContentItem.platform, ContentItem.external_id)
+        .where(
+            tuple_(ContentItem.platform, ContentItem.external_id).in_(keys),
+            ContentItem.verification.in_(sorted(CORRECTABLE)),
+        )
+        .order_by(ContentItem.id)
+        .with_for_update()
+    )
+    return {(r.platform, r.external_id) for r in rows}
 
 
 async def _link_media(
@@ -318,8 +379,10 @@ async def ingest_items(
     if token is not None:
         pseudonym = await _consume_quota(session, token, accepted, daily_quota, now)
 
+    trusted = source in SERVICE_SOURCES
     accounts = await _upsert_accounts(session, prepared)
-    rows = await _upsert_contents(session, prepared, accounts, now)
+    corrected = await _correctable_keys(session, prepared) if trusted else set()
+    rows = await _upsert_contents(session, prepared, accounts, now, trusted=trusted)
     content_ids = {(r.platform, r.external_id): r.id for r in rows}
     await _link_media(session, prepared, content_ids)
 
@@ -366,6 +429,11 @@ async def ingest_items(
             {"content_id": r.id},
             dedupe_key=f"copies:{r.id}",
         )
+    for r in sorted(
+        (r for r in rows if not r.inserted and (r.platform, r.external_id) in corrected),
+        key=lambda r: r.id,
+    ):
+        await _publish_verified(session, actor, r, source=source)
     return IngestResult(
         accepted=accepted,
         new=len(new_rows),
@@ -373,6 +441,61 @@ async def ingest_items(
         rejected=len(errors),
         errors=tuple(errors),
     )
+
+
+async def _publish_verified(session: AsyncSession, actor: Actor, row: Any, *, source: str) -> None:
+    await publish(
+        session,
+        CONTENT_VERIFIED,
+        {
+            "id": str(row.id),
+            "public_id": str(row.public_id),
+            "platform": row.platform,
+            "external_id": row.external_id,
+            "lang": row.lang,
+            "source": source,
+        },
+        aggregate_type="content",
+        aggregate_id=str(row.public_id),
+        actor=actor.label,
+    )
+
+
+# --- Verification of extension contents --------------------------------------------------
+
+_RECORD = text(
+    """
+    UPDATE content_items
+       SET verification = :outcome, checked_at = :now
+     WHERE id = :id AND verification = 'unverified' AND checked_at IS NULL
+    RETURNING id, public_id, platform, external_id, lang
+    """
+)
+
+
+async def record_verification(
+    session: AsyncSession,
+    actor: Actor,
+    content_id: int,
+    outcome: Verification,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    """Record the embed check of an extension content. ``UNVERIFIED`` (inconclusive)
+    only marks it checked. A content corrected meanwhile by a platform read, or already
+    checked, is left alone (returns False). ``VERIFIED`` announces ``content.verified``."""
+    actor.require(Permission.CONTENT_INGEST)
+    if outcome is Verification.PLATFORM:
+        raise ValueError("platform is set by platform reads only")
+    now = as_utc(now) if now is not None else datetime.now(UTC)
+    row = (
+        await session.execute(_RECORD, {"id": content_id, "outcome": outcome.value, "now": now})
+    ).first()
+    if row is None:
+        return False
+    if outcome is Verification.VERIFIED:
+        await _publish_verified(session, actor, row, source="oembed")
+    return True
 
 
 # --- Extension filters ------------------------------------------------------------------

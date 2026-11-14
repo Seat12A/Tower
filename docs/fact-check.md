@@ -49,7 +49,7 @@ N4.
 
 | Service | File | Jobs | Abonnements | Tâches périodiques |
 |---|---|---|---|---|
-| `factcheck` | `fc-fast` | `factcheck.extract`, `factcheck.assemble`, `factcheck.request`, `factcheck.translate` | `content.ingested`, `investigation.completed`, `verdict.published` | `factcheck:drain_quota` (60 s), `factcheck:purge_source_cache` (1 h) |
+| `factcheck` | `fc-fast` | `factcheck.extract`, `factcheck.assemble`, `factcheck.request`, `factcheck.translate` | `content.ingested`, `content.verified`, `investigation.completed`, `verdict.published` | `factcheck:drain_quota` (60 s), `factcheck:purge_source_cache` (1 h) |
 | `investigate` | `fc-deep` | `investigate.frame`, `.collect`, `.judge`, `.second_opinion`, `.objection`, `.escalate`, `.draft` | `investigation.requested` | — |
 
 `investigate` peut tourner sur un réplica dédié (`TOWER_SERVICES=investigate`,
@@ -73,9 +73,12 @@ l'étape suivante. Un job dont l'étape est déjà passée ne fait rien.
 
 ## Déclenchement (N3) et extraction (E2)
 
-- Un `content.ingested` déclenche l'extraction si la langue est dans
-  `TOWER_FC_LANGUAGES`, si l'auteur est un compte suivi **actif** et si le contenu n'est
-  pas une copie (`copy_of_id`). Une copie exacte (même empreinte) d'un contenu déjà
+- Un `content.ingested` ou un `content.verified` déclenche l'extraction si la langue est
+  dans `TOWER_FC_LANGUAGES`, si l'auteur est un compte suivi **actif**, si le contenu
+  n'est pas une copie (`copy_of_id`) et s'il est **de confiance** (`verification` à
+  `platform` ou `verified`, voir [ingestion.md](ingestion.md#vérification-des-contenus)) :
+  ce que déclare l'extension ne suffit jamais à ouvrir un fact-check ciblé. Même règle
+  pour le forçage de niveau d'un compte (N3/N4). Une copie exacte (même empreinte) d'un contenu déjà
   extrait est reliée aux mêmes affirmations, sans nouvelle enquête.
 - Un post par appel (rôle `extract`). Le modèle reçoit le post datamarqué, mentions
   pseudonymisées (`@user`), et le texte du post parent ou cité tronqué à 280 caractères

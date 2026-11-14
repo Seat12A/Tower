@@ -52,7 +52,7 @@ X, CHECK de format (`^[0-9]{1,19}$`, borne `BIGINT`) sur `external_id`.
 | `platform_accounts` | `platform`, `external_id`, `UNIQUE (platform, external_id)`, `handle`, `entity_id` |
 | `watched_accounts` | `public_id`, `account_id` (unique), `category` (rôle public), `priority` (-100..100), `since_cursor`, `active`, `note`, `added_by`, `version` (verrou optimiste) |
 | `watched_account_events` | Audit immuable de la liste de suivi : `action`, `actor`, `changes` JSONB |
-| `content_items` | Clé interne `BIGINT`, `public_id`, `platform`, `external_id` (`UNIQUE (platform, external_id)`), `author_account_id`, `text` (d'origine), `lang`, `lang_confidence`, `lang_hint`, `useful_words`, `content_hash` (32 octets), `simhash BIGINT` et `simhash_b0..b3` (colonnes générées stockées), `parent_external_id`, `quoted_external_id`, `copy_of_id`, `metrics` JSONB, `metrics_at`, `created_at_platform`, `first_seen_at`, `last_seen_at`, `observation_count`. **Non partitionnée** |
+| `content_items` | Clé interne `BIGINT`, `public_id`, `platform`, `external_id` (`UNIQUE (platform, external_id)`), `author_account_id`, `text` (d'origine), `lang`, `lang_confidence`, `lang_hint`, `useful_words`, `content_hash` (32 octets), `simhash BIGINT` et `simhash_b0..b3` (colonnes générées stockées), `parent_external_id`, `quoted_external_id`, `copy_of_id`, `metrics` JSONB, `metrics_at`, `created_at_platform`, `first_seen_at`, `last_seen_at`, `observation_count`, `verification` (`unverified`, `platform`, `verified`, `mismatch`, `unavailable` ; défaut `unverified`), `checked_at` (vérification par l'intégration publique, quel qu'en soit le résultat). **Non partitionnée** |
 | `content_snapshots` | Copie d'un contenu à un instant : `reason` (`dossier_opened`, `recheck`, `manual`), `text`, `metrics`, `data` |
 | `media_assets` | `kind` (`image`, `video`, `audio`, `document`), `url`, `url_sha256` (unique), `sha256`, `phash` et `phash_b0..b3` (générées ; empreinte perceptuelle calculée par un job ultérieur), `first_seen_at` |
 | `content_media` | PK `(content_id, media_id)`, `position` |
@@ -160,6 +160,9 @@ Colonnes ajoutées à `claim_groups` : `light_signal` (`likely_true`, `likely_fa
   pour la réservation ; index partiel unique sur `dedupe_key` parmi les jobs actifs.
 - `events` : `(xid, id)` pour la lecture sans trou.
 - `error_reports` : index partiel sur les erreurs ouvertes.
+- `content_items` : `ix_content_items_to_check (first_seen_at) WHERE verification =
+  'unverified' AND checked_at IS NULL` (contenus à vérifier) et
+  `ix_content_items_checked_at (checked_at) WHERE checked_at IS NOT NULL` (compte du jour).
 - `content_items` : `(simhash_bN, first_seen_at)` pour chaque bande (quasi-copies sur
   30 jours), `content_hash`, `lang`, `first_seen_at`, index sur expression
   `(external_id::bigint) WHERE platform = 'x'` (IDs X numériques sans colonne générée).

@@ -51,6 +51,14 @@ une fois l'allocation gratuite épuisée), rattachement aux récits et échantil
 exercés sans vrais embeddings, appels réels. Mesures :
 [sessions/2026-11-12-lot-5-v2.md](sessions/2026-11-12-lot-5-v2.md).
 
+## Fait : vérification des contenus de l'extension (2026-11-14)
+
+Le texte et l'auteur déclarés par l'extension ne déclenchent plus de fact-check ciblé
+tant qu'ils ne sont pas confirmés ; une lecture de la plateforme fait foi ; vérification
+gratuite et bornée par l'intégration publique d'X (oEmbed). Voir
+[ingestion.md](ingestion.md#vérification-des-contenus) et
+[sessions/2026-11-14-verification-extension.md](sessions/2026-11-14-verification-extension.md).
+
 ## Prochaines étapes
 
 1. **Ingestion (suite)** : règles d'ouverture de dossier (plusieurs installations

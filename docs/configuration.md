@@ -66,6 +66,13 @@ Voir [ingestion.md](ingestion.md).
 | `TOWER_FC_LANGUAGES` | `fr,en` | Langues traitées par le fact-check (sous-étiquettes BCP 47) |
 | `TOWER_INGEST_MAX_ITEMS` | `50` | Items au plus par lot d'ingestion |
 | `TOWER_INGEST_DAILY_QUOTA` | `500` | Items acceptés par installation et par jour UTC |
+| `TOWER_OEMBED_ENABLED` | `true` | Vérifie les contenus de l'extension par l'intégration publique d'X (oEmbed), voir [ingestion.md](ingestion.md#vérification-des-contenus) |
+| `TOWER_OEMBED_URL` | `https://publish.x.com/oembed` | Point d'accès oEmbed |
+| `TOWER_OEMBED_PER_MINUTE` | `30` | Requêtes oEmbed par minute, tous réplicas confondus (1 à 120) |
+| `TOWER_OEMBED_DAILY_MAX` | `20000` | Requêtes oEmbed par jour UTC ; `0` coupe la vérification |
+| `TOWER_OEMBED_CONCURRENCY` | `2` | Requêtes oEmbed simultanées dans un lot (1 à 8) |
+| `TOWER_OEMBED_MAX_AGE_H` | `24` | Seuls les contenus vus depuis moins de N heures sont vérifiés |
+| `TOWER_OEMBED_TIMEOUT_S` | `10` | Délai d'une requête oEmbed (secondes) |
 | `TOWER_HTTP_USER_AGENT` | `Seat12A-Tower/0.1` | User-Agent des récupérations web ; y ajouter une URL de contact générique, jamais une adresse personnelle |
 
 ### Pipeline de fact-check (services `factcheck` et `investigate`)

@@ -25,6 +25,7 @@ from tower.core.domain.factcheck.values import AbsenceReason, TranslationOrigin
 from tower.core.domain.ingestion import AuthorInput, ItemInput, MediaInput
 from tower.core.domain.llm import Level
 from tower.core.domain.security import Actor
+from tower.core.domain.verification import TRUSTED
 from tower.core.errors import capture
 from tower.core.events.outbox import EventRecord
 from tower.core.factcheck import inputs, names, runtime
@@ -720,7 +721,11 @@ async def _translate_one(
 async def on_content_ingested(session: AsyncSession, events: Sequence[EventRecord]) -> None:
     """Enqueue the extraction of new contents written by an active watched account (N3),
     or by an account carrying an active ``account`` level override at N3 or N4 (the
-    override level; no need to be watched)."""
+    override level; no need to be watched).
+
+    Only trusted contents (``platform`` or ``verified``): what the extension declares is
+    never enough to open a targeted fact-check. Also fed by ``content.verified`` (embed
+    confirmed, or a platform read corrected the content)."""
     languages = set(get_settings().fc_language_list)
     in_language: dict[int, bool] = {}
     for event in events:
@@ -742,6 +747,7 @@ async def on_content_ingested(session: AsyncSession, events: Sequence[EventRecor
                 ContentItem.id.in_(ids),
                 WatchedAccount.active.is_(True),
                 ContentItem.copy_of_id.is_(None),
+                ContentItem.verification.in_(sorted(TRUSTED)),
             )
             .order_by(ContentItem.id)
         )
@@ -762,6 +768,7 @@ async def on_content_ingested(session: AsyncSession, events: Sequence[EventRecor
                 ContentItem.id.in_(list(in_language)),
                 ContentItem.author_account_id.is_not(None),
                 ContentItem.copy_of_id.is_(None),
+                ContentItem.verification.in_(sorted(TRUSTED)),
             )
             .order_by(ContentItem.id)
         )
