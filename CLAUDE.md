@@ -29,6 +29,65 @@ clients passent par l'API ; **le bot n'accède jamais directement à la base**.
 2. Lire la page de `docs/` qui concerne la tâche (sommaire : `docs/README.md`).
 3. Vérifier `docs/decisions.md` avant de proposer une option déjà écartée.
 
+## Méthode de travail des sessions
+
+Règles permanentes, à appliquer sans qu'elles soient répétées dans le prompt.
+
+### Autonomie
+
+- Jules peut être absent : prendre les décisions soi-même, les noter dans
+  `docs/decisions.md` et les signaler dans le résumé de session. Ne pas rouvrir une
+  décision déjà notée.
+- Travailler sur la branche demandée, à partir de son dernier commit (pas de `main` si
+  la branche existe déjà). Vérifier sur le dépôt distant qu'aucune branche plus récente
+  ne porte déjà le travail.
+- Messages à Jules courts : un point par phase.
+
+### Économie d'usage (forfait Claude de Jules)
+
+- **L'agent principal (Opus)** conçoit, relit, intègre et vérifie. **Les sous-agents
+  Claude Sonnet** (`model: "sonnet"`) implémentent ; vérifier dans leur premier rapport
+  que c'est bien Sonnet. Aucun sous-agent Opus, aucun sous-agent d'exploration. Une
+  petite tâche se fait directement, sans sous-agent.
+- Briefs autonomes et précis : fichiers autorisés seulement, signatures, cas limites,
+  tests, commandes, interdits. Rapport de 10 lignes au plus, qui commence par le modèle.
+  Réutiliser les briefs existants au lieu de les réécrire.
+- Le moins de sous-agents possible, lancés en parallèle quand leurs fichiers sont
+  disjoints ; une base de test par sous-agent (`tower_test_g1`, `tower_test_g2`…).
+- Pendant que des sous-agents travaillent, ne jamais committer en `git commit -a` :
+  ajouter les fichiers un par un.
+- Lecture ciblée (sections utiles seulement), chemins plutôt que copies, sorties de
+  commandes courtes (`pytest -q`, `| tail`), suite complète aux points de contrôle
+  seulement, appels d'outils indépendants regroupés, recherche web limitée à la
+  documentation officielle, pas de réécriture complète ni de documentation en double.
+
+### Exigences transversales (en plus des règles d'architecture ci-dessous)
+
+- **Coût minimal** : traitement par lots, cache de contenu des appels, aucun appel de
+  modèle ou d'API évitable, budgets par niveau respectés.
+- **Modèles** : ils ne reçoivent jamais l'auteur ni le niveau de traitement. Les
+  signaux de coordination sont informatifs seulement.
+- **Sûreté** : dans le doute, ne pas regrouper et ne pas réutiliser un verdict.
+- **Langues** : tout contenu porte sa langue.
+- **Contre-pression** sur les files : une charge forte ralentit, elle ne déborde pas.
+- **Doublures** : faute de clés, `TOWER_LLM_FAKE=1` et faux serveurs. Le rapport et le
+  résumé disent clairement ce qui a été appelé pour de vrai.
+
+### Mesures de RAM (tout lot qui ajoute du code chargé par un processus)
+
+- RSS mesuré avant et après : processus lancé directement, mesure à 8 s, « avant » dans
+  un worktree de la base de départ. Rapporter aussi la valeur après traitement.
+- Cibles d'écart au repos : gate ≤ +5 Mo, hangar ≤ +20 Mo, intercom ≤ +10 Mo.
+- Tests d'isolation des imports : gate ne charge ni SDK ni adaptateur ; un hangar sans
+  un service ne charge rien de ce service.
+- Aucun numpy, pandas ni modèle local ; vecteurs en listes, calculs lourds dans
+  PostgreSQL.
+
+### Vérifications d'intégration (fin de lot)
+
+Suite complète, ruff, mypy strict, `alembic check`, migrations aller-retour, smoke test
+des vrais processus (doublures et faux serveur X si besoin), puis push.
+
 ## Fin de session : résumé OBLIGATOIRE
 
 **Chaque session se termine par un résumé** dans
