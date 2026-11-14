@@ -231,6 +231,27 @@ class Settings(BaseSettings):
     atlas_cache_ttl_s: int = Field(default=7 * 86400, ge=60)
     """Default freshness of ``source_cache`` entries (search results: 1 day)."""
     atlas_http_timeout_s: float = Field(default=10.0, gt=0)
+    # Lot 6: complete Atlas (service ``atlas`` for the synchronizations)
+    atlas_legi_base_url: str = "https://echanges.dila.gouv.fr/OPENDATA/LEGI/"
+    """DILA open-data directory of the LEGI archives (global dump + daily diffs)."""
+    atlas_legi_texts: str = ""
+    """Comma-separated LEGI text ids mirrored; empty = the priority codes
+    (``LEGI_PRIORITY_TEXTS``: penal, criminal procedure, civil, labour, CESEDA, electoral,
+    public health, internal security, Constitution)."""
+    atlas_legi_max_archive_mb: int = Field(default=2000, ge=1)
+    """Download refused above this size (the global dump is about 1.3 GB)."""
+    atlas_news_poll_s: int = Field(default=900, ge=60)
+    atlas_news_retention_days: int = Field(default=90, ge=1)
+    atlas_news_max_items: int = Field(default=50, ge=1, le=500)
+    """Items read per feed and poll (newest first)."""
+    atlas_news_concurrency: int = Field(default=4, ge=1, le=16)
+    atlas_stat_indicators: str = ""
+    """JSON list of the international indicators (Eurostat, World Bank, OECD, IMF) used by
+    the selector and fed daily as pending reference facts (docs/configuration.md)."""
+    atlas_on_demand_legal: str = "eurlex,fedlex,canada_laws"
+    """Free on-demand legal adapters enabled (cached in ``source_cache``)."""
+    atlas_gdelt_enabled: bool = True
+    """GDELT DOC 2.0 (free, no key; one request per 5 s at most)."""
 
     # --- Budgets ---------------------------------------------------------------
     budget_reservation_ttl_s: int = Field(default=1800, ge=60)

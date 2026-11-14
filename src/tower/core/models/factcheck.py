@@ -498,13 +498,28 @@ class DossierClaimGroup(Base):
 
 
 class SourceRegistryEntry(Base):
-    """Minimal reliability registry (domain → tier, kind, country). Everything absent is
-    tertiary. ``controlled_by`` and ``statutory_independence`` come with lot 6."""
+    """Reliability registry (domain → tier, kind, country). Everything absent is tertiary.
+    Lot 6: edited through ``usecases.registry`` (versioned in ``source_registry_versions``),
+    with ``controlled_by`` and ``statutory_independence``. The tier rests on the editorial
+    process, never on political orientation."""
 
     __tablename__ = "source_registry"
     __table_args__ = (
         check_in("tier", TIERS, "tier"),
         check_in("kind", REGISTRY_KINDS, "kind"),
+        CheckConstraint(
+            "control_origin IS NULL OR control_origin IN ('wikidata', 'team', 'official')",
+            name="control_origin",
+        ),
+        CheckConstraint(
+            "independence_basis IS NULL OR independence_basis IN "
+            "('imf_sdds', 'imf_sdds_plus', 'ess_peer_review', 'statute')",
+            name="independence_basis",
+        ),
+        CheckConstraint(
+            "NOT statutory_independence OR independence_basis IS NOT NULL",
+            name="independence_needs_basis",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -520,6 +535,25 @@ class SourceRegistryEntry(Base):
     version: Mapped[int] = mapped_column(server_default=sa_text("1"))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # Lot 6 (expand): editable, versioned registry
+    aliases: Mapped[list[str]] = mapped_column(_TEXT_ARRAY, server_default=_EMPTY_ARRAY)
+    """Other names of the publisher (stakeholder join)."""
+    qid: Mapped[str | None] = mapped_column(Text)
+    """Wikidata QID of the publisher (seeds ``controlled_by``)."""
+    controlled_by: Mapped[str | None] = mapped_column(Text)
+    """Entity controlling the publisher (State, party, group): stakeholder rule (E7)."""
+    controlled_by_qid: Mapped[str | None] = mapped_column(Text)
+    controlled_by_aliases: Mapped[list[str]] = mapped_column(
+        _TEXT_ARRAY, server_default=_EMPTY_ARRAY
+    )
+    control_origin: Mapped[str | None] = mapped_column(Text)
+    """``wikidata`` (automatic seed), ``team`` (corrected) or ``official``."""
+    statutory_independence: Mapped[bool] = mapped_column(server_default=sa_text("false"))
+    independence_basis: Mapped[str | None] = mapped_column(Text)
+    """External criterion (``imf_sdds``, ``ess_peer_review``…): never a team judgement."""
+    active: Mapped[bool] = mapped_column(server_default=sa_text("true"))
+    updated_by: Mapped[str | None] = mapped_column(Text)
+    reviewed_at: Mapped[datetime | None] = mapped_column()
 
 
 class SourceCacheEntry(Base):
