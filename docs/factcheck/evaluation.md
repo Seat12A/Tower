@@ -109,8 +109,33 @@ prompts, et génère des cas pièges pour le jeu de référence. Ses proposition
 Implémenté au lot 3 (voir [../fact-check.md](../fact-check.md#évaluation)).
 
 ```bash
-uv run tower factcheck eval --set jeu.jsonl [--limit N] [--report rapport.md] [--level N3|N4]
+uv run tower factcheck eval --set jeu.jsonl [--limit N] [--report rapport.md] [--level N3|N4] [--e3-only]
 ```
+
+### Mode lot (`--batch`)
+
+```bash
+uv run tower factcheck eval --set jeu.jsonl --batch [--batch-size 10] [--limit N] [--report rapport.md]
+```
+
+Évalue les micro-batchs E2 du lot 5 (`services/investigate/evaluation_batch.py`) à la
+place du pipeline E6-E10. Pour le `post_text` (à défaut `claim`) de chaque cas : les
+batchs sont composés avec le composeur de production (`compose` pur, vecteurs de
+`runtime.get_embedder`, mêmes seuils `TOWER_FC_BATCH_*`), un **canari** (nombre de six
+chiffres unique, position tirée) est inséré dans chaque batch, le rôle `extract_batch`
+est exécuté sur le batch et le rôle `extract` sur chaque post seul (référence ; le cache
+`llm_calls` rend les rejeux gratuits). Aucune écriture en base hors caches.
+
+| Métrique | Définition |
+|---|---|
+| Contamination | Part des posts dont les affirmations du batch contiennent le chiffre du canari ou un chiffre d'un autre post du batch absent de leur propre texte ; nombre de batchs dont le canari est contaminé |
+| Omission | Part des posts pour lesquels la référence seule trouve un chiffre que le résultat du batch ne contient pas (un post absent de la sortie compte comme omis) |
+| Omission par position | Même taux par position d'envoi dans le batch (canari compris) : révèle une dégradation en fin de batch |
+| Écart d'affirmations | Moyenne de (affirmations du batch − affirmations seul) par post |
+| Coût par post | Coût moyen du batch (canari compris) par post, comparé au coût seul |
+
+Avec `TOWER_LLM_FAKE=1` la sortie est déterministe et la contamination vaut 0. Cible de
+production : contamination 0 sur le jeu, omission proche de celle de l'extraction seule.
 
 Le jeu est un fichier **JSONL** : un cas par ligne, encodé en UTF-8.
 
@@ -127,8 +152,13 @@ Le jeu est un fichier **JSONL** : un cas par ligne, encodé en UTF-8.
 | `expected_veracity` | oui | `true`, `mostly_true`, `misleading`, `false`, `unverifiable` |
 | `expected_context_need` | oui | `none`, `useful`, `necessary` |
 | `expected_context_types` | non | Liste des types de contexte attendus |
-| `category` | non | `published_factcheck`, `true_banal`, `unverifiable`, `context`, `injection`, `trap_pair`, `mirror_pair`, `established_fact_denial`, `debated`, `lexical`, `other` |
+| `category` | non | `published_factcheck`, `true_banal`, `unverifiable`, `context`, `injection`, `trap_pair`, `interlingual_pair`, `mirror_pair`, `established_fact_denial`, `debated`, `lexical`, `other` |
 | `pair_id` | non | Identifiant commun aux deux cas d'une paire (piège, miroir, perturbation lexicale, pays échangés) |
+| `group` | non | Étiquette de groupe attendu : les cas de même étiquette doivent finir dans le même groupe, des étiquettes différentes dans des groupes distincts (pureté, fusions à tort, regroupements manqués) |
+| `pair_expect` | non (exige `pair_id`) | `same` ou `different` pour la paire `pair_id` ; à défaut, `trap_pair` vaut `different`, `interlingual_pair` vaut `same` |
+| `reference` | non | Fait de référence qui sert à calculer la bande du cas : `{"value": 7.4, "unit": "percent", "period_start": "2025-10-01", "period_end": "2025-12-31", "territory": "FR", "definition_variant": "ilo", "previous_value": 7.3}` (seul `value` est obligatoire) |
+| `expected_band` | non (exige `reference`) | `{"band": "within_1_tau", "side": "above"}` ou `{"band": "contains", "side": "none"}` |
+| `expected_outdated` | non (exige `reference`) | `true` ou `false` : l'affirmation reprend la valeur précédente du fait |
 | `source_url` | non | Fact-check publié qui fixe l'issue attendue (traçabilité) |
 | `notes` | non | Remarques libres |
 | `example` | non | `true` pour un cas d'exemple, exclu des métriques publiées |
@@ -147,6 +177,42 @@ routeur, mêmes contrôles), sans écrire d'enquête en base. Métriques du rapp
 | Paires | Part des paires miroir ou de perturbation dont les deux issues sont identiques |
 | Coût et latence | Coût moyen par cas (micro-dollars, cache compris : un cas rejoué coûte 0) et latence moyenne et p95 |
 
-Les résultats sont aussi donnés par catégorie et par langue. Les cinq cas
+Les résultats sont aussi donnés par catégorie et par langue.
+
+### Couche E3 (appariement, groupes, bandes)
+
+Dès que le jeu contient des paires ou des groupes attendus (`pair_id` avec attendu,
+`group`) ou des cas avec `reference`, l'outil rejoue la décision E3 de production : même
+extraction E2 (même constructeur d'entrée, même filtre de fidélité, cache `llm_calls` : un
+rejeu coûte 0), signature normalisée avec la `date` du cas, embeddings du texte original
+(et du français pivot si la langue n'est pas le français), `plan_match` avec les seuils du
+profil actif, arbitre de paires via le routeur quand le plan le demande. Seules les paires
+listées dans le fichier sont comparées (deux à deux au sein d'un même `pair_id` ou d'une
+même étiquette `group`), jamais les N². Aucune écriture en base hors caches (`llm_calls`,
+budgets, `source_cache`). Les groupes prédits sont l'union transitive des décisions JOIN.
+La bande (et `outdated`) est calculée avec le domaine et les tolérances des réglages ; si
+l'extraction n'a pas d'unité, celle de `reference` est utilisée.
+
+| Métrique E3 | Définition |
+|---|---|
+| **Taux de faux réemploi** (cible < 1 %, affiché en premier avec ✅/❌) | Paires attendues `different` décidées JOIN ÷ paires attendues `different` |
+| Fusions à tort | JOIN entre cas d'étiquettes `group` différentes (nombre et taux) |
+| Regroupements manqués | NEW entre cas de même étiquette (nombre et taux) |
+| Pureté des groupes | Pour chaque groupe prédit, part de l'étiquette majoritaire ; moyenne pondérée (cas sans étiquette ignorés) |
+| Paires interlingues | Part des paires `interlingual_pair` décidées JOIN (cible : toutes) |
+| Arbitre et coût | Nombre d'appels de l'arbitre (et part des paires), coût E3 (extraction, embeddings, arbitre) |
+| Exactitude des bandes | Bande et côté conformes à `expected_band` ; exactitude de `expected_outdated` |
+
+Le rapport ajoute, parmi les métriques E6-E10, la **part des affirmations réglées sans
+recherche web payante** (E7, cible ≥ 50 % en V1) : part des cas dont l'enquête n'a fait
+aucune recherche payante (le décompte vient d'un enveloppeur de l'atlas, sans toucher au
+pipeline ; « not available » si rien n'a été mesuré).
+
+`--e3-only` saute E6-E10 (exécution peu coûteuse de la couche d'appariement ; rapport et
+résumé limités à la section E3). Avec `TOWER_LLM_FAKE=1` le résultat est déterministe ; les
+huit derniers cas d'exemple (paires piège valeur et négation, paire interlingue en/de avec
+marqueur `[fr: …]` dans `post_text`, bande et valeur périmée) donnent 0 % de faux réemploi.
+Le fournisseur factice ne renseigne pas la juridiction des affirmations non françaises : la
+paire interlingue d'exemple est donc en/de et non fr/en. Les cas
 d'exemple de `tests/fixtures/factcheck_eval_examples.jsonl` ne servent qu'à démontrer
 l'outil : ce ne sont pas des cas du jeu de référence.

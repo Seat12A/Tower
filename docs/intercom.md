@@ -38,12 +38,24 @@ caractères** ; pour un compte suivi, le bot relit la liste (500 au plus) pour o
 | `/incidents list` / `resolve empreinte [note]` | Erreurs stockées | `errors:read` / `errors:manage` |
 | `/usage` | Allocation gratuite du jour, dépense du mois par portée (`global`, fournisseurs, `provider:x`) | `usage:read` |
 | `/factcheck url` | Demande de fact-check manuelle (N4) d'un post X ; répond « acceptée » ou « déjà demandée » | `factcheck:request` |
+| `/group show id` | Groupe : membres, posts, verdict, fiche et bande, journal | `dossiers:read` |
+| `/group merge cible source motif` / `/group split id affirmations motif` | Fusion et scission (réversibles) | `claim_groups:manage` |
+| `/fact show id` / `/fact list [statut]` | Fiches de référence | `dossiers:read` |
+| `/fact validate id` / `/fact reject id motif` | Validation d'une fiche | `reference_facts:validate` |
+| `/fact band verdict` | Valide la bande d'un verdict validé | `reference_facts:validate` |
+| `/profile show` / `/profile history` | Profil actif, versions | `profiles:read` |
+| `/profile set chemin valeur motif` / `/profile rollback motif` | Nouvelle version activée / retour à la précédente (bornes de sécurité) | `profiles:manage` (admin) |
+| `/level set type cible niveau heures motif` / `/level list` / `/level revoke id motif` | Forçage de niveau d'un contenu, d'un groupe ou d'un compte | `levels:override` |
+| `/narrative list [état]` / `/narrative show id` | Récits (état, part, comptes, plateformes) ; détail : groupes, statistiques, journal, scission suggérée | `dossiers:read` |
+| `/narrative merge cible source motif` / `/narrative split id groupes motif` | Fusion et scission de récits | `claim_groups:manage` |
+| `/narrative title id [titre]` | Valide le titre proposé, ou enregistre un titre corrigé | `dossiers:review` |
 
 `/incidents` demande le rôle `admin` (seul rôle avec `errors:*`). Les droits effectifs sont l'intersection des rôles de la personne et des scopes du
 token du bot (voir [auth.md](auth.md)). Token du bot : `dossiers:read
 dossiers:create dossiers:review dossiers:decide dossiers:publish events:read
 errors:read errors:manage watchlist:read watchlist:write usage:read
-factcheck:request`.
+factcheck:request claim_groups:manage reference_facts:write reference_facts:validate
+profiles:read profiles:manage levels:override` (lot 4 : à ajouter au token existant).
 
 ## Notifications
 
@@ -53,6 +65,7 @@ factcheck:request`.
 | `budget.threshold_reached` | `TOWER_DISCORD_CHANNEL_BUDGET` |
 | `dossier.opened`, `dossier.transitioned` | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
 | `draft.ready` (brouillon de fact-check complet, avec boutons) | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
+| `narrative.surge_detected` (palier `surge` ; palier `alert` marqué « ALERTE VAGUE »), `narrative.surge_ended` (bilan) | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
 | `watchlist.changed`, `extension_filters.published` | `TOWER_DISCORD_CHANNEL_ADMIN` |
 
 Messages courts, avec la plateforme d'origine quand l'événement en porte une, dans la
@@ -88,6 +101,22 @@ brouillon validé ou rejeté. Réponses éphémères, dans la langue Discord de 
 attente non encore affichés (`GET /v1/drafts?status=pending&notified=false`, paginé). Cela
 couvre aussi la limite du notificateur (événements manqués au tout premier démarrage).
 Un `draft.ready` rejoué pour un brouillon déjà affiché ou déjà décidé est ignoré.
+
+Lot 4 : le message du brouillon montre aussi le **groupe** (nombre d'affirmations,
+autres posts et plateformes, groupe proche suggéré et son verdict), la **fiche et la
+bande** d'une affirmation chiffrée (avec l'alerte « périmé »), et les fact-checks
+externes trouvés. Boutons ajoutés : « Même groupe que… » (fenêtre : identifiant d'un
+groupe, fusionné dans celui du brouillon), « Scinder » (affirmations et motif), « Créer
+une fiche » (valeur, période, source ; seulement une fois le verdict validé), « Valider
+la bande » (éditeur). Les erreurs `TWR-FCK-020` à `030` sont traduites.
+
+Lot 5 : le message du brouillon montre le **récit** du groupe (titre, état) et un bloc
+**signaux de coordination** (« informatif, jamais utilisé pour le verdict »). Les
+notifications de vague sont idempotentes par récit et palier (une vague qui monte de
+`surge` à `alert` est notifiée deux fois ; une fin de vague libère le récit pour une
+vague ultérieure ; mémoire bornée). Le notificateur n'autorise aucune mention
+(`AllowedMentions.none()`) : l'alerte ne mentionne pas de rôle. Les erreurs
+`TWR-FCK-043` et `044` sont traduites.
 
 ### Reprise sans perte
 

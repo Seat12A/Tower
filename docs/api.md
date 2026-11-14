@@ -112,4 +112,63 @@ brouillon est l'identifiant public du verdict.
 | GET | `/v1/drafts/{id}` | `dossiers:read` ; brouillon complet : issue, besoin et types de contexte, confiance et bande, affirmation, contenu et lien, dossier, notes par langue (texte, fiche, origine), liens, justification avec citations (source, passage, traduction française), ce que les sources ne disent pas, points à vérifier, objection, critique, contrôles, indicateurs, sources citées, `version` |
 | POST | `/v1/drafts/{id}/review` | `{decision: accept\|edit\|reject, veracity?, note_text?, note_lang?, labels?, reason?, expected_version?}` ; `dossiers:review` (avis favorable) ou `dossiers:decide` (validation, rejet) ; répond `{outcome, draft}`. Erreurs : `TWR-FCK-007` (inconnu), `TWR-FCK-008` (déjà décidé), `TWR-FCK-009` (revue invalide), conflit de version |
 | POST | `/v1/drafts/{id}/notified` | `dossiers:read` (`204`) ; marque le brouillon comme affiché par le bot (idempotent) |
-| GET | `/v1/content/{platform}/{external_id}/verdict?lang=` | **public** ; verdicts **validés** seulement, par affirmation : texte, issue, besoin et types de contexte, date de validation, note (langue choisie : `lang` demandée si elle existe, sinon langue du post, puis `en`, puis `fr`), fiche, liens, `machine_translated` ; en-tête `Cache-Control: public, max-age=300` ; `404` `TWR-FCK-013` sans verdict validé |
+| GET | `/v1/content/{platform}/{external_id}/verdict?lang=` | **public** ; verdicts **validés** et non périmés seulement (lot 4 : aussi ceux qui couvrent la variante par rattachement ou par bande, avec `inherited: {rule, origin_verdict_id, origin_url}` ; la note d'origine n'est montrée que si son régime le permet), par affirmation : texte, issue, besoin et types de contexte, date de validation, note (langue choisie : `lang` demandée si elle existe, sinon langue du post, puis `en`, puis `fr`), fiche, liens, `machine_translated` ; en-tête `Cache-Control: public, max-age=300` ; `404` `TWR-FCK-013` sans verdict validé |
+
+### Fact-check V1 (lot 4)
+
+Voir [fact-check.md](fact-check.md#lot-4--v1--embeddings-groupes-réutilisation-profils).
+Le brouillon (`GET /v1/drafts/{id}`) gagne `group` (`id`, `level`, `members`),
+`other_posts` (10 autres posts du groupe), `platforms`, `reusable_verdict` (verdict du
+groupe proche suggéré), `reference_fact`, `band` (`band`, `side`, `label`), `outdated`,
+`external_factchecks` ; `POST /v1/drafts/{id}/review` accepte `validate_band: true`
+(un éditeur valide aussi la bande du brouillon).
+
+| Méthode | Chemin | Accès |
+|---|---|---|
+| GET | `/v1/groups/{id}` | `dossiers:read` ; groupe (niveau, état, `merged_into`, fiche et bande, verdict actif avec `reuse_rule`), membres actifs (texte d'origine et langue, texte pivot, posts), journal (50 derniers) |
+| GET | `/v1/groups/{id}/members?include_removed=` | `dossiers:read` |
+| POST | `/v1/groups/{target}/merge` | `claim_groups:manage` ; `{source_group_id, reason}` ; `TWR-FCK-020` à `023` |
+| POST | `/v1/groups/{id}/split` | `claim_groups:manage` ; `{claim_ids, reason}` ; répond le nouveau groupe ; `TWR-FCK-024` |
+| POST | `/v1/reference-facts` | `reference_facts:write` (`201`) ; fiche complète, statut `pending` ; `TWR-FCK-026` |
+| POST | `/v1/reference-facts/from-verdict` | `reference_facts:write` (`201`) ; `{verdict_id, value, period_start, period_end, source_url, source_name, published_at, next_publication?, indicator?, label?}` ; verdict actif d'une statistique |
+| GET | `/v1/reference-facts?status=&indicator=`, `/v1/reference-facts/{id}` | `dossiers:read` |
+| POST | `/v1/reference-facts/{id}/validate` | `reference_facts:validate` ; `reference_fact.validated` |
+| POST | `/v1/reference-facts/{id}/reject` | `reference_facts:validate` ; `{reason}` |
+| GET | `/v1/reference-facts/{id}/bands` | `dossiers:read` |
+| POST | `/v1/verdict-bands` | `reference_facts:validate` (`201`) ; `{fact_id, band, side, veracity, context_need, context_types, source_verdict_id}` ; `TWR-FCK-027`, `028` |
+| POST | `/v1/verdict-bands/from-verdict` | `reference_facts:validate` (`201`) ; `{verdict_id}` : bande et issue du verdict |
+| POST | `/v1/verdict-bands/{id}/revoke` | `reference_facts:validate` ; `{reason}` |
+| GET | `/v1/profiles` | `profiles:read` ; versions (dont la version 0 par défaut) |
+| GET | `/v1/profiles/active` | `profiles:read` ; version et réglages complets |
+| POST | `/v1/profiles` | `profiles:manage` (`201`) ; `{settings?\|changes?, reason, activate}` (`changes` : chemins plats, ex. `levels.N1.e1_threshold`) ; `TWR-FCK-030` hors bornes |
+| POST | `/v1/profiles/{version}/activate`, `/v1/profiles/rollback` | `profiles:manage` ; `{reason}` ; `TWR-FCK-029` |
+| POST | `/v1/level-overrides` | `levels:override` (`201`) ; `{target_type: content\|group\|account, target, level, hours, reason}` ; répond le forçage et `applied` ; `TWR-FCK-031`, `032` |
+| GET | `/v1/level-overrides?active=true` | `dossiers:read` |
+| POST | `/v1/level-overrides/{id}/revoke` | `levels:override` ; `{reason}` |
+
+### Fact-check V2 (lot 5) : récits et vagues
+
+Voir [fact-check.md](fact-check.md#lot-5--v2--flux-de-masse-ordonnanceur-récits-et-vagues).
+Tag OpenAPI `narratives`. Le brouillon (`GET /v1/drafts/{id}`) gagne `narrative`
+(`{id, title, state, groups}` quand son groupe appartient à un récit, sinon nul) et
+`coordination` (signaux informatifs, voir ci-dessous) ; `GET /v1/groups/{id}` (et les
+réponses de fusion et de scission) gagne `narrative` (`{id, state}` ou nul).
+
+| Méthode | Chemin | Accès |
+|---|---|---|
+| GET | `/v1/narratives?state=&limit=` | `dossiers:read` ; `state` parmi `active`, `watch`, `surge`, `alert`, `closed` ; sans `state` : récits ouverts, activité la plus récente d'abord. Par récit : `id`, `title`, `title_status`, `state`, `theme`, `groups`, `stats_1h` (`window_end`, `share`, `accounts`, `platforms`), `opened_at`, `last_activity_at` |
+| GET | `/v1/narratives/{id}` | `dossiers:read` ; en plus : `groups_count`, `closed_at`, `medoids`, `groups` (`id`, `level`, `state`, `verdict` `{id, status, veracity}`, `light_signal`, `reach`), `stats` (`5m`, `1h`, `6h` : 12 derniers points, du plus ancien au plus récent), `journal` (50 derniers), `representative_group`, `previous_narrative`, `merged_into`, `split_suggested`, `novelty` (10 empreintes qui ont forcé une extraction) ; `TWR-FCK-043` |
+| POST | `/v1/narratives/{target}/merge` | `claim_groups:manage` ; `{source_id, reason}` ; répond le récit cible ; `TWR-FCK-043`, `044` ; `narrative.merged` |
+| POST | `/v1/narratives/{id}/split` | `claim_groups:manage` ; `{group_ids, reason}` ; répond le nouveau récit ; `TWR-FCK-043`, `044` ; `narrative.split` |
+| POST | `/v1/narratives/{id}/title` | `dossiers:review` ; `{title?}` : sans titre, valide le brouillon de titre ; avec, enregistre le titre corrigé (validé) |
+
+**Signaux de coordination** (`coordination` du brouillon) : liste de `{kind, count,
+window_minutes, detail}`, **informative seulement**, jamais utilisée pour un verdict ni
+pour la priorité, jamais fondée sur un bord politique supposé :
+
+| `kind` | Condition |
+|---|---|
+| `near_identical_burst` | Au moins 10 comptes distincts publient des copies (même racine `copy_of_id` ou même empreinte) des posts du groupe en 10 minutes |
+| `new_accounts` | Au moins 50 % des auteurs (10 au moins) vus pour la première fois par Seat 12A depuis moins de 7 jours (date de première observation, pas l'âge réel du compte) |
+| `installation_burst` | Une installation de l'extension produit au moins 20 observations des posts du groupe en 10 minutes |
+| `media_reuse` | Un même média est attaché à des posts d'au moins 2 groupes (`window_minutes` = 0 ; les légendes peuvent se contredire : l'équipe vérifie) |

@@ -87,6 +87,20 @@ class Settings(BaseSettings):
     ingest_daily_quota: int = Field(default=500, ge=1)
     """Items per installation and per UTC day."""
 
+    # --- Verification of extension contents (X oEmbed, service ingest) ----------
+    oembed_enabled: bool = True
+    """Check what the extension declares against the public embed of the post."""
+    oembed_url: str = "https://publish.x.com/oembed"
+    oembed_per_minute: int = Field(default=30, ge=1, le=120)
+    """Embed requests per minute, all replicas together (one batch job per minute)."""
+    oembed_daily_max: int = Field(default=20_000, ge=0)
+    """Embed requests per UTC day; beyond, contents stay unverified."""
+    oembed_concurrency: int = Field(default=2, ge=1, le=8)
+    """Simultaneous embed requests within a batch."""
+    oembed_max_age_h: int = Field(default=24, ge=1, le=168)
+    """Only contents first seen within this window are checked."""
+    oembed_timeout_s: float = Field(default=10.0, gt=0, le=60)
+
     # --- Fact-check pipeline (lot 3, services factcheck and investigate) ----------
     llm_fake: bool = False
     """Fake model provider producing schema-valid outputs (dev, smoke tests, eval demo).
@@ -116,6 +130,87 @@ class Settings(BaseSettings):
     """Reference languages always written besides the post language (``en`` is added for
     English posts)."""
     fc_review_locale_fallback: str = "fr"
+
+    # --- Fact-check V1 (lot 4: embeddings, groups, reuse, profiles) ---------------
+    fc_embed_batch_size: int = Field(default=2000, ge=100, le=2000)
+    """Contents embedded per ``factcheck.embed_batch`` job (one API request per 256)."""
+    fc_embed_debounce_seconds: int = Field(default=30, ge=0, le=600)
+    """Delay before a batch runs, so the events of a minute share one batch."""
+    fc_embedding_retention_days: int = Field(default=14, ge=7, le=60)
+    fc_e1_sample_rate: float = Field(default=0.02, ge=0, le=0.2)
+    """Share of contents discarded by E1 kept as a random sample (false negatives)."""
+    fc_e1_thresholds: str = '{"N1": 0.15, "N2": 0.15, "N3": 0.05, "N4": 0.0}'
+    """Default E1 thresholds by level (JSON), used by the default processing profile."""
+    fc_match_candidates: int = Field(default=5, ge=1, le=20)
+    """Nearest groups compared by E3."""
+    fc_match_same_threshold: float = Field(default=0.92, ge=0.85, le=0.999)
+    """Cosine similarity above which an identical-signature pair of the same language is
+    the same claim without the arbiter."""
+    fc_match_grey_threshold: float = Field(default=0.80, ge=0.5, le=0.99)
+    """Lower bound of the grey zone (arbiter); below, the pair is different."""
+    fc_current_period_days: int = Field(default=31, ge=1, le=366)
+    """Without a reference fact, two "currently" claims share a period when their posts
+    are at most this many days apart."""
+    fc_band_tau_ratio: float = Field(default=0.05, gt=0, le=0.5)
+    """Value band tolerance: tau = max(floor, ratio x |reference|)."""
+    fc_band_floor_rate_points: float = Field(default=0.2, ge=0)
+    """Tolerance floor for a rate (unit ``%``), in points."""
+    fc_band_floor_default: float = Field(default=0.0, ge=0)
+    """Tolerance floor for other units (in the unit of the fact)."""
+    fc_verdict_ttl_days: str = ""
+    """JSON object overriding the validity of a verdict by claim type, in days."""
+    fc_level_budgets_usd: str = '{"N0": 1, "N1": 5, "N2": 10, "N3": 20, "N4": 15}'
+    """Monthly caps of the budget scopes ``level:N0..N4`` created by ``tower llm seed``."""
+    fc_insee_indicators: str = ""
+    """JSON list of tracked INSEE indicators fed automatically into reference facts."""
+    fc_external_factcheck_lookup: bool = True
+    """E3 looks up existing fact-checks (Google Fact Check Tools) for new groups."""
+
+    # --- Fact-check V2 (lot 5: mass flow, scheduler, light check, narratives) ----
+    fc_mass_flow: bool = True
+    """Extract N1 contents in micro-batches (lot 5). False: E1 classifies only (lot 4)."""
+    fc_batch_size: int = Field(default=10, ge=1, le=12)
+    fc_batch_max_tokens: int = Field(default=2500, ge=200, le=8000)
+    fc_batch_max_wait_s: int = Field(default=21600, ge=60)
+    """A batch leaves after this delay even if it is not full."""
+    fc_batch_dissimilarity: float = Field(default=0.6, gt=0, le=1)
+    """Two posts of a batch never have a cosine above this value."""
+    fc_canary_rate: float = Field(default=0.01, ge=0, le=0.5)
+    fc_solo_audit_rate: float = Field(default=0.02, ge=0, le=0.5)
+    fc_scheduler_target_per_pass: float = Field(default=5.0, gt=0)
+    fc_scheduler_min_interval_s: int = Field(default=60, ge=10)
+    fc_scheduler_max_interval_s: int = Field(default=1800, ge=60)
+    fc_promotion_observers: int = Field(default=5, ge=1)
+    """Independent observers (installations) in 6 h promoting a group to N2."""
+    fc_promotion_views: int = Field(default=50000, ge=1)
+    fc_promotion_velocity_factor: float = Field(default=3.0, gt=1)
+    fc_demotion_hours: int = Field(default=24, ge=1)
+    fc_light_check_share: float = Field(default=0.2, ge=0, le=1)
+    """Share of the new N1 groups of a pass sent to the light check (top priority)."""
+    fc_deep_queue_capacity: int = Field(default=50, ge=1)
+    """Backpressure: the scheduler enqueues no investigation beyond this fc-deep backlog."""
+    fc_narrative_semantic_threshold: float = Field(default=0.80, ge=0.5, le=0.99)
+    fc_narrative_medoid_floor: float = Field(default=0.60, ge=0.3, le=0.99)
+    fc_narrative_rare_entity_max: int = Field(default=50, ge=1)
+    """An entity seen in at most this many claims over 30 days is a specific anchor."""
+    fc_narrative_close_days: int = Field(default=7, ge=1)
+    fc_narrative_split_groups: int = Field(default=25, ge=2)
+    fc_wave_thresholds: str = (
+        '{"watch": {"share": 0.01, "accounts": 10}, '
+        '"surge": {"share": 0.03, "accounts": 30, "growth": 2.0}, '
+        '"alert": {"share": 0.08, "accounts": 80}}'
+    )
+    fc_watched_themes: str = "health,elections,security,disaster"
+    """Themes under watch: a narrative of these themes at the watch tier goes to alert."""
+    fc_surge_daily_quota: int = Field(default=3, ge=0)
+    """Drafts reserved for wave mode, separate from the daily quota."""
+    fc_surge_end_hours: int = Field(default=6, ge=1)
+    fc_surge_verdict_ttl_hours: int = Field(default=12, ge=1)
+    fc_sampling_per_minute: int = Field(default=200, ge=1)
+    """Beyond this rate per surging narrative, only a stratified sample is extracted."""
+    fc_novelty_posts: int = Field(default=3, ge=1)
+    fc_novelty_accounts: int = Field(default=3, ge=1)
+    fc_novelty_budget_share: float = Field(default=0.2, ge=0, le=1)
 
     # --- Knowledge sources (Atlas) -------------------------------------------------
     google_api_key: SecretStr | None = None

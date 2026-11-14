@@ -9,6 +9,7 @@ from typing import Protocol
 
 from tower.core.domain import error_codes as ec
 from tower.core.domain.error_codes import ErrorCode
+from tower.core.domain.verification import EmbedPost
 
 
 class UnsupportedOperation(Exception):
@@ -169,3 +170,15 @@ class PollingPlatformClient(PlatformClient, Protocol):
         pagination_token: str | None = None,
         exclude: Sequence[str] = (),
     ) -> PollPage: ...
+
+
+class PublicEmbedClient(Protocol):
+    """Public embed of a post (X oEmbed): no credentials, no API quota.
+
+    Used only to check what the extension declares (``core/domain/verification.py``).
+    ``lookup`` returns None when the post has no public embed (missing, deleted,
+    protected); raises ``PlatformRateLimited``, ``PlatformUnavailable`` or
+    ``PlatformBadResponse``.
+    """
+
+    async def lookup(self, external_id: str) -> EmbedPost | None: ...

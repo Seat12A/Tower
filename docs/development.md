@@ -3,7 +3,7 @@
 ## Prérequis
 
 - Python 3.13, [uv](https://docs.astral.sh/uv/)
-- PostgreSQL 16 (local ou Docker)
+- PostgreSQL 16 avec l'extension **pgvector ≥ 0.8** (lot 4 ; local ou Docker)
 
 ```bash
 uv sync
@@ -14,7 +14,18 @@ cp .env.example .env    # puis ajuster TOWER_DATABASE_URL
 ```
 
 ```bash
-docker run -d --name tower-pg -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres:16
+docker run -d --name tower-pg -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 pgvector/pgvector:0.8.1-pg16
+```
+
+Sans Docker (Debian/Ubuntu) : le paquet `postgresql-16-pgvector` des dépôts Debian peut
+être trop ancien (0.6 : pas de `halfvec`). Compiler alors depuis les sources :
+
+```bash
+apt-get install -y postgresql-server-dev-16 build-essential
+```
+
+```bash
+git clone --depth 1 --branch v0.8.1 https://github.com/pgvector/pgvector.git /tmp/pgvector && make -C /tmp/pgvector && sudo make -C /tmp/pgvector install
 ```
 
 ```bash
@@ -65,6 +76,42 @@ contre un vrai uvicorn (httpx `ASGITransport` ne diffuse pas une réponse infini
 | `tower errors list [--all]` | Erreurs stockées |
 | `tower errors resolve <empreinte> [--note]` | Résoudre une erreur |
 | `tower errors catalog --markdown` | Catalogue (régénère `docs/errors.md`) |
+
+## Test de charge
+
+`scripts/loadtest_wave.py` (script autonome, hors paquet, non collecté par pytest) injecte
+une vague synthétique contre des processus en marche : variantes d'une même rumeur
+française (copies, quasi-copies, chiffres nouveaux, traductions avec le marqueur
+`[fr: …]`), réparties sur de nombreux faux auteurs et installations, plus du bruit de fond
+sans rapport, via `POST /v1/ingest/observations` (lots de 50, un jeton d'installation
+local par tranche de 400 posts pour respecter le quota par installation).
+
+Critère du lot 5 : 100 000 posts en 24 h sur un récit, sans retard des files N3, sans
+dépassement de budget, premier brouillon en moins de 2 h, flux de masse sous 0,00001 $ par
+post. Le script mesure : débit d'ingestion, délai `content.ingested` → `draft.ready` des
+posts du compte surveillé (p50, p95), file d'attente par file (SQL sur `jobs`, pic),
+transitions d'état des récits et heure du premier brouillon de vague, part `sampled_out`,
+coût modèle et embeddings par post (`llm_calls`), compteurs de budget au-delà du plafond.
+
+Lancement local (outils du smoke test de la session précédente dans
+`docs/factcheck/prompts/lot-5-briefs/` : `start.sh`, `env.sh`, `fake_x.py`) :
+
+```bash
+source docs/factcheck/prompts/lot-5-briefs/env.sh   # TOWER_LLM_FAKE=1, gate sur 0.0.0.0, services du fact-check
+uv run tower migrate && uv run tower llm seed
+uv run tower gate &  uv run tower hangar &          # hangar avec TOWER_SERVICES=...,factcheck,investigate
+python docs/factcheck/prompts/lot-5-briefs/fake_x.py posts.json 8799 &   # faux serveur X (radar)
+uv run python scripts/loadtest_wave.py --gate-url http://127.0.0.1:8765 \
+    --database-url "$TOWER_DATABASE_URL" --posts 5000 --minutes 10 \
+    --narrative-variants 30 --watched-post-every 60 --watched-post-file posts.json
+```
+
+Posts du compte surveillé (N3, immédiat) : soit via le faux serveur X (`--watched-post-file`,
+le radar les récupère), soit en ingestion directe avec un jeton de service portant
+`content:ingest` (`--watched-service-token`, source `radar`). Le compte doit être dans la
+liste de suivi (`--watched-handle`, `--watched-author-id`). `--drain-seconds` laisse le
+temps aux files de se vider avant les mesures. `python scripts/loadtest_wave.py --help`
+liste tous les arguments.
 
 ## Nouvelle table
 

@@ -232,3 +232,79 @@ Question ouverte (posée à Jules) : le tableau des coefficients de
 [factcheck/pipeline.md](factcheck/pipeline.md) donne +0,8 à un second avis « du même
 côté », alors que Q3 dit qu'un écart de style est « sans effet sur la confiance ». Le
 code applique le tableau ; le coefficient se règle par `TOWER_FC_CONFIDENCE_COEFFICIENTS`.
+
+## Lot 4 (V1 du fact-check, 2026-11-11)
+
+Décisions prises en session ; Jules, absent, a demandé de trancher sans lui.
+
+| Décision | Raison |
+|---|---|
+| pgvector : template PostgreSQL de Railway avec pgvector (l'image standard ne le fournit pas), bascule par `pg_dump`/`pg_restore` ; la migration `0006` échoue avec `TWR-FCK-035` si l'extension manque ou est < 0.8 | Réponse de Jules à la question posée en début de session ; procédure dans [deployment-railway.md](deployment-railway.md#pgvector) |
+| Type `halfvec` maison (`core/db/vector.py`) au lieu du paquet Python `pgvector` | Le paquet tire numpy (RAM) ; vecteurs échangés en texte, calculs dans PostgreSQL |
+| Un groupe = des affirmations qui disent la même chose. Rattachement seulement à **signature normalisée identique**, et similarité ≥ 0,92 (même langue) ou avis « même affirmation » de l'arbitre ; arbitre toujours pour une paire interlingue | Tout membre d'un groupe est couvert par le verdict du groupe : rattacher, c'est réutiliser (Q9, règle 1) |
+| Signature compatible sans être identique (un champ absent d'un côté) et arbitre favorable : **nouveau groupe**, avec le groupe proche suggéré pour une fusion manuelle | Dans le doute, ne pas réutiliser ; l'équipe fusionne d'un clic |
+| Variantes chiffrées de valeurs différentes : groupes distincts reliés à la même fiche ; héritage seulement par une bande validée d'une fiche validée | Q9, règle 2 : jamais de réutilisation par similarité entre variantes chiffrées. Écart avec le scénario du prompt (« un groupe ») : la variante voisine a son propre groupe |
+| Le prédicat (texte libre) n'entre pas dans l'identité de la signature ; il sert à résoudre la fiche | Il n'est pas neutre en langue ; la similarité et l'arbitre couvrent le sens |
+| Vecteur représentatif des groupes dans l'espace pivot français ; seuil testé sur les vecteurs d'origine pour une paire de même langue | Q8 : vecteur d'origine dans une même langue, pivot pour les autres, un seul index |
+| Fusion refusée si seule la source porte un verdict (`TWR-FCK-023`) ou si les deux verdicts diffèrent (`TWR-FCK-022`) ; une fusion s'annule par la scission des affirmations déplacées | Une fusion ne doit jamais étendre un verdict sans décision explicite ; réversibilité par le journal |
+| Scission : nouveau groupe sans verdict, nouvelle enquête | Une scission ne propage jamais un verdict |
+| Verdict hérité par bande : nouvelle ligne `verdicts` active (`reuse_rule = band`, `reused_from_verdict_id`), hors quota, sans relecture ; note d'origine montrée seulement si elle n'est ni provisoire, ni de régime « formulation » | Traçabilité et réversibilité ; régimes de [factcheck/contexte.md](factcheck/contexte.md) |
+| E1 au lot 4 : classe et enregistre (N0/N1, échantillon de 2 % marqué `sampled`), ne déclenche pas d'extraction ; le déclenchement N3 du lot 3 reste immédiat, sans passer par E1 | Le flux de masse (extraction N1, échantillon envoyé à E2) est au lot 5 ; ne pas ajouter de latence au N3 |
+| Lots d'embeddings par minute : l'abonnement enfile un job dédoublonné par minute (`emb:<minute>`) retardé de 30 s, qui prend tous les contenus en attente | Lots de 100 à 2 000 textes sans état en mémoire |
+| Cache des embeddings : contenus déjà vectorisés sautés, vecteurs d'affirmations réutilisés à texte identique, cache mémoire borné par processus ; un `llm_calls` par requête, sans sortie | Pas de nouvelle table de cache ; aucun texte payé deux fois en pratique |
+| Profils : JSON versionné, version 0 = configuration ; bornes vérifiées par le cas d'usage (seuil ≥ 0,85, zone grise < seuil, N4 sans réutilisation et seuil E1 nul, plafond unitaire ≤ budget mensuel…) ; l'activation met à jour les plafonds `level:N*` de la période courante | Modifiable à chaud depuis Discord avec retour arrière |
+| Forçage de niveau : le plus précis l'emporte (contenu > groupe > compte) ; jamais de baisse pendant une enquête en cours ; l'expiration ne fait pas redescendre le groupe | Promotion monotone ([factcheck/niveaux.md](factcheck/niveaux.md)) |
+| Péremption par type d'affirmation (statistique 120 j, situation en cours 2 j, procédure 14 j…), plafonnée par la prochaine publication de la fiche et à 6 h avec une note provisoire | Valeurs de départ, réglables par `TOWER_FC_VERDICT_TTL_DAYS` |
+| Fiches INSEE automatiques créées `pending` : un relecteur valide avant tout usage | Une fiche fausse propagerait des verdicts faux |
+| Création de groupe sérialisée par famille de signature (verrou consultatif de transaction) avec une nouvelle recherche pgvector dans la transaction ; seule la règle sans arbitre s'y applique | Le smoke test a montré deux extractions simultanées de la même affirmation créant deux groupes ; l'arbitre (réseau) ne peut pas tourner dans une transaction : une paire interlingue simultanée reste un groupe à part, à fusionner |
+| Fusion : les brouillons de la source passent en `superseded` ; la revue d'un brouillon d'un groupe fusionné est refusée (`TWR-FCK-021`) | Un verdict ne doit jamais devenir actif sur un groupe absorbé |
+| Copie exacte d'un post (même empreinte) : reliée aux mêmes affirmations par le chemin du lot 3, sans E3 ni `verdict.reused` | La copie porte déjà les affirmations du contenu d'origine, donc son verdict |
+| Plafond unitaire du profil : profondeur standard et N4 ; la profondeur renforcée hors N4 garde `TOWER_FC_CAP_REINFORCED_USD` | Le tableau des profondeurs de [factcheck/niveaux.md](factcheck/niveaux.md) distingue standard et renforcée |
+
+## Lot 5 (V2 du fact-check, 2026-11-12)
+
+Décisions de conception arrêtées au début du lot (contrat des sous-agents :
+`factcheck/prompts/lot-5-briefs/CONTRACT5.md`) et tranchées en session, Jules absent.
+
+| Décision | Raison |
+|---|---|
+| API Batch d'Anthropic reportée | L'allocation gratuite couvre le volume de départ ; les micro-lots synchrones suffisent |
+| Voie rapide : priorité 10 (`FAST_LANE_PRIORITY`) pour l'extraction N3/N4, toutes les étapes d'une enquête N3/N4 ou marquée `flags.wave`, et leur assemblage (pas de nouvelle file) | Pas de processus ni de file supplémentaires (RAM) ; un worker qui sert plusieurs files les trie par priorité : sans elle, une vague retardait les N3 de 40 s au smoke test |
+| Groupes N1 (et N2 issus des lots) créés dormants, sans enquête : l'ordonnanceur décide ; N3 et N4 ne l'attendent jamais | Le coût de masse reste borné ; aucun retard pour les comptes suivis |
+| Lot entier rejoué post par post dès 2 échecs de fidélité ou un canari contaminé ; les affirmations du canari ne sont jamais enregistrées | Dans le doute, ne pas faire confiance au lot |
+| Un post contenant un marqueur d'injection de prompt est extrait seul | Il ne doit pas pouvoir contaminer les autres posts du lot |
+| La promotion N1 → N2 relit toujours les métriques quand un client de plateforme existe ; une raison non métrique confirme dès que la lecture réussit ; lecture en échec ⇒ pas de promotion ; pas de client ⇒ promotion `unconfirmed` | Confirmer avant de dépenser, sans bloquer les plateformes sans API |
+| Vérification légère : une fiche validée passe toujours par la bande (déterministe, sans modèle) ; le modèle ne voit jamais la fiche comme preuve | Moins d'appels ; même issue qu'une variante couverte |
+| Quota quotidien de brouillons de l'ordonnanceur et de la vidange : brouillons de vague (`flags.surge`) exclus | Ils ont leur propre quota (`TOWER_FC_SURGE_DAILY_QUOTA`) |
+| Les règles « N3 » et « 2 plateformes » du palier `surge` exigent aussi les planchers de `watch` ; gel de 24 h après un changement des filtres de l'extension : la croissance ne peut pas être remplie | Un post isolé n'est jamais une vague ; un nouveau filtre fait monter le volume artificiellement |
+| Une vague qui monte de `surge` à `alert` republie `narrative.surge_detected` (`tier = alert`) ; la notification du bot est idempotente par récit et palier | L'alerte doit être signalée même si la vague était déjà annoncée |
+| Pas de topic `narrative.created` : la fondation d'un récit n'est inscrite qu'au journal `narrative_events` | Un récit par nouveau groupe serait un bruit sans consommateur |
+| Le chemin « copie qui hérite des affirmations » n'écrit pas `content_extractions` | Une copie n'est jamais en attente de lot (filtre « pas une copie ») ; écrire écraserait le niveau d'une promotion N4 |
+
+## Périmètre après le lot 5 (Jules, 2026-11-12)
+
+| Décision | Raison |
+|---|---|
+| Lot 7 (multi-plateforme) reporté : aucune nouvelle plateforme pour l'instant, X seulement | Choix de Jules ; le modèle de données reste multi-plateforme (`platform`) |
+| Lot 8 (médias) reporté : ni image ni vidéo pour l'instant | Choix de Jules |
+| Lot 9 traité comme un audit (mesure de neutralité), pas comme un lot de fonctionnalités | Choix de Jules ; il suppose des verdicts réels |
+
+## Vérification des contenus de l'extension (2026-11-14)
+
+| Décision | Raison |
+|---|---|
+| Le texte et l'auteur déclarés par l'extension ne sont jamais crus sur parole : ils n'ouvrent pas de fact-check ciblé (N3, forçage de compte) tant que le contenu n'est pas `platform` ou `verified` | Une extension modifiée pouvait inventer un post attribué à un compte suivi (enquête payante, place dans le quota, brouillon sur une déclaration inexistante), ou empoisonner un vrai post avant le radar |
+| Une lecture de la plateforme (radar, demande manuelle, flux) remplace un texte déclaré par l'extension et non confirmé | Le « premier écrit gagne » laissait un faux texte en place pour toujours et empêchait le déclenchement N3 du vrai post |
+| Vérification par l'intégration publique d'X (oEmbed) : gratuite, sans quota de l'API X ; usage validé par Jules | Lire chaque post par l'API X serait ruineux (la majorité des posts vient de l'extension) |
+| Volume borné : un lot par minute tous réplicas confondus (30 requêtes), 2 simultanées, 20 000 par jour, contenus de moins de 24 h vérifiés une seule fois, pause sur 429 et sur panne | Demande de Jules de « ne pas spammer » ; la documentation d'X annonce l'absence de limite, des sources tierces de 2026 signalent un bridage des appels en masse |
+| Un 403 d'oEmbed est une panne, pas un post absent | Un refus d'X ne doit pas marquer tous les posts `unavailable` |
+| Post long possiblement tronqué : non concluant, jamais `verified` | Format des posts longs dans oEmbed non vérifié |
+
+### Écartées
+
+| Option | Raison |
+|---|---|
+| Point d'accès non documenté `cdn.syndication.twimg.com/tweet-result` | Non officiel, déjà cassé par le passé, assimilable à du scraping (règle 9) |
+| Consensus entre installations comme preuve | Le jeton d'installation est généré par l'extension et aucune IP n'est stockée : un attaquant peut simuler autant d'installations qu'il veut. Reste un signal, pas une preuve |
+| Lecture par l'API X de chaque post de l'extension | Coût (environ 0,005 $ par lecture) |
+

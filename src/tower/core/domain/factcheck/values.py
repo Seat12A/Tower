@@ -16,22 +16,33 @@ __all__ = [
     "UNVERIFIABLE_CLAIM_TYPES",
     "AbsenceReason",
     "Agreement",
+    "ArbiterReason",
+    "Band",
+    "BandSide",
+    "BandStatus",
     "ClaimGroupState",
     "ClaimType",
     "ContextNeed",
     "ContextType",
     "Depth",
     "EntityRole",
+    "FactOrigin",
+    "FactStatus",
+    "GroupEventKind",
     "InvestigationStage",
+    "MatchOutcome",
     "NoteStatus",
     "ObjectionDirection",
     "ObjectionType",
+    "OverrideTarget",
     "Polarity",
     "Regime",
+    "ReuseRule",
     "ReviewDecision",
     "ReviewLabel",
     "ReviewOutcome",
     "Side",
+    "SignatureDifference",
     "TranslationOrigin",
     "Veracity",
     "VerdictStatus",
@@ -217,6 +228,7 @@ class ClaimGroupState(StrEnum):
     VERIFIED = "verified"
     TO_REVALIDATE = "to_revalidate"
     PASSIVE = "passive"
+    MERGED = "merged"  # lot 4: absorbed by another group (``merged_into_id``)
 
 
 class VerdictStatus(StrEnum):
@@ -265,3 +277,158 @@ class ReviewLabel(StrEnum):
     WRONG_CONTEXT = "wrong_context"
     NOTE_REWRITTEN = "note_rewritten"
     NOT_WORTH_CHECKING = "not_worth_checking"
+
+
+# ----------------------------------------------------------------------------- lot 4
+
+
+class ArbiterReason(StrEnum):
+    """Closed reason of the ``pair_arbiter`` role (E3)."""
+
+    SAME_CLAIM = "same_claim"
+    DIFFERENT_VALUE = "different_value"
+    DIFFERENT_PERIOD = "different_period"
+    DIFFERENT_TERRITORY = "different_territory"
+    DIFFERENT_DEFINITION = "different_definition"
+    OPPOSITE_POLARITY = "opposite_polarity"
+    DIFFERENT_SUBJECT = "different_subject"
+
+
+class SignatureDifference(StrEnum):
+    """Why two normalized signatures are not identical (deterministic comparison)."""
+
+    CLAIM_TYPE = "claim_type"
+    SUBJECT = "subject"
+    VALUE = "value"
+    UNIT = "unit"
+    SCALE = "scale"
+    CURRENCY = "currency"
+    PERIOD = "period"
+    TERRITORY = "territory"
+    POLARITY = "polarity"
+    DEFINITION = "definition"
+    COMPARISON_BASE = "comparison_base"
+    MISSING = "missing"  # a field is set on one side only (compatible, not identical)
+
+
+class MatchOutcome(StrEnum):
+    JOIN = "join"  # attached to an existing group
+    NEW = "new"  # new group created
+
+
+class ReuseRule(StrEnum):
+    """How a verdict covers a claim without a new investigation (Q9)."""
+
+    IDENTICAL_SIGNATURE = "identical_signature"
+    BAND = "band"
+
+
+class Band(StrEnum):
+    """Position of a claimed interval relative to a reference value (Q9)."""
+
+    CONTAINS = "contains"
+    WITHIN_1_TAU = "within_1_tau"
+    WITHIN_3_TAU = "within_3_tau"
+    BEYOND = "beyond"
+
+
+class BandSide(StrEnum):
+    NONE = "none"  # band ``contains``
+    ABOVE = "above"  # the claim overstates the reference
+    BELOW = "below"  # the claim understates the reference
+
+
+class BandStatus(StrEnum):
+    ACTIVE = "active"
+    REVOKED = "revoked"
+
+
+class FactStatus(StrEnum):
+    PENDING = "pending"  # waiting for a reviewer; never used before validation
+    VALIDATED = "validated"
+    REJECTED = "rejected"
+    SUPERSEDED = "superseded"
+
+
+class FactOrigin(StrEnum):
+    INVESTIGATION = "investigation"  # created from a validated investigation (bot button)
+    INSEE = "insee"  # automatic feed of the tracked INSEE indicators
+    MANUAL = "manual"
+
+
+class GroupEventKind(StrEnum):
+    CREATED = "created"
+    JOINED = "joined"
+    MERGED = "merged"
+    SPLIT = "split"
+    LEVEL_CHANGED = "level_changed"
+    REPRESENTATIVE_CHANGED = "representative_changed"
+    FACT_LINKED = "fact_linked"
+
+
+class OverrideTarget(StrEnum):
+    CONTENT = "content"
+    GROUP = "group"
+    ACCOUNT = "account"
+
+
+# ----------------------------------------------------------------------------- lot 5
+
+
+class ExtractionStatus(StrEnum):
+    """What E2 did with a content (``content_extractions``)."""
+
+    EXTRACTED = "extracted"  # at least one claim
+    NO_CLAIM = "no_claim"  # extracted, nothing checkable
+    SAMPLED_OUT = "sampled_out"  # surge sampling: counted, not extracted
+    FAILED = "failed"
+
+
+class BatchStatus(StrEnum):
+    PENDING = "pending"
+    DONE = "done"
+    REPLAYED_SOLO = "replayed_solo"  # fidelity or contamination failures: posts replayed alone
+    FAILED = "failed"
+
+
+class LightSignal(StrEnum):
+    """E5 preliminary signal: never published, only used for priority."""
+
+    LIKELY_TRUE = "likely_true"
+    LIKELY_FALSE = "likely_false"
+    UNCERTAIN = "uncertain"
+    NEEDS_CONTEXT = "needs_context"
+
+
+class NarrativeState(StrEnum):
+    ACTIVE = "active"
+    WATCH = "watch"  # >= 1 % of the hourly flow and >= 10 accounts
+    SURGE = "surge"  # wave mode
+    ALERT = "alert"  # N4, immediate Discord alert
+    CLOSED = "closed"  # 7 days without activity
+
+
+class TitleStatus(StrEnum):
+    NONE = "none"
+    DRAFT = "draft"  # written by the model, waiting for a reviewer
+    VALIDATED = "validated"
+
+
+class NarrativeEventKind(StrEnum):
+    CREATED = "created"
+    ATTACHED = "attached"
+    DETACHED = "detached"
+    MERGED = "merged"
+    SPLIT = "split"
+    STATE_CHANGED = "state_changed"
+    MEDOIDS_CHANGED = "medoids_changed"
+    TITLE_SET = "title_set"
+    CLOSED = "closed"
+
+
+class NoveltyKind(StrEnum):
+    NUMBER = "number"
+    LINK = "link"
+    MENTION = "mention"
+    MEDIA = "media"
+    ENTITY = "entity"

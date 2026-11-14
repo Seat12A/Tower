@@ -73,3 +73,47 @@ async def test_forbidden_keys_detector_catches_nested_author() -> None:
     assert inputs.find_forbidden_keys({"claim": {"meta": [{"author": "x"}]}}) == [
         "claim.meta[0].author"
     ]
+
+
+async def test_pair_arbiter_input_has_only_texts_languages_and_dates(
+    db: Database, settings: Settings
+) -> None:
+    """Real E3 run with an arbiter call: author, handle, reach and level never reach it."""
+    from .test_factcheck_matching import Harness, arbiter_out, stat, vec
+
+    h = Harness(db, settings)
+    first = "Le taux de chômage est de 7 % en France."
+    second = "Le chômage atteint 7 % en France."
+    h.embedder.table = {first: vec(1.0), second: vec(0.85)}
+    h.llm.arbiter = [arbiter_out(True)]
+    await h.post(stat(first), author="987654", metrics={"impressions": 123456})
+    await h.post(
+        stat(second),
+        author="5555555",
+        metrics={"impressions": 777},
+        post_text=f"{second} cc @{HANDLE}",
+    )
+
+    (request,) = h.llm.arbiter_requests
+    payload = request.input
+    assert set(payload) == {"claim_a", "claim_b"}
+    for side in payload.values():
+        assert set(side) == {"text", "lang", "post_date"}
+    assert inputs.find_forbidden_keys(payload) == []
+    dumped = json.dumps(payload, ensure_ascii=False)
+    for secret in (HANDLE, *FORBIDDEN_VALUES, "N3", "impressions"):
+        assert secret not in dumped
+    assert request.role == names.ROLE_PAIR_ARBITER and request.budget_scope == "level:N3"
+
+
+def test_pair_arbiter_input_builder_rejects_nothing_but_carries_nothing_else() -> None:
+    from datetime import date
+
+    payload = inputs.pair_arbiter_input(
+        a_text="ˆaˆ", a_lang="fr", a_date=date(2026, 1, 2), b_text="b", b_lang="en", b_date=None
+    )
+    assert payload == {
+        "claim_a": {"text": "ˆaˆ", "lang": "fr", "post_date": "2026-01-02"},
+        "claim_b": {"text": "b", "lang": "en", "post_date": None},
+    }
+    assert inputs.find_forbidden_keys(payload) == []

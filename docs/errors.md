@@ -86,6 +86,32 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-FCK-017` | Note translation failed | 500 | warning | oui | oui |  |
 | `TWR-FCK-018` | Content language not processed by the fact-check pipeline | 422 | info | non | non | TOWER_FC_LANGUAGES lists the processed languages. |
 | `TWR-FCK-019` | Platform read failed during a manual request or a recheck | 503 | warning | oui | oui |  |
+| `TWR-FCK-020` | Claim group not found | 404 | info | non | non |  |
+| `TWR-FCK-021` | Claim group already merged into another group | 409 | info | non | non | Act on the group it was merged into (merged_into in the group). |
+| `TWR-FCK-022` | Both groups hold active verdicts with different outcomes | 409 | info | non | non | Expire or reject one verdict first; a merge never overrides a verdict. |
+| `TWR-FCK-023` | Only the target group of a merge may hold the active verdict | 409 | info | non | non | Merge into the group that holds the verdict. |
+| `TWR-FCK-024` | Invalid split (claims not active members, or the group would be empty) | 422 | info | non | non |  |
+| `TWR-FCK-025` | Reference fact not found | 404 | info | non | non |  |
+| `TWR-FCK-026` | Invalid reference fact | 422 | info | non | non |  |
+| `TWR-FCK-027` | Reference fact not validated by a reviewer | 409 | info | non | non | A reference fact serves only once validated (POST /v1/reference-facts/{id}/validate). |
+| `TWR-FCK-028` | Value band cannot be validated (no validated fact, no band, or no outcome) | 422 | info | non | non |  |
+| `TWR-FCK-029` | Processing profile version not found | 404 | info | non | non |  |
+| `TWR-FCK-030` | Processing profile outside the safety bounds | 422 | info | non | non | See the bounds in docs/fact-check.md (Profils et niveaux). |
+| `TWR-FCK-031` | Invalid level override | 422 | info | non | non |  |
+| `TWR-FCK-032` | Level override not found | 404 | info | non | non |  |
+| `TWR-FCK-033` | Embedding request failed | 500 | warning | oui | oui |  |
+| `TWR-FCK-034` | Pair arbiter failed: the pair is treated as different | 500 | warning | oui | oui | Safe default: no grouping and no reuse without the arbiter. |
+| `TWR-FCK-035` | PostgreSQL extension pgvector (>= 0.8) is not available | 500 | critical | non | non | Use a PostgreSQL image that ships pgvector (Railway: pgvector template). |
+| `TWR-FCK-036` | Invalid E1 router model (weights, dimensions or metrics) | 422 | info | non | non |  |
+| `TWR-FCK-037` | Verdict revalidation failed | 500 | warning | oui | oui |  |
+| `TWR-FCK-038` | Automatic reference fact feed failed (INSEE) | 500 | warning | oui | oui |  |
+| `TWR-FCK-039` | Batch extraction output invalid (missing or unknown post ids) | 500 | warning | oui | oui | Missing posts are replayed alone. |
+| `TWR-FCK-040` | Batch extraction contamination detected (canary or foreign figure) | 500 | error | oui | non | The batch is replayed post by post; lower TOWER_FC_BATCH_SIZE if it repeats. |
+| `TWR-FCK-041` | Light check (E5) failed: the group keeps its priority without signal | 500 | warning | oui | oui |  |
+| `TWR-FCK-042` | Promotion not confirmed by the platform (metrics read failed or below threshold) | 500 | info | non | non |  |
+| `TWR-FCK-043` | Narrative not found | 404 | info | non | non |  |
+| `TWR-FCK-044` | Invalid narrative operation (closed narrative, same narrative, unknown groups) | 422 | info | non | non |  |
+| `TWR-FCK-045` | Scheduler held work back: queue at capacity | 500 | info | non | non |  |
 
 ## GEN : Général
 
@@ -111,6 +137,9 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-ING-009` | Account is already on the watchlist | 409 | info | non | non |  |
 | `TWR-ING-010` | No observations partition for this timestamp | 503 | error | oui | oui | The ingest service creates partitions ahead; check that a hangar runs it. |
 | `TWR-ING-011` | Invalid extension filter definition | 422 | info | non | non |  |
+| `TWR-ING-012` | Extension content contradicts the public embed of the post | 500 | warning | oui | non | Text or author declared by an installation differs from X: possible forged submission. The content is marked mismatch and never opens a targeted fact-check. |
+| `TWR-ING-013` | Public embed (X oEmbed) unavailable | 500 | warning | oui | oui | Network error, 5xx or 403 from publish.x.com; the content stays unverified. |
+| `TWR-ING-014` | Public embed (X oEmbed) rate limited: verification paused | 500 | warning | oui | oui | Lower TOWER_OEMBED_PER_MINUTE if it recurs. |
 
 ## INT : Interne
 

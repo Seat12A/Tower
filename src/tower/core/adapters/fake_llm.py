@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
+import unicodedata
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
@@ -16,7 +18,7 @@ from tower.core.domain.llm import TokenUsage
 from tower.core.logging import get_logger
 from tower.core.ports.llm import ProviderInvalidOutput, ProviderResponse
 
-__all__ = ["FakeLLMProvider"]
+__all__ = ["FakeEmbedder", "FakeLLMProvider"]
 
 log = get_logger(__name__)
 
@@ -27,6 +29,11 @@ _SPACE_THOUSANDS = re.compile(r"(?<![0-9])([0-9]{1,3})((?:[   ][0-9]{3}(?![0-
 _NUMBER = re.compile(r"[0-9]+(?:[.,][0-9]+)*")
 _FIRST_WORDS = re.compile(r"(?:\S+\s+){0,11}\S+")
 _CAPITALIZED = re.compile(r"\b[A-ZÀ-Ý][\w'-]{2,}")
+_FR_MARKER = re.compile(r"\s*\[fr:\s*([^\]]+?)\s*\]")
+_YEAR = re.compile(r"\b(?:1[0-9]|20)[0-9]{2}\b")
+_NEGATIONS = frozenset(
+    {"not", "no", "never", "pas", "jamais", "aucun", "aucune", "nicht", "nie", "kein"}
+)
 _warned = False
 
 
@@ -116,29 +123,38 @@ def _first_number(sentence: str) -> float | None:
     return None
 
 
+_YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
+_TOPIC = re.compile(r"chomage|unemployment|arbeitslos")
+
+
 def _extract(data: Mapping[str, Any]) -> dict[str, Any]:
     post = data["post"]
     text = str(post["text"]).strip()
     lang = str(post.get("lang") or "")
+    french = _FR_MARKER.search(text)
+    if french is not None:  # smoke tests: an interlingual pair without a translation model
+        text = _FR_MARKER.sub("", text).strip()
     out: dict[str, Any] = {"post_id": str(post["id"]), "thread_context": None}
     if post.get("context"):
         out["thread_context"] = "Relates to another post."
     if len(text.split()) < 4:
         return {**out, "claims": [], "absence_reason": "no_claim"}
     sentence = _cut(_SENTENCE_END.split(text, maxsplit=1)[0], 280)
-    number = _first_number(sentence)
+    year = _YEAR.search(sentence)
+    number = _first_number(_YEAR.sub(" ", sentence))
+    topic = _TOPIC.search(_strip_accents(sentence).lower())
     signature = {
-        "subject": None,
+        "subject": "unemployment rate" if topic else None,
         "subject_qid": None,
-        "predicate": None,
+        "predicate": "unemployment_rate" if topic else None,
         "value_low": number,
         "value_high": number,
-        "unit": None,
+        "unit": "percent" if number is not None and "%" in sentence else None,
         "unit_scale": None,
         "currency": None,
         "value_date": None,
-        "period_start": None,
-        "period_end": None,
+        "period_start": f"{year.group(0)}-01-01" if year else None,
+        "period_end": f"{year.group(0)}-12-31" if year else None,
         "place": None,
         "polarity": "affirmative",
         "invoked_source": None,
@@ -147,11 +163,12 @@ def _extract(data: Mapping[str, Any]) -> dict[str, Any]:
     }
     claim = {
         "text_original": sentence,
-        "text_fr": sentence,
+        "text_fr": _cut(french.group(1), 280) if french is not None else sentence,
         "claim_type": "statistic" if any(c.isdigit() for c in sentence) else "other",
         "signature": signature,
-        "jurisdictions": ["FR"] if lang == "fr" else [],
-        "primary_jurisdiction": "FR" if lang == "fr" else None,
+        # A ``[fr: …]`` marker stands for a French claim posted in another language.
+        "jurisdictions": ["FR"] if lang == "fr" or french is not None else [],
+        "primary_jurisdiction": "FR" if lang == "fr" or french is not None else None,
         "entities": [],
         "theme": None,
         "verifiability": 0.8,
@@ -341,6 +358,73 @@ def _translate(data: Mapping[str, Any]) -> dict[str, Any]:
     return {"lang": target, "text": text}
 
 
+def _numbers_of(text: str) -> list[str]:
+    return sorted(m.group(0).replace(",", ".") for m in _NUMBER.finditer(text))
+
+
+def _negation_parity(text: str) -> int:
+    """French ``ne … pas`` counts once (``ne`` is not in the list)."""
+    words = re.findall(r"[\w']+", _strip_accents(text))
+    return sum(1 for w in words if w in _NEGATIONS) % 2
+
+
+def _pair_arbiter(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Deterministic: other numbers, negation parity or other years mean "different"."""
+    a, b = str(data["claim_a"]["text"]), str(data["claim_b"]["text"])
+    years_a, years_b = sorted(_YEAR.findall(a)), sorted(_YEAR.findall(b))
+    if years_a != years_b:
+        return {
+            "same": False,
+            "reason": "different_period",
+            "explanation": "The two claims refer to different years.",
+        }
+    if _numbers_of(a) != _numbers_of(b):
+        return {
+            "same": False,
+            "reason": "different_value",
+            "explanation": "The two claims state different numbers.",
+        }
+    if _negation_parity(a) != _negation_parity(b):
+        return {
+            "same": False,
+            "reason": "opposite_polarity",
+            "explanation": "One claim negates what the other affirms.",
+        }
+    return {
+        "same": True,
+        "reason": "same_claim",
+        "explanation": "Both claims state the same figures and polarity.",
+    }
+
+
+def _extract_batch(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Each post extracted alone, exactly like the solo fake (no contamination)."""
+    today = data.get("today")
+    return {"posts": [_extract({"today": today, "post": post}) for post in data["posts"]]}
+
+
+def _light_check(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Deterministic: a reference fact or fact-check whose numbers differ from the claim's
+    gives ``likely_false``; one that repeats them ``likely_true``; else ``uncertain``."""
+    claim_numbers = set(_numbers_of(str(data["claim"].get("text_original", ""))))
+    for item in data.get("evidence") or []:
+        numbers = set(_numbers_of(str(item.get("text", ""))))
+        if not claim_numbers or not numbers:
+            continue
+        signal = "likely_true" if claim_numbers & numbers else "likely_false"
+        return {
+            "signal": signal,
+            "explanation": f"Fake light check against evidence {item.get('id')}.",
+            "evidence_ids": [str(item.get("id"))],
+        }
+    return {"signal": "uncertain", "explanation": "No comparable evidence.", "evidence_ids": []}
+
+
+def _narrative_title(data: Mapping[str, Any]) -> dict[str, Any]:
+    first = str((data.get("claims") or ["Récit"])[0])
+    return {"title_fr": _cut("Récit : " + first, 120), "title_en": _cut("Narrative: " + first, 120)}
+
+
 _BUILDERS: dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]] = {
     "ExtractOutput": _extract,
     "FrameOutput": _frame,
@@ -351,4 +435,64 @@ _BUILDERS: dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]] = {
     "WriterOutput": _writer,
     "CriticOutput": _critic,
     "TranslateOutput": _translate,
+    "PairArbiterOutput": _pair_arbiter,
+    "ExtractBatchOutput": _extract_batch,
+    "LightCheckOutput": _light_check,
+    "NarrativeTitleOutput": _narrative_title,
 }
+
+
+# ------------------------------------------------------------------- fake embeddings
+
+_EMBED_DIMS = 512
+_EMBED_MODEL = "fake-embedding-512"
+
+
+def _strip_accents(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+class FakeEmbedder:
+    """Deterministic embedder for tests and ``TOWER_LLM_FAKE=1`` (no network).
+
+    Features: accent-stripped, casefolded word unigrams (weight 1.0) and character
+    trigrams of each word (weight 0.5), hashed to 512 signed buckets, L2-normalized.
+    """
+
+    model = _EMBED_MODEL
+    version = _EMBED_MODEL
+
+    def __init__(self) -> None:
+        self.calls: list[int] = []
+        """Size of each ``embed`` call (tests)."""
+
+    @staticmethod
+    def _bucket(feature: str) -> tuple[int, float]:
+        digest = hashlib.blake2b(feature.encode("utf-8"), digest_size=8).digest()
+        number = int.from_bytes(digest, "big")
+        return number % _EMBED_DIMS, 1.0 if (number >> 63) & 1 else -1.0
+
+    def _vector(self, text: str) -> list[float]:
+        words = re.findall(r"\w+", _strip_accents(text))
+        vec = [0.0] * _EMBED_DIMS
+        for word in words:
+            idx, sign = self._bucket("w:" + word)
+            vec[idx] += sign
+            padded = f"^{word}$"
+            for i in range(len(padded) - 2):
+                idx, sign = self._bucket("t:" + padded[i : i + 3])
+                vec[idx] += 0.5 * sign
+        norm = math.sqrt(math.fsum(v * v for v in vec))
+        if norm == 0.0:
+            vec = [0.0] * _EMBED_DIMS
+            vec[0] = 1.0
+        else:
+            vec = [v / norm for v in vec]
+        return vec
+
+    async def embed(self, texts: Sequence[str], *, dimensions: int) -> list[list[float]]:
+        if dimensions != _EMBED_DIMS:
+            raise ValueError(f"fake embedder only produces {_EMBED_DIMS} dimensions")
+        self.calls.append(len(texts))
+        return [self._vector(t) for t in texts]

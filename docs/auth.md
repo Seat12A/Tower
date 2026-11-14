@@ -33,7 +33,11 @@ membre ne peut pas dépasser ses rôles.
 radar), `watchlist:read`, `watchlist:write` (liste des comptes suivis), `usage:read`
 (allocation gratuite et budgets du mois : `GET /v1/llm/usage`, commande `/usage`),
 `factcheck:request` (demande de fact-check manuelle N4 : `POST /v1/factcheck/requests`,
-commande `/factcheck`).
+commande `/factcheck`). Lot 4 : `claim_groups:manage` (fusion et scission, éditeur),
+`reference_facts:write` (création d'une fiche, relecteur et éditeur),
+`reference_facts:validate` (validation des fiches et des bandes, éditeur),
+`profiles:read` (relecteur et éditeur), `profiles:manage` (activation et retour arrière
+des profils : **admin** seulement), `levels:override` (forçage de niveau, éditeur).
 
 Brouillons de fact-check (voir [fact-check.md](fact-check.md#revue-e11-et-publication)) :
 lecture avec `dossiers:read` ; `accept` et `edit` avec `dossiers:review` enregistrent un

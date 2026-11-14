@@ -8,7 +8,7 @@ Un projet Railway, un repo, **une image** (`Dockerfile`), un service par process
 |---|---|---|---|
 | `gate` | `railway/gate.json` | `tower gate` (+ `tower migrate` en pre-deploy) | 1 → N |
 | `hangar` | `railway/hangar.json` | `tower hangar` | 1 → N |
-| `Postgres` | plugin Railway | — | 1 |
+| `Postgres` | template Railway **avec pgvector** (voir [pgvector](#pgvector)) | — | 1 |
 | `intercom` | `railway/intercom.json` | `tower intercom` | 1 (un second réplica ne casse rien : notifications idempotentes, curseur en base) |
 
 Le radar n'est pas un service Railway : c'est le service hangar `radar`
@@ -16,9 +16,37 @@ Le radar n'est pas un service Railway : c'est le service hangar `radar`
 `hangar`). Pour l'isoler : second service hangar avec `TOWER_SERVICES=radar` et
 `TOWER_QUEUES=radar`.
 
+## pgvector
+
+Depuis le lot 4 (migration `0006`), la base doit fournir l'extension **pgvector ≥ 0.8**
+(types `halfvec`, index HNSW, scan itératif). D'après la documentation officielle de
+Railway, l'image PostgreSQL standard **ne contient pas pgvector** : il faut déployer le
+**template PostgreSQL avec pgvector** (guide Railway « Deploy a RAG Pipeline with
+pgvector »), de préférence en PostgreSQL 16 ou 17, et vérifier la version de l'extension
+avant la migration :
+
+```sql
+SELECT default_version FROM pg_available_extensions WHERE name = 'vector';
+```
+
+Bascule d'une base existante (décision du lot 4, voir [decisions.md](decisions.md)) :
+
+1. créer le service PostgreSQL pgvector dans le projet (réseau privé) ;
+2. arrêter `hangar` et `intercom` (gate peut rester en lecture) ;
+3. `pg_dump --format=custom` de l'ancienne base, `pg_restore --no-owner` dans la
+   nouvelle ;
+4. faire pointer `DATABASE_URL` des services vers la nouvelle base ;
+5. redéployer gate : le pre-deploy `tower migrate` applique `0006`, qui crée
+   l'extension. Si elle manque, la migration échoue avec `TWR-FCK-035` et le nouveau
+   code n'est pas déployé ;
+6. relancer `hangar` et `intercom`, puis supprimer l'ancienne base après vérification.
+
+`maintenance_work_mem` : la construction de l'index HNSW des groupes doit tenir en
+mémoire (voir les mesures dans [fact-check.md](fact-check.md#mesures-du-lot-4)).
+
 ## Mise en place
 
-1. Ajouter PostgreSQL au projet.
+1. Ajouter PostgreSQL **avec pgvector** au projet (template, voir plus haut).
 2. Créer le service `gate` depuis le repo. Dans *Settings → Config-as-code*, indiquer
    le chemin `railway/gate.json`. Variables :
    - `DATABASE_URL = ${{Postgres.DATABASE_URL}}` (URL interne, réseau privé) ;

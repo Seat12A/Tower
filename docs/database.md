@@ -52,7 +52,7 @@ X, CHECK de format (`^[0-9]{1,19}$`, borne `BIGINT`) sur `external_id`.
 | `platform_accounts` | `platform`, `external_id`, `UNIQUE (platform, external_id)`, `handle`, `entity_id` |
 | `watched_accounts` | `public_id`, `account_id` (unique), `category` (rôle public), `priority` (-100..100), `since_cursor`, `active`, `note`, `added_by`, `version` (verrou optimiste) |
 | `watched_account_events` | Audit immuable de la liste de suivi : `action`, `actor`, `changes` JSONB |
-| `content_items` | Clé interne `BIGINT`, `public_id`, `platform`, `external_id` (`UNIQUE (platform, external_id)`), `author_account_id`, `text` (d'origine), `lang`, `lang_confidence`, `lang_hint`, `useful_words`, `content_hash` (32 octets), `simhash BIGINT` et `simhash_b0..b3` (colonnes générées stockées), `parent_external_id`, `quoted_external_id`, `copy_of_id`, `metrics` JSONB, `metrics_at`, `created_at_platform`, `first_seen_at`, `last_seen_at`, `observation_count`. **Non partitionnée** |
+| `content_items` | Clé interne `BIGINT`, `public_id`, `platform`, `external_id` (`UNIQUE (platform, external_id)`), `author_account_id`, `text` (d'origine), `lang`, `lang_confidence`, `lang_hint`, `useful_words`, `content_hash` (32 octets), `simhash BIGINT` et `simhash_b0..b3` (colonnes générées stockées), `parent_external_id`, `quoted_external_id`, `copy_of_id`, `metrics` JSONB, `metrics_at`, `created_at_platform`, `first_seen_at`, `last_seen_at`, `observation_count`, `verification` (`unverified`, `platform`, `verified`, `mismatch`, `unavailable` ; défaut `unverified`), `checked_at` (vérification par l'intégration publique, quel qu'en soit le résultat). **Non partitionnée** |
 | `content_snapshots` | Copie d'un contenu à un instant : `reason` (`dossier_opened`, `recheck`, `manual`), `text`, `metrics`, `data` |
 | `media_assets` | `kind` (`image`, `video`, `audio`, `document`), `url`, `url_sha256` (unique), `sha256`, `phash` et `phash_b0..b3` (générées ; empreinte perceptuelle calculée par un job ultérieur), `first_seen_at` |
 | `content_media` | PK `(content_id, media_id)`, `position` |
@@ -103,18 +103,77 @@ seules les tables utilisées par le lot 3 sont créées (pas d'embedding). Voir
 | `source_registry` | Registre minimal : `domain` (unique, correspondance par suffixe), `publisher`, `tier`, `kind`, `country`, `reason`, `origin` (`seed`, `team`), `version`. Tout domaine absent est tertiaire |
 | `source_cache` | Cache des sources et des recherches : `key` (SHA-256 de l'adaptateur et de la requête canonique, PK), `adapter`, `response` JSONB, `fetched_at`, `expires_at` (indexé, purge horaire) |
 
+## Fact-check V1, lot 4
+
+Migration `0006`, **expand** uniquement. Elle exige l'extension **pgvector ≥ 0.8**
+(`halfvec`, scan itératif) : `CREATE EXTENSION IF NOT EXISTS vector`, précédée d'un
+contrôle qui échoue avec un message clair (`TWR-FCK-035`) si l'extension est absente ou
+trop ancienne. Sur Railway, l'image PostgreSQL standard ne la fournit pas : voir
+[deployment-railway.md](deployment-railway.md#pgvector). Le code Python ne dépend pas du
+paquet `pgvector` (qui tire numpy) : type de colonne `HalfVec` maison dans
+`core/db/vector.py` (vecteurs échangés en texte, `list[float]` côté Python).
+
+| Table | Rôle |
+|---|---|
+| `content_embeddings` | Vecteur E1 d'un contenu : PK `(content_id, created_at)`, `embedding halfvec(512)`, `model`, `lang`, `score` (probabilité « vérifiable », nulle sous la règle permissive), `level` (`N0`, `N1`), `sampled` (contenu écarté gardé dans l'échantillon de 2 %), `router_version`. **Partitionnée par semaine** sur `created_at` (partitions `content_embeddings_pAAAAMMJJ` créées et supprimées après 14 jours par le service `factcheck`), **sans index vectoriel** |
+| `claim_group_events` | Journal d'un groupe : `kind` (`created`, `joined`, `merged`, `split`, `level_changed`, `representative_changed`, `fact_linked`), `other_group_id`, `claim_ids bigint[]`, `from_level`, `to_level`, `actor`, `reason`, `data` (règle d'E3, similarité, raison de l'arbitre) |
+| `reference_facts` | Fiche de référence : `indicator` (clé stable, ex. `fr.unemployment_rate`), `label`, `definition_variant`, `subject_qid`, `aliases text[]` (GIN), `value`, `unit`, `unit_scale`, `period_start`, `period_end`, `territory`, `source_url`, `source_name`, `published_at`, `next_publication`, `previous_fact_id`, `status` (`pending`, `validated`, `rejected`, `superseded`), `origin` (`investigation`, `insee`, `manual`), `origin_verdict_id`, `external_key` (unique : idempotence de l'alimentation automatique), `created_by`, `validated_by`, `validated_at`. Ne sert qu'une fois validée |
+| `verdict_bands` | Fiche × bande × côté → issue validée : `band` (`contains`, `within_1_tau`, `within_3_tau`, `beyond`), `side` (`none`, `above`, `below`), `veracity`, `context_need`, `context_types`, `source_verdict_id` (verdict validé montré aux lecteurs des variantes), `status` (`active`, `revoked` ; une seule bande active par fiche, bande et côté), `validated_by/at`, `revoked_by/at` |
+| `processing_profiles` | Profil de traitement versionné : `version` (unique), `settings` JSONB (réglages par niveau, seuils d'appariement, quota, échantillon E1), `active` (un seul actif, index unique partiel), `based_on_version`, `author`, `reason`, `activated_at/by`. Aucune ligne active : profil par défaut tiré de la configuration (version 0) |
+| `level_overrides` | Forçage de niveau : `target_type` (`content`, `group`, `account`), `target_id` (clé interne), `level`, `expires_at`, `author`, `reason` (obligatoire), `revoked_at/by` |
+| `router_models` | Classifieur E1 : `version`, `embedding_model`, `dims`, `weights double precision[]` (CHECK `cardinality = dims`), `bias`, `metrics` JSONB (mesures sur l'échantillon de validation), `sample_size`, `active` (un seul actif), `trained_at`, `activated_at/by` |
+
+Colonnes ajoutées (nullables) :
+
+| Table | Colonnes |
+|---|---|
+| `claims` | `embedding halfvec(512)` (texte d'origine), `embedding_pivot halfvec(512)` (texte français pivot, affirmations non françaises seulement), `embedding_model` ; **non indexées** |
+| `claim_groups` | `representative_embedding halfvec(512)` (vecteur pivot de l'affirmation représentative : **seul index vectoriel**, HNSW `halfvec_cosine_ops`), `reference_fact_id`, `band`, `band_side` (CHECK), `merged_into_id` ; état `merged` ajouté au CHECK de `state` (élargissement, même nom) |
+| `verdicts` | `reused_from_verdict_id` (verdict d'origine d'un héritage par bande), `reuse_rule` (`identical_signature`, `band`) |
+
+## Fact-check V2, lot 5
+
+Migration `0007`, **expand** uniquement (tables nouvelles, colonnes nullables ou avec
+défaut sur `claim_groups`). Statuts en `TEXT` + `CHECK`.
+
+| Table | Rôle |
+|---|---|
+| `extraction_batches` | Micro-lot E2 (N1) : `content_ids bigint[]`, `canary_token` (nul sans canari), `status` (`pending`, `done`, `replayed_solo`, `failed`), `fidelity_failures`, `contamination`, `prompt_version`, `cost_usd_micros`, `created_at`, `finished_at` |
+| `content_extractions` | Une ligne par contenu extrait, toute voie et tout niveau confondus (PK `content_id`) : `level`, `status` (`extracted`, `no_claim`, `sampled_out`, `failed`), `batch_id` et `position` (voie par lots), `narrative_id` (contenu écarté par l'échantillonnage d'une vague). Un contenu N1 sans ligne est « en attente de lot » |
+| `extraction_audits` | Rejeu solo d'un post de lot (audit stratifié par position) : `content_id`, `batch_id`, `position`, `batch_size`, `batch_claims`, `solo_claims`, `discordant` (nombres ou chiffres différents), `details` |
+| `scheduler_runs` | Une ligne par passe de l'ordonnanceur E4 : `started_at` (index), `finished_at`, `rate_per_hour`, `interval_s`, `stats` JSONB (`promotions`, `demotions`, `passive`, `investigations`, `light_checks`, `held_back`, `held_back_by`, `waves`) |
+| `narratives` | Récit : `public_id`, `title` (français) et `title_status` (`none`, `draft`, `validated`), `state` (`active`, `watch`, `surge`, `alert`, `closed`), `theme`, `founder_group_id` (médoïde fixe), `medoid_group_ids bigint[]` (au plus 3), `medoids_elected_at`, `previous_narrative_id` (récit fermé repris), `merged_into_id`, `representative_group_id`, `split_suggested`, `state_changed_at`, `surge_started_at`, `below_watch_since`, `opened_at`, `last_activity_at`, `closed_at` |
+| `narrative_groups` | Appartenance groupe → récit, historisée : `added_at`, `removed_at` (fusion, scission, détachement), `signals` JSONB (signaux et ancres du rattachement), `reason` |
+| `narrative_events` | Journal d'un récit : `kind` (`created`, `attached`, `detached`, `merged`, `split`, `state_changed`, `medoids_changed`, `title_set`, `closed`), `other_narrative_id`, `group_ids`, `from_state`, `to_state`, `actor`, `reason`, `data` |
+| `narrative_stats` | Statistiques de vague par fenêtre : `span` (`5m`, `1h`, `6h`), `window_end`, `posts` (observations du récit), `flow_posts` (toutes les observations), `share`, `accounts` (auteurs distincts, comptés seulement), `platforms`, `reach`, `score` (Poisson). Purgées après 30 jours |
+| `narrative_novelty` | Empreintes de nouveauté des posts écartés par l'échantillonnage : `fingerprint`, `kind` (`number`, `link`, `mention`, `media`, `entity`), `posts`, `accounts`, `account_ids` (10 au plus), `best_content_id`, `best_engagement`, `forced_at`, `first_seen_at`, `last_seen_at` |
+| `entity_rarity` | Compteur quotidien d'affirmations par entité (`entity_key`, `day`, `count`) : ancre « entité rare » des récits. Purgé après 31 jours |
+
+Colonnes ajoutées à `claim_groups` : `light_signal` (`likely_true`, `likely_false`,
+`uncertain`, `needs_context` ; jamais publié), `light_checked_at`, `light_evidence` JSONB,
+`observers_6h`, `velocity`, `priority`, `level_changed_at`, `below_threshold_since`
+(rétrogradation) ; index `(level, state)`.
+
 ## Index notables
 
 - `jobs` : index partiel `(queue, priority DESC, run_at, id) WHERE status = 'queued'`
   pour la réservation ; index partiel unique sur `dedupe_key` parmi les jobs actifs.
 - `events` : `(xid, id)` pour la lecture sans trou.
 - `error_reports` : index partiel sur les erreurs ouvertes.
+- `content_items` : `ix_content_items_to_check (first_seen_at) WHERE verification =
+  'unverified' AND checked_at IS NULL` (contenus à vérifier) et
+  `ix_content_items_checked_at (checked_at) WHERE checked_at IS NOT NULL` (compte du jour).
 - `content_items` : `(simhash_bN, first_seen_at)` pour chaque bande (quasi-copies sur
   30 jours), `content_hash`, `lang`, `first_seen_at`, index sur expression
   `(external_id::bigint) WHERE platform = 'x'` (IDs X numériques sans colonne générée).
 - `observations` : `(content_id, observed_at)`, propagé à chaque partition.
-- Les partitions `observations_pAAAAMMJJ` sont créées par le service `ingest` ; elles
-  sont exclues de l'autogénération Alembic (`include_name` dans `migrations/env.py`).
+- Les partitions `observations_pAAAAMMJJ` sont créées par le service `ingest`, et les
+  partitions `content_embeddings_pAAAAMMJJ` par le service `factcheck` ; elles sont
+  exclues de l'autogénération Alembic (`include_name` dans `migrations/env.py`).
+- `claim_groups.representative_embedding` : HNSW `halfvec_cosine_ops`, le seul index
+  vectoriel du schéma (ni les posts ni les affirmations ne sont indexés). Les requêtes
+  posent `hnsw.iterative_scan = relaxed_order` pour filtrer les groupes fusionnés sans
+  perdre de résultats.
 
 ## Migrations
 

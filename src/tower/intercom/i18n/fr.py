@@ -190,4 +190,189 @@ MESSAGES: dict[str, str] = {
         "Le brouillon apparaîtra dans le salon des dossiers."
     ),
     "factcheck.duplicate": ("Un fact-check du post {platform} `{external_id}` est déjà en file."),
+    # --- profils de traitement et forçages de niveau -----------------------------------
+    "error.TWR-FCK-029": "Version de profil introuvable. ({code})",
+    "error.TWR-FCK-030": "Profil refusé : {message} ({code})",
+    "error.TWR-FCK-031": "Forçage de niveau invalide : {message} ({code})",
+    "error.TWR-FCK-032": "Cible du forçage introuvable. ({code})",
+    "profile.show.header": "Profil actif : version {version} ({origin}).",
+    "profile.show.default": "défaut issu des réglages",
+    "profile.show.stored": "enregistré",
+    "profile.show.general": (
+        "Seuil même affirmation {same} | zone grise {grey} | quota de brouillons {quota}/jour | "
+        "taux d'échantillonnage E1 {sample}"
+    ),
+    "profile.show.level": (
+        "- {level} : seuil E1 {e1} | réutilisation directe {reuse} | plafond unitaire {cap} $ | "
+        "budget mensuel {budget} $"
+    ),
+    "profile.yes": "oui",
+    "profile.no": "non",
+    "profile.history.header": "Versions du profil ({count}) :",
+    "profile.history.line": "- v{version}{active} | {author} | {created} | {reason}",
+    "profile.history.active": " (actif)",
+    "profile.set.done": "Profil version {version} créé et activé : {path} = {value}.",
+    "profile.rollback.done": (
+        "Retour arrière : la version {version} du profil est de nouveau active."
+    ),
+    "level.set.done": (
+        "Niveau {level} forcé sur {target_type} `{target}` jusqu'au {expires} "
+        "(forçage `{short_id}`). {applied}"
+    ),
+    "level.set.applied": "Appliqué maintenant.",
+    "level.set.not_applied": "Enregistré : pas encore appliqué à un groupe, ou différé.",
+    "level.list.header": "Forçages de niveau actifs ({count}) :",
+    "level.list.empty": "Aucun forçage de niveau actif.",
+    "level.list.line": (
+        "- `{short_id}` | {target_type} `{target}` -> {level} | jusqu'au {expires} | {reason}"
+    ),
+    "level.revoke.done": "Forçage `{short_id}` révoqué.",
+    # --- groupes, faits de référence et bandes de valeur ---------------------------------
+    "error.TWR-FCK-020": "Groupe d'affirmations introuvable. ({code})",
+    "error.TWR-FCK-021": "Ce groupe a déjà été fusionné dans un autre groupe. ({code})",
+    "error.TWR-FCK-022": (
+        "Les deux groupes ont des verdicts différents : une fusion n'écrase jamais un verdict. "
+        "({code})"
+    ),
+    "error.TWR-FCK-023": (
+        "Seul le groupe qui absorbe l'autre peut porter le verdict actif. ({code})"
+    ),
+    "error.TWR-FCK-024": (
+        "Scission invalide : les affirmations doivent être des membres actifs et le groupe "
+        "ne peut pas être vidé. ({code})"
+    ),
+    "error.TWR-FCK-025": "Fait de référence introuvable. ({code})",
+    "error.TWR-FCK-026": "Fait de référence invalide : {message} ({code})",
+    "error.TWR-FCK-027": "Ce fait de référence n'est pas encore validé. ({code})",
+    "error.TWR-FCK-028": "La bande de valeur ne peut pas être validée : {message} ({code})",
+    "draft.group.line": (
+        "**Groupe** `{group_id}` | {members} affirmation(s) | plateformes : {platforms}"
+    ),
+    "draft.group.other_posts": "Autres posts : {links}",
+    "draft.group.related": (
+        "Doublon possible : le groupe `{group_id}` a déjà un verdict ({veracity}). "
+        "Utilisez « Même groupe que... » pour le fusionner."
+    ),
+    "draft.fact.line": (
+        "**Référence** {label} : {value} {unit} (du {start} au {end}, {territory}, {status})"
+    ),
+    "draft.fact.band": "Bande : {label}",
+    "draft.fact.outdated": "La valeur avancée correspond au chiffre précédent : périmée.",
+    "draft.external.header": "**Fact-checks ailleurs**",
+    "draft.external.line": "- {publisher} : {rating} <{url}>",
+    "fact.status.pending": "en attente",
+    "fact.status.validated": "validé",
+    "fact.status.rejected": "rejeté",
+    "band.kind.contains": "contient le fait",
+    "band.kind.within_1_tau": "à moins de 1 tau du fait",
+    "band.kind.within_3_tau": "à moins de 3 tau du fait",
+    "band.kind.beyond": "au-delà de 3 tau du fait",
+    "draft.button.samegroup": "Même groupe que...",
+    "draft.button.split": "Scinder",
+    "draft.button.fact": "Créer un fait",
+    "draft.button.band": "Valider la bande",
+    "draft.modal.samegroup.title": "Fusionner un autre groupe dans celui-ci",
+    "draft.modal.samegroup.group": "Identifiant du groupe à absorber",
+    "draft.modal.split.title": "Scinder des affirmations de ce groupe",
+    "draft.modal.split.claims": "Identifiants d'affirmations (virgules)",
+    "draft.modal.fact.title": "Créer un fait de référence",
+    "draft.modal.fact.value": "Valeur",
+    "draft.modal.fact.period": "Période (AAAA-MM-JJ AAAA-MM-JJ)",
+    "draft.modal.fact.url": "URL de la source",
+    "draft.modal.fact.name": "Nom de la source",
+    "draft.modal.fact.published": "Publié le (AAAA-MM-JJ)",
+    "group.merged": (
+        "Fusion faite : le groupe `{group_id}` compte maintenant {members} affirmation(s)."
+    ),
+    "group.split": (
+        "Scission faite : les affirmations sont dans le nouveau groupe `{group_id}` "
+        "(pas encore de verdict)."
+    ),
+    "group.show.header": "Groupe `{group_id}` | {level} | {state} | {members} affirmation(s)",
+    "group.show.merged_into": "Fusionné dans `{group_id}`.",
+    "group.show.verdict": "Verdict : {veracity} (expire le {expires}, règle {rule})",
+    "group.show.fact": "Fait : {label} = {value} {unit} | bande {band} ({side})",
+    "group.show.member": "- `{claim_id}` {text} {links}",
+    "group.show.event": "  journal : {kind} par {actor} le {when}",
+    "fact.line": (
+        "- `{short_id}` {status} | {label} : {value} {unit} | du {start} au {end} | {territory}"
+    ),
+    "fact.show.source": "Source : {source} <{url}> | publié le {published} | prochain {next}",
+    "fact.list.header": "Faits de référence ({count}) :",
+    "fact.list.empty": "Aucun fait de référence.",
+    "fact.validated": "Fait `{short_id}` validé.",
+    "fact.rejected": "Fait `{short_id}` rejeté.",
+    "fact.created": "Fait `{short_id}` créé ({label}). Un relecteur doit le valider.",
+    "fact.needs_validated": "Validez d'abord le verdict : un fait se crée depuis un verdict actif.",
+    "band.validated": "Bande validée : {label} ({side}) -> {veracity}.",
+    # --- narratifs, vagues et signaux de coordination -------------------------------
+    "error.TWR-FCK-043": "Narratif introuvable. ({code})",
+    "error.TWR-FCK-044": "Opération de narratif invalide : {message} ({code})",
+    "notify.narrative.surge": (
+        "VAGUE `{short_id}` | {title}\nPart du flux {share}% | {accounts} comptes | "
+        "plateformes : {platforms}\nNiveau : surge. "
+        "À vérifier avec `/narrative show {narrative_id}`."
+    ),
+    "notify.narrative.alert": (
+        "ALERTE VAGUE `{short_id}` | {title}\nPart du flux {share}% | {accounts} comptes | "
+        "plateformes : {platforms}\nNiveau : alerte, l'équipe est sollicitée. "
+        "`/narrative show {narrative_id}`."
+    ),
+    "notify.narrative.ended": (
+        "Vague terminée `{short_id}` | durée {duration} | {posts} posts | plateformes : "
+        "{platforms} | coût LLM {cost} $ | premier brouillon : {first_draft}"
+    ),
+    "narrative.state.active": "actif",
+    "narrative.state.watch": "veille",
+    "narrative.state.surge": "vague",
+    "narrative.state.alert": "alerte",
+    "narrative.state.closed": "clos",
+    "narrative.untitled": "(sans titre)",
+    "narrative.title_status.draft": "titre provisoire",
+    "narrative.title_status.validated": "titre validé",
+    "narrative.title_status.none": "pas de titre",
+    "narrative.list.header": "Narratifs ({count}) :",
+    "narrative.list.empty": "Aucun narratif.",
+    "narrative.list.line": (
+        "- `{short_id}` {state} | {title} | {groups} groupe(s) | {share}% | {accounts} comptes"
+    ),
+    "narrative.show.header": "Narratif `{narrative_id}` | {state} | {title} ({title_status})",
+    "narrative.show.stats": (
+        "Dernière heure : {share}% du flux, {accounts} comptes, {platforms} plateforme(s)"
+    ),
+    "narrative.show.split_suggested": (
+        "Scission suggérée : le narratif mélange peut-être plusieurs histoires."
+    ),
+    "narrative.show.previous": "Résurgence du narratif `{narrative_id}`.",
+    "narrative.show.representative": "Groupe représentatif : `{group_id}`",
+    "narrative.show.group": "- `{group_id}` {level} | {verdict} | signal {signal} | portée {reach}",
+    "narrative.show.event": "  journal : {kind} par {actor} le {when}",
+    "narrative.show.novelty": (
+        "Nouveauté : {kind} {fingerprint} ({posts} posts, {accounts} comptes)"
+    ),
+    "narrative.merged": "Fusion faite : le narratif `{narrative_id}` compte {groups} groupe(s).",
+    "narrative.split": (
+        "Scission faite : les groupes sont passés dans le nouveau narratif `{narrative_id}`."
+    ),
+    "narrative.title.done": "Titre validé pour `{narrative_id}` : {title}",
+    "draft.narrative.line": (
+        "**Narratif** `{narrative_id}` | {title} | {state} | {groups} groupe(s)"
+    ),
+    "draft.coordination.header": (
+        "**Signaux de coordination** (informatifs, jamais une entrée du verdict) :"
+    ),
+    "draft.coordination.near_identical_burst": (
+        "- {count} comptes ont posté des copies quasi identiques en {minutes} min"
+    ),
+    "draft.coordination.new_accounts": (
+        "- {count} auteurs sur {authors} ont été vus pour la première fois par Tower "
+        "ces 7 derniers jours (première observation, pas l'âge réel des comptes)"
+    ),
+    "draft.coordination.installation_burst": (
+        "- une même installation a observé ces posts {count} fois en {minutes} min"
+    ),
+    "draft.coordination.media_reuse": (
+        "- le même média apparaît dans {count} groupes (les légendes peuvent différer : à vérifier)"
+    ),
+    "draft.coordination.other": "- {kind} : {count}",
 }

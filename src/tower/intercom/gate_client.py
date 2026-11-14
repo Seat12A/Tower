@@ -270,8 +270,11 @@ class GateClient:
         labels: Sequence[str] = (),
         reason: str | None = None,
         expected_version: int | None = None,
+        validate_band: bool = False,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"decision": decision, "labels": list(labels)}
+        if validate_band:
+            body["validate_band"] = True
         for key, value in (
             ("veracity", veracity),
             ("note_text", note_text),
@@ -288,6 +291,207 @@ class GateClient:
 
     async def mark_draft_notified(self, acting: int | None, draft_id: str) -> None:
         await self._request("POST", f"/v1/drafts/{quote(draft_id, safe='')}/notified", acting)
+
+    # --- groups, reference facts and bands ----------------------------------------------
+    async def get_group(self, acting: int, group_id: str) -> dict[str, Any]:
+        group: dict[str, Any] = await self._request(
+            "GET", f"/v1/groups/{quote(group_id, safe='')}", acting
+        )
+        return group
+
+    async def merge_groups(
+        self, acting: int, target_id: str, *, source_id: str, reason: str
+    ) -> dict[str, Any]:
+        merged: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/groups/{quote(target_id, safe='')}/merge",
+            acting,
+            body={"source_group_id": source_id, "reason": reason},
+        )
+        return merged
+
+    async def split_group(
+        self, acting: int, group_id: str, *, claim_ids: Sequence[str], reason: str
+    ) -> dict[str, Any]:
+        new: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/groups/{quote(group_id, safe='')}/split",
+            acting,
+            body={"claim_ids": list(claim_ids), "reason": reason},
+        )
+        return new
+
+    # --- narratives --------------------------------------------------------------------
+    async def list_narratives(
+        self, acting: int, *, state: str | None = None, limit: int = 15
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if state:
+            params["state"] = state
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/narratives", acting, params=params
+        )
+        return rows
+
+    async def get_narrative(self, acting: int, narrative_id: str) -> dict[str, Any]:
+        narrative: dict[str, Any] = await self._request(
+            "GET", f"/v1/narratives/{quote(narrative_id, safe='')}", acting
+        )
+        return narrative
+
+    async def merge_narratives(
+        self, acting: int, target_id: str, *, source_id: str, reason: str
+    ) -> dict[str, Any]:
+        merged: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/narratives/{quote(target_id, safe='')}/merge",
+            acting,
+            body={"source_id": source_id, "reason": reason},
+        )
+        return merged
+
+    async def split_narrative(
+        self, acting: int, narrative_id: str, *, group_ids: Sequence[str], reason: str
+    ) -> dict[str, Any]:
+        new: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/narratives/{quote(narrative_id, safe='')}/split",
+            acting,
+            body={"group_ids": list(group_ids), "reason": reason},
+        )
+        return new
+
+    async def set_narrative_title(
+        self, acting: int, narrative_id: str, *, title: str | None
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"title": title} if title else {}
+        done: dict[str, Any] = await self._request(
+            "POST", f"/v1/narratives/{quote(narrative_id, safe='')}/title", acting, body=body
+        )
+        return done
+
+    async def list_facts(
+        self,
+        acting: int,
+        *,
+        status: str | None = None,
+        indicator: str | None = None,
+        limit: int = 25,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if status is not None:
+            params["status"] = status
+        if indicator is not None:
+            params["indicator"] = indicator
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/reference-facts", acting, params=params
+        )
+        return rows
+
+    async def get_fact(self, acting: int, fact_id: str) -> dict[str, Any]:
+        fact: dict[str, Any] = await self._request(
+            "GET", f"/v1/reference-facts/{quote(fact_id, safe='')}", acting
+        )
+        return fact
+
+    async def create_fact_from_verdict(
+        self, acting: int, *, verdict_id: str, **fields: Any
+    ) -> dict[str, Any]:
+        body = {k: v for k, v in {"verdict_id": verdict_id, **fields}.items() if v is not None}
+        created: dict[str, Any] = await self._request(
+            "POST", "/v1/reference-facts/from-verdict", acting, body=body
+        )
+        return created
+
+    async def validate_fact(self, acting: int, fact_id: str) -> dict[str, Any]:
+        fact: dict[str, Any] = await self._request(
+            "POST", f"/v1/reference-facts/{quote(fact_id, safe='')}/validate", acting
+        )
+        return fact
+
+    async def reject_fact(self, acting: int, fact_id: str, *, reason: str) -> dict[str, Any]:
+        fact: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/reference-facts/{quote(fact_id, safe='')}/reject",
+            acting,
+            body={"reason": reason},
+        )
+        return fact
+
+    async def validate_band_from_verdict(self, acting: int, verdict_id: str) -> dict[str, Any]:
+        band: dict[str, Any] = await self._request(
+            "POST", "/v1/verdict-bands/from-verdict", acting, body={"verdict_id": verdict_id}
+        )
+        return band
+
+    # --- processing profiles and level overrides ----------------------------------------
+    async def list_profiles(self, acting: int) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request("GET", "/v1/profiles", acting)
+        return rows
+
+    async def get_active_profile(self, acting: int) -> dict[str, Any]:
+        profile: dict[str, Any] = await self._request("GET", "/v1/profiles/active", acting)
+        return profile
+
+    async def create_profile(
+        self, acting: int, *, changes: dict[str, Any], reason: str, activate: bool = True
+    ) -> dict[str, Any]:
+        created: dict[str, Any] = await self._request(
+            "POST",
+            "/v1/profiles",
+            acting,
+            body={"changes": changes, "reason": reason, "activate": activate},
+        )
+        return created
+
+    async def rollback_profile(self, acting: int, *, reason: str) -> dict[str, Any]:
+        profile: dict[str, Any] = await self._request(
+            "POST", "/v1/profiles/rollback", acting, body={"reason": reason}
+        )
+        return profile
+
+    async def create_level_override(
+        self,
+        acting: int,
+        *,
+        target_type: str,
+        target: str,
+        level: str,
+        hours: float,
+        reason: str,
+    ) -> dict[str, Any]:
+        created: dict[str, Any] = await self._request(
+            "POST",
+            "/v1/level-overrides",
+            acting,
+            body={
+                "target_type": target_type,
+                "target": target,
+                "level": level,
+                "hours": hours,
+                "reason": reason,
+            },
+        )
+        return created
+
+    async def list_level_overrides(
+        self, acting: int, *, active: bool = True, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/level-overrides", acting, params={"active": active, "limit": limit}
+        )
+        return rows
+
+    async def revoke_level_override(
+        self, acting: int, override_id: str, *, reason: str
+    ) -> dict[str, Any]:
+        revoked: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/level-overrides/{quote(override_id, safe='')}/revoke",
+            acting,
+            body={"reason": reason},
+        )
+        return revoked
 
     # --- as the service itself --------------------------------------------------------
     async def get_cursor(self, name: str) -> str | None:

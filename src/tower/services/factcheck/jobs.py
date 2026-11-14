@@ -25,9 +25,12 @@ from tower.core.domain.factcheck.values import AbsenceReason, TranslationOrigin
 from tower.core.domain.ingestion import AuthorInput, ItemInput, MediaInput
 from tower.core.domain.llm import Level
 from tower.core.domain.security import Actor
+from tower.core.domain.verification import TRUSTED
 from tower.core.errors import capture
 from tower.core.events.outbox import EventRecord
 from tower.core.factcheck import inputs, names, runtime
+from tower.core.factcheck.levels import override_level
+from tower.core.factcheck.profiles import active_profile
 from tower.core.factcheck.schemas import ExtractedClaim, ExtractOutput, Signature, TranslateOutput
 from tower.core.jobs.queue import PermanentError, RetryLater, enqueue
 from tower.core.llm.errors import (
@@ -62,8 +65,10 @@ from tower.core.ports.platforms import (
 from tower.core.services.base import JobContext
 from tower.core.usecases import assembly as assembly_uc
 from tower.core.usecases import claims as claims_uc
+from tower.core.usecases import narratives as narratives_uc
 from tower.core.usecases.ingestion import ingest_items
 from tower.services.factcheck import assembly as asm
+from tower.services.factcheck import matching
 
 log = get_logger(__name__)
 
@@ -360,12 +365,25 @@ async def extract(ctx: JobContext) -> None:
         _check_post_id(output, content_id)
         claims, _ = _faithful(output, post_text, context_text, content_id)
 
+    try:
+        decisions = await matching.match_claims(
+            ctx,
+            content_id=content_id,
+            post_date=created.date() if created is not None else None,
+            lang=post_lang,
+            claims=claims,
+            level=level,
+        )
+    except BudgetExhausted as exc:
+        raise RetryLater(_retry_delay(exc.retry_at), "model budget exhausted") from exc
+
     async with ctx.db.transaction() as session:
         content = await session.get(ContentItem, content_id)
         if content is None:
             return
         if await _reuse_existing(session, actor, content, level, requested_by, unprocessed):
             return
+        profile = await active_profile(session, settings)
         record = await claims_uc.record_extraction(
             session,
             actor,
@@ -377,6 +395,10 @@ async def extract(ctx: JobContext) -> None:
             thread_context=output.thread_context,
             absence_reason=output.absence_reason.value if output.absence_reason else None,
             language_not_processed=unprocessed,
+            matches=decisions if claims else None,
+            post_date=created.date() if created is not None else None,
+            profile=profile,
+            current_period_days=settings.fc_current_period_days,
         )
     log.info(
         "factcheck.extracted",
@@ -476,6 +498,7 @@ async def request(ctx: JobContext) -> None:
             QUEUE,
             names.JOB_EXTRACT,
             {"content_id": content_id, "level": "N4", "requested_by": requested_by},
+            priority=names.FAST_LANE_PRIORITY,
             dedupe_key=names.extract_key(content_id, "N4"),
         )
     log.info("factcheck.requested", content=content_id, platform=platform)
@@ -558,15 +581,25 @@ async def assemble(ctx: JobContext) -> None:
             locked_verdict.confidence = confidence
             locked_verdict.flags = flags
             await asm.lock_quota(session)
-            used = await asm.today_count(session)
-            if used < settings.fc_draft_daily_quota:
+            # Wave mode: a draft of a surging narrative uses the separate surge quota
+            # (``flags.surge``) and does not count in the daily one; when the surge quota is
+            # full, the daily rules apply.
+            surge_used = await narratives_uc.surge_drafts_today(session)
+            used = await asm.today_count(session) - surge_used
+            quota = (await active_profile(session, settings)).draft_daily_quota
+            in_surge = await narratives_uc.group_in_surge(session, locked_verdict.claim_group_id)
+            if in_surge and surge_used < settings.fc_surge_daily_quota:
+                flags["surge"] = True
+                locked_verdict.flags = flags
+                await assembly_uc.open_draft(session, _actor(), locked_verdict, locked)
+            elif used < quota:
                 await assembly_uc.open_draft(session, _actor(), locked_verdict, locked)
             else:
                 flags["over_quota_since"] = datetime.now(UTC).isoformat()
                 locked_verdict.flags = flags
                 capture(
                     ec.FCK_DRAFT_QUOTA_REACHED,
-                    quota=settings.fc_draft_daily_quota,
+                    quota=quota,
                     investigation=investigation_id,
                 )
         locked.stage = "assembled"
@@ -686,36 +719,75 @@ async def _translate_one(
 
 
 async def on_content_ingested(session: AsyncSession, events: Sequence[EventRecord]) -> None:
-    """Enqueue the N3 extraction of new contents written by an active watched account."""
+    """Enqueue the extraction of new contents written by an active watched account (N3),
+    or by an account carrying an active ``account`` level override at N3 or N4 (the
+    override level; no need to be watched).
+
+    Only trusted contents (``platform`` or ``verified``): what the extension declares is
+    never enough to open a targeted fact-check. Also fed by ``content.verified`` (embed
+    confirmed, or a platform read corrected the content)."""
     languages = set(get_settings().fc_language_list)
-    ids: list[int] = []
+    in_language: dict[int, bool] = {}
     for event in events:
         payload = event.payload
         try:
             content_id = int(payload["id"])
         except (KeyError, TypeError, ValueError):
             continue
-        if str(payload.get("lang", "")).lower() in languages:
-            ids.append(content_id)
-    if not ids:
+        in_language[content_id] = str(payload.get("lang", "")).lower() in languages
+    if not in_language:
         return
-    watched = await session.scalars(
-        select(ContentItem.id)
-        .join(WatchedAccount, WatchedAccount.account_id == ContentItem.author_account_id)
-        .where(
-            ContentItem.id.in_(ids),
-            WatchedAccount.active.is_(True),
-            ContentItem.copy_of_id.is_(None),
+    ids = [i for i, ok in in_language.items() if ok]
+    queued: set[int] = set()
+    if ids:
+        watched = await session.scalars(
+            select(ContentItem.id)
+            .join(WatchedAccount, WatchedAccount.account_id == ContentItem.author_account_id)
+            .where(
+                ContentItem.id.in_(ids),
+                WatchedAccount.active.is_(True),
+                ContentItem.copy_of_id.is_(None),
+                ContentItem.verification.in_(sorted(TRUSTED)),
+            )
+            .order_by(ContentItem.id)
         )
-        .order_by(ContentItem.id)
-    )
-    for content_id in watched:
+        for content_id in watched:
+            queued.add(content_id)
+            await enqueue(
+                session,
+                QUEUE,
+                names.JOB_EXTRACT,
+                {"content_id": content_id, "level": "N3", "requested_by": names.FACTCHECK_ACTOR},
+                priority=names.FAST_LANE_PRIORITY,
+                dedupe_key=names.extract_key(content_id, "N3"),
+            )
+    authored = (
+        await session.execute(
+            select(ContentItem.id, ContentItem.author_account_id)
+            .where(
+                ContentItem.id.in_(list(in_language)),
+                ContentItem.author_account_id.is_not(None),
+                ContentItem.copy_of_id.is_(None),
+                ContentItem.verification.in_(sorted(TRUSTED)),
+            )
+            .order_by(ContentItem.id)
+        )
+    ).all()
+    for content_id, account_id in authored:
+        if content_id in queued:
+            continue
+        level = await override_level(
+            session, content_id=content_id, group_ids=[], account_id=account_id
+        )
+        if level not in ("N3", "N4") or (level == "N3" and not in_language[content_id]):
+            continue
         await enqueue(
             session,
             QUEUE,
             names.JOB_EXTRACT,
-            {"content_id": content_id, "level": "N3", "requested_by": names.FACTCHECK_ACTOR},
-            dedupe_key=names.extract_key(content_id, "N3"),
+            {"content_id": content_id, "level": level, "requested_by": names.FACTCHECK_ACTOR},
+            priority=names.FAST_LANE_PRIORITY,
+            dedupe_key=names.extract_key(content_id, level),
         )
 
 
@@ -731,17 +803,18 @@ async def on_investigation_completed(session: AsyncSession, events: Sequence[Eve
             continue
     if not public_ids:
         return
-    rows = await session.scalars(
-        select(Investigation.id)
+    rows = await session.execute(
+        select(Investigation.id, Investigation.level, Investigation.flags)
         .where(Investigation.public_id.in_(public_ids))
         .order_by(Investigation.id)
     )
-    for investigation_id in rows:
+    for investigation_id, level, flags in rows.all():
         await enqueue(
             session,
             QUEUE,
             names.JOB_ASSEMBLE,
             {"investigation_id": investigation_id},
+            priority=names.job_priority(level, flags),
             dedupe_key=names.assemble_key(investigation_id),
         )
 

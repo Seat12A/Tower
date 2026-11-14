@@ -99,6 +99,15 @@ relus avec temps de relecture médian ≤ 10 min.
 
 ## Lot 4 — V1 : embeddings, groupes, cache, profils
 
+> **Livré en développement le 2026-11-12** (sans clé d'API : embeddings et arbitre
+> remplacés par des doublures). Implémentation :
+> [../fact-check.md](../fact-check.md#lot-4--v1--embeddings-groupes-réutilisation-profils).
+> Écarts : E1 classe et enregistre sans déclencher l'extraction des N1 (lot 5) ; une
+> variante chiffrée de valeur différente forme son propre groupe relié à la fiche ;
+> pgvector impose le template PostgreSQL de Railway avec pgvector. Mesures sur exemples
+> seulement (fausse réutilisation 0 % sur 2 paires pièges d'exemple) ; la mesure sur
+> les 50 paires pièges du jeu de référence reste à faire.
+
 - E1 (embeddings, classifieur en règle permissive), E3 (appariement, signature,
   arbitre), groupes, fusions et scissions réversibles.
 - Fiches de référence, cache de verdicts avec péremption par type, revalidation.
@@ -110,6 +119,20 @@ N1/N2 tranchées sans recherche payante ; profils modifiables à chaud avec born
 sécurité.
 
 ## Lot 5 — V2 : flux de masse, ordonnanceur, vagues
+
+> **Livré en développement le 2026-11-12** (sans clé d'API : modèles, embeddings et
+> API X remplacés par des doublures). Implémentation :
+> [../fact-check.md](../fact-check.md#lot-5--v2--flux-de-masse-ordonnanceur-récits-et-vagues).
+> Écarts : API Batch reportée (micro-lots synchrones) ; voie rapide étendue aux N3/N4
+> (sinon une vague retardait les N3) ; les signaux de coordination restent informatifs.
+> Test de charge (100 000 posts en 1 h, soit 24 h accélérées 24 fois, un réplica
+> hangar) : délai N3 jusqu'au brouillon p50 5,9 s et p95 21,3 s, première enquête de
+> vague assemblée 1,4 s après la bascule en surge, aucun budget dépassé. **Critère de
+> coût non atteint sous doublures** : 0,0000155 $ par post pour la masse (N1), 0,0000208 $
+> tout compris, car l'allocation gratuite s'épuise et le modèle payant prend le relais.
+> Rattachement aux récits et échantillonnage non exercés (les doublures ne produisent ni
+> entités ni similarités réalistes). Détails :
+> [../sessions/2026-11-12-lot-5-v2.md](../sessions/2026-11-12-lot-5-v2.md).
 
 - Flux de l'extension en N1, micro-lots E2 (avec test de contamination), API Batch.
 - E4 ordonnanceur (singleton), promotion et rétrogradation, quota de brouillons.
@@ -142,12 +165,16 @@ rappel au-delà de 2 points.
 
 ## Lot 7 — Multi-plateforme
 
+> **Reporté** (Jules, 2026-11-12) : pas de nouvelle plateforme pour l'instant.
+
 - Adaptateur et ingestion Bluesky (Jetstream), puis Threads et Mastodon.
 - Comptes multi-plateformes par entité.
 
 Critère : une vague présente sur X et Bluesky est reconnue comme un seul récit.
 
 ## Lot 8 — Médias
+
+> **Reporté** (Jules, 2026-11-12) : ni image ni vidéo pour l'instant.
 
 - `media_assets`, service `media` : M0 (empreintes, images clés), M1 (OCR,
   transcription), M2 (provenance, première apparition).
@@ -157,6 +184,8 @@ Critère : ≥ 90 % des images recyclées du corpus datées correctement ; RSS d
 `media` mesuré et borné.
 
 ## Lot 9 — V4 : audit et neutralité
+
+> Traité comme un **audit** (Jules, 2026-11-12), après le passage au réel.
 
 - Audit hebdomadaire Fable, tableau de bord de neutralité (quatre mesures), exemples
   dynamiques dans les prompts ; brouillons pièges seulement si le taux d'acceptation

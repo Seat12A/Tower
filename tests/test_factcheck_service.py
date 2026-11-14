@@ -15,6 +15,7 @@ import pytest
 import structlog
 from sqlalchemy import text
 
+from tower.core.adapters.fake_llm import FakeEmbedder
 from tower.core.config import Settings
 from tower.core.db.database import Database
 from tower.core.domain.factcheck.values import ClaimType, EntityRole, Polarity
@@ -26,6 +27,7 @@ from tower.core.factcheck import names, runtime
 from tower.core.factcheck.schemas import ClaimEntity, ExtractedClaim, ExtractOutput, Signature
 from tower.core.jobs.queue import JobRecord, PermanentError, RetryLater
 from tower.core.llm.admin import run_seed
+from tower.core.llm.embeddings import EmbedResult
 from tower.core.llm.errors import AllRefused, BudgetExhausted
 from tower.core.ports.llm import LLMRequest, LLMResult
 from tower.core.ports.platforms import (
@@ -272,9 +274,23 @@ async def jobs_of(db: Database, kind: str) -> list[dict[str, Any]]:
     return [{**r[0], "_dedupe": r[1]} for r in result]
 
 
+class StubEmbedder:
+    """Deterministic embeddings without budget or route (E3 is not under test here)."""
+
+    model_name = "stub-embedding"
+
+    def __init__(self) -> None:
+        self._fake = FakeEmbedder()
+
+    async def embed(self, texts: Sequence[str], *, level: str, ref: str) -> EmbedResult:
+        vectors = await self._fake.embed(texts, dimensions=512)
+        return EmbedResult(vectors, self.model_name, 0, 0)
+
+
 @pytest.fixture(autouse=True)
 def _reset_runtime() -> Iterator[None]:
     runtime.clear_overrides()
+    runtime.set_override("embedder", StubEmbedder())
     yield
     runtime.clear_overrides()
 
@@ -405,12 +421,26 @@ def test_service_is_declared_and_valid(settings: Settings) -> None:
         names.JOB_REQUEST,
         names.JOB_ASSEMBLE,
         names.JOB_TRANSLATE,
+        names.JOB_EMBED_BATCH,
+        names.JOB_REVALIDATE,
+        names.JOB_INSEE_REFRESH,
+        names.JOB_EXTRACT_BATCH,
+        names.JOB_LIGHT_CHECK,
+        names.JOB_ATTACH_NARRATIVE,
+        names.JOB_NARRATIVE_TITLE,
+        names.JOB_PROMOTION_CHECK,
     }
     assert {p.name for p in service.services[0].periodic} == {
         "factcheck:drain_quota",
         "factcheck:purge_source_cache",
+        "factcheck:embedding_partitions",
+        "factcheck:expire",
+        "factcheck:reference_feed",
+        "factcheck:compose_batches",
+        "factcheck:schedule",
+        "factcheck:narratives",
     }
-    assert service.queues == [names.FC_FAST]
+    assert sorted(service.queues) == sorted([names.FC_FAST, names.FC_BULK])
     service.validate(lease_seconds=settings.job_lease_seconds * 10)
 
 

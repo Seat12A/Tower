@@ -80,7 +80,7 @@ portant `content:ingest` (radar, plus tard). Corps (256 Ko au plus, sinon
 Traitement, dans une transaction : quota de l'installation, comptes auteurs
 (`platform_accounts`), `INSERT … ON CONFLICT (platform, external_id) DO UPDATE` des
 contenus (métriques, `last_seen_at`, `observation_count` ; le texte d'origine n'est
-jamais remplacé), médias (`media_assets` dédoublonnés par empreinte de l'URL,
+remplacé que par une lecture de la plateforme, voir « Vérification des contenus »), médias (`media_assets` dédoublonnés par empreinte de l'URL,
 `content_media`), une observation par item accepté, puis pour **chaque nouveau
 contenu seulement** l'événement `content.ingested` et le job `ingest.link_copies`.
 Aucun événement par observation : une vague produirait des millions de lignes
@@ -175,6 +175,72 @@ dans la même transaction. `content_items` n'est **pas** partitionnée.
 Une observation sans partition (maintenance arrêtée depuis plus de deux semaines)
 échoue avec `TWR-ING-010` (503).
 
+## Vérification des contenus
+
+L'extension est un client **non fiable** : le texte et l'auteur qu'elle déclare pour
+un identifiant de post ne sont que des affirmations (une extension modifiée peut
+inventer un post et l'attribuer à un compte suivi). `content_items.verification`
+(domaine pur : `core/domain/verification.py`) dit d'où vient la confiance :
+
+| Valeur | Sens |
+|---|---|
+| `platform` | Texte et auteur lus sur la plateforme par un service (`radar`, `manual`, `feed`) |
+| `verified` | Déclaré par l'extension et confirmé par l'intégration publique du post (X oEmbed) |
+| `unverified` | Déclaré par l'extension, pas (encore) vérifié, ou vérification non concluante |
+| `mismatch` | L'intégration publique contredit le texte ou l'auteur déclaré |
+| `unavailable` | Pas d'intégration publique : post inexistant, supprimé ou protégé |
+
+Règles :
+
+- **Une lecture de la plateforme fait foi.** Un lot d'une source de service marque ses
+  contenus `platform` ; s'il retrouve un contenu `unverified`, `mismatch` ou
+  `unavailable`, il remplace son texte, son auteur, sa langue et ses empreintes, puis
+  publie `content.verified`. Un texte `platform` ou `verified` n'est jamais remplacé (des
+  affirmations en ont été extraites) ; un contenu `verified` passe seulement à
+  `platform`, sans événement.
+- **Seuls les contenus `platform` ou `verified` déclenchent un fact-check ciblé** (N3
+  d'un compte suivi, forçage de compte N3/N4) : voir [fact-check.md](fact-check.md).
+  Un post de compte suivi déclaré par l'extension attend sa vérification
+  (`content.verified`) ou la lecture du radar.
+- Les contenus `mismatch` sont exclus des micro-lots d'extraction N1 (flux de masse).
+- Les contenus non vérifiés restent comptés (observations, statistiques, vagues) ;
+  pour des statistiques fiables, filtrer sur `verification`.
+
+### Vérification par l'intégration publique (X oEmbed)
+
+`GET https://publish.x.com/oembed?url=https://x.com/i/status/<id>&omit_script=1&dnt=true`
+([documentation officielle](https://docs.x.com/x-for-websites/oembed-api)) : sans
+authentification, sans quota de l'API X ; la réponse donne l'auteur (`author_url`) et le
+texte (premier `<p>` du champ `html`). Usage validé par Jules le 2026-11-14 (voir
+[decisions.md](decisions.md)). Adaptateur : `core/adapters/x_oembed.py` (port
+`PublicEmbedClient`).
+
+Comparaison (`compare`) : liens retirés des deux côtés (l'intégration montre des liens
+`t.co`, la page des URL raccourcies), NFKC, minuscules, pictogrammes retirés, espaces
+compactés ; **les mentions sont gardées** (une mention changée est un autre post). Le
+pseudo déclaré, s'il existe, doit être celui de `author_url`. Un texte d'intégration
+d'au moins 250 caractères qui n'est qu'un début du texte déclaré (post long
+possiblement tronqué) est **non concluant** : le contenu reste `unverified`.
+
+Limites, pour ne pas solliciter X plus que nécessaire :
+
+| Limite | Mécanisme | Variable |
+|---|---|---|
+| Un seul lot à la fois, tous réplicas confondus | Tâche singleton `ingest:verify` (60 s) qui enfile le job `ingest.verify` (`dedupe_key` `oembed:batch`, priorité 10 devant le backlog de copies) | — |
+| Requêtes par minute | Taille d'un lot | `TOWER_OEMBED_PER_MINUTE` (30) |
+| Requêtes simultanées | Sémaphore dans le lot | `TOWER_OEMBED_CONCURRENCY` (2) |
+| Requêtes par jour UTC | Comptées sur `checked_at` ; au-delà, les contenus restent `unverified` | `TOWER_OEMBED_DAILY_MAX` (20 000) |
+| Fenêtre | Seuls les contenus vus depuis moins de N heures, chacun **une seule fois** | `TOWER_OEMBED_MAX_AGE_H` (24) |
+| Pause sur 429 | Le job est reporté du délai annoncé (60 s à 1 h, 15 min par défaut) ; resté actif, il bloque les lots suivants. `TWR-ING-014` | — |
+| Pause sur panne | Si toutes les requêtes d'un lot échouent (réseau, 5xx, 403) : 5 min. `TWR-ING-013` | — |
+| Durée d'un lot | Aucune requête ne démarre après 80 s (délai du job : 110 s) | `TOWER_OEMBED_TIMEOUT_S` (10 s par requête) |
+
+Ordre : contenus des comptes suivis d'abord (ils peuvent ouvrir un fact-check ciblé),
+puis les plus récents. Aucune transaction ouverte pendant les requêtes. Un 403 n'est
+jamais pris pour « post absent » (seul un 404 donne `unavailable`) : un refus d'X ne
+doit pas marquer tous les posts. Une divergence est capturée (`TWR-ING-012`,
+avertissement stocké). `TOWER_OEMBED_ENABLED=false` coupe la vérification.
+
 ## Service `ingest`
 
 `TOWER_SERVICES=ping,ingest`, file `ingest`.
@@ -182,6 +248,7 @@ Une observation sans partition (maintenance arrêtée depuis plus de deux semain
 | Élément | Rôle |
 |---|---|
 | Job `ingest.link_copies` (`dedupe_key` `copies:<id>`) | Copie exacte (même `content_hash`, sans limite de date) ou quasi-copie (SimHash à distance ≤ 3, trouvée par les 4 bandes sur 30 jours) ; `copy_of_id` reçoit le plus ancien contenu (ou sa racine s'il est lui-même une copie). Idempotent |
+| Tâche `ingest:verify` (singleton, toutes les minutes) et job `ingest.verify` | Vérification des contenus de l'extension par l'intégration publique (ci-dessus) |
 | Tâche `ingest:partitions` (singleton, toutes les heures) | Partitions à venir, agrégation et purge des anciennes |
 | Tâche `ingest:secrets` (singleton, toutes les 10 minutes) | Secrets du jour et du lendemain, suppression des anciens, purge de `installation_daily` |
 

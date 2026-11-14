@@ -80,6 +80,12 @@ class AtlasRequest:
     max_documents: int = 24
     max_reference_fetches: int = 6
     """Wikipedia references followed to primary sources, at most."""
+    fact_checks_only: bool = False
+    """Query only the existing fact-checks (E3 lookup for a new group): no structured
+    source, no encyclopedia, no web search."""
+    skip_encyclopedia: bool = False
+    """Skip the encyclopedia (and its followed references): light check (E5) only reads
+    existing fact-checks and structured sources."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -309,9 +315,11 @@ class Atlas:
     async def collect(self, request: AtlasRequest) -> AtlasResult:
         run = _Run(request)
         await self._fact_checks(run)
-        await self._structured(run)
-        await self._encyclopedia(run)
-        await self._web(run)
+        if not request.fact_checks_only:
+            await self._structured(run)
+            if not request.skip_encyclopedia:
+                await self._encyclopedia(run)
+            await self._web(run)
         run.result.paid_cost_usd_micros = run.result.web_searches * self._search_cost
         log.info(
             "atlas.collected",

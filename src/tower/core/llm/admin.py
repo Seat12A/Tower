@@ -15,6 +15,8 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from tower.core.config import Settings
 from tower.core.db.database import Database
 from tower.core.domain.llm import GLOBAL_SCOPE, month_period
+from tower.core.factcheck import names
+from tower.core.factcheck.profiles import default_profile
 from tower.core.llm.usage import get_usage
 from tower.core.models.llm import BudgetCounter, LLMModel, LLMRoute
 
@@ -75,6 +77,7 @@ def _effort(role: str, level: str, effort: str, model: str, *fallbacks: str) -> 
 
 _ROUTES: tuple[_RouteSeed, ...] = (
     _low("extract", "gpt-5.6-luna", "gpt-6-luna", "claude-haiku-5-5"),
+    _low("extract_batch", "gpt-5.6-luna", "gpt-6-luna", "claude-haiku-5-5"),
     _low("pair_arbiter", "gpt-5-nano", "gpt-6-luna"),
     _low("light_check", "gpt-5.6-terra", "gpt-6.1-terra", "claude-haiku-5-5"),
     _low("query_writer", "gpt-5.6-terra", "gpt-6-luna"),
@@ -104,6 +107,7 @@ async def _seed(db: Database, settings: Settings, now: datetime) -> dict[str, in
         "routes_kept": 0,
         "budget_created": 0,
         "x_budget_created": 0,
+        "level_budgets_created": 0,
     }
     async with db.transaction() as session:
         for m in _MODELS:
@@ -201,6 +205,21 @@ async def _seed(db: Database, settings: Settings, now: datetime) -> dict[str, in
                 .on_conflict_do_nothing(index_elements=["scope", "period_start"])
             )
             counts["x_budget_created"] = 1
+        # Level scopes (level:N0..N4): caps of the default profile, only when the scope has
+        # no counter for the period (a cap set by an activated profile is never overwritten).
+        for level, level_settings in default_profile(settings).levels.items():
+            scope = names.level_scope(level)
+            created = await session.execute(
+                pg_insert(BudgetCounter)
+                .values(
+                    scope=scope,
+                    period_start=start,
+                    period_end=end,
+                    cap_usd_micros=round(level_settings.monthly_budget_usd * 1_000_000),
+                )
+                .on_conflict_do_nothing(index_elements=["scope", "period_start"])
+            )
+            counts["level_budgets_created"] += int(created.rowcount or 0)  # type: ignore[attr-defined]
     return counts
 
 
@@ -214,7 +233,9 @@ async def run_seed(settings: Settings) -> None:
         f"Models upserted: {counts['models']}. "
         f"Routes created: {counts['routes_created']} (kept: {counts['routes_kept']}). "
         f"Global budget created: {'yes' if counts['budget_created'] else 'no (already set)'}. "
-        f"Provider X budget created: {'yes' if counts['x_budget_created'] else 'no (already set)'}."
+        f"Provider X budget created: "
+        f"{'yes' if counts['x_budget_created'] else 'no (already set)'}. "
+        f"Level budgets created: {counts['level_budgets_created']}."
     )
 
 

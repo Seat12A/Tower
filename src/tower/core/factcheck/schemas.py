@@ -14,10 +14,12 @@ from pydantic import AfterValidator, BaseModel, ConfigDict
 
 from tower.core.domain.factcheck.values import (
     AbsenceReason,
+    ArbiterReason,
     ClaimType,
     ContextNeed,
     ContextType,
     EntityRole,
+    LightSignal,
     ObjectionDirection,
     ObjectionType,
     Polarity,
@@ -29,13 +31,17 @@ __all__ = [
     "ContextPoint",
     "CriticOutput",
     "Definition",
+    "ExtractBatchOutput",
     "ExtractOutput",
     "ExtractedClaim",
     "FrameOutput",
     "JudgeAssertion",
     "JudgeCitation",
     "JudgeOutput",
+    "LightCheckOutput",
+    "NarrativeTitleOutput",
     "ObjectionOutput",
+    "PairArbiterOutput",
     "PassageOrigin",
     "QueryItem",
     "QueryOutput",
@@ -309,3 +315,46 @@ class CriticOutput(_Out):
 class TranslateOutput(_Out):
     lang: str
     text: Annotated[str, _max_len(4000)]
+
+
+# ------------------------------------------------------------------- pair arbiter
+
+
+class PairArbiterOutput(_Out):
+    """E3 arbiter. ``same`` is honoured only with ``reason == same_claim``; any other
+    combination is read as "different" by the code (never merge by mistake)."""
+
+    same: bool
+    reason: ArbiterReason
+    explanation: Line
+    """One sentence in English naming the decisive element (never the author)."""
+
+
+# ------------------------------------------------------------- E2 micro-batches (lot 5)
+
+
+class ExtractBatchOutput(_Out):
+    """One entry per input post, in any order; every input id must come back (a missing
+    id is replayed alone, an unknown id is ignored)."""
+
+    posts: Annotated[list[ExtractOutput], _max_items(12)]
+
+
+# ------------------------------------------------------------------- E5 light check
+
+
+class LightCheckOutput(_Out):
+    signal: LightSignal
+    explanation: Line
+    """One English sentence for the scheduler logs and the team (never published)."""
+    evidence_ids: Annotated[list[Short], _max_items(6)]
+    """Identifiers of the evidence items the signal rests on (copied from the input)."""
+
+
+# -------------------------------------------------------------- narrative titles
+
+
+class NarrativeTitleOutput(_Out):
+    title_fr: Annotated[str, _max_len(120)]
+    """Short neutral title in French (the team's language)."""
+    title_en: Annotated[str, _max_len(120)]

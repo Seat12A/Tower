@@ -257,15 +257,116 @@ def _register_draft_ui(gate: GateClient) -> Any:
                 lambda loc, uid: fc.review_reject(gate, uid, loc, self.draft_id, reason),
             )
 
+    class SameGroupModal(discord.ui.Modal):
+        def __init__(self, draft_id: str, locale: str) -> None:
+            super().__init__(title=t(locale, "draft.modal.samegroup.title")[:45])
+            self.draft_id = draft_id
+            self.group: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                label=t(locale, "draft.modal.samegroup.group")[:45],
+                required=True,
+                min_length=36,
+                max_length=36,
+            )
+            self.reason: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                label=t(locale, "draft.modal.reason.label")[:45],
+                style=discord.TextStyle.paragraph,
+                required=False,
+                max_length=500,
+            )
+            for item in (self.group, self.reason):
+                self.add_item(item)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            await interaction.response.defer(ephemeral=True)
+            group, reason = self.group.value, self.reason.value
+            await finish(
+                interaction,
+                lambda loc, uid: fc.group_merge_same(gate, uid, loc, self.draft_id, group, reason),
+            )
+
+    class SplitModal(discord.ui.Modal):
+        def __init__(self, draft_id: str, locale: str) -> None:
+            super().__init__(title=t(locale, "draft.modal.split.title")[:45])
+            self.draft_id = draft_id
+            self.claims: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                label=t(locale, "draft.modal.split.claims")[:45],
+                style=discord.TextStyle.paragraph,
+                required=True,
+                max_length=1500,
+            )
+            self.reason: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                label=t(locale, "draft.modal.reason.label")[:45],
+                style=discord.TextStyle.paragraph,
+                required=False,
+                max_length=500,
+            )
+            for item in (self.claims, self.reason):
+                self.add_item(item)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            await interaction.response.defer(ephemeral=True)
+            claims, reason = self.claims.value, self.reason.value
+            await finish(
+                interaction,
+                lambda loc, uid: fc.group_split_draft(
+                    gate, uid, loc, self.draft_id, claims, reason
+                ),
+            )
+
+    class FactModal(discord.ui.Modal):
+        def __init__(self, draft_id: str, locale: str) -> None:
+            super().__init__(title=t(locale, "draft.modal.fact.title")[:45])
+            self.draft_id = draft_id
+            self.inputs: dict[str, discord.ui.TextInput[Any]] = {}
+            for key, max_length in (
+                ("value", 40),
+                ("period", 40),
+                ("url", 400),
+                ("name", 200),
+                ("published", 12),
+            ):
+                field: discord.ui.TextInput[Any] = discord.ui.TextInput(
+                    label=t(locale, f"draft.modal.fact.{key}")[:45],
+                    required=True,
+                    max_length=max_length,
+                )
+                self.inputs[key] = field
+                self.add_item(field)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            await interaction.response.defer(ephemeral=True)
+            v = {k: f.value for k, f in self.inputs.items()}
+            await finish(
+                interaction,
+                lambda loc, uid: fc.fact_create(
+                    gate,
+                    uid,
+                    loc,
+                    self.draft_id,
+                    v["value"],
+                    v["period"],
+                    v["url"],
+                    v["name"],
+                    v["published"],
+                ),
+            )
+
     styles = {
         "validate": discord.ButtonStyle.success,
         "correct": discord.ButtonStyle.primary,
         "reject": discord.ButtonStyle.danger,
+        "samegroup": discord.ButtonStyle.secondary,
+        "split": discord.ButtonStyle.secondary,
+        "fact": discord.ButtonStyle.secondary,
+        "band": discord.ButtonStyle.secondary,
     }
 
     class DraftButton(
         discord.ui.DynamicItem[discord.ui.Button[Any]],
-        template=r"fc:(?P<action>validate|correct|reject):(?P<draft>[0-9a-fA-F-]{36})",
+        template=(
+            r"fc:(?P<action>validate|correct|reject|samegroup|split|fact|band)"
+            r":(?P<draft>[0-9a-fA-F-]{36})"
+        ),
     ):
         def __init__(self, action: str, draft_id: str, locale: str = "en") -> None:
             super().__init__(
@@ -291,9 +392,20 @@ def _register_draft_ui(gate: GateClient) -> Any:
                 await finish(
                     interaction, lambda loc, uid: fc.review_accept(gate, uid, loc, self.draft_id)
                 )
+            elif self.action == "band":
+                await interaction.response.defer(ephemeral=True)
+                await finish(
+                    interaction, lambda loc, uid: fc.band_validate(gate, uid, loc, self.draft_id)
+                )
             elif self.action == "correct":
                 # A modal must be the first response: no defer.
                 await interaction.response.send_modal(CorrectModal(self.draft_id, locale))
+            elif self.action == "samegroup":
+                await interaction.response.send_modal(SameGroupModal(self.draft_id, locale))
+            elif self.action == "split":
+                await interaction.response.send_modal(SplitModal(self.draft_id, locale))
+            elif self.action == "fact":
+                await interaction.response.send_modal(FactModal(self.draft_id, locale))
             else:
                 await interaction.response.send_modal(RejectModal(self.draft_id, locale))
 
@@ -312,6 +424,8 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
 
     from tower.intercom.handlers import dossiers, incidents, usage, watchlist
     from tower.intercom.handlers import factcheck as fc_handlers
+    from tower.intercom.handlers import narratives as narrative_handlers
+    from tower.intercom.handlers import profiles as profile_handlers
 
     async def run(interaction: Any, call: HandlerCall) -> None:
         locale = locale_of(str(interaction.locale))
@@ -439,7 +553,200 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
     async def fc_request(interaction: discord.Interaction, url: str) -> None:
         await run(interaction, lambda loc, uid: fc_handlers.request(gate, uid, loc, url))
 
-    for group in (wl, dos, inc):
+    # --- /profile and /level -------------------------------------------------------
+    prof = app_commands.Group(name="profile", description="Processing profiles")
+
+    @prof.command(name="show", description="Show the active processing profile")
+    async def p_show(interaction: discord.Interaction) -> None:
+        await run(interaction, lambda loc, uid: profile_handlers.show(gate, uid, loc))
+
+    @prof.command(name="history", description="List the profile versions")
+    async def p_history(interaction: discord.Interaction) -> None:
+        await run(interaction, lambda loc, uid: profile_handlers.history(gate, uid, loc))
+
+    @prof.command(name="set", description="Change one setting (new version, activated)")
+    @app_commands.describe(
+        path="Dotted path, e.g. levels.N1.e1_threshold or draft_daily_quota",
+        value="New value (JSON: 0.2, true, 40)",
+        reason="Why",
+    )
+    async def p_set(interaction: discord.Interaction, path: str, value: str, reason: str) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: profile_handlers.set_value(gate, uid, loc, path, value, reason),
+        )
+
+    @prof.command(name="rollback", description="Re-activate the previous profile version")
+    async def p_rollback(interaction: discord.Interaction, reason: str) -> None:
+        await run(interaction, lambda loc, uid: profile_handlers.rollback(gate, uid, loc, reason))
+
+    lvl = app_commands.Group(name="level", description="Manual level overrides")
+    target_choices = [app_commands.Choice(name=v, value=v) for v in ("content", "group", "account")]
+    level_choices = [app_commands.Choice(name=v, value=v) for v in ("N0", "N1", "N2", "N3", "N4")]
+
+    @lvl.command(name="set", description="Force a level for a content, group or account")
+    @app_commands.describe(
+        target="Content/group public id, <platform>:<external id>, or <platform>:@<handle>",
+        hours="Duration in hours (0 < hours <= 720)",
+        reason="Why",
+    )
+    @app_commands.choices(target_type=target_choices, level=level_choices)
+    async def l_set(
+        interaction: discord.Interaction,
+        target_type: app_commands.Choice[str],
+        target: str,
+        level: app_commands.Choice[str],
+        hours: float,
+        reason: str,
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: profile_handlers.level_set(
+                gate, uid, loc, target_type.value, target, level.value, hours, reason
+            ),
+        )
+
+    @lvl.command(name="list", description="List the active level overrides")
+    async def l_list(interaction: discord.Interaction) -> None:
+        await run(interaction, lambda loc, uid: profile_handlers.level_list(gate, uid, loc))
+
+    @lvl.command(name="revoke", description="End a level override")
+    @app_commands.describe(override_id="Override id (at least 6 characters)", reason="Why")
+    async def l_revoke(interaction: discord.Interaction, override_id: str, reason: str) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: profile_handlers.level_revoke(gate, uid, loc, override_id, reason),
+        )
+
+    # --- /group and /fact ------------------------------------------------------------
+    grp = app_commands.Group(name="group", description="Claim groups")
+
+    @grp.command(name="show", description="Show a claim group")
+    @app_commands.describe(group_id="Group id")
+    async def g_show(interaction: discord.Interaction, group_id: str) -> None:
+        await run(interaction, lambda loc, uid: fc_handlers.group_show(gate, uid, loc, group_id))
+
+    @grp.command(name="merge", description="Merge the source group into the target group")
+    @app_commands.describe(target="Group that absorbs", source="Group absorbed", reason="Why")
+    async def g_merge(
+        interaction: discord.Interaction, target: str, source: str, reason: str
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: fc_handlers.group_merge(gate, uid, loc, target, source, reason),
+        )
+
+    @grp.command(name="split", description="Move claims into a new group")
+    @app_commands.describe(group_id="Group id", claim_ids="Claim ids, comma separated")
+    async def g_split(
+        interaction: discord.Interaction, group_id: str, claim_ids: str, reason: str
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: fc_handlers.group_split(gate, uid, loc, group_id, claim_ids, reason),
+        )
+
+    fct = app_commands.Group(name="fact", description="Reference facts and value bands")
+    status_choices = [
+        app_commands.Choice(name=v, value=v) for v in ("pending", "validated", "rejected")
+    ]
+
+    @fct.command(name="show", description="Show a reference fact")
+    @app_commands.describe(fact_id="Fact id (at least 6 characters)")
+    async def f_show(interaction: discord.Interaction, fact_id: str) -> None:
+        await run(interaction, lambda loc, uid: fc_handlers.fact_show(gate, uid, loc, fact_id))
+
+    @fct.command(name="list", description="List reference facts")
+    @app_commands.choices(status=status_choices)
+    async def f_list(
+        interaction: discord.Interaction, status: app_commands.Choice[str] | None = None
+    ) -> None:
+        value = status.value if status else None
+        await run(interaction, lambda loc, uid: fc_handlers.fact_list(gate, uid, loc, value))
+
+    @fct.command(name="validate", description="Validate a pending reference fact")
+    async def f_validate(interaction: discord.Interaction, fact_id: str) -> None:
+        await run(interaction, lambda loc, uid: fc_handlers.fact_validate(gate, uid, loc, fact_id))
+
+    @fct.command(name="reject", description="Reject a pending reference fact")
+    async def f_reject(interaction: discord.Interaction, fact_id: str, reason: str) -> None:
+        await run(
+            interaction, lambda loc, uid: fc_handlers.fact_reject(gate, uid, loc, fact_id, reason)
+        )
+
+    @fct.command(name="band", description="Validate the value band of an active verdict")
+    @app_commands.describe(verdict_id="Verdict (draft) id")
+    async def f_band(interaction: discord.Interaction, verdict_id: str) -> None:
+        await run(
+            interaction, lambda loc, uid: fc_handlers.band_validate(gate, uid, loc, verdict_id)
+        )
+
+    # --- /narrative -------------------------------------------------------------------
+    nar = app_commands.Group(name="narrative", description="Narratives and waves")
+    nar_state_choices = [
+        app_commands.Choice(name=v, value=v)
+        for v in ("active", "watch", "surge", "alert", "closed")
+    ]
+
+    @nar.command(name="list", description="List narratives (open ones by default)")
+    @app_commands.choices(state=nar_state_choices)
+    async def n_list(
+        interaction: discord.Interaction, state: app_commands.Choice[str] | None = None
+    ) -> None:
+        value = state.value if state else None
+        await run(
+            interaction, lambda loc, uid: narrative_handlers.narrative_list(gate, uid, loc, value)
+        )
+
+    @nar.command(name="show", description="Show a narrative")
+    @app_commands.describe(narrative_id="Narrative id")
+    async def n_show(interaction: discord.Interaction, narrative_id: str) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: narrative_handlers.narrative_show(gate, uid, loc, narrative_id),
+        )
+
+    @nar.command(name="merge", description="Merge the source narrative into the target")
+    @app_commands.describe(
+        target="Narrative that absorbs", source="Narrative absorbed", reason="Why"
+    )
+    async def n_merge(
+        interaction: discord.Interaction, target: str, source: str, reason: str
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: narrative_handlers.narrative_merge(
+                gate, uid, loc, target, source, reason
+            ),
+        )
+
+    @nar.command(name="split", description="Move groups into a new narrative")
+    @app_commands.describe(
+        narrative_id="Narrative id", groups="Group ids, comma separated", reason="Why"
+    )
+    async def n_split(
+        interaction: discord.Interaction, narrative_id: str, groups: str, reason: str
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: narrative_handlers.narrative_split(
+                gate, uid, loc, narrative_id, groups, reason
+            ),
+        )
+
+    @nar.command(name="title", description="Validate the draft title, or set a corrected one")
+    @app_commands.describe(narrative_id="Narrative id", title="Corrected title (optional)")
+    async def n_title(
+        interaction: discord.Interaction, narrative_id: str, title: str | None = None
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: narrative_handlers.narrative_title(
+                gate, uid, loc, narrative_id, title
+            ),
+        )
+
+    for group in (wl, dos, inc, prof, lvl, grp, fct, nar):
         tree.add_command(group)
     tree.add_command(u_show)
     tree.add_command(fc_request)

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from tower.core.adapters.knowledge.atlas import Atlas
     from tower.core.config import Settings
     from tower.core.db.database import Database
+    from tower.core.llm.embeddings import EmbeddingService
     from tower.core.ports.llm import LLMClient
     from tower.core.ports.platforms import PlatformClient
 
@@ -23,6 +24,7 @@ __all__ = [
     "clear_overrides",
     "confidence_settings",
     "get_atlas",
+    "get_embedder",
     "get_llm",
     "get_platform_client",
     "loaded_terms",
@@ -34,7 +36,8 @@ _overrides: dict[str, Any] = {}
 
 
 def set_override(name: str, value: Any) -> None:
-    """Replace ``llm``, ``atlas`` or ``platform:<name>`` (tests); ``None`` removes it."""
+    """Replace ``llm``, ``embedder``, ``atlas`` or ``platform:<name>`` (tests); ``None``
+    removes it."""
     if value is None:
         _overrides.pop(name, None)
     else:
@@ -76,6 +79,36 @@ def get_llm(settings: Settings, db: Database) -> LLMClient:
             reservation_ttl_s=settings.budget_reservation_ttl_s,
         )
     return _instances["llm"]  # type: ignore[no-any-return]
+
+
+def get_embedder(settings: Settings, db: Database) -> EmbeddingService:
+    """``EmbeddingService`` over OpenAI (non-sharing organization key), or over the
+    deterministic ``FakeEmbedder`` with ``TOWER_LLM_FAKE=1``. One instance per process
+    (its cache is bounded)."""
+    if "embedder" in _overrides:
+        return _overrides["embedder"]  # type: ignore[no-any-return]
+    if "embedder" not in _instances:
+        from tower.core.llm.embeddings import EmbeddingService
+        from tower.core.ports.embeddings import Embedder
+
+        embedder: Embedder
+        if settings.llm_fake:
+            from tower.core.adapters.fake_llm import FakeEmbedder
+
+            embedder = FakeEmbedder()
+        else:
+            from tower.core.adapters.openai_embedder import OpenAIEmbedder
+            from tower.core.llm.errors import ProviderNotConfigured
+
+            if settings.openai_api_key is None:
+                raise ProviderNotConfigured("OpenAI API key is not configured", role="embed")
+            embedder = OpenAIEmbedder(settings.openai_api_key.get_secret_value())
+        _instances["embedder"] = EmbeddingService(
+            db,
+            embedder,
+            reservation_ttl_s=settings.budget_reservation_ttl_s,
+        )
+    return _instances["embedder"]  # type: ignore[no-any-return]
 
 
 async def get_atlas(settings: Settings, db: Database) -> Atlas:

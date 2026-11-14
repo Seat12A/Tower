@@ -325,3 +325,49 @@ def translate_input(*, text: str, source_lang: str, target_lang: str, kind: str)
         "target_lang": target_lang,
         "text": text,
     }
+
+
+def pair_arbiter_input(
+    *,
+    a_text: str,
+    a_lang: str,
+    a_date: date | None,
+    b_text: str,
+    b_lang: str,
+    b_date: date | None,
+) -> dict[str, Any]:
+    """E3 arbiter: the two **original** claim texts, each in its own language, with the
+    publication date of its post (resolves "currently", "last year"). Never the
+    author, the platform, the reach or the level. Texts are datamarked by the caller
+    like any untrusted text."""
+    return {
+        "claim_a": {"text": a_text, "lang": a_lang, "post_date": _iso(a_date)},
+        "claim_b": {"text": b_text, "lang": b_lang, "post_date": _iso(b_date)},
+    }
+
+
+def extract_batch_input(*, posts: Sequence[Mapping[str, Any]], today: date) -> dict[str, Any]:
+    """E2 micro-batch: each post is the dict built by :func:`extract_input` for one post
+    (``post`` value), already datamarked and pseudonymized. Never the author."""
+    return {"today": _iso(today), "posts": [dict(p) for p in posts]}
+
+
+def light_check_input(
+    *,
+    claim: ClaimView,
+    post_date: date | None,
+    evidence: Sequence[Mapping[str, str]],
+) -> dict[str, Any]:
+    """E5: the claim (as for the frame) and short evidence items ``{id, kind, source,
+    text}`` (reference facts, existing fact-checks, structured sources, or passages of the
+    narrative's evidence dossier), texts datamarked by the caller."""
+    return {
+        "claim": claim.as_input(),
+        "post_date": _iso(post_date),
+        "evidence": [dict(e) for e in evidence],
+    }
+
+
+def narrative_title_input(*, claims: Sequence[str]) -> dict[str, Any]:
+    """Representative claims (French pivot texts, datamarked) of a narrative."""
+    return {"claims": list(claims)[:5]}
