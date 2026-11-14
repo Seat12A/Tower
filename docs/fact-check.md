@@ -702,8 +702,9 @@ qu'elle serve, comme pour l'INSEE.
   pénale 19 137, sécurité intérieure 6 971, CESEDA 6 640, civil 6 358, pénal 3 791,
   électoral 3 530), 1 107 membres ignorés, **16,6 min**, RSS de pointe **118 Mo**.
   Table : **342 Mo** (195 Mo de données, 55 Mo d'index). La Constitution est rangée sous
-  son identifiant JORF (`JORFTEXT000000571356`) dans le dump ; elle a été chargée par une
-  seconde passe (voir le résumé de session).
+  son identifiant JORF (`JORFTEXT000000571356`) dans le dump : identifiant corrigé et
+  vérifié sur une différence réelle ; son chargement complet reste à faire (le dump a
+  été coupé deux fois dans le bac à sable, voir le résumé de session).
 - **`legi_mirror`** : référence exacte (« article 432-13 du code pénal », « art. L.
   1234-5 », « 49.3 » de la Constitution) puis recherche plein texte
   (`websearch_to_tsquery('french')`, `ts_rank`). La version retenue est celle **en
