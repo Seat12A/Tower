@@ -16,6 +16,12 @@ Jules : « temporairement, passer tous les modèles d'Anthropic sur OpenAI », p
 - Documentation : `llm.md` (étape 1 du déroulé, nouvelle section), `configuration.md`,
   `.env.example`, `decisions.md`.
 
+- **Partage pour toutes les routes** (demande de Jules dans la même session) :
+  `core/llm/admin.py` amorce `frame`, `judge`, `writer` et `auditor` avec
+  `data_sharing_ok = true` ; `tower llm seed` réaligne les routes existantes encore
+  possédées par l'amorçage (`created_by = 'system:seed'`). Test d'amorçage étendu.
+  Documentation : `llm.md`, `factcheck/modeles.md`, `configuration.md`.
+
 ## Décisions
 
 - Haiku → `gpt-6-luna` ; Sonnet, Opus, Fable → `gpt-6.1-terra` (pas de modèle à groupe
@@ -35,6 +41,8 @@ Jules : « temporairement, passer tous les modèles d'Anthropic sur OpenAI », p
 ## Points ouverts / suite
 
 - Lancer `uv run pytest -q tests/test_llm_router.py` sur une base avec pgvector ≥ 0.8.
-- Configurer `TOWER_OPENAI_API_KEY` (clé sans partage) : sans elle, `frame`, `judge`,
-  `writer` et `auditor` n'ont plus aucun candidat (`TWR-LLM-008`).
+- Sur une base déjà amorcée : lancer `uv run tower llm seed` pour passer les routes en
+  partage. `TOWER_OPENAI_API_KEY` est alors facultative.
+- Avis juridique toujours recommandé (RGPD) : plus de contenu part vers l'organisation
+  avec partage (verdicts, fiches rédigées).
 - Juge et contradicteur chez le même fournisseur pendant la substitution.

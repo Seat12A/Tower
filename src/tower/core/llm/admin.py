@@ -72,7 +72,9 @@ def _low(
 
 
 def _effort(role: str, level: str, effort: str, model: str, *fallbacks: str) -> _RouteSeed:
-    return _RouteSeed(role, level, model, fallbacks, {"effort": effort}, False)
+    # Shared organization (decision of 2026-11-14): every role input is built by
+    # core/factcheck/inputs.py, which only keeps public, pseudonymized content.
+    return _RouteSeed(role, level, model, fallbacks, {"effort": effort}, True)
 
 
 _ROUTES: tuple[_RouteSeed, ...] = (
@@ -150,6 +152,15 @@ async def _seed(db: Database, settings: Settings, now: datetime) -> dict[str, in
                 )
             ).first()
             if exists is not None:
+                # Routes still owned by the seed follow its data-sharing choice; a route
+                # created or edited by the team is never touched.
+                await session.execute(
+                    text(
+                        "UPDATE llm_routes SET data_sharing_ok = :s WHERE role = :role"
+                        " AND level = :level AND created_by = :seed AND data_sharing_ok <> :s"
+                    ),
+                    {"s": r.data_sharing_ok, "role": r.role, "level": r.level, "seed": SEED_ACTOR},
+                )
                 counts["routes_kept"] += 1
                 continue
             await session.execute(

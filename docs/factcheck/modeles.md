@@ -59,7 +59,11 @@ Conséquences pour la conception :
 4. **Deux clés OpenAI possibles** : une organisation dédiée avec partage
    (`TOWER_OPENAI_API_KEY_SHARED`) pour les rôles publics, et une organisation sans
    partage (`TOWER_OPENAI_API_KEY`) pour tout ce qui ne doit pas l'être. Chaque route
-   déclare `data_sharing_ok`.
+   déclare `data_sharing_ok`. **Depuis le 2026-11-14, toutes les routes de modèles de
+   langage sont avec partage** : toutes les entrées sont construites par
+   `core/factcheck/inputs.py` (contenu public, mentions pseudonymisées, jamais l'auteur,
+   son bord, le niveau ni le relecteur). La clé sans partage devient facultative ; les
+   embeddings utilisent la clé avec partage quand elle est seule configurée.
 
 ### Le flux tient-il dans l'allocation ?
 

@@ -145,7 +145,9 @@ l'événement et des compteurs.
 Idempotent : met à jour les tarifs des modèles connus (sans jamais écraser un
 `free_group` déjà renseigné), crée la version 1 d'une route
 seulement si aucune route n'existe pour (rôle, niveau) — une route modifiée par
-l'équipe n'est jamais écrasée. Tarifs relevés le 2026-11-10
+l'équipe n'est jamais écrasée. Seule exception : une route existante encore créée par
+l'amorçage (`created_by = 'system:seed'`) reprend la valeur `data_sharing_ok` de
+l'amorçage. Tarifs relevés le 2026-11-10
 ([factcheck/modeles.md](factcheck/modeles.md)).
 
 | Rôle | Niveau | Principal | Replis | Paramètres | Partage |
@@ -155,11 +157,11 @@ l'équipe n'est jamais écrasée. Tarifs relevés le 2026-11-10
 | `light_check` | `*` | `gpt-5.6-terra` | `gpt-6.1-terra`, `claude-haiku-5-5` | effort `low` | oui |
 | `query_writer` | `*` | `gpt-5.6-terra` | `gpt-6-luna` | effort `low` | oui |
 | `narrative_title` | `*` | `gpt-5.6-luna` | `gpt-6-luna` | effort `low` | oui |
-| `frame` | `*` / `N4` | `claude-sonnet-5-5` / `claude-opus-5-5` | — / `claude-sonnet-5-5` | effort `medium` | non |
-| `judge` | `*` / `N4` | `claude-sonnet-5-5` / `claude-opus-5-5` | — / `claude-sonnet-5-5` | effort `high` / `medium` | non |
+| `frame` | `*` / `N4` | `claude-sonnet-5-5` / `claude-opus-5-5` | — / `claude-sonnet-5-5` | effort `medium` | oui |
+| `judge` | `*` / `N4` | `claude-sonnet-5-5` / `claude-opus-5-5` | — / `claude-sonnet-5-5` | effort `high` / `medium` | oui |
 | `second_opinion`, `objection`, `critic` | `*` | `gpt-5.6-sol` | `gpt-6.1-terra` | effort `medium` | oui |
-| `writer` | `*` | `claude-sonnet-5-5` | `claude-haiku-5-5` | effort `medium` | non |
-| `auditor` | `*` | `claude-fable-5-2` | `claude-opus-5-5` | effort `high` | non |
+| `writer` | `*` | `claude-sonnet-5-5` | `claude-haiku-5-5` | effort `medium` | oui |
+| `auditor` | `*` | `claude-fable-5-2` | `claude-opus-5-5` | effort `high` | oui |
 | `embed` | `*` | `text-embedding-3-small` | — | `dimensions` 512 | non |
 
 Groupes gratuits : `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5-mini`, `gpt-5-nano`
@@ -181,9 +183,10 @@ inchangées : le retour à Anthropic consiste à définir `TOWER_LLM_MODEL_SUBST
 | `claude-opus-5-5` | `gpt-6.1-terra` | 1 / 5 (au lieu de 4 / 20) |
 | `claude-fable-5-2` | `gpt-6.1-terra` | 1 / 5 (au lieu de 8 / 40) |
 
-Les cibles sont des modèles **sans groupe gratuit** : les routes concernées (`frame`,
-`judge`, `writer`, `auditor`…) sont sans partage et utilisent `TOWER_OPENAI_API_KEY`, or
-un modèle à groupe gratuit n'y serait jamais appelé (étape 5). Conséquences :
+Les cibles sont des modèles **sans groupe gratuit** : ils sont payants mais toujours
+disponibles, alors qu'un modèle à groupe gratuit est sauté une fois l'allocation épuisée
+(étape 5) et laisserait ces routes sans candidat. Les routes concernées (`frame`,
+`judge`, `writer`, `auditor`) passent par l'organisation avec partage. Conséquences :
 
 - le juge et le contradicteur (`gpt-5.6-sol`) sont du **même fournisseur** pendant la
   substitution : modèles différents, mais décorrélation des erreurs réduite ;

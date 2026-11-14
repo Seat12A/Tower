@@ -698,6 +698,12 @@ async def test_seed_is_idempotent_and_keeps_modified_routes(
             )
         )
         await session.execute(text("UPDATE llm_models SET input_usd_per_mtok = 99"))
+        await session.execute(
+            text("UPDATE llm_routes SET data_sharing_ok = false WHERE role IN ('judge', 'writer')")
+        )
+        await session.execute(
+            text("UPDATE llm_routes SET created_by = 'jules' WHERE role = 'writer'")
+        )
         await session.execute(text("UPDATE budget_counters SET cap_usd_micros = 1"))
     await run_seed(settings)
     second = capsys.readouterr().out
@@ -710,6 +716,15 @@ async def test_seed_is_idempotent_and_keeps_modified_routes(
     assert (
         await scalar(db, "SELECT cap_usd_micros FROM budget_counters WHERE scope = 'global'") == 1
     )
+    # Seed-owned routes get the seed's data-sharing choice back; a team route is kept.
+    assert await scalar(db, "SELECT bool_and(data_sharing_ok) FROM llm_routes WHERE role = 'judge'")
+    assert not await scalar(db, "SELECT data_sharing_ok FROM llm_routes WHERE role = 'writer'")
+    assert (
+        await scalar(
+            db, "SELECT count(*) FROM llm_routes WHERE NOT data_sharing_ok AND role <> 'writer'"
+        )
+        == 1
+    )  # embed
     assert await scalar(
         db, "SELECT input_usd_per_mtok FROM llm_models WHERE model = 'gpt-5-nano'"
     ) == Decimal("0.05")
