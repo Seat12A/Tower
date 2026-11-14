@@ -308,3 +308,12 @@ Décisions de conception arrêtées au début du lot (contrat des sous-agents :
 | Consensus entre installations comme preuve | Le jeton d'installation est généré par l'extension et aucune IP n'est stockée : un attaquant peut simuler autant d'installations qu'il veut. Reste un signal, pas une preuve |
 | Lecture par l'API X de chaque post de l'extension | Coût (environ 0,005 $ par lecture) |
 
+
+## Substitution temporaire des modèles Anthropic (2026-11-14)
+
+| Décision | Raison |
+|---|---|
+| Tous les modèles Anthropic sont servis par OpenAI, **temporairement** (demande de Jules) | Coût |
+| Substitution faite par le routeur (`TOWER_LLM_MODEL_SUBSTITUTIONS`), routes en base inchangées | Réversible par une variable, sans migration ni nouvelle version de route ; s'applique aussi à une base déjà amorcée |
+| Haiku → `gpt-6-luna` ; Sonnet, Opus et Fable → `gpt-6.1-terra` | Modèles sans groupe gratuit, utilisables avec la clé sans partage des routes `frame`, `judge`, `writer`, `auditor` (`gpt-5.6-sol` y serait sauté) ; moins chers |
+| Décorrélation juge / contradicteur réduite (même fournisseur, modèles différents) acceptée pendant la substitution | Écart temporaire à la décision « juge et contradicteur de fournisseurs différents » |

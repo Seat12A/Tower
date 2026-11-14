@@ -77,6 +77,7 @@ def get_llm(settings: Settings, db: Database) -> LLMClient:
             usage_tier=settings.openai_usage_tier,
             free_margin=settings.llm_free_margin,
             reservation_ttl_s=settings.budget_reservation_ttl_s,
+            model_substitutions=settings.llm_model_substitutions,
         )
     return _instances["llm"]  # type: ignore[no-any-return]
 

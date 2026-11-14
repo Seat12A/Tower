@@ -36,6 +36,10 @@ Détail des colonnes : [database.md](database.md).
 
 1. **Route** : version active pour (rôle, niveau), sinon (rôle, `*`) ; absente →
    `TWR-LLM-002`. Candidats = modèle principal puis replis, dans l'ordre.
+   **Substitution** : chaque modèle nommé dans `TOWER_LLM_MODEL_SUBSTITUTIONS` est
+   remplacé par son modèle cible (ordre conservé, doublons retirés), sans modifier les
+   routes en base. Cible inconnue ou inactive → `TWR-LLM-009`. Voir
+   « Substitution temporaire des modèles Anthropic » ci-dessous.
 2. **Prompt** : texte et version (12 premiers caractères du SHA-256 du fichier) ;
    inconnu → `TWR-LLM-003`. Le message utilisateur contient l'entrée en JSON canonique
    dans un bloc délimité `<input>…</input>`, présenté comme donnée non fiable (jamais
@@ -162,6 +166,29 @@ Groupes gratuits : `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5-mini`, `gpt-5-nano`
 (`small`) ; `gpt-5.6-sol` (`large`). La famille GPT-6 n'est **pas** marquée gratuite
 tant que Jules ne l'a pas vérifiée dans le tableau de bord OpenAI : la marquer revient
 à renseigner `free_group` dans `llm_models`.
+
+### Substitution temporaire des modèles Anthropic
+
+Depuis le 2026-11-14, pour réduire les coûts, **aucun modèle Anthropic n'est appelé** :
+la valeur par défaut de `TOWER_LLM_MODEL_SUBSTITUTIONS` remplace chaque modèle Anthropic
+des routes par un modèle OpenAI. Les routes stockées (et le tableau ci-dessus) restent
+inchangées : le retour à Anthropic consiste à définir `TOWER_LLM_MODEL_SUBSTITUTIONS={}`.
+
+| Modèle de la route | Servi par | Tarif ($/Mtok entrée / sortie) |
+|---|---|---|
+| `claude-haiku-5-5` | `gpt-6-luna` | 0,10 / 0,50 (identique) |
+| `claude-sonnet-5-5` | `gpt-6.1-terra` | 1 / 5 (au lieu de 2 / 10) |
+| `claude-opus-5-5` | `gpt-6.1-terra` | 1 / 5 (au lieu de 4 / 20) |
+| `claude-fable-5-2` | `gpt-6.1-terra` | 1 / 5 (au lieu de 8 / 40) |
+
+Les cibles sont des modèles **sans groupe gratuit** : les routes concernées (`frame`,
+`judge`, `writer`, `auditor`…) sont sans partage et utilisent `TOWER_OPENAI_API_KEY`, or
+un modèle à groupe gratuit n'y serait jamais appelé (étape 5). Conséquences :
+
+- le juge et le contradicteur (`gpt-5.6-sol`) sont du **même fournisseur** pendant la
+  substitution : modèles différents, mais décorrélation des erreurs réduite ;
+- `frame` et `judge` en N4 (Opus puis Sonnet) n'ont plus qu'un candidat ;
+- le journal `llm_calls` et la clé de cache portent le modèle réellement servi.
 
 ## Particularités des adaptateurs
 

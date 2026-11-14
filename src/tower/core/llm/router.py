@@ -14,7 +14,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import select, text, update
@@ -59,6 +59,10 @@ from tower.core.llm.schema import schema_name, strict_json_schema
 from tower.core.logging import get_logger
 from tower.core.models.llm import LLMCall, LLMModel, LLMRoute
 from tower.core.ports.clock import Clock, SystemClock
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 from tower.core.ports.llm import (
     LLMProvider,
     LLMRequest,
@@ -144,6 +148,7 @@ class LLMRouter:
         free_margin: float = 0.10,
         clock: Clock | None = None,
         reservation_ttl_s: int = 1800,
+        model_substitutions: Mapping[str, str] | None = None,
     ) -> None:
         self._db = db
         self._providers = providers
@@ -153,6 +158,7 @@ class LLMRouter:
         self._clock: Clock = clock or SystemClock()
         self._ttl_s = reservation_ttl_s
         self._warned_unbudgeted = False
+        self._substitutions = dict(model_substitutions or {})
 
     # ------------------------------------------------------------------ public
 
@@ -274,15 +280,52 @@ class LLMRouter:
                 .scalars()
                 .all()
             )
-        by_id = {m.id: m for m in rows}
-        missing = [i for i in ids if i not in by_id]
+            by_id = {m.id: m for m in rows}
+            missing = [i for i in ids if i not in by_id]
+            if missing:
+                raise UnknownModel(
+                    f"Route {route.id} references unknown or inactive models",
+                    route_id=route.id,
+                    model_ids=missing,
+                )
+            models = [by_id[i] for i in ids]
+            if self._substitutions:
+                models = await self._substitute(session, route, models)
+        return route, models
+
+    async def _substitute(
+        self, session: AsyncSession, route: LLMRoute, models: list[LLMModel]
+    ) -> list[LLMModel]:
+        """Replaces the models named in ``model_substitutions`` (order kept, duplicates
+        dropped). A replacement that is unknown or inactive raises ``UnknownModel``."""
+        wanted = {self._substitutions[m.model] for m in models if m.model in self._substitutions}
+        if not wanted:
+            return models
+        rows = (
+            (
+                await session.execute(
+                    select(LLMModel).where(LLMModel.model.in_(wanted), LLMModel.active.is_(True))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        by_name = {m.model: m for m in rows}
+        missing = sorted(wanted - by_name.keys())
         if missing:
             raise UnknownModel(
-                f"Route {route.id} references unknown or inactive models",
+                f"Route {route.id} substitutes unknown or inactive models",
                 route_id=route.id,
-                model_ids=missing,
+                models=missing,
             )
-        return route, [by_id[i] for i in ids]
+        result: list[LLMModel] = []
+        seen: set[int] = set()
+        for m in models:
+            chosen = by_name.get(self._substitutions.get(m.model, ""), m)
+            if chosen.id not in seen:
+                seen.add(chosen.id)
+                result.append(chosen)
+        return result
 
     async def _lookup_cache(
         self, call: _Call, candidates: Sequence[_Candidate]

@@ -56,6 +56,7 @@ Voir [llm.md](llm.md). Les clés sont des secrets : lues par la configuration
 | `TOWER_ANTHROPIC_API_KEY` | vide | Clé Anthropic |
 | `TOWER_OPENAI_USAGE_TIER` | `1` | Palier d'usage OpenAI (1 à 5) : fixe l'allocation gratuite quotidienne |
 | `TOWER_LLM_FREE_MARGIN` | `0.10` | Marge appliquée à l'estimation avant d'utiliser l'allocation gratuite |
+| `TOWER_LLM_MODEL_SUBSTITUTIONS` | modèles Anthropic → OpenAI | JSON `{"modèle": "remplaçant"}` appliqué par le routeur à toutes les routes ; `{}` désactive. Défaut temporaire : voir [llm.md](llm.md#substitution-temporaire-des-modèles-anthropic) |
 
 ## Ingestion et fact-check
 
