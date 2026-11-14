@@ -273,6 +273,8 @@ class Settings(BaseSettings):
     discord_channel_budget: int | None = None
     discord_channel_dossiers: int | None = None
     discord_channel_admin: int | None = None
+    discord_alert_role_id: int | None = None
+    """Role mentioned in wave alerts (``narrative.surge_detected`` at tier ``alert``)."""
     gate_url: str = "http://localhost:8000"
     gate_token: SecretStr | None = None
     """Service token of the bot (scopes: see docs/intercom.md)."""

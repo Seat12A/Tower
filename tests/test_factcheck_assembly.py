@@ -588,3 +588,31 @@ async def test_purge_source_cache_deletes_only_expired_rows(
     async with db.transaction() as s:
         assert await purge_source_cache(s, settings) == 1
     assert await scalar(db, "SELECT count(*) FROM source_cache") == 1
+
+
+async def test_draft_of_a_group_merged_during_the_investigation_is_superseded(
+    db: Database, settings: Settings
+) -> None:
+    cid = await make_content(db, "4090", POST, metrics={"impressions": 10})
+    other = await make_content(db, "4091", POST, metrics={"impressions": 10})
+    inv = await seed(db, cid, level="N4", veracity="false")
+    target = await seed(db, other, level="N4", veracity="false")
+    async with db.transaction() as s:
+        await s.execute(
+            text(
+                "UPDATE claim_groups SET merged_into_id = (SELECT claim_group_id FROM verdicts"
+                " WHERE investigation_id = :t) WHERE id = (SELECT claim_group_id FROM verdicts"
+                " WHERE investigation_id = :i)"
+            ),
+            {"t": target.id, "i": inv.id},
+        )
+    runtime.set_override("platform:x", FakePlatform(platform_item("4090")))
+    await run_assemble(db, settings, inv.id)
+
+    assert await scalar(db, "SELECT count(*) FROM dossiers") == 0
+    assert (
+        await scalar(db, "SELECT status FROM verdicts WHERE investigation_id = :i", i=inv.id)
+        == "superseded"
+    )
+    assert await scalar(db, "SELECT count(*) FROM events WHERE topic = 'draft.ready'") == 0
+    assert await stage(db, inv.id) == "assembled"

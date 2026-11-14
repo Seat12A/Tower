@@ -21,7 +21,12 @@ from tower.core.domain.factcheck.fidelity import (
     check_omission,
     extract_numbers,
 )
-from tower.core.domain.factcheck.values import AbsenceReason, TranslationOrigin
+from tower.core.domain.factcheck.values import (
+    AbsenceReason,
+    ExtractionStatus,
+    TranslationOrigin,
+    VerdictStatus,
+)
 from tower.core.domain.ingestion import AuthorInput, ItemInput, MediaInput
 from tower.core.domain.llm import Level
 from tower.core.domain.security import Actor
@@ -284,6 +289,11 @@ async def _reuse_existing(
             .on_conflict_do_nothing()
         )
         claim_ids = [r[0] for r in rows]
+        # The copy inherits the claims of the original: record it like an extraction so
+        # the copy counts in ``content_extractions`` (statistics, narratives, sampling).
+        await claims_uc.mark_extraction(
+            session, content.id, level, ExtractionStatus.EXTRACTED, None, None
+        )
         log.info("factcheck.copy_linked", content=content.id, original=earlier)
     if level == "N4":
         await _promote_groups(
@@ -574,6 +584,24 @@ async def assemble(ctx: JobContext) -> None:
             if verdict is not None
             else None
         )
+        if locked_verdict is not None and locked_verdict.status == "draft":
+            merged_into = await session.scalar(
+                select(ClaimGroup.merged_into_id)
+                .where(ClaimGroup.id == locked_verdict.claim_group_id)
+                .with_for_update()
+            )
+            if merged_into is not None:
+                # The group was merged while the investigation ran: the target group
+                # carries the claims now, so this draft never reaches review (same rule as
+                # the drafts superseded by ``merge_groups``).
+                locked_verdict.status = VerdictStatus.SUPERSEDED.value
+                locked_verdict.updated_at = datetime.now(UTC)
+                log.info(
+                    "factcheck.assemble_superseded",
+                    investigation=investigation_id,
+                    merged_into=merged_into,
+                )
+                locked_verdict = None
         if locked_verdict is not None and locked_verdict.status == "draft":
             flags = dict(locked_verdict.flags or {})
             flags.update(new_flags)

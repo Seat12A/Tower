@@ -65,7 +65,7 @@ profiles:read profiles:manage levels:override` (lot 4 : à ajouter au token exis
 | `budget.threshold_reached` | `TOWER_DISCORD_CHANNEL_BUDGET` |
 | `dossier.opened`, `dossier.transitioned` | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
 | `draft.ready` (brouillon de fact-check complet, avec boutons) | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
-| `narrative.surge_detected` (palier `surge` ; palier `alert` marqué « ALERTE VAGUE »), `narrative.surge_ended` (bilan) | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
+| `narrative.surge_detected` (palier `surge` ; palier `alert` marqué « ALERTE VAGUE », précédé de la mention du rôle `TOWER_DISCORD_ALERT_ROLE_ID` s'il est configuré), `narrative.surge_ended` (bilan) | `TOWER_DISCORD_CHANNEL_DOSSIERS` |
 | `watchlist.changed`, `extension_filters.published` | `TOWER_DISCORD_CHANNEL_ADMIN` |
 
 Messages courts, avec la plateforme d'origine quand l'événement en porte une, dans la

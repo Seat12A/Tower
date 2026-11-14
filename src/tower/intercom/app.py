@@ -132,6 +132,13 @@ def _build_client(
     draft_button = _register_draft_ui(gate)
     client.draft_item = draft_button
 
+    alert_role = settings.discord_alert_role_id
+    alert_mentions = (
+        discord.AllowedMentions(everyone=False, users=False, roles=[discord.Object(id=alert_role)])
+        if alert_role
+        else discord.AllowedMentions.none()
+    )
+
     async def send_discord(channel_key: str, text: str) -> None:
         channel_id = channel_ids.get(channel_key)
         if not channel_id:
@@ -139,7 +146,8 @@ def _build_client(
         channel = client.get_channel(channel_id) or await client.fetch_channel(channel_id)
         if not isinstance(channel, discord.abc.Messageable):
             raise TypeError(f"channel {channel_key} is not messageable")
-        await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
+        # Only the configured alert role may ping (the notifier adds it to wave alerts).
+        await channel.send(text, allowed_mentions=alert_mentions)
 
     async def send_dry_run(channel_key: str, text: str) -> None:
         log.info("intercom.notification", channel=channel_key, text_length=len(text))
@@ -174,6 +182,7 @@ def _build_client(
         cursor_name=settings.intercom_cursor_name,
         locale=default_locale,
         send_draft=send_draft_dry_run if dry_run else send_draft_discord,
+        alert_role_id=settings.discord_alert_role_id,
     )
     return client
 

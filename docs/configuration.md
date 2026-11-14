@@ -216,6 +216,7 @@ Voir [intercom.md](intercom.md). Le token Discord et le token de gate sont des s
 | `TOWER_DISCORD_CHANNEL_BUDGET` | vide | Salon du budget (`budget.threshold_reached`) |
 | `TOWER_DISCORD_CHANNEL_DOSSIERS` | vide | Salon des dossiers (`dossier.opened`, `dossier.transitioned`) |
 | `TOWER_DISCORD_CHANNEL_ADMIN` | vide | Salon d'administration (`watchlist.changed`, `extension_filters.published`) |
+| `TOWER_DISCORD_ALERT_ROLE_ID` | vide | Rôle Discord mentionné en tête d'une alerte de vague (`narrative.surge_detected` au palier `alert`) ; seul ce rôle peut être notifié, toute autre mention est neutralisée |
 | `TOWER_DISCORD_LOCALE` | `fr` | Langue des notifications dans les salons (`fr` ou `en`) ; les réponses aux commandes suivent la langue Discord de l'utilisateur |
 | `TOWER_GATE_URL` | `http://localhost:8000` | URL de gate (réseau privé Railway en production) |
 | `TOWER_GATE_TOKEN` | vide | Token de service du bot |

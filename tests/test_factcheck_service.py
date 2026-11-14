@@ -748,6 +748,10 @@ async def test_copy_inherits_claims_without_extraction(db: Database, settings: S
         await scalar(db, "SELECT count(*) FROM content_claims WHERE content_id = :c", c=copy) == 1
     )
     assert await scalar(db, "SELECT count(*) FROM investigations") == 1
+    extraction = await rows(
+        db, "SELECT level, status, batch_id FROM content_extractions WHERE content_id = :c", c=copy
+    )
+    assert [tuple(r) for r in extraction] == [("N3", "extracted", None)]
     # Running the original again is a no-op as well.
     await run_extract(db, settings, original)
     assert len(llm.requests) == 1

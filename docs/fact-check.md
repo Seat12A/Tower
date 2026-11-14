@@ -79,7 +79,8 @@ l'étape suivante. Un job dont l'étape est déjà passée ne fait rien.
   `platform` ou `verified`, voir [ingestion.md](ingestion.md#vérification-des-contenus)) :
   ce que déclare l'extension ne suffit jamais à ouvrir un fact-check ciblé. Même règle
   pour le forçage de niveau d'un compte (N3/N4). Une copie exacte (même empreinte) d'un contenu déjà
-  extrait est reliée aux mêmes affirmations, sans nouvelle enquête.
+  extrait est reliée aux mêmes affirmations, sans nouvelle enquête ; elle reçoit aussi sa
+  ligne `content_extractions` (`extracted`), comme une extraction.
 - Un post par appel (rôle `extract`). Le modèle reçoit le post datamarqué, mentions
   pseudonymisées (`@user`), et le texte du post parent ou cité tronqué à 280 caractères
   s'il est déjà en base ; jamais l'auteur.
@@ -178,7 +179,10 @@ statutaire arrivent au lot 6.
    `factcheck:drain_quota` ouvre les brouillons en attente dès qu'une place se libère,
    dans l'ordre : N4, cas de doute, issues « Faux » et « Trompeur », portée, ancienneté.
 4. **Ouverture** : dossier `fact_check` (avec `content_id`), `dossier_claim_groups`,
-   `verdicts.drafted_at`, événement `draft.ready`.
+   `verdicts.drafted_at`, événement `draft.ready`. Un brouillon dont le groupe a été
+   fusionné pendant l'enquête n'est pas ouvert : il passe à `superseded` dès
+   l'assemblage (le groupe cible porte les affirmations), au lieu d'être refusé plus tard
+   à la revue (`TWR-FCK-021`).
 
 ## Revue (E11) et publication
 
@@ -230,7 +234,9 @@ Refusé quand `TOWER_ENV=prod` (`TWR-FCK-016`, au chargement de la configuration
 
 `uv run tower factcheck eval --set <fichier.jsonl> [--limit N] [--report <fichier.md>]`
 exécute E6 à E10 sur chaque cas du jeu (sans écrire d'enquête en base : seuls le cache
-`llm_calls`, les budgets et `source_cache` sont utilisés, donc un rejeu ne repaie rien),
+`llm_calls`, les budgets et `source_cache` sont utilisés, donc un rejeu ne repaie rien ;
+la date de vérification montrée au rédacteur est fixée au jour de l'évaluation, pas à
+l'heure courante, pour que le prompt reste identique d'un passage à l'autre),
 puis calcule exactitude, taux de faux confiants, abstention, validité des citations, taux
 d'escalade, coût moyen et latence. Format du jeu et métriques :
 [factcheck/evaluation.md](factcheck/evaluation.md#format-du-jeu-et-commande). Cinq cas

@@ -12,6 +12,7 @@ import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
+from datetime import time as dt_time
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
@@ -950,13 +951,18 @@ async def compose_draft(
     last_attempt: bool,
     investigation_id: int | None = None,
     versions: Mapping[str, Mapping[str, Any]] | None = None,
+    checked_at: datetime | None = None,
 ) -> DraftOutcome:
     """E9: validate the citations, apply the independence rule, write the note, run the
     deterministic checks and the critic, translate the cited foreign passages.
 
     ``synthetic``: the judgement was not produced by a model (no evidence, refusal,
     unverifiable at framing): no note is written. A budget error propagates, except on the
-    ``last_attempt`` where the remaining optional steps are skipped and flagged."""
+    ``last_attempt`` where the remaining optional steps are skipped and flagged.
+
+    ``checked_at`` (default: now) is shown in the note; the evaluation pins it to its
+    ``today`` so a rerun hits the model-call cache (a wall-clock minute changed the writer
+    prompt between two runs)."""
     out_flags: dict[str, Any] = dict(flags)
     assessment = assess_judgement(judge, passages)
     for bad in assessment.invalid:
@@ -1062,7 +1068,7 @@ async def compose_draft(
                 post_lang=post_lang,
                 post_date=post_datetime.date() if post_datetime else None,
                 languages=languages,
-                checked_at=datetime.now(UTC),
+                checked_at=checked_at or datetime.now(UTC),
             )
         except AllRefused as exc:
             capture(
@@ -1545,6 +1551,7 @@ async def run_in_memory(
         today=today,
         retrieved_urls=[p.source_url for p in passages],
         last_attempt=False,
+        checked_at=datetime.combine(today, dt_time.min, tzinfo=UTC),
     )
     cost += draft.cost_usd_micros
     confidence_value: float | None = None
