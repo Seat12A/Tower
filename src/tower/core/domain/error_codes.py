@@ -758,6 +758,72 @@ ATL_SEARCH_BUDGET = _define(
     retryable=True,
 )
 
+# Lot 6: complete Atlas
+ATL_LEGI_SYNC_FAILED = _define(
+    "TWR-ATL-008",
+    "LEGI mirror synchronization failed",
+    severity=_ERR,
+    store=True,
+    retryable=True,
+    hint="Check that echanges.dila.gouv.fr answers; the next daily run resumes from the "
+    "last applied archive (atlas_sync_state).",
+)
+ATL_FEED_FAILED = _define(
+    "TWR-ATL-009",
+    "News feed could not be read: skipped until the next poll",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+ATL_UNSAFE_XML = _define(
+    "TWR-ATL-010",
+    "XML document rejected (entity declaration, external entity or size limit)",
+    severity=_WARN,
+    store=True,
+)
+ATL_NO_VALUE = _define(
+    "TWR-ATL-011",
+    "Statistical indicator returned no usable value",
+    severity=_INFO,
+)
+ATL_REGISTRY_NOT_FOUND = _define(
+    "TWR-ATL-012", "Registry entry not found", http_status=404, severity=_INFO
+)
+ATL_REGISTRY_INVALID = _define(
+    "TWR-ATL-013", "Invalid registry entry", http_status=422, severity=_INFO
+)
+ATL_REGISTRY_CONFLICT = _define(
+    "TWR-ATL-014",
+    "Registry entry changed meanwhile (stale version)",
+    http_status=409,
+    severity=_INFO,
+    hint="Re-read the entry and resend with its current version.",
+)
+ATL_CONTROL_SEED_FAILED = _define(
+    "TWR-ATL-015",
+    "Wikidata seeding of controlled_by failed",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+FCK_CALIBRATION_REFUSED = _define(
+    "TWR-FCK-046",
+    "Not enough reviewed data to fit a model (threshold not reached): nothing produced",
+    http_status=422,
+    severity=_INFO,
+    hint="Confidence: 200 reviews for the reduced model, 100 refusals for the full one; "
+    "E1 distillation: 200 labelled cases.",
+)
+FCK_CALIBRATION_NOT_FOUND = _define(
+    "TWR-FCK-047", "Calibration model not found", http_status=404, severity=_INFO
+)
+FCK_CALIBRATION_NOT_BETTER = _define(
+    "TWR-FCK-048",
+    "Candidate model not activated: its measurement does not beat the current one",
+    http_status=409,
+    severity=_INFO,
+)
+
 
 def get(code: str) -> ErrorCode:
     return CATALOG[code]

@@ -35,6 +35,8 @@ class Permission(StrEnum):
     PROFILES_READ = "profiles:read"
     PROFILES_MANAGE = "profiles:manage"  # activate, roll back (admin only)
     LEVELS_OVERRIDE = "levels:override"
+    REGISTRY_READ = "registry:read"  # reliability and country registries (lot 6)
+    REGISTRY_WRITE = "registry:write"  # edit them (editors)
 
 
 class Role(StrEnum):
@@ -61,6 +63,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.WATCHLIST_READ,
             Permission.FACTS_WRITE,
             Permission.PROFILES_READ,
+            Permission.REGISTRY_READ,
         }
     ),
     Role.EDITOR: frozenset(
@@ -80,6 +83,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.FACTS_VALIDATE,
             Permission.PROFILES_READ,
             Permission.LEVELS_OVERRIDE,
+            Permission.REGISTRY_READ,
+            Permission.REGISTRY_WRITE,
         }
     ),
     Role.ADMIN: frozenset(Permission),

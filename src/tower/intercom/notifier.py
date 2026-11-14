@@ -151,7 +151,10 @@ class Notifier:
         seen_capacity: int = 2048,
         initial_backoff: float = 1.0,
         send_draft: SendDraft | None = None,
+        alert_role_id: int | None = None,
     ) -> None:
+        """``alert_role_id``: Discord role mentioned at the top of a wave alert
+        (``narrative.surge_detected`` at tier ``alert``); ``None`` = no mention."""
         self._gate = gate
         self._send = send
         self._cursor_name = cursor_name
@@ -163,6 +166,7 @@ class Notifier:
         self._progressed = False
         self._initial_backoff = initial_backoff
         self._send_draft = send_draft
+        self._alert_role_id = alert_role_id
         self._reconciled = send_draft is None
 
     def _mark_seen(self, event_id: str) -> None:
@@ -226,6 +230,12 @@ class Notifier:
             await self._notify_draft(event)
         elif formatted is not None and not self._wave_already_notified(event):
             channel, text = formatted
+            if (
+                self._alert_role_id is not None
+                and event.topic == NARRATIVE_SURGE_DETECTED
+                and _payload(event).get("tier") == "alert"
+            ):
+                text = f"<@&{self._alert_role_id}> {text}"[:_MAX_TEXT]
             try:
                 await self._send(channel, text)
             except Exception as exc:

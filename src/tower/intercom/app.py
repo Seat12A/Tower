@@ -132,6 +132,13 @@ def _build_client(
     draft_button = _register_draft_ui(gate)
     client.draft_item = draft_button
 
+    alert_role = settings.discord_alert_role_id
+    alert_mentions = (
+        discord.AllowedMentions(everyone=False, users=False, roles=[discord.Object(id=alert_role)])
+        if alert_role
+        else discord.AllowedMentions.none()
+    )
+
     async def send_discord(channel_key: str, text: str) -> None:
         channel_id = channel_ids.get(channel_key)
         if not channel_id:
@@ -139,7 +146,8 @@ def _build_client(
         channel = client.get_channel(channel_id) or await client.fetch_channel(channel_id)
         if not isinstance(channel, discord.abc.Messageable):
             raise TypeError(f"channel {channel_key} is not messageable")
-        await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
+        # Only the configured alert role may ping (the notifier adds it to wave alerts).
+        await channel.send(text, allowed_mentions=alert_mentions)
 
     async def send_dry_run(channel_key: str, text: str) -> None:
         log.info("intercom.notification", channel=channel_key, text_length=len(text))
@@ -174,6 +182,7 @@ def _build_client(
         cursor_name=settings.intercom_cursor_name,
         locale=default_locale,
         send_draft=send_draft_dry_run if dry_run else send_draft_discord,
+        alert_role_id=settings.discord_alert_role_id,
     )
     return client
 
@@ -426,6 +435,7 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
     from tower.intercom.handlers import factcheck as fc_handlers
     from tower.intercom.handlers import narratives as narrative_handlers
     from tower.intercom.handlers import profiles as profile_handlers
+    from tower.intercom.handlers import registry as registry_handlers
 
     async def run(interaction: Any, call: HandlerCall) -> None:
         locale = locale_of(str(interaction.locale))
@@ -746,7 +756,59 @@ def _register_commands(tree: Any, gate: GateClient) -> None:
             ),
         )
 
-    for group in (wl, dos, inc, prof, lvl, grp, fct, nar):
+    # --- /registry --------------------------------------------------------------------
+    reg = app_commands.Group(name="registry", description="Source reliability registry")
+
+    @reg.command(name="show", description="Show the registry entry of a domain")
+    @app_commands.describe(domain="Domain (e.g. insee.fr)")
+    async def r_show(interaction: discord.Interaction, domain: str) -> None:
+        await run(
+            interaction, lambda loc, uid: registry_handlers.registry_show(gate, uid, loc, domain)
+        )
+
+    @reg.command(name="set-tier", description="Change the tier of a source (editors)")
+    @app_commands.describe(
+        domain="Domain", tier="primary, secondary, tertiary or avoid", reason="Editorial reason"
+    )
+    async def r_set_tier(
+        interaction: discord.Interaction, domain: str, tier: str, reason: str
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: registry_handlers.registry_set_tier(
+                gate, uid, loc, domain, tier, reason
+            ),
+        )
+
+    @reg.command(name="set-control", description="Set or clear the controlling entity (editors)")
+    @app_commands.describe(domain="Domain", controlled_by="Entity name, or 'none'", reason="Why")
+    async def r_set_control(
+        interaction: discord.Interaction, domain: str, controlled_by: str, reason: str
+    ) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: registry_handlers.registry_set_control(
+                gate, uid, loc, domain, controlled_by, reason
+            ),
+        )
+
+    @reg.command(name="history", description="Version history of a registry entry")
+    @app_commands.describe(domain="Domain")
+    async def r_history(interaction: discord.Interaction, domain: str) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: registry_handlers.registry_history(gate, uid, loc, domain),
+        )
+
+    @reg.command(name="seed-control", description="Seed the controller from Wikidata (editors)")
+    @app_commands.describe(domain="Domain")
+    async def r_seed_control(interaction: discord.Interaction, domain: str) -> None:
+        await run(
+            interaction,
+            lambda loc, uid: registry_handlers.registry_seed_control(gate, uid, loc, domain),
+        )
+
+    for group in (wl, dos, inc, prof, lvl, grp, fct, nar, reg):
         tree.add_command(group)
     tree.add_command(u_show)
     tree.add_command(fc_request)

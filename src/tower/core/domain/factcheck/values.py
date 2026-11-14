@@ -354,6 +354,7 @@ class FactOrigin(StrEnum):
     INVESTIGATION = "investigation"  # created from a validated investigation (bot button)
     INSEE = "insee"  # automatic feed of the tracked INSEE indicators
     MANUAL = "manual"
+    STATISTICS = "statistics"  # lot 6 feed: Eurostat, World Bank, OECD, IMF indicators
 
 
 class GroupEventKind(StrEnum):

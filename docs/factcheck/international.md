@@ -92,6 +92,23 @@ La règle « deux sources indépendantes dont une primaire » pour « Vrai » ou
 s'applique partout : en couverture C, le système s'abstient plus souvent plutôt que de
 baisser l'exigence.
 
+### Procédure : passer un pays en couverture A, activer une langue (lot 6)
+
+Rien n'est activé automatiquement. Pour un pays ou une langue :
+
+1. L'équipe étiquette un **sous-ensemble de référence** (au moins 50 affirmations du pays
+   ou de la langue, au format de [evaluation.md](evaluation.md), avec issues attendues).
+2. Elle remplit les registres : `jurisdiction_sources` (statistique, droit, domaines
+   officiels), `legal_portals`, `news_feeds`, `election_calendar`, depuis l'API
+   (`/v1/countries/{pays}/…`) ou une migration de données ; ajoute les sources au
+   registre de fiabilité (`/v1/registry`).
+3. Elle lance `tower factcheck eval --set <sous-ensemble>` et compare aux mesures du
+   jeu principal (exactitude par côté, faux confiants, abstentions, part tranchée sans
+   recherche payante, écart de calibration).
+4. Seulement si les mesures tiennent : la langue entre dans `TOWER_FC_LANGUAGES` (ou le
+   profil) et le pays est noté en couverture A dans la documentation. La décision va
+   dans `docs/decisions.md`.
+
 ## Sources mondiales (toujours disponibles)
 
 | Source | Couverture | Accès |

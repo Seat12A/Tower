@@ -49,13 +49,51 @@ KNOWLEDGE_ADAPTERS = (
     "tower.core.adapters.knowledge.insee",
     "tower.core.adapters.knowledge.factcheck_tools",
     "tower.core.adapters.knowledge.factory",
+    # lot 6
+    "tower.core.adapters.knowledge.eurostat",
+    "tower.core.adapters.knowledge.worldbank",
+    "tower.core.adapters.knowledge.oecd",
+    "tower.core.adapters.knowledge.imf",
+    "tower.core.adapters.knowledge.legi_mirror",
+    "tower.core.adapters.knowledge.eurlex",
+    "tower.core.adapters.knowledge.fedlex",
+    "tower.core.adapters.knowledge.canada_laws",
+    "tower.core.adapters.knowledge.news_index",
+    "tower.core.adapters.knowledge.gdelt",
+)
+ATLAS_SYNC = (
+    "tower.services.atlas",
+    "tower.core.adapters.knowledge.legi_sync",
+    "tower.core.adapters.knowledge.rss",
+    "tower.core.adapters.knowledge.safe_xml",
+    "tower.core.atlas_seed_feeds",
+    "tower.core.atlas_seed_registries",
 )
 FACTCHECK_SERVICES = ("tower.services.factcheck", "tower.services.investigate")
 
 
 def test_gate_does_not_load_factcheck_adapters_nor_services() -> None:
     code = "import tower.gate.app\ntower.gate.app.create_app"
-    assert _loaded_after(code, (*KNOWLEDGE_ADAPTERS, *FACTCHECK_SERVICES)) == []
+    assert _loaded_after(code, (*KNOWLEDGE_ADAPTERS, *FACTCHECK_SERVICES, *ATLAS_SYNC)) == []
+
+
+@pytest.mark.parametrize("services", [["ping", "ingest"], ["factcheck", "investigate"]])
+def test_hangar_without_atlas_loads_none_of_its_synchronizations(services: list[str]) -> None:
+    code = (
+        "import tower.hangar.main\n"
+        "from tower.core.services.registry import load_services\n"
+        f"load_services({services!r}).validate(lease_seconds=300)\n"
+    )
+    assert _loaded_after(code, ATLAS_SYNC) == []
+
+
+def test_hangar_with_atlas_loads_no_sdk_nor_fastapi() -> None:
+    code = (
+        "import tower.hangar.main\n"
+        "from tower.core.services.registry import load_services\n"
+        "load_services(['atlas']).validate(lease_seconds=300)\n"
+    )
+    assert _loaded_after(code, (*HEAVY_SDKS, "fastapi", "httpx")) == []
 
 
 @pytest.mark.parametrize("services", [["ping", "ingest"], ["ping", "ingest", "radar"]])

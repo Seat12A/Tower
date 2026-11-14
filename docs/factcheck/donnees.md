@@ -107,7 +107,7 @@ groupes (prévu dans [../dossiers.md](../dossiers.md), section « À venir »).
 | `content_embeddings` | aucun index vectoriel ; partitions hebdomadaires supprimées après 14 jours | ~170 000 vecteurs × 1 Ko ≈ 170 Mo, sans index |
 | `claims.embedding` | aucun index vectoriel (comparaisons exactes sur petits ensembles) | ~2 200/jour |
 | `claim_groups` (vecteur représentatif) | **HNSW `halfvec_cosine_ops`, seul index vectoriel** | ~370/jour, ~135 000/an ≈ 170 Mo d'index |
-| `legal_articles` | GIN sur `tsvector` ; (juridiction, code, numéro, vigueur) | Codes prioritaires français : taille à mesurer |
+| `legal_articles` | GIN sur `tsvector` ; (juridiction, code, numéro, vigueur) | Codes prioritaires français : 136 450 versions d'articles, 342 Mo avec index (mesuré le 2026-11-14) |
 | `llm_calls` | `UNIQUE (cache_key)` ; (rôle, créé le) | ~5 000/jour ; sorties purgées après 180 jours, métriques gardées |
 
 RAM PostgreSQL : un index HNSW doit tenir en mémoire pour rester rapide. Les fenêtres

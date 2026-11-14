@@ -870,3 +870,19 @@ async def test_a_post_above_the_engagement_p90_is_forced(db: Database) -> None:
     kept, sampled = await sample(db, settings, ids)
     assert len(kept) == 2 and len(sampled) == 1  # one sampled post, one forced by engagement
     assert set(kept) | set(sampled) == set(ids)
+
+
+async def test_an_n4_verdict_is_revalidated_continuously(
+    db: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = make_settings(fc_n4_revalidate_hours=6)
+    monkeypatch.setattr(drafts_uc, "get_settings", lambda: settings)
+    inv = await surge_group(db, "4551", in_surge=False)
+    async with db.transaction() as s:
+        group = await s.get(ClaimGroup, inv.claim_group_id)
+        assert group is not None
+        normal = await drafts_uc._expiry_of(s, group, None)
+        group.level = "N4"
+        capped = await drafts_uc._expiry_of(s, group, None)
+    assert normal - now_utc() > timedelta(hours=7)
+    assert timedelta(hours=5, minutes=59) < capped - now_utc() <= timedelta(hours=6, seconds=5)

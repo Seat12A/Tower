@@ -34,6 +34,7 @@ from tower.core.events.outbox import EventRecord
 from tower.core.factcheck import names, runtime
 from tower.core.factcheck.inputs import ClaimView
 from tower.core.factcheck.profiles import active_profile
+from tower.core.factcheck.publishers import load_publishers
 from tower.core.factcheck.schemas import (
     FrameOutput,
     JudgeOutput,
@@ -911,6 +912,8 @@ async def _draft(ctx: JobContext, st: _State) -> None:
         base_flags.setdefault("objection", None)
     llm = runtime.get_llm(ctx.settings, ctx.db)
     claim_view_ = st.view
+    async with ctx.db.session() as session:
+        publishers = await load_publishers(session)
     outcome = await pl.compose_draft(
         llm,
         ctx.settings,
@@ -929,6 +932,7 @@ async def _draft(ctx: JobContext, st: _State) -> None:
         last_attempt=_last_attempt(ctx),
         investigation_id=inv.id,
         versions=flags.get("versions"),
+        publishers=publishers,
     )
     by_label = {p.label: p for p in passages}
     citations = [

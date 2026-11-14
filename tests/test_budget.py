@@ -269,3 +269,26 @@ async def test_router_leaves_no_reservation(db: Database, tmp_path: Path) -> Non
 
 def _next(now: datetime) -> date:
     return date(now.year + (now.month == 12), now.month % 12 + 1, 1)
+
+
+async def test_daily_periodic_tasks_run_at_startup(db: Database, settings: Settings) -> None:
+    """Regression: last_run started at 0 on the monotonic clock (machine uptime), so a
+    daily task never ran on a replica up for less than a day."""
+    import asyncio
+
+    from tower.core.jobs.maintenance import run_maintenance
+
+    ran = asyncio.Event()
+
+    async def daily(session: Any) -> int:
+        ran.set()
+        return 0
+
+    stop = asyncio.Event()
+    task = asyncio.create_task(run_maintenance(db, settings, stop, [("test:daily", 86400, daily)]))
+    try:
+        async with asyncio.timeout(5):
+            await ran.wait()
+    finally:
+        stop.set()
+        await task

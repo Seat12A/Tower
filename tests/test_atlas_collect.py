@@ -527,6 +527,13 @@ async def test_build_atlas_from_settings(db: Database) -> None:
             "factcheck_tools",
             "legifrance",
             "insee",
+            # lot 6, free and without key: local mirrors, on-demand legal APIs, GDELT
+            "legi_mirror",
+            "news_index",
+            "eurlex",
+            "fedlex",
+            "canada_laws",
+            "gdelt",
         }
         assert built._search is not None
         assert built.tier_of("https://www.insee.fr/x")[0] == "primary"
@@ -534,6 +541,75 @@ async def test_build_atlas_from_settings(db: Database) -> None:
         assert again._sources["wikipedia"] is built._sources["wikipedia"]  # singleton
         await close_atlas_adapters()
         bare = await build_atlas(make_settings(), db)
-        assert set(bare._sources) == {"wikipedia", "wikidata"} and bare._search is None
+        assert (
+            set(bare._sources)
+            == {
+                "wikipedia",
+                "wikidata",
+                "legi_mirror",
+                "news_index",
+                "eurlex",
+                "fedlex",
+                "canada_laws",
+                "gdelt",
+            }
+            and bare._search is None
+        )
     finally:
         await close_atlas_adapters()
+
+
+# --- lot 6: selection by jurisdiction, legal fallback, news ------------------------------
+
+
+async def test_statistic_tries_the_country_then_the_international_adapters() -> None:
+    names = ("insee", "eurostat", "worldbank", "oecd", "imf")
+    sources = {n: FakeSource(n) for n in names}
+    sources["eurostat"].results = [ev("eurostat", "https://ec.europa.eu/eurostat/x")]
+    result = await atlas(sources=sources).collect(request(jurisdictions=("FR", "DE")))
+    assert [q.jurisdiction for q in sources["eurostat"].queries] == ["FR", "DE"]
+    assert len(sources["insee"].queries) == 1  # FR only (default country adapter)
+    assert all(len(sources[n].queries) == 2 for n in ("worldbank", "oecd", "imf"))
+    assert "eurostat" in result.adapters_used and len(result.documents) == 1
+
+
+async def test_law_uses_the_mirror_first_and_legifrance_only_as_a_fallback() -> None:
+    mirror = FakeSource("legi_mirror", [ev("legi_mirror", "https://www.legifrance.gouv.fr/a")])
+    piste = FakeSource("legifrance")
+    eurlex = FakeSource("eurlex")
+    found = await atlas(
+        sources={"legi_mirror": mirror, "legifrance": piste, "eurlex": eurlex}
+    ).collect(request(claim_type="legal_text", jurisdictions=("FR", "EU")))
+    assert len(mirror.queries) == 1 and piste.queries == []
+    assert [q.jurisdiction for q in eurlex.queries] == ["EU"]
+    assert "legi_mirror" in found.adapters_used
+    empty_mirror = FakeSource("legi_mirror")
+    await atlas(sources={"legi_mirror": empty_mirror, "legifrance": piste}).collect(
+        request(claim_type="legal_text")
+    )
+    assert len(piste.queries) == 1  # the mirror found nothing: the PISTE API is asked
+
+
+async def test_country_registry_overrides_the_defaults_and_adds_official_domains() -> None:
+    fedlex = FakeSource("fedlex")
+    custom = FakeSource("custom_ch")
+    a = atlas(
+        sources={"fedlex": fedlex, "custom_ch": custom},
+        country_adapters={("CH", "law"): ["custom_ch"]},
+        official_domains={"CH": ["admin.ch"]},
+    )
+    await a.collect(request(claim_type="legal_text", jurisdictions=("CH",)))
+    assert len(custom.queries) == 1 and fedlex.queries == []
+    assert "admin.ch" in a.primary_domains(["CH"])
+
+
+async def test_news_comes_after_the_encyclopedia_and_gdelt_only_for_ongoing_situations() -> None:
+    index = FakeSource("news_index", [ev("news_index", "https://www.lemonde.fr/a")])
+    gdelt = FakeSource("gdelt")
+    a = atlas(sources={"news_index": index, "gdelt": gdelt})
+    await a.collect(request(claim_type="statistic"))
+    assert len(index.queries) == 1 and gdelt.queries == []
+    await a.collect(request(claim_type="ongoing_situation"))
+    assert len(gdelt.queries) == 1
+    await a.collect(request(claim_type="ongoing_situation", skip_encyclopedia=True))
+    assert len(index.queries) == 2  # light check (E5): no news

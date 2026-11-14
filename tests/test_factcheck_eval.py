@@ -308,6 +308,11 @@ async def test_end_to_end_examples_with_fake_provider_and_cache(db: Database) ->
     assert first.total_cost_usd_micros >= 0
     report = ev.render_report(first, high=settings.fc_confidence_high)
     assert "Example cases: 13" in report
+    assert "Decided without paid web search (lot 6, target >= 70%)" in report
+    assert "Calibration error, ECE (lot 6, target < 0.1)" in report
+    m = ev.compute_metrics(first.results, high=settings.fc_confidence_high)
+    assert m.decided_measured <= m.paid_search_measured
+    assert m.calibration_error is None or 0 <= m.calibration_error <= 1
     second = await ev.run_eval(
         router,
         FakeAtlas([default_docs()]),
@@ -393,3 +398,31 @@ async def test_eval_command_exits_2_without_routes(
         settings, set_path=str(EXAMPLES), limit=None, report=None, level="N3", concurrency=1
     )
     assert code == 2 and "tower llm seed" in capsys.readouterr().out
+
+
+async def test_eval_pins_checked_at_to_its_day_so_reruns_hit_the_cache(db: Database) -> None:
+    """The writer prompt carried the wall-clock minute: a rerun crossing a minute boundary
+    paid the writer again (intermittent failure of the end-to-end test)."""
+    seen: list[str] = []
+
+    class Recording(FakeLLMProvider):
+        async def complete(self, **kw: Any) -> Any:
+            if kw["schema_name"] == "WriterOutput":
+                seen.append(kw["messages"][-1]["content"])
+            return await super().complete(**kw)
+
+    settings = make_settings(llm_fake=True)
+    await run_seed(settings)
+    providers = {name: Recording(name) for name in ("openai", "openai_shared", "anthropic")}
+    router = LLMRouter(db, providers, PromptRegistry.default(), usage_tier=1, free_margin=0.1)
+    cases = ev.load_cases(EXAMPLES)[:1]
+    await ev.run_eval(
+        router,
+        FakeAtlas([default_docs()]),
+        cases,
+        settings=settings,
+        concurrency=1,
+        set_path=str(EXAMPLES),
+        today=date(2026, 3, 1),
+    )
+    assert seen and all('"checked_at":"2026-03-01T00:00+00:00"' in m for m in seen)

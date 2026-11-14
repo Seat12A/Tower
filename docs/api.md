@@ -172,3 +172,31 @@ pour la priorité, jamais fondée sur un bord politique supposé :
 | `new_accounts` | Au moins 50 % des auteurs (10 au moins) vus pour la première fois par Seat 12A depuis moins de 7 jours (date de première observation, pas l'âge réel du compte) |
 | `installation_burst` | Une installation de l'extension produit au moins 20 observations des posts du groupe en 10 minutes |
 | `media_reuse` | Un même média est attaché à des posts d'au moins 2 groupes (`window_minutes` = 0 ; les légendes peuvent se contredire : l'équipe vérifie) |
+
+### Lot 6 : registre de fiabilité et registres par pays
+
+Voir [fact-check.md](fact-check.md#lot-6--v3--atlas-complet-et-qualité). Tag OpenAPI
+`registry`. Lecture : `registry:read` (relecteurs et plus) ; écriture : `registry:write`
+(éditeurs, admin). `{ref}` est l'identifiant numérique (chaîne) ou le domaine. Chaque
+écriture incrémente `version`, ajoute un instantané dans `source_registry_versions` et
+publie l'événement dans la même transaction. Verrouillage optimiste : `version` attendue
+dans le corps, sinon `TWR-ATL-014` (409).
+
+| Méthode | Chemin | Accès |
+|---|---|---|
+| GET | `/v1/registry?country=&tier=&active=&q=&limit=&offset=` | `registry:read` ; entrées (domaine, éditeur, niveau, type, pays, motif, `aliases`, `qid`, `controlled_by`, `controlled_by_qid`, `controlled_by_aliases`, `control_origin`, `statutory_independence`, `independence_basis`, `active`, `version`, `updated_by`) |
+| GET | `/v1/registry/export` | `registry:read` ; registre publié : entrées actives et empreinte (`digest`) — versionné et publiable |
+| GET | `/v1/registry/{ref}` | `registry:read` ; `TWR-ATL-012` |
+| GET | `/v1/registry/{ref}/history` | `registry:read` ; versions (instantané, `change`, `reason`, `changed_by`) |
+| POST | `/v1/registry` | `registry:write` ; `{domain, publisher, tier, kind, country?, reason, aliases?, qid?, controlled_by?, …, statutory_independence?, independence_basis?}` ; `TWR-ATL-013` (motif vide, domaine invalide, indépendance sans critère externe) ; `source_registry.changed` |
+| PATCH | `/v1/registry/{ref}` | `registry:write` ; `{version, reason, …champs modifiés}` ; un `controlled_by` posé par un humain passe `control_origin` à `team` ; `TWR-ATL-012`, `013`, `014` |
+| POST | `/v1/registry/{ref}/deactivate` | `registry:write` ; `{version, reason}` |
+| POST | `/v1/registry/{ref}/seed-control` | `registry:write` ; enfile `atlas.control_seed` (Wikidata P749 puis P127) ; 202 `{enqueued}` |
+| GET / PUT | `/v1/countries/{country}/sources` | `jurisdiction_sources` d'un pays ; PUT = une entrée, clé `(source_type, key)` (`key` = adaptateur sinon domaine), `version` optionnelle ; `country_registry.changed` |
+| GET / PUT | `/v1/countries/{country}/legal-portals` | `legal_portals` ; PUT clé `url` |
+| GET / PUT | `/v1/countries/{country}/elections` | `election_calendar` ; PUT clé `(kind, first_round)` |
+
+Le niveau d'une source repose sur le **processus éditorial**, jamais sur l'orientation
+politique : tout changement de niveau exige un motif, et l'indépendance statutaire exige
+un critère externe (`imf_sdds`, `imf_sdds_plus`, `ess_peer_review`, `statute`).
+

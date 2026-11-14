@@ -147,8 +147,9 @@ async def activate_router_model(
     """Activate ``version`` and deactivate the previous one (same transaction).
 
     Refused (``TWR-FCK-036``) when its model or size does not match the embeddings in
-    use, or when its held-out recall is below ``MIN_RECALL_TO_ACTIVATE`` (``force``
-    overrides the recall rule only).
+    use, when its held-out distillation measurement does not meet the lot 6 criterion
+    (``metrics.distillation.meets_criterion``), or when its held-out recall is below
+    ``MIN_RECALL_TO_ACTIVATE`` (``force`` overrides the measurement rules only).
     """
     actor.require(Permission.PROFILES_MANAGE)
     row = await session.scalar(
@@ -163,6 +164,15 @@ async def activate_router_model(
             version=version,
             model=row.embedding_model,
             expected=expected_model,
+        )
+    distillation = row.metrics.get("distillation")
+    if not force and not (isinstance(distillation, dict) and distillation.get("meets_criterion")):
+        raise InvalidInput(
+            "Distillation criterion not met or not measured: E1 must avoid at least half of "
+            "the E2 calls with at most 2 points of recall lost (use --force to override)",
+            code=ec.FCK_ROUTER_MODEL_INVALID,
+            version=version,
+            distillation=distillation,
         )
     recall = row.metrics.get("recall")
     if not force and (not isinstance(recall, int | float) or recall < MIN_RECALL_TO_ACTIVATE):
