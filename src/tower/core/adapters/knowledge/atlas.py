@@ -1,9 +1,13 @@
 """Atlas: source selection and collection for one investigation (pipeline.md E7).
 
-Order (connaissances.md): existing fact-checks → structured sources (Wikidata, INSEE,
-Légifrance) → Wikipedia (then its references to primary sources) → web search (Brave:
-primary domains of the jurisdiction first, then broadened). Every call goes through
-``source_cache``; an unavailable source is captured (``TWR-ATL-*``) and skipped.
+Order (connaissances.md): existing fact-checks → structured sources chosen by the
+jurisdiction of the claim (statistics: INSEE, Eurostat, World Bank, OECD, IMF; law: LEGI
+mirror, then Légifrance, EUR-Lex, Fedlex, Justice Laws; plus Wikidata) → Wikipedia (then
+its references to primary sources) → news (local ``news_index``, GDELT for ongoing
+situations) → web search (Brave: primary and official domains of the jurisdiction first,
+then broadened). The country choice comes from ``jurisdiction_sources`` (defaults below
+when a country has no row). Every call goes through ``source_cache`` (or PostgreSQL for
+the local mirrors); an unavailable source is captured (``TWR-ATL-*``) and skipped.
 
 Pure orchestration: the caller (service ``investigate``) chunks, ranks and stores.
 """
@@ -152,6 +156,20 @@ _JURISDICTION_LANGS: dict[str, tuple[str, ...]] = {
     "PT": ("pt",),
     "NL": ("nl",),
 }
+STAT_ADAPTERS_INTERNATIONAL = ("eurostat", "worldbank", "oecd", "imf")
+"""Free statistics adapters always tried for a statistic (they answer only for a
+configured indicator of the claim's territory, so a miss costs no HTTP call)."""
+DEFAULT_COUNTRY_ADAPTERS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("FR", "statistics"): ("insee",),
+    ("EU", "statistics"): ("eurostat",),
+    ("FR", "law"): ("legi_mirror", "legifrance"),
+    ("EU", "law"): ("eurlex",),
+    ("CH", "law"): ("fedlex",),
+    ("CA", "law"): ("canada_laws",),
+}
+"""Used when ``jurisdiction_sources`` has no adapter row for (country, type)."""
+LEGAL_FALLBACKS = frozenset({"legifrance"})
+"""Paid-quota or rate-limited legal API asked only when the free mirror found nothing."""
 _TEXT_TYPES = frozenset({"text/plain", "application/json", "application/xml", "text/xml"})
 _HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 _FETCH_PER_SEARCH = 2
@@ -258,9 +276,18 @@ class Atlas:
         cache: SourceCache | None,
         registry: Mapping[str, RegistryInfo],
         search_cost_usd_micros: int = 5000,
+        country_adapters: Mapping[tuple[str, str], Sequence[str]] | None = None,
+        official_domains: Mapping[str, Sequence[str]] | None = None,
     ) -> None:
         """``sources`` by name: ``factcheck_tools``, ``wikidata``, ``wikipedia``,
-        ``insee``, ``legifrance`` (absent = not configured).
+        ``insee``, ``legifrance``, ``legi_mirror``, ``eurostat``, ``worldbank``, ``oecd``,
+        ``imf``, ``eurlex``, ``fedlex``, ``canada_laws``, ``news_index``, ``gdelt``
+        (absent = not configured).
+
+        ``country_adapters``: ``(country, source_type)`` → adapter names, from
+        ``jurisdiction_sources`` (``DEFAULT_COUNTRY_ADAPTERS`` fills the gaps).
+        ``official_domains``: country → official domains (``jurisdiction_sources``), used
+        with the registry's primary domains to restrict the web search.
 
         ``cache`` is kept for callers that share one cache with the adapters; fetched
         pages are deliberately never cached (full texts are not kept, see
@@ -272,6 +299,10 @@ class Atlas:
         self._cache = cache
         self._registry = {k.lower(): v for k, v in registry.items()}
         self._search_cost = search_cost_usd_micros
+        self._country_adapters = {
+            (c.upper(), t): tuple(names) for (c, t), names in (country_adapters or {}).items()
+        }
+        self._official = {c.upper(): tuple(d) for c, d in (official_domains or {}).items()}
 
     # --- registry --------------------------------------------------------------------
 
@@ -303,12 +334,18 @@ class Atlas:
                 ),
                 key=lambda info: (info.domain.count("."), info.domain),
             )
-            for info in group:
-                domain = info.domain.lower()
+            domains = [info.domain.lower() for info in group]
+            domains += [d.lower() for d in self._official.get(country, ())]
+            for domain in domains:
                 if domain in picked or any(domain.endswith("." + p) for p in picked):
                     continue
                 picked.append(domain)
         return picked
+
+    def adapters_for(self, country: str, source_type: str) -> tuple[str, ...]:
+        """Adapters of ``jurisdiction_sources`` for (country, type), else the defaults."""
+        key = (country.upper(), source_type)
+        return self._country_adapters.get(key) or DEFAULT_COUNTRY_ADAPTERS.get(key, ())
 
     # --- collection ------------------------------------------------------------------
 
@@ -319,6 +356,7 @@ class Atlas:
             await self._structured(run)
             if not request.skip_encyclopedia:
                 await self._encyclopedia(run)
+                await self._news(run)
             await self._web(run)
         run.result.paid_cost_usd_micros = run.result.web_searches * self._search_cost
         log.info(
@@ -345,13 +383,21 @@ class Atlas:
     def _not_configured(self, run: _Run, name: str) -> None:
         run.result.skipped.setdefault(name, ec.ATL_NOT_CONFIGURED.code)
 
-    def _query(self, run: _Run, text: str, lang: str, *, limit: int = 5) -> SourceQuery:
+    def _query(
+        self,
+        run: _Run,
+        text: str,
+        lang: str,
+        *,
+        limit: int = 5,
+        jurisdiction: str | None = None,
+    ) -> SourceQuery:
         req = run.request
         return SourceQuery(
             text=text,
             lang=lang,
             claim_type=req.claim_type,
-            jurisdiction=req.jurisdictions[0] if req.jurisdictions else None,
+            jurisdiction=jurisdiction or (req.jurisdictions[0] if req.jurisdictions else None),
             limit=limit,
             as_of=datetime.combine(req.as_of, time.min, tzinfo=UTC) if req.as_of else None,
         )
@@ -432,11 +478,32 @@ class Atlas:
                 "wikidata",
                 [(self._query(run, e, req.claim_lang, limit=1), None) for e in req.entity_lookups],
             )
-        in_france = "FR" in {j.upper() for j in req.jurisdictions}
-        if req.claim_type == "statistic" and in_france:
-            await self._lookup(run, "insee", [(self._query(run, req.claim_text, "fr"), None)])
-        if req.claim_type in ("legal_text", "procedure") and in_france:
-            await self._lookup(run, "legifrance", [(self._query(run, req.claim_text, "fr"), None)])
+        countries = [j.upper() for j in req.jurisdictions] or ["INT"]
+        if req.claim_type == "statistic":
+            for country in countries:
+                names = [*self.adapters_for(country, "statistics"), *STAT_ADAPTERS_INTERNATIONAL]
+                for name in dict.fromkeys(names):
+                    if name not in self._sources:
+                        continue  # international adapters are optional
+                    lang = "fr" if name == "insee" else req.claim_lang
+                    await self._lookup(
+                        run,
+                        name,
+                        [(self._query(run, req.claim_text, lang, jurisdiction=country), None)],
+                    )
+        if req.claim_type in ("legal_text", "procedure"):
+            for country in countries:
+                found_free = False
+                for name in self.adapters_for(country, "law"):
+                    if name in LEGAL_FALLBACKS and found_free:
+                        continue
+                    lang = "fr" if country == "FR" else req.claim_lang
+                    hits = await self._lookup(
+                        run,
+                        name,
+                        [(self._query(run, req.claim_text, lang, jurisdiction=country), None)],
+                    )
+                    found_free = found_free or bool(hits)
 
     async def _encyclopedia(self, run: _Run) -> None:
         req = run.request
@@ -456,6 +523,19 @@ class Atlas:
             if "wikipedia" in run.result.skipped:
                 return
         await self._follow_references(run, wiki)
+
+    async def _news(self, run: _Run) -> None:
+        """Level 5: recent reference headlines (local index, one evidence per wire story),
+        and GDELT for an ongoing situation (world coverage, rate-limited)."""
+        req = run.request
+        if "news_index" in self._sources:
+            await self._lookup(
+                run, "news_index", [(self._query(run, req.claim_text, req.claim_lang), None)]
+            )
+        if req.claim_type == "ongoing_situation" and "gdelt" in self._sources:
+            await self._lookup(
+                run, "gdelt", [(self._query(run, req.claim_text, req.claim_lang), None)]
+            )
 
     async def _follow_references(self, run: _Run, articles: Sequence[Evidence]) -> None:
         if self._fetcher is None or run.request.max_reference_fetches <= 0:

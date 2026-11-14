@@ -12,14 +12,19 @@ from tower.core.budget import BudgetRefused, reserve_budget, settle_budget
 from tower.core.config import Settings
 from tower.core.db.database import Database
 from tower.core.domain import error_codes as ec
-from tower.core.domain.factcheck.confidence import ConfidenceBand, band, compute_confidence
-from tower.core.domain.factcheck.independence import SourceRef, assess_independence
-from tower.core.domain.factcheck.values import Agreement, Veracity
+from tower.core.domain.factcheck.confidence import (
+    Coefficients,
+    ConfidenceBand,
+    band,
+    compute_confidence,
+)
+from tower.core.domain.factcheck.values import Agreement
 from tower.core.domain.text import content_hash, normalize
 from tower.core.errors import capture
 from tower.core.factcheck import names, runtime
-from tower.core.factcheck.signals import build_signals
-from tower.core.models.factcheck import Citation, EvidencePassage, Investigation, Source, Verdict
+from tower.core.factcheck.signals import stored_signals
+from tower.core.models.atlas import ConfidenceModel
+from tower.core.models.factcheck import Investigation, Verdict
 from tower.core.ports.platforms import ContentItem as PlatformItem
 from tower.core.ports.platforms import PlatformError, PlatformNotConfigured, UnsupportedOperation
 
@@ -70,53 +75,16 @@ async def final_confidence(
     investigation: Investigation,
     claim_type: str,
 ) -> tuple[float, ConfidenceBand]:
-    """Confidence of the draft from its valid citations and the stored flags (E10)."""
-    flags: dict[str, Any] = dict(verdict.flags or {})
-    rows = (
-        await session.execute(
-            select(
-                EvidencePassage.label,
-                EvidencePassage.origin,
-                EvidencePassage.simhash,
-                Source.domain,
-                Source.tier,
-            )
-            .join(Source, Source.id == EvidencePassage.source_id)
-            .where(
-                EvidencePassage.id.in_(
-                    select(Citation.passage_id).where(
-                        Citation.verdict_id == verdict.id, Citation.valid.is_(True)
-                    )
-                )
-            )
-            .order_by(EvidencePassage.id)
-        )
-    ).all()
-    refs = [
-        SourceRef(
-            passage_id=r.label,
-            origin=r.origin,
-            domain=r.domain,
-            tier=r.tier,
-            simhash=int(r.simhash),
-        )
-        for r in rows
-    ]
-    independence = assess_independence(refs)
-    second_pass = {"concordant": True, "discordant": False}.get(str(flags.get("second_pass")))
-    signals = build_signals(
-        veracity=Veracity(verdict.veracity),
-        claim_type=claim_type,
-        pitfalls=(investigation.framing or {}).get("known_pitfalls") or [],
-        context_types=verdict.context_types or [],
-        cited=refs,
-        primary_passage_ids=flags.get("primary_passages") or [],
-        independence=independence,
-        conflicting_sources=bool(flags.get("conflicting_sources")),
-        agreement=agreement_of(flags, investigation.agreement),
-        second_pass=second_pass,
-    )
+    """Confidence of the draft from its valid citations and the stored flags (E10).
+    An active recalibrated model (``confidence_models``, lot 6) replaces the configured
+    coefficients; the thresholds and the cap stay those of the settings."""
+    signals = await stored_signals(session, verdict, investigation, claim_type)
     coefficients, thresholds = runtime.confidence_settings(settings)
+    active = await session.scalar(
+        select(ConfidenceModel.coefficients).where(ConfidenceModel.active.is_(True))
+    )
+    if active:
+        coefficients = Coefficients().with_overrides(active)
     confidence = compute_confidence(signals, coefficients, thresholds)
     return confidence, band(confidence, thresholds)
 

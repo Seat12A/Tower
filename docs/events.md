@@ -105,6 +105,8 @@ identifiant d'événement.
 | `narrative.surge_ended` | `change_state`, après `TOWER_FC_SURGE_END_HOURS` sous le palier `watch` | `duration_s`, `posts`, `platforms`, `cost_usd_micros` (enquêtes des groupes du récit), `first_draft_delay_s` (nul sans brouillon) ; agrégat `narrative` = identifiant public du récit |
 | `narrative.merged` | cas d'usage `merge_narratives` (gate, bot) | `target_id`, `source_id`, `group_ids`, `actor`, `reason` |
 | `narrative.split` | cas d'usage `split_narrative` | `narrative_id`, `new_narrative_id`, `group_ids`, `actor`, `reason` |
+| `source_registry.changed` | cas d'usage du registre (`create_entry`, `update_entry`, `deactivate_entry`, `apply_control_seed`) : API et bot | `registry_id`, `domain`, `change` (`created`, `updated`, `deactivated`), `version`, `tier`, `controlled_by`, `changed_by` |
+| `country_registry.changed` | cas d'usage `upsert_jurisdiction_source`, `upsert_legal_portal`, `upsert_election` | `table`, `id`, `country`, `change` |
 
 Convention de nommage : `<agrégat>.<verbe au participe passé>`.
 

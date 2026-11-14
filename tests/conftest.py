@@ -24,6 +24,15 @@ from tower.core.migrations import downgrade, upgrade
 from tower.core.models.auth import ServiceClient, StaffMember
 
 TABLES = [
+    "news_index",
+    "news_feeds",
+    "legal_articles",
+    "legal_portals",
+    "jurisdiction_sources",
+    "election_calendar",
+    "source_registry_versions",
+    "atlas_sync_state",
+    "confidence_models",
     "narrative_novelty",
     "narrative_stats",
     "narrative_events",

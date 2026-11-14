@@ -163,6 +163,16 @@ Critère : ≥ 70 % des affirmations tranchées sans recherche web payante ; cal
 avec écart moyen < 0,1 ; distillation qui réduit de moitié les appels E2 sans perte de
 rappel au-delà de 2 points.
 
+**État (2026-11-14)** : livré en développement (voir
+[../fact-check.md](../fact-check.md#lot-6--v3--atlas-complet-et-qualité)) : Eurostat,
+Banque mondiale, OCDE, FMI, miroir LEGI des 9 textes prioritaires, EUR-Lex, Fedlex, Lois
+du Canada, index d'actualité et GDELT, registre éditable avec `controlled_by` et règle
+partie prenante, registres par pays, recalibrage et distillation avec leurs garde-fous,
+revalidation continue du N4. Non faits : ONU (indicateurs ODD), passage en couverture A,
+nouvelles langues (ils exigent un sous-ensemble de référence étiqueté), bandes de valeurs
+validées par les relecteurs au-delà du lot 4. Critères non mesurables sous doublures :
+l'outillage est en place (`tower factcheck eval`, `calibrate`, `train-router`).
+
 ## Lot 7 — Multi-plateforme
 
 > **Reporté** (Jules, 2026-11-12) : pas de nouvelle plateforme pour l'instant.

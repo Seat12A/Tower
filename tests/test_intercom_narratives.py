@@ -278,3 +278,23 @@ async def test_merge_split_and_title(gate: GateClient, db: Database, locale: str
     assert detail["title"] == "Corrected" and detail["title_status"] == "validated"
     unknown = await nh.narrative_title(gate, REVIEWER, locale, UNKNOWN)
     assert "TWR-FCK-043" in unknown.text
+
+
+async def test_wave_alert_mentions_the_configured_role_only_at_tier_alert() -> None:
+    alert = {**SURGE, "tier": "alert"}
+    gate = FakeGate(
+        [
+            [
+                ev("1-1", "narrative.surge_detected", SURGE),
+                ev("1-2", "narrative.surge_detected", alert),
+            ]
+        ]
+    )
+    sent: list[str] = []
+
+    async def send(channel: str, body: str) -> None:
+        sent.append(body)
+
+    await run_until(gate, send, lambda: len(gate.stored) >= 2, alert_role_id=123456789)
+    assert not sent[0].startswith("<@&")
+    assert sent[1].startswith("<@&123456789> ") and "ALERT" in sent[1]

@@ -40,6 +40,13 @@ JOB_ATTACH_NARRATIVE = "factcheck.attach_narrative"
 JOB_NARRATIVE_TITLE = "factcheck.narrative_title"
 JOB_PROMOTION_CHECK = "factcheck.promotion_check"  # platform read confirming N2 metrics
 
+# Lot 6: service ``atlas`` (dedicated hangar replica, queue ``atlas``)
+ATLAS_QUEUE = "atlas"
+JOB_LEGI_SYNC = "atlas.legi_sync"
+JOB_NEWS_POLL = "atlas.news_poll"
+JOB_STAT_REFRESH = "atlas.stat_refresh"
+JOB_CONTROL_SEED = "atlas.control_seed"
+
 # Jobs of the service ``investigate`` (queue fc-deep), one per stage
 JOB_FRAME = "investigate.frame"
 JOB_COLLECT = "investigate.collect"
@@ -74,6 +81,9 @@ NARRATIVE_SURGE_DETECTED = "narrative.surge_detected"
 NARRATIVE_SURGE_ENDED = "narrative.surge_ended"
 NARRATIVE_MERGED = "narrative.merged"
 NARRATIVE_SPLIT = "narrative.split"
+# Lot 6
+SOURCE_REGISTRY_CHANGED = "source_registry.changed"
+COUNTRY_REGISTRY_CHANGED = "country_registry.changed"
 
 # Actors
 FACTCHECK_ACTOR = "system:factcheck"
@@ -168,3 +178,20 @@ def title_key(narrative_id: int) -> str:
 
 def promotion_key(group_id: int, hour: str) -> str:
     return f"promo:{group_id}:{hour}"
+
+
+def legi_sync_key(day: str) -> str:
+    return f"atlas:legi:{day}"
+
+
+def news_poll_key(slot: str) -> str:
+    """One poll per 15-minute slot (``2026-11-14T10:15``)."""
+    return f"atlas:news:{slot}"
+
+
+def stat_key(indicator: str, day: str) -> str:
+    return f"atlas:stat:{indicator}:{day}"
+
+
+def control_seed_key(registry_id: int) -> str:
+    return f"atlas:control:{registry_id}"

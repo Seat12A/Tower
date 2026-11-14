@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Example Daily</title>
+    <atom:link href="https://example.org/feed.xml" rel="self" type="application/rss+xml"/>
+    <link>https://example.org/</link>
+    <item>
+      <title>Budget 2027 : le gouvernement présente ses arbitrages</title>
+      <link>https://www.example.org/politique/budget-2027?utm_source=rss&amp;utm_medium=feed</link>
+      <description><![CDATA[<p>Le <b>Premier ministre</b> a détaillé jeudi les &quot;économies&quot; prévues.</p><img src="x.jpg"/><script>alert(1)</script>]]></description>
+      <pubDate>Thu, 12 Nov 2026 09:30:00 +0100</pubDate>
+      <guid isPermaLink="false">abc-1</guid>
+    </item>
+    <item>
+      <title>Sans date</title>
+      <link>https://example.org/societe/sans-date</link>
+      <description>Un article sans date de publication.</description>
+    </item>
+    <item>
+      <title>   </title>
+      <link>https://example.org/vide</link>
+    </item>
+  </channel>
+</rss>

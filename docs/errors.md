@@ -17,6 +17,14 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-ATL-005` | Knowledge source refused the credentials | 500 | error | oui | non |  |
 | `TWR-ATL-006` | Recent Wikipedia revision with a high revert risk: last stable revision used | 500 | info | non | non |  |
 | `TWR-ATL-007` | Search budget exhausted: web search skipped | 500 | warning | non | oui |  |
+| `TWR-ATL-008` | LEGI mirror synchronization failed | 500 | error | oui | oui | Check that echanges.dila.gouv.fr answers; the next daily run resumes from the last applied archive (atlas_sync_state). |
+| `TWR-ATL-009` | News feed could not be read: skipped until the next poll | 500 | warning | oui | oui |  |
+| `TWR-ATL-010` | XML document rejected (entity declaration, external entity or size limit) | 500 | warning | oui | non |  |
+| `TWR-ATL-011` | Statistical indicator returned no usable value | 500 | info | non | non |  |
+| `TWR-ATL-012` | Registry entry not found | 404 | info | non | non |  |
+| `TWR-ATL-013` | Invalid registry entry | 422 | info | non | non |  |
+| `TWR-ATL-014` | Registry entry changed meanwhile (stale version) | 409 | info | non | non | Re-read the entry and resend with its current version. |
+| `TWR-ATL-015` | Wikidata seeding of controlled_by failed | 500 | warning | oui | oui |  |
 
 ## AUTH : Authentification et autorisations
 
@@ -112,6 +120,9 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-FCK-043` | Narrative not found | 404 | info | non | non |  |
 | `TWR-FCK-044` | Invalid narrative operation (closed narrative, same narrative, unknown groups) | 422 | info | non | non |  |
 | `TWR-FCK-045` | Scheduler held work back: queue at capacity | 500 | info | non | non |  |
+| `TWR-FCK-046` | Not enough reviewed data to fit a model (threshold not reached): nothing produced | 422 | info | non | non | Confidence: 200 reviews for the reduced model, 100 refusals for the full one; E1 distillation: 200 labelled cases. |
+| `TWR-FCK-047` | Calibration model not found | 404 | info | non | non |  |
+| `TWR-FCK-048` | Candidate model not activated: its measurement does not beat the current one | 409 | info | non | non |  |
 
 ## GEN : Général
 
