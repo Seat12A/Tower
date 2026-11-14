@@ -45,10 +45,13 @@ Règles permanentes, à appliquer sans qu'elles soient répétées dans le promp
 
 ### Économie d'usage (forfait Claude de Jules)
 
-- **L'agent principal (Opus)** conçoit, relit, intègre et vérifie. **Les sous-agents
-  Claude Sonnet** (`model: "sonnet"`) implémentent ; vérifier dans leur premier rapport
-  que c'est bien Sonnet. Aucun sous-agent Opus, aucun sous-agent d'exploration. Une
-  petite tâche se fait directement, sans sous-agent.
+- **Les sous-agents sont facultatifs** : l'agent principal (Opus) décide seul s'ils
+  sont utiles. Par défaut, il implémente lui-même, en particulier les petites
+  implémentations et les correctifs. Il ne délègue que les tâches lourdes ou
+  parallélisables (un lot entier, plusieurs briques indépendantes).
+- Quand il délègue : l'agent principal conçoit, relit, intègre et vérifie ; **les
+  sous-agents Claude Sonnet** (`model: "sonnet"`) implémentent, et leur premier rapport
+  confirme que c'est bien Sonnet. Aucun sous-agent Opus, aucun sous-agent d'exploration.
 - Briefs autonomes et précis : fichiers autorisés seulement, signatures, cas limites,
   tests, commandes, interdits. Rapport de 10 lignes au plus, qui commence par le modèle.
   Réutiliser les briefs existants au lieu de les réécrire.
