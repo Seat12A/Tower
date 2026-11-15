@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from tower.core.domain import error_codes as ec
+from tower.core.errors import capture
 from tower.core.logging import get_logger
 from tower.intercom.gate_client import GateClient, GateError
 from tower.intercom.handlers import Reply
@@ -32,6 +34,10 @@ log = get_logger(__name__)
 
 class ForumSink(Protocol):
     """Discord side of the forum (``delivery.ForumDelivery``, or a fake in tests)."""
+
+    async def prepare(self) -> None:
+        """Create the missing tags, settings and pinned guide (startup, idempotent)."""
+        ...
 
     async def create(self, post: render.Post) -> int:
         """Create the post; returns its thread id."""
@@ -57,6 +63,14 @@ class CaseForum:
     def __init__(self, gate: GateClient, sink: ForumSink) -> None:
         self._gate = gate
         self._sink = sink
+
+    async def prepare(self) -> None:
+        """Ready the forum at startup: a misconfiguration shows at once in the logs
+        (``TWR-BOT-004``) instead of at the first case. Never blocks the bot."""
+        try:
+            await self._sink.prepare()
+        except Exception as exc:
+            capture(ec.BOT_BAD_CONFIG, exc, reason="forum_setup_failed")
 
     async def _create(self, case_id: str, post: render.Post) -> int:
         thread_id = await self._sink.create(post)

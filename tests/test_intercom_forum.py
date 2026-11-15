@@ -204,6 +204,13 @@ class FakeSink:
         self.posts: dict[int, fr.Post] = {}
         self.replies: dict[int, list[Reply]] = {}
         self.gone: set[int] = set()
+        self.prepared = 0
+        self.fail_prepare = False
+
+    async def prepare(self) -> None:
+        if self.fail_prepare:
+            raise PermissionError("missing Manage Channels")
+        self.prepared += 1
 
     async def create(self, post: fr.Post) -> int:
         thread_id = 100 + len(self.posts)
@@ -383,3 +390,22 @@ def test_single_note_language_has_no_translations_option() -> None:
     assert menu is not None and "notes" not in [o.value for o in menu.options]
     final = fr.draft_post(dict(view, status="rejected"), "rejected")
     assert final.starter.menu is None
+
+
+async def test_forum_is_prepared_at_startup_and_a_failure_never_blocks() -> None:
+    forum, gate, sink = make_forum(full_view(notified_at="earlier"))
+
+    async def list_drafts(*args: object, **kwargs: object) -> list[dict[str, Any]]:
+        return []
+
+    gate.list_drafts = list_drafts  # type: ignore[attr-defined]
+    from tower.intercom.notifier import Notifier
+
+    async def send(channel: str, reply: Reply) -> None:
+        return None
+
+    notifier = Notifier(cast(GateClient, gate), send, cursor_name="c", locale="en", forum=forum)
+    assert await notifier.reconcile() == 0
+    assert sink.prepared == 1  # tags, settings and guide are readied before any post
+    sink.fail_prepare = True
+    assert await notifier.reconcile() == 0  # logged (TWR-BOT-004), the bot goes on

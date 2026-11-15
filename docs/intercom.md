@@ -208,12 +208,12 @@ publication ; transitions des cases sans brouillon), avec la mention de la perso
 notification. Le fil sert aussi à la discussion. Les anciens menus (options « Show the
 group » et « Show the narrative ») restent pris en charge.
 
-**Tags** (18, `moderated` : seul le bot les pose ; créés au démarrage s'ils manquent, par
+**Tags** (18, `moderated` : seul le bot les pose ; créés dès le démarrage du bot, avant le premier post, s'ils manquent, par
 nom, jamais supprimés) : un statut (*To review*, *Endorsed*, *Validated*, *Published*,
 *Rejected*, *Superseded*), l'issue proposée, le niveau (*N1* à *N4*) et au plus deux
 signaux (*Needs attention* : avertissements ou objection ; *Wave* : récit en vague ;
 *Post deleted*). Au plus 5 par post (limite Discord). Le bot règle aussi le tri par date
-de création, la vue liste, et épingle un post « How to review » (légende).
+de création, la vue liste, et épingle un post « How to review » (légende). Un échec de cette préparation (droits manquants, mauvais ID de salon) est journalisé au démarrage (`TWR-BOT-004`, `reason=forum_setup_failed`) sans bloquer le bot.
 
 **Cycle de vie** : `case.opened` crée le post (carte courte) ; `draft.ready` le
 complète (carte entière, tags, sections) puis appelle `notified` ; un post supprimé à la

@@ -110,6 +110,9 @@ class ForumDelivery:
     async def _channel(self, channel_id: int) -> Any:
         return self._client.get_channel(channel_id) or await self._client.fetch_channel(channel_id)
 
+    async def prepare(self) -> None:
+        await self._forum()
+
     async def _forum(self) -> discord.ForumChannel:
         forum = await self._channel(self._forum_id)
         if not isinstance(forum, discord.ForumChannel):
@@ -206,6 +209,9 @@ class DryRunForum:
 
     def __init__(self) -> None:
         self._next = 0
+
+    async def prepare(self) -> None:
+        log.info("intercom.forum_ready", tags=len(forum_render.TAGS))
 
     async def create(self, post: forum_render.Post) -> int:
         self._next += 1

@@ -307,8 +307,10 @@ class Notifier:
             capture(ec.BOT_DELIVERY_FAILED, exc, topic=event.topic, channel="forum")
 
     async def reconcile(self) -> int:
-        """Post the pending drafts never displayed (startup, before reading events)."""
+        """Post the pending drafts never displayed (startup, before reading events). The
+        forum is readied first (tags, settings, pinned guide)."""
         if self._forum is not None:
+            await self._forum.prepare()
             return await reconcile_drafts(self._gate, self._forum.show_draft)
         if self._send_draft is None:
             return 0
