@@ -756,7 +756,7 @@ async def test_model_substitution_replaces_route_models(
     sonnet = await add_model(db, "anthropic", "claude-sonnet-5-5")
     await add_model(db, "openai", "gpt-6.1-terra")
     await add_route(db, opus, sonnet)
-    openai = FakeProvider(ProviderRetryable("down"), name="openai")
+    openai = FakeProvider(ProviderRetryable("down"), ok(), name="openai")
     anthropic = FakeProvider(name="anthropic")
     subs = {"claude-opus-5-5": "gpt-6.1-terra", "claude-sonnet-5-5": "gpt-6.1-terra"}
     router = make_router(

@@ -16,7 +16,7 @@ from tower.core.adapters.knowledge.brave import BraveSearch
 from tower.core.adapters.knowledge.cache import DbSourceCache, purge_expired
 from tower.core.adapters.knowledge.factcheck_tools import FactCheckToolsSource
 from tower.core.adapters.knowledge.html_text import MAX_OUTPUT_CHARS, extract_text
-from tower.core.adapters.knowledge.insee import InseeSource, parse_series_config
+from tower.core.adapters.knowledge.insee import InseeSource, default_series, parse_series_config
 from tower.core.adapters.knowledge.legifrance import LegifranceSource
 from tower.core.adapters.knowledge.wikidata import WikidataSource
 from tower.core.adapters.knowledge.wikipedia import WikipediaSource, reference_urls
@@ -899,9 +899,40 @@ async def test_insee_latest_observations(db: Database) -> None:
     assert ev.published_at == datetime(2026, 8, 14, tzinfo=UTC)
     assert ev.extra["as_of"].startswith("ignored")
     assert seen[0].url.path == "/series/sdmx/data/SERIES_BDM/001688370"
-    assert seen[0].url.params["lastNObservations"] == "4"
+    assert seen[0].url.params["lastNObservations"] == "12"
     await src.lookup(query)
     assert len(seen) == 1
+
+
+SDMX_NAN = SDMX.replace('OBS_VALUE="7.5"', 'OBS_VALUE="NaN"').replace(
+    '<Obs TIME_PERIOD="2025-Q3"',
+    '<Obs TIME_PERIOD="2025-Q1" OBS_VALUE="7.1"/><Obs TIME_PERIOD="2025-Q2" OBS_VALUE="7.2"/>'
+    '<Obs TIME_PERIOD="2025-Q3"',
+)
+
+
+async def test_insee_skips_unpublished_values() -> None:
+    src, _ = insee(lambda r: httpx.Response(200, text=SDMX_NAN))
+    (ev,) = await src.lookup(SourceQuery(text="taux de chômage", lang="fr"))
+    assert "NaN" not in ev.text and "2026-Q2" not in ev.text
+    # The four latest numeric observations, newest first.
+    assert ev.extra["periods"] == "2026-Q1,2025-Q4,2025-Q3,2025-Q2"
+
+
+def test_insee_default_series() -> None:
+    series = default_series()
+    assert len(series) >= 150
+    assert len(set(series.values())) >= 100
+    src = InseeSource(series=series, user_agent=UA, timeout=2.0)
+    # Most specific keyword first, at most two series.
+    assert src.matching("Le taux de chômage des jeunes explose") == ["011818548", "011818543"]
+    assert src.matching("L'inflation atteint 3 %") == ["011814632"]
+    assert src.matching("La dette publique dépasse 3 500 milliards") == [
+        "010777608",
+        "010777616",
+    ]
+    assert src.matching("Le pouvoir d'achat des salaires recule") == ["010752375", "010752333"]
+    assert src.matching("Il fait beau aujourd'hui") == []
 
 
 async def test_insee_errors() -> None:

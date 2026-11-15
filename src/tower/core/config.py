@@ -242,9 +242,12 @@ class Settings(BaseSettings):
     piste_sandbox: bool = False
     """Use the PISTE sandbox endpoints instead of production."""
     insee_api_key: SecretStr | None = None
-    """INSEE API portal key (BDM), when the portal requires one."""
+    """Unused: the public BDM host (bdm.insee.fr) needs no key. Kept so a configured value
+    does not break the settings."""
     insee_series: str = ""
-    """JSON object ``{"indicator": "idbank"}`` of the INSEE BDM series used by the selector."""
+    """JSON object ``{"keyword": "idbank"}`` of the INSEE BDM series used by the selector.
+    Empty: the packaged list (``core/adapters/knowledge/insee_series.json``); ``{}``
+    disables the source."""
     atlas_wikipedia_concurrency: int = Field(default=3, ge=1, le=3)
     """Concurrent Wikimedia requests per process (Wikimedia limit: 3)."""
     atlas_cache_ttl_s: int = Field(default=7 * 86400, ge=60)

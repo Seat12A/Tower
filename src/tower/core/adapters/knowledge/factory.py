@@ -42,7 +42,11 @@ async def build_atlas(settings: Settings, db: Database) -> Atlas:
     from tower.core.adapters.knowledge.brave import BraveSearch
     from tower.core.adapters.knowledge.cache import DbSourceCache
     from tower.core.adapters.knowledge.factcheck_tools import FactCheckToolsSource
-    from tower.core.adapters.knowledge.insee import InseeSource, parse_series_config
+    from tower.core.adapters.knowledge.insee import (
+        InseeSource,
+        default_series,
+        parse_series_config,
+    )
     from tower.core.adapters.knowledge.legifrance import LegifranceSource
     from tower.core.adapters.knowledge.wikidata import WikidataSource
     from tower.core.adapters.knowledge.wikipedia import WikipediaSource
@@ -88,7 +92,11 @@ async def build_atlas(settings: Settings, db: Database) -> Atlas:
                 **common,
             ),
         )
-    series = parse_series_config(settings.insee_series)
+    series = (
+        parse_series_config(settings.insee_series)
+        if settings.insee_series.strip()
+        else default_series()
+    )
     if series:
         sources["insee"] = _singleton(
             "insee",
