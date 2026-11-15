@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16  # pgvector >= 0.8 (migration 0006)
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: tower_test
