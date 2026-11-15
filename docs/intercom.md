@@ -182,6 +182,8 @@ Avec `TOWER_DISCORD_FORUM_CASES` (salon de type forum), **un post = un case**
 (`PUT /v1/cases/{id}/discord-thread`), jamais en mémoire : après un redémarrage, le bot
 retrouve le post d'un case par `discord_thread_id`.
 
+**Titre du post** : l'identifiant du case (`Case 6e7f64bc`), suivi de trois mots au plus du titre du récit quand il en a un (déjà généré, sans appel de modèle en plus). Jamais la phrase de l'affirmation, qui est citée dans le message d'origine.
+
 **Le message d'origine est le seul panneau de contrôle** (édité à chaque changement) :
 titre = statut et niveau ; l'affirmation ; verdict proposé, besoin de contexte,
 confiance ; la note proposée avec sa longueur (`n/280`) ; le **nombre**

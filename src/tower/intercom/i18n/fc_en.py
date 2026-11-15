@@ -267,4 +267,5 @@ MESSAGES: dict[str, str] = {
     "forum.info.title.context": "Context details",
     "forum.more.notes": "Note in every language",
     "forum.more.notes.help": "Read the proposed note in each language",
+    "forum.post.name": "Case {id}",
 }

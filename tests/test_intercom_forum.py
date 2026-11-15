@@ -54,7 +54,7 @@ def test_tag_catalogue_fits_discord() -> None:
 
 def test_post_of_a_pending_draft() -> None:
     post = fr.draft_post(full_view())
-    assert post.name == "Unemployment doubled in a year"
+    assert post.name == f"Case {CASE[:8]}"  # ids, never the claim sentence
     assert post.tags == ("status.to_review", "verdict.false", "level.N3", "signal.attention")
     assert not post.archived
     s = post.starter
@@ -75,10 +75,12 @@ def test_post_of_a_pending_draft() -> None:
     assert f"t12a:fc:more:{DRAFT}" in custom_ids(s)
 
 
-def test_post_title_is_clipped_to_the_discord_limit() -> None:
-    long = "word " * 60
-    post = fr.draft_post(full_view(claim={"text_original": long, "lang": "en"}))
-    assert len(post.name) <= fr.NAME_MAX
+def test_post_title_is_the_id_and_a_few_topic_words() -> None:
+    titled = full_view(
+        narrative={"id": "n", "title": "Child trafficking in shipping containers", "state": "watch"}
+    )
+    assert fr.draft_post(titled).name == f"Case {CASE[:8]} · Child trafficking in"
+    assert len(fr.draft_post(titled).name) <= fr.NAME_MAX
 
 
 @pytest.mark.parametrize(
@@ -178,7 +180,7 @@ def test_case_post_without_draft() -> None:
     post = fr.case_post(
         {"public_id": CASE, "status": "received", "title": "Manual check", "x_post_id": "42"}
     )
-    assert post.name == "Manual check" and post.tags == ("status.to_review",)
+    assert post.name == f"Case {CASE[:8]}" and post.tags == ("status.to_review",)
     assert [b.label for b in post.starter.buttons] == ["Open post"]
 
 

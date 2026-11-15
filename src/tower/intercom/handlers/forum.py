@@ -162,9 +162,19 @@ def _tags(status: str, veracity: object, level: object, signals: list[str]) -> t
     return tuple(tags[:MAX_TAGS])
 
 
-def _name(text: object) -> str:
-    name = " ".join(str(text or "").split()) or _t("forum.untitled")
-    return fc._clip(name, NAME_MAX)
+TOPIC_WORDS = 3
+"""Words of the narrative title kept in a post title."""
+
+
+def _name(case_id: object, topic: object = None) -> str:
+    """Post title: the case id, plus a few words of the narrative title when the
+    narrative has one (already generated: no extra model call). Never the claim itself:
+    it is quoted in the starter message."""
+    name = _t("forum.post.name", id=short(case_id or "?"))
+    words = str(topic or "").split()[:TOPIC_WORDS]
+    if words:
+        name = f"{name} · {' '.join(words)}"
+    return name[:NAME_MAX]
 
 
 # --- starter message -------------------------------------------------------------------
@@ -338,7 +348,7 @@ def draft_post(view: dict[str, Any], case_status: object = None) -> Post:
         ephemeral=False,
     )
     return Post(
-        name=_name(text),
+        name=_name(case.get("id"), narrative.get("title")),
         tags=_tags(status, view.get("veracity"), view.get("level"), signals[:2]),
         starter=starter,
         archived=status in _FINAL_STATUSES,
@@ -365,7 +375,7 @@ def case_post(case: dict[str, Any]) -> Post:
         ephemeral=False,
     )
     return Post(
-        name=_name(case.get("title")),
+        name=_name(public_id),
         tags=_tags(status, None, None, []),
         starter=starter,
         archived=status in _FINAL_STATUSES,
