@@ -61,10 +61,14 @@ MESSAGES: dict[str, str] = {
     "group.button.split": "Scinder",
     "group.modal.merge.title": "Fusionner un groupe ici",
     "group.modal.source": "Groupe à absorber",
-    "group.modal.source.hint": "L'identifiant complet du groupe qui sera absorbé.",
+    "group.modal.source.hint": (
+        "L'identifiant du groupe qui sera absorbé : complet, ou ses 6 premiers caractères ou plus."
+    ),
     "group.modal.split.title": "Scinder des affirmations",
     "group.modal.claims": "Identifiants d'affirmations",
-    "group.modal.claims.hint": "Séparés par des virgules ; ils rejoignent un nouveau groupe.",
+    "group.modal.claims.hint": (
+        "Séparés par des virgules, complets ou courts ; ils rejoignent un nouveau groupe."
+    ),
     # --- reference facts and bands -----------------------------------------------------
     "fact.show.title": "Fiche de référence",
     "fact.list.title": "Fiches de référence",
@@ -131,10 +135,15 @@ MESSAGES: dict[str, str] = {
     "narrative.button.split": "Scinder",
     "narrative.modal.merge.title": "Fusionner un narratif ici",
     "narrative.modal.source": "Narratif à absorber",
-    "narrative.modal.source.hint": "L'identifiant complet du narratif qui sera absorbé.",
+    "narrative.modal.source.hint": (
+        "L'identifiant du narratif qui sera absorbé : complet, ou ses 6 premiers "
+        "caractères ou plus."
+    ),
     "narrative.modal.split.title": "Scinder des groupes",
     "narrative.modal.groups": "Identifiants de groupes",
-    "narrative.modal.groups.hint": "Séparés par des virgules ; ils rejoignent un nouveau narratif.",
+    "narrative.modal.groups.hint": (
+        "Séparés par des virgules, complets ou courts ; ils rejoignent un nouveau narratif."
+    ),
     "narrative.modal.title.title": "Titre du narratif",
     "narrative.modal.title": "Titre corrigé",
     "narrative.modal.title.hint": "Laissez vide pour valider le titre proposé.",
@@ -270,4 +279,5 @@ MESSAGES: dict[str, str] = {
     "forum.info.title.context": "Détail du contexte",
     "forum.more.notes": "Note dans toutes les langues",
     "forum.more.notes.help": "Lire la note proposée dans chaque langue",
+    "forum.post.name": "Case {id}",
 }

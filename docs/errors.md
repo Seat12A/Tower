@@ -133,6 +133,7 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-GEN-002` | Resource not found | 404 | info | non | non |  |
 | `TWR-GEN-003` | Concurrent modification (stale version) | 409 | info | non | non | Re-read the resource, then resend with the new version. |
 | `TWR-GEN-004` | Too many requests | 429 | info | non | non |  |
+| `TWR-GEN-005` | Identifier prefix matches several items | 409 | info | non | non | Type more characters of the identifier. |
 
 ## ING : ING
 

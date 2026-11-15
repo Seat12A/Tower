@@ -38,7 +38,7 @@ def _kit(ctx: Context) -> Any:
             super().__init__(title=t(locale, "narrative.modal.merge.title")[:45])
             self.narrative_id = narrative_id
             self.source, label = text_input(
-                locale, "narrative.modal.source", min_length=36, max_length=36
+                locale, "narrative.modal.source", min_length=6, max_length=36
             )
             self.add_item(label)
             self.reason, label = text_input(locale, "fc.modal.reason", paragraph=True)

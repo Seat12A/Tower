@@ -281,9 +281,9 @@ MESSAGES: dict[str, str] = {
     "draft.button.fact": "Créer un fait",
     "draft.button.band": "Valider la bande",
     "draft.modal.samegroup.title": "Fusionner un autre groupe dans celui-ci",
-    "draft.modal.samegroup.group": "Identifiant du groupe à absorber",
+    "draft.modal.samegroup.group": "Groupe à absorber (ID court accepté)",
     "draft.modal.split.title": "Scinder des affirmations de ce groupe",
-    "draft.modal.split.claims": "Identifiants d'affirmations (virgules)",
+    "draft.modal.split.claims": "Affirmations, séparées par des virgules (ID courts acceptés)",
     "draft.modal.fact.title": "Créer un fait de référence",
     "draft.modal.fact.value": "Valeur",
     "draft.modal.fact.period": "Période (AAAA-MM-JJ AAAA-MM-JJ)",
@@ -401,4 +401,7 @@ MESSAGES: dict[str, str] = {
     "registry.history.line": "- v{version} {change} par {by} le {when} : {reason}",
     "registry.seed_queued": "Amorçage Wikidata du contrôleur de `{domain}` en file.",
     "registry.seed_pending": "Un amorçage de `{domain}` est déjà en file.",
+    "error.TWR-GEN-005": (
+        "Plusieurs éléments commencent par cet identifiant : tapez plus de caractères. ({code})"
+    ),
 }

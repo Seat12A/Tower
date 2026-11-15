@@ -222,3 +222,8 @@ Le niveau d'une source repose sur le **processus éditorial**, jamais sur l'orie
 politique : tout changement de niveau exige un motif, et l'indépendance statutaire exige
 un critère externe (`imf_sdds`, `imf_sdds_plus`, `ess_peer_review`, `statute`).
 
+## Identifiants courts
+
+| Méthode | Chemin | Permission | Description |
+|---|---|---|---|
+| GET | `/v1/ids/{kind}/{ref}` | `cases:read` | Identifiant complet de l'élément dont l'identifiant commence par `ref` (6 caractères hexadécimaux ou plus, tirets ignorés). `kind` : `case`, `group`, `claim`, `narrative`, `draft`. Répond `{kind, id}`. Recherche par plage sur l'index unique. Erreurs : `TWR-GEN-001` (préfixe invalide), `TWR-GEN-002` (aucun), `TWR-GEN-005` (plusieurs : taper plus de caractères) |

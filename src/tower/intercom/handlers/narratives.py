@@ -18,6 +18,8 @@ from tower.intercom.handlers import (
     fmt_usd,
     guarded,
     listing,
+    resolve_ref,
+    resolve_refs,
     short,
     success,
 )
@@ -45,13 +47,6 @@ PICK_ACTION = "pick"
 _UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _TITLE_MAX = 80
 _MAX_SPLIT_GROUPS = 200
-
-
-def _uuid_arg(value: str) -> str:
-    ref = value.strip()
-    if not _UUID.fullmatch(ref):
-        raise GateError(422, "TWR-GEN-001", "A full identifier is required")
-    return ref.lower()
 
 
 def _clip(text: str, limit: int) -> str:
@@ -236,7 +231,7 @@ async def narrative_list(
 
 @guarded
 async def narrative_show(gate: GateClient, acting: int, locale: str, narrative_id: str) -> Reply:
-    n = await gate.get_narrative(acting, _uuid_arg(narrative_id))
+    n = await gate.get_narrative(acting, await resolve_ref(gate, acting, "narrative", narrative_id))
     nid = str(n["id"])
     state = str(n["state"])
     title_status = str(n.get("title_status"))
@@ -349,7 +344,10 @@ async def narrative_merge(
     gate: GateClient, acting: int, locale: str, target: str, source: str, reason: str
 ) -> Reply:
     merged = await gate.merge_narratives(
-        acting, _uuid_arg(target), source_id=_uuid_arg(source), reason=reason.strip()
+        acting,
+        await resolve_ref(gate, acting, "narrative", target),
+        source_id=await resolve_ref(gate, acting, "narrative", source),
+        reason=reason.strip(),
     )
     groups = merged.get("groups_count", len(merged.get("groups", [])))
     return success(
@@ -367,11 +365,14 @@ async def narrative_merge(
 async def narrative_split(
     gate: GateClient, acting: int, locale: str, narrative_id: str, group_ids: str, reason: str
 ) -> Reply:
-    ids = [_uuid_arg(part) for part in re.split(r"[,\s]+", group_ids.strip()) if part]
+    ids = await resolve_refs(gate, acting, "group", group_ids)
     if not ids or len(ids) > _MAX_SPLIT_GROUPS:
         raise GateError(422, "TWR-GEN-001", "Give the group ids to move, comma separated")
     new = await gate.split_narrative(
-        acting, _uuid_arg(narrative_id), group_ids=ids, reason=reason.strip()
+        acting,
+        await resolve_ref(gate, acting, "narrative", narrative_id),
+        group_ids=ids,
+        reason=reason.strip(),
     )
     return success(
         t(locale, "narrative.split.title"),
@@ -386,7 +387,9 @@ async def narrative_title(
     gate: GateClient, acting: int, locale: str, narrative_id: str, title: str | None = None
 ) -> Reply:
     done = await gate.set_narrative_title(
-        acting, _uuid_arg(narrative_id), title=(title or "").strip() or None
+        acting,
+        await resolve_ref(gate, acting, "narrative", narrative_id),
+        title=(title or "").strip() or None,
     )
     return success(
         t(locale, "narrative.title.title"),

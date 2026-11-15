@@ -182,6 +182,8 @@ Avec `TOWER_DISCORD_FORUM_CASES` (salon de type forum), **un post = un case**
 (`PUT /v1/cases/{id}/discord-thread`), jamais en mémoire : après un redémarrage, le bot
 retrouve le post d'un case par `discord_thread_id`.
 
+**Titre du post** : l'identifiant du case (`Case 6e7f64bc`), suivi de trois mots au plus du titre du récit quand il en a un (déjà généré, sans appel de modèle en plus). Jamais la phrase de l'affirmation, qui est citée dans le message d'origine.
+
 **Le message d'origine est le seul panneau de contrôle** (édité à chaque changement) :
 titre = statut et niveau ; l'affirmation ; verdict proposé, besoin de contexte,
 confiance ; la note proposée avec sa longueur (`n/280`) ; le **nombre**
@@ -208,12 +210,12 @@ publication ; transitions des cases sans brouillon), avec la mention de la perso
 notification. Le fil sert aussi à la discussion. Les anciens menus (options « Show the
 group » et « Show the narrative ») restent pris en charge.
 
-**Tags** (18, `moderated` : seul le bot les pose ; créés au démarrage s'ils manquent, par
+**Tags** (18, `moderated` : seul le bot les pose ; créés dès le démarrage du bot, avant le premier post, s'ils manquent, par
 nom, jamais supprimés) : un statut (*To review*, *Endorsed*, *Validated*, *Published*,
 *Rejected*, *Superseded*), l'issue proposée, le niveau (*N1* à *N4*) et au plus deux
 signaux (*Needs attention* : avertissements ou objection ; *Wave* : récit en vague ;
 *Post deleted*). Au plus 5 par post (limite Discord). Le bot règle aussi le tri par date
-de création, la vue liste, et épingle un post « How to review » (légende).
+de création, la vue liste, et épingle un post « How to review » (légende). Un échec de cette préparation (droits manquants, mauvais ID de salon) est journalisé au démarrage (`TWR-BOT-004`, `reason=forum_setup_failed`) sans bloquer le bot.
 
 **Cycle de vie** : `case.opened` crée le post (carte courte) ; `draft.ready` le
 complète (carte entière, tags, sections) puis appelle `notified` ; un post supprimé à la
@@ -248,6 +250,15 @@ un ensemble borné (2 048) ; un doublon n'est pas renvoyé. Flux coupé : `TWR-B
 journalisé, reprise avec recul (1 à 30 s) depuis le dernier curseur. Échec d'envoi
 Discord : `TWR-BOT-003` journalisé, la boucle continue. Deux réplicas ne cassent rien
 (doublons possibles mais pas de perte) ; un seul est prévu.
+
+## Identifiants courts
+
+Partout où le bot demande un identifiant (fenêtres « Même groupe que… », « Scinder »,
+fusion et scission de groupes et de récits, `/group show`, `/narrative show`, validation
+de bande), l'**identifiant court** affiché par le bot (8 caractères) suffit : 6 caractères
+ou plus, complétés par gate (`GET /v1/ids/{kind}/{ref}`). Un identifiant complet est
+utilisé tel quel, sans appel. Plusieurs correspondances : `TWR-GEN-005`, « tapez plus de
+caractères ».
 
 ## Langues
 

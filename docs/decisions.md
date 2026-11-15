@@ -394,3 +394,9 @@ Décisions tranchées en session, Jules absent.
 | **Contract** (lot suivant, une fois le site, l'extension et les jetons passés aux nouveaux noms) : supprimer les vues, réécrire les noms stockés (`dossiers:*`, `dossier_opened`), retirer les alias | Règle expand/contract : jamais de renommage en une étape |
 | Codes d'erreur `TWR-DOS-*` et leurs constantes `DOS_*` inchangés ; identifiants de boutons `t12a:dos:*` inchangés | Un code n'est jamais renuméroté ; les boutons des anciens messages doivent continuer à marcher |
 | Résumés de session (`docs/sessions/`) et migrations existantes non modifiés | Historique |
+
+## Identifiants courts (2026-11-15)
+
+| Décision | Raison |
+|---|---|
+| Le bot accepte l'identifiant court (6 caractères ou plus) partout où il demande un identifiant ; gate le complète (`GET /v1/ids/{kind}/{ref}`, plage sur l'index unique, `TWR-GEN-005` si ambigu) | Demande de Jules : le bot n'affiche que 8 caractères ; une recherche par plage reste rapide quelle que soit la taille des tables |
