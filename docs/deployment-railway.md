@@ -82,7 +82,8 @@ railway run --service gate tower staff <discord_id> --roles admin --name "Jules"
 5. **Bot** : créer le service `intercom` depuis le même repo avec
    `railway/intercom.json`. Variables : `TOWER_DISCORD_TOKEN`, `TOWER_DISCORD_GUILD_ID`,
    les quatre `TOWER_DISCORD_CHANNEL_*`, `TOWER_GATE_URL` (adresse privée de gate,
-   ex. `http://gate.railway.internal:8000`), `TOWER_GATE_TOKEN` (token créé à
+   avec le port injecté par Railway dans `PORT` : `http://gate.railway.internal:8080`
+   en production), `TOWER_GATE_TOKEN` (token créé à
    l'étape 4). Pas de `DATABASE_URL` : le bot n'accède jamais à la base.
 6. **Radar** : sur le service `hangar`, `TOWER_SERVICES=ping,ingest,radar` et
    `TOWER_X_BEARER_TOKEN`. Plafond mensuel : `railway run --service gate tower llm

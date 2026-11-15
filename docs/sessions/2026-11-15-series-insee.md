@@ -54,3 +54,19 @@ Voir `decisions.md`, section « Séries INSEE par défaut ».
   pile (repli IPv4). Test `test_bind_socket_accepts_ipv4_and_ipv6` ; vérifié en local
   par un appel réel à `/health` en IPv4 (l'IPv6 manque dans le bac à sable).
 - Migrations 0001 à 0009 passées sur la base Railway (pgvector disponible).
+- Commandes d'initialisation lancées par un service temporaire `init` (supprimé ensuite) :
+  `tower llm seed` (12 modèles, 19 routes, budgets), `tower atlas seed` (29 flux,
+  registres), `tower atlas legi-sync` (terminé). `railway ssh` impossible depuis la
+  session (port 22 bloqué).
+- CI : l'image `postgres:16` n'avait pas pgvector, donc tous les tests avec base
+  échouaient depuis le lot 4. Passage à `pgvector/pgvector:pg16` : 1 949 tests verts sur
+  1 951, puis les deux échecs (tests de cette session) corrigés ; suite complète verte.
+  PR #10 fusionnée.
+- `gate` en ligne (`https://api.seat12a.org/health`), `hangar` avec `radar` (token X
+  présent), `atlas` en marche, services reliés à `main` (l'application GitHub de Railway
+  a été ajoutée à l'organisation par Jules).
+- Bot : service `intercom` créé ; token de service généré dans la session, placé
+  directement dans `TOWER_GATE_TOKEN` sans être affiché, seule son empreinte écrite en
+  base par un service temporaire (supprimé). `TOWER_GATE_URL` sur le port 8080 (port
+  injecté par Railway). Reste : `TOWER_DISCORD_TOKEN` et les identifiants Discord, et le
+  compte admin de Jules (`tower staff`), qui demande son identifiant Discord.
