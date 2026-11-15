@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -47,10 +48,8 @@ async def report_interaction_error(
 ) -> None:
     capture(ec.INT_UNEXPECTED, error, where=where)
     reply = bug_card(interaction_locale(interaction))
-    try:
+    with contextlib.suppress(discord.HTTPException):
         await render.send(interaction, reply)
-    except discord.HTTPException:
-        pass
 
 
 def guarded_callback[T](
@@ -96,12 +95,20 @@ async def run_handler(
         reply = bug_card(locale)
         await render.send(interaction, reply)
         return None
-    if edit and reply.accent not in ("error", "warning", "critical"):
+    if edit and stays_in_place(reply):
         await render.edit(interaction, reply)
     else:
         # Errors on a panel go to a private follow-up: the panel itself stays as it was.
         await render.send(interaction, reply)
     return reply
+
+
+def stays_in_place(reply: Reply) -> bool:
+    """A panel is replaced by the new card, except by an error (or a warning without
+    buttons, i.e. not an in-place confirmation), which goes to a private follow-up."""
+    if reply.accent in ("error", "critical"):
+        return False
+    return reply.accent != "warning" or bool(reply.buttons)
 
 
 def emoji(icon: str) -> Any:

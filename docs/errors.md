@@ -204,6 +204,18 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-RAD-006` | Watched account not found on the platform | 404 | warning | oui | non | Fix the handle with /watchlist edit, or deactivate the account. |
 | `TWR-RAD-007` | Platform API credentials not configured | 500 | error | oui | non | Set TOWER_X_BEARER_TOKEN on the hangar replica running radar. |
 
+## STF : STF
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-STF-001` | Member not ranked | 404 | info | non | non |  |
+| `TWR-STF-002` | Member already ranked | 409 | info | non | non |  |
+| `TWR-STF-003` | Hard-coded administrator cannot be ranked, unranked or edited | 409 | info | non | non | Administrators come from TOWER_ADMIN_DISCORD_IDS and hold every permission. |
+| `TWR-STF-004` | You cannot rank or unrank yourself | 403 | info | non | non |  |
+| `TWR-STF-005` | Only ranked members can receive permissions | 409 | info | non | non | Rank the member first (PUT /v1/staff/{discord_id}). |
+| `TWR-STF-006` | A permission you do not hold cannot be granted or removed | 403 | info | non | non |  |
+| `TWR-STF-007` | Unknown or non-grantable permission | 422 | info | non | non |  |
+
 ## WEB : WEB
 
 | Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |

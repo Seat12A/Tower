@@ -88,6 +88,25 @@ reserved_usd_micros, cap_usd_micros}]}`. Même source que `tower llm usage`
 | GET | `/v1/errors/{empreinte}` | `errors:read` (avec trace) |
 | POST | `/v1/errors/{empreinte}/resolve` `{note?}` | `errors:manage` |
 
+## Équipe
+
+Rangs et permissions individuelles : règles dans [auth.md](auth.md#équipe--rangs-administrateurs-et-permissions-individuelles).
+Toutes les routes passent par un token de service ; `/me` et les écritures exigent
+`X-Acting-Discord-Id`. Les IDs Discord sont des **chaînes**.
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| GET | `/v1/staff/me` | tout membre (administrateur synthétisé) ; renvoie aussi `actor_permissions` (droits effectifs, déjà ∩ scopes du bot) |
+| GET | `/v1/staff?include_inactive=false` | `staff:read` ; `{"items": [StaffOut]}`, administrateurs en tête |
+| GET | `/v1/staff/{discord_id}` | `staff:read`, ou soi-même ; `404 TWR-STF-001` si non classé |
+| PUT | `/v1/staff/{discord_id}` | `staff:manage` ; corps `{"display_name": str\|null}` ; classe ou réactive ; `409 TWR-STF-002` si déjà classé |
+| DELETE | `/v1/staff/{discord_id}` | `staff:manage` ; `204` ; déclasse (vide rôles et permissions) |
+| PUT | `/v1/staff/{discord_id}/permissions` | `permissions:manage_others`, ou `permissions:manage_self` pour soi-même ; corps `{"permissions": [...]}` (liste complète) |
+
+`StaffOut` : `discord_id`, `display_name`, `active`, `is_admin`, `roles`, `permissions`
+(liste explicite), `effective_permissions` (rôles ∪ individuelles ; toutes les permissions
+attribuables pour un administrateur), `created_at`, `updated_at`.
+
 ## Ingestion et liste de suivi
 
 Détail des corps, quotas et erreurs : [ingestion.md](ingestion.md).

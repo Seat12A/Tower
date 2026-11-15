@@ -587,3 +587,47 @@ class GateClient:
                 0, _UNREACHABLE, f"Event stream broken ({type(exc).__name__})"
             ) from None
         raise GateUnavailable(0, _UNREACHABLE, "Event stream closed by gate")
+
+    # --- team ranks and individual permissions (acting as a staff member) -------------
+    async def staff_me(self, acting: int) -> dict[str, Any]:
+        """The acting member, with ``actor_permissions`` (their rights through the bot)."""
+        body: dict[str, Any] = await self._request("GET", "/v1/staff/me", acting)
+        return body
+
+    async def list_staff(
+        self, acting: int, *, include_inactive: bool = False
+    ) -> list[dict[str, Any]]:
+        body = await self._request(
+            "GET", "/v1/staff", acting, params={"include_inactive": include_inactive}
+        )
+        items: list[dict[str, Any]] = body["items"]
+        return items
+
+    async def get_staff(self, acting: int, discord_id: int | str) -> dict[str, Any]:
+        body: dict[str, Any] = await self._request("GET", f"/v1/staff/{int(discord_id)}", acting)
+        return body
+
+    async def rank_staff(
+        self, acting: int, discord_id: int | str, *, display_name: str | None = None
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = await self._request(
+            "PUT",
+            f"/v1/staff/{int(discord_id)}",
+            acting,
+            body={"display_name": display_name},
+        )
+        return body
+
+    async def unrank_staff(self, acting: int, discord_id: int | str) -> None:
+        await self._request("DELETE", f"/v1/staff/{int(discord_id)}", acting)
+
+    async def set_staff_permissions(
+        self, acting: int, discord_id: int | str, permissions: Sequence[str]
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = await self._request(
+            "PUT",
+            f"/v1/staff/{int(discord_id)}/permissions",
+            acting,
+            body={"permissions": sorted(set(permissions))},
+        )
+        return body
