@@ -142,3 +142,16 @@ LABEL = "<:label:1571617500855275542>"
 TRACK = "<:track:1571617449487368283>"
 COPYRIGHT = "<:copyright:1571617514616786974>"
 TOGGLE = TOGGLE_ON
+
+# Forum of dossiers: icons still to upload to the application (empty until then). An
+# element type shows icons only when all of its icons exist (``handlers.forum``).
+MERGE = ""  # Material Symbols "merge": same group / superseded (merged)
+SPLIT = ""  # "call_split": split a group
+BAND = ""  # "linear_scale": validate the band
+NARRATIVE = ""  # "hub": narrative
+EVIDENCE = ""  # "fact_check": Evidence section
+CHECKLIST = ""  # "checklist": Gaps & checks section
+CONTEXT = ""  # "layers": Context section
+ENDORSED = ""  # "thumb_up": endorsed by a reviewer
+PUBLISH = ""  # "publish": published / mark as published
+WAVE = ""  # "waves": narrative wave

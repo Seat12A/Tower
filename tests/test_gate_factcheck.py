@@ -179,3 +179,31 @@ async def test_openapi_tags(client: httpx.AsyncClient) -> None:
     assert tags["/v1/factcheck/requests"] == {"factcheck"}
     assert tags["/v1/drafts"] == {"drafts"}
     assert tags["/v1/content/{platform}/{external_id}/verdict"] == {"public"}
+
+
+async def test_dossier_discord_thread_link(
+    client: httpx.AsyncClient, bot: str, db: Database
+) -> None:
+    built = await build_draft(db)
+    path = f"/v1/dossiers/{built.dossier}"
+    r = await client.get(path, headers=h(bot))
+    assert r.status_code == 200
+    assert r.json()["draft_id"] == str(built.verdict) and r.json()["discord_thread_id"] is None
+
+    thread = "1234567890123456789"
+    r = await client.put(f"{path}/discord-thread", json={"thread_id": thread}, headers=h(bot))
+    assert r.status_code == 204
+    assert (await client.get(path, headers=h(bot))).json()["discord_thread_id"] == thread
+    draft = (await client.get(f"/v1/drafts/{built.verdict}", headers=h(bot))).json()
+    assert draft["dossier"]["discord_thread_id"] == thread
+
+    bad = await client.put(f"{path}/discord-thread", json={"thread_id": "x1"}, headers=h(bot))
+    assert bad.status_code == 422
+    zero = await client.put(f"{path}/discord-thread", json={"thread_id": "0"}, headers=h(bot))
+    assert zero.status_code == 422 and zero.json()["error"]["code"] == "TWR-DOS-007"
+    missing = await client.put(
+        f"/v1/dossiers/{UNKNOWN}/discord-thread", json={"thread_id": thread}, headers=h(bot)
+    )
+    assert missing.status_code == 404 and missing.json()["error"]["code"] == "TWR-DOS-001"
+    anonymous = await client.put(f"{path}/discord-thread", json={"thread_id": thread})
+    assert anonymous.status_code in (401, 403)

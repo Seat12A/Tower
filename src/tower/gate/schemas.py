@@ -24,12 +24,16 @@ class DossierOut(BaseModel):
     priority: int
     assigned_to: str | None
     published_url: str | None
+    discord_thread_id: str | None = None
+    """Discord forum post showing the dossier (string, like every Discord id)."""
+    draft_id: uuid.UUID | None = None
+    """Latest fact-check draft of the dossier: only on ``GET /v1/dossiers/{id}``."""
     version: int
     created_at: datetime
     updated_at: datetime
 
     @classmethod
-    def of(cls, d: Dossier) -> DossierOut:
+    def of(cls, d: Dossier, *, draft_id: uuid.UUID | None = None) -> DossierOut:
         return cls(
             public_id=d.public_id,
             kind=DossierKind(d.kind),
@@ -39,6 +43,8 @@ class DossierOut(BaseModel):
             priority=d.priority,
             assigned_to=None if d.assigned_to is None else str(d.assigned_to),
             published_url=d.published_url,
+            discord_thread_id=None if d.discord_thread_id is None else str(d.discord_thread_id),
+            draft_id=draft_id,
             version=d.version,
             created_at=d.created_at,
             updated_at=d.updated_at,
@@ -72,6 +78,10 @@ class DossierEventOut(BaseModel):
             reason=ev.reason,
             created_at=ev.created_at,
         )
+
+
+class DiscordThreadIn(BaseModel):
+    thread_id: str = Field(pattern=r"^[0-9]{1,20}$", description="Discord thread id")
 
 
 class DossierCreate(BaseModel):
@@ -153,6 +163,7 @@ class DraftContentOut(BaseModel):
 class DraftDossierOut(BaseModel):
     id: str
     status: str
+    discord_thread_id: str | None = None
 
 
 class DraftNoteOut(BaseModel):

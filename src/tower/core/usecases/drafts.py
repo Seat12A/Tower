@@ -196,6 +196,17 @@ async def _dossier_of_group(session: AsyncSession, group_id: int) -> Dossier | N
     )
 
 
+async def draft_id_of_dossier(session: AsyncSession, dossier_id: int) -> uuid.UUID | None:
+    """Public id of the latest draft (drafted verdict) of a dossier's claim groups."""
+    return await session.scalar(
+        select(Verdict.public_id)
+        .join(DossierClaimGroup, DossierClaimGroup.claim_group_id == Verdict.claim_group_id)
+        .where(DossierClaimGroup.dossier_id == dossier_id, Verdict.drafted_at.is_not(None))
+        .order_by(Verdict.id.desc())
+        .limit(1)
+    )
+
+
 async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
     group = await session.get(ClaimGroup, verdict.claim_group_id)
     if group is None:  # pragma: no cover - foreign key
@@ -310,7 +321,13 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         claim=claim_view,
         content=content_view,
         dossier=(
-            {"id": str(dossier.public_id), "status": dossier.status}
+            {
+                "id": str(dossier.public_id),
+                "status": dossier.status,
+                "discord_thread_id": (
+                    None if dossier.discord_thread_id is None else str(dossier.discord_thread_id)
+                ),
+            }
             if dossier is not None
             else None
         ),

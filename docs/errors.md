@@ -62,6 +62,7 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-DOS-004` | X publication link required | 422 | info | non | non |  |
 | `TWR-DOS-005` | Publication link only accepted for published status | 422 | info | non | non |  |
 | `TWR-DOS-006` | Priority out of bounds (-100..100) | 422 | info | non | non |  |
+| `TWR-DOS-007` | Invalid Discord thread id | 422 | info | non | non |  |
 
 ## EVT : Bus d'événements
 

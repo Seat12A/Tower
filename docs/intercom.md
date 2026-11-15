@@ -111,13 +111,15 @@ token existant).
 |---|---|---|
 | `incident.opened`, `incident.reopened` | `TOWER_DISCORD_CHANNEL_INCIDENTS` | rouge |
 | `budget.threshold_reached` | `TOWER_DISCORD_CHANNEL_BUDGET` | jaune, rouge à 100 % |
-| `dossier.opened`, `dossier.transitioned` | `TOWER_DISCORD_CHANNEL_DOSSIERS` | bleu |
-| `draft.ready` (brouillon de fact-check complet, avec boutons) | `TOWER_DISCORD_CHANNEL_DOSSIERS` | voir ci-dessous |
-| `narrative.surge_detected` (palier `surge` ; palier `alert` marqué « ALERTE VAGUE », précédé de la mention du rôle `TOWER_DISCORD_ALERT_ROLE_ID` s'il est configuré), `narrative.surge_ended` (bilan) | `TOWER_DISCORD_CHANNEL_DOSSIERS` | jaune (`surge`), rouge (`alert`), bleu (fin) |
+| `dossier.opened`, `dossier.transitioned`, `draft.ready`, `draft.reviewed` | Forum `TOWER_DISCORD_FORUM_DOSSIERS` (un post par dossier, voir ci-dessous) ; repli sans forum : salon texte `TOWER_DISCORD_CHANNEL_DOSSIERS` | voir ci-dessous |
+| `narrative.surge_detected` (palier `surge` ; palier `alert` marqué « ALERTE VAGUE », précédé de la mention du rôle `TOWER_DISCORD_ALERT_ROLE_ID` s'il est configuré), `narrative.surge_ended` (bilan) | `TOWER_DISCORD_CHANNEL_NARRATIVES` (à défaut, salon texte des dossiers sans forum) | jaune (`surge`), rouge (`alert`), bleu (fin) |
 | `watchlist.changed`, `extension_filters.published` | `TOWER_DISCORD_CHANNEL_ADMIN` | bleu |
 
-Cartes V2 publiques (titre avec icône, corps, détails), avec la plateforme d'origine quand l'événement en porte une, dans la
-langue `TOWER_DISCORD_LOCALE` (`fr` par défaut). Salon non configuré : notification
+Cartes V2 publiques (titre avec icône, corps, détails), avec la plateforme d'origine quand l'événement en porte une, **toujours en
+anglais** : les lecteurs d'un salon ou d'un forum sont inconnus (`TOWER_DISCORD_LOCALE`
+est dépréciée et ignorée). Le texte produit par les modèles (justification, critique,
+points à vérifier) reste dans sa langue (le pipeline l'écrit en français), marqué `(FR)`
+quand il s'agit de l'affirmation. Salon non configuré : notification
 ignorée. Aucun événement à haut volume : le bot ne s'abonne pas à `content.ingested`.
 
 ### Brouillons de fact-check (E11)
@@ -171,6 +173,59 @@ vague ultérieure ; mémoire bornée). Seule l'alerte de vague mentionne un rôl
 rôle) ; tout le reste part sans mention. Les cartes de vague portent un bouton
 `t12a:nar:open:<id>` qui ouvre le récit en message privé. Les erreurs
 `TWR-FCK-043` et `044` sont traduites.
+
+### Forum des dossiers
+
+Avec `TOWER_DISCORD_FORUM_DOSSIERS` (salon de type forum), **un post = un dossier**
+(`intercom/forum.py`, rendu pur dans `handlers/forum.py`, côté Discord
+`delivery.ForumDelivery`). Le lien dossier ↔ post est enregistré dans gate
+(`PUT /v1/dossiers/{id}/discord-thread`), jamais en mémoire : après un redémarrage, le bot
+retrouve le post d'un dossier par `discord_thread_id`.
+
+**Le message d'origine est le seul panneau de contrôle** (édité à chaque changement) :
+titre = statut et niveau ; l'affirmation ; verdict proposé, besoin de contexte,
+confiance ; la note proposée avec sa longueur (`n/280`) ; le **nombre**
+d'avertissements et l'objection éventuelle (le détail est dans le fil) ; une barre
+d'actions (Validate, Correct, Reject, Open post) ; un seul menu **More actions**
+(`t12a:fc:more:<id>` : Same group as…, Split, Create a reference fact, Validate the band,
+Show the group, Show the narrative). Une fois validé : Mark as published (modal du lien X)
++ menu réduit (fiche, bande, groupe, récit) ; rejeté ou publié : lien du post + menu
+d'information. Le bot n'édite jamais un post au clic : il le met à jour d'après les
+événements de la décision (`draft.reviewed`, `dossier.transitioned`).
+
+**Le fil**, toujours dans cet ordre, chaque section omise si vide et découpée en
+« (cont.) » si elle dépasse la limite V2 : *Evidence* (affirmations de la justification,
+citations `[P1]` et renvoi `[S1]` ; les sources sont listées **une seule fois** en fin de
+carte), *Gaps & checks* (ce que les sources ne disent pas, points à vérifier, objection en
+tête), *Quality warnings* (contrôles puis critique), *Context* (groupe, récit, signaux de
+coordination, fiche et bande, fact-checks externes). Puis une ligne par action (avis,
+validation, correction, rejet avec motif, publication ; transitions des dossiers sans
+brouillon), avec la mention de la personne sans notification. Le fil sert aussi à la
+discussion.
+
+**Tags** (18, `moderated` : seul le bot les pose ; créés au démarrage s'ils manquent, par
+nom, jamais supprimés) : un statut (*To review*, *Endorsed*, *Validated*, *Published*,
+*Rejected*, *Superseded*), l'issue proposée, le niveau (*N1* à *N4*) et au plus deux
+signaux (*Needs attention* : avertissements ou objection ; *Wave* : récit en vague ;
+*Post deleted*). Au plus 5 par post (limite Discord). Le bot règle aussi le tri par date
+de création, la vue liste, et épingle un post « How to review » (légende).
+
+**Cycle de vie** : `dossier.opened` crée le post (carte courte) ; `draft.ready` le
+complète (carte entière, tags, sections) puis appelle `notified` ; un post supprimé à la
+main est recréé ; `published`, `rejected` et `superseded` **archivent** le post (sans le
+verrouiller : on peut encore écrire), pour rester sous la limite de fils actifs du serveur.
+Un événement à la fois : les posts sont créés l'un après l'autre (contre-pression). Un
+échec est journalisé (`TWR-BOT-003`) ; la réconciliation du démarrage affiche les
+brouillons jamais affichés.
+
+**Icônes** : tout ou rien par type d'élément (barre, options du menu, titres de section,
+titres de statut, lignes du journal). Les icônes manquantes sont déclarées vides dans
+`ui/emojis.py` (`MERGE`, `SPLIT`, `BAND`, `NARRATIVE`, `EVIDENCE`, `CHECKLIST`, `CONTEXT`,
+`ENDORSED`, `PUBLISH`, `WAVE`) : tant qu'une icône d'un type manque, ce type s'affiche sans
+icône. Les tags n'ont pas d'icône.
+
+Permissions du bot sur le forum : Gérer le salon (tags, réglages), Gérer les fils (tags
+modérés, archivage, épinglage), Envoyer des messages dans les fils.
 
 ### Reprise sans perte
 

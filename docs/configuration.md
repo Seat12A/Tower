@@ -241,10 +241,12 @@ Voir [intercom.md](intercom.md). Le token Discord et le token de gate sont des s
 | `TOWER_DISCORD_GUILD_ID` | vide | Serveur où synchroniser les commandes (immédiat) ; vide : synchronisation globale |
 | `TOWER_DISCORD_CHANNEL_INCIDENTS` | vide | Salon des incidents (`incident.opened`, `incident.reopened`) |
 | `TOWER_DISCORD_CHANNEL_BUDGET` | vide | Salon du budget (`budget.threshold_reached`) |
-| `TOWER_DISCORD_CHANNEL_DOSSIERS` | vide | Salon des dossiers (`dossier.opened`, `dossier.transitioned`) |
+| `TOWER_DISCORD_FORUM_DOSSIERS` | vide | Forum des dossiers : un post par dossier (voir [intercom.md](intercom.md#forum-des-dossiers)). Prioritaire sur le salon texte |
+| `TOWER_DISCORD_CHANNEL_DOSSIERS` | vide | Repli sans forum : cartes des dossiers et brouillons dans un salon texte |
+| `TOWER_DISCORD_CHANNEL_NARRATIVES` | vide | Alertes et bilans de vague ; à défaut, le salon texte des dossiers s'il n'y a pas de forum |
 | `TOWER_DISCORD_CHANNEL_ADMIN` | vide | Salon d'administration (`watchlist.changed`, `extension_filters.published`) |
 | `TOWER_DISCORD_ALERT_ROLE_ID` | vide | Rôle Discord mentionné en tête d'une alerte de vague (`narrative.surge_detected` au palier `alert`) ; seul ce rôle peut être notifié, toute autre mention est neutralisée |
-| `TOWER_DISCORD_LOCALE` | `fr` | Langue des notifications dans les salons (`fr` ou `en`) ; les réponses aux commandes suivent la langue Discord de l'utilisateur |
+| `TOWER_DISCORD_LOCALE` | `en` | **Dépréciée, ignorée** : les messages publics sont toujours en anglais (lecteurs inconnus) ; les réponses suivent la langue Discord de la personne. À retirer de Railway |
 | `TOWER_GATE_URL` | `http://localhost:8000` | URL de gate (réseau privé Railway en production) |
 | `TOWER_GATE_TOKEN` | vide | Token de service du bot |
 | `TOWER_INTERCOM_CURSOR_NAME` | `intercom` | Nom du curseur SSE stocké côté gate |

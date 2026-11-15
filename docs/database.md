@@ -20,7 +20,7 @@ PostgreSQL 16 (Railway). SQLAlchemy 2 en asynchrone (asyncpg), migrations Alembi
 
 | Table | Rôle |
 |---|---|
-| `dossiers` | Dossiers de fact-check ou de modération (`kind`), statut, post X, assignation, lien de publication, version |
+| `dossiers` | Dossiers de fact-check ou de modération (`kind`), statut, post X, assignation, lien de publication, post du forum Discord (`discord_thread_id`, migration 0011), version |
 | `dossier_events` | Audit immuable : une ligne par transition (de, vers, acteur, motif, données) |
 | `events` | Outbox transactionnelle (topic, agrégat, payload, acteur, `xid` de la transaction) |
 | `event_cursors` | Position de chaque consommateur nommé dans l'outbox |

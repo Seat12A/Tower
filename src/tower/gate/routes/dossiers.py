@@ -3,13 +3,15 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 
 from tower.core.domain.dossiers import DossierKind, DossierStatus
 from tower.core.domain.security import Permission
 from tower.core.usecases import dossiers as uc
+from tower.core.usecases.drafts import draft_id_of_dossier
 from tower.gate.deps import ActorDep, ReadSession, WriteSession
 from tower.gate.schemas import (
+    DiscordThreadIn,
     DossierCreate,
     DossierEventOut,
     DossierOut,
@@ -56,10 +58,19 @@ async def open_dossier(body: DossierCreate, actor: ActorDep, session: WriteSessi
 async def get_dossier(
     public_id: uuid.UUID, actor: ActorDep, session: ReadSession
 ) -> DossierOut | DossierPublicOut:
-    out = DossierOut.of(await uc.get_dossier(session, actor, public_id))
+    dossier = await uc.get_dossier(session, actor, public_id)
     if actor.can(Permission.DOSSIER_READ):
-        return out
-    return DossierPublicOut.model_validate(out.model_dump())
+        return DossierOut.of(dossier, draft_id=await draft_id_of_dossier(session, dossier.id))
+    return DossierPublicOut.model_validate(DossierOut.of(dossier).model_dump())
+
+
+@router.put("/{public_id}/discord-thread", status_code=204)
+async def link_discord_thread(
+    public_id: uuid.UUID, body: DiscordThreadIn, actor: ActorDep, session: WriteSession
+) -> Response:
+    """Record the Discord forum post showing the dossier (intercom)."""
+    await uc.link_discord_thread(session, actor, public_id, int(body.thread_id))
+    return Response(status_code=204)
 
 
 @router.get("/{public_id}/history", response_model=list[DossierEventOut])

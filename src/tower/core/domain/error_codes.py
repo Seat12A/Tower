@@ -115,6 +115,9 @@ DOS_PUBLICATION_URL_UNEXPECTED = _define(
 DOS_BAD_PRIORITY = _define(
     "TWR-DOS-006", "Priority out of bounds (-100..100)", http_status=422, severity=_INFO
 )
+DOS_BAD_THREAD_ID = _define(
+    "TWR-DOS-007", "Invalid Discord thread id", http_status=422, severity=_INFO
+)
 
 # --- EVT: event bus ----------------------------------------------------
 EVT_BAD_CURSOR = _define("TWR-EVT-001", "Invalid event cursor", http_status=422, severity=_INFO)

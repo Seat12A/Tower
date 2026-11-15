@@ -39,6 +39,8 @@ class Dossier(Base):
     assigned_to: Mapped[int | None] = mapped_column(BigInteger)
     """Discord ID of the verifier who took the dossier for review."""
     published_url: Mapped[str | None] = mapped_column(Text)
+    discord_thread_id: Mapped[int | None] = mapped_column(BigInteger)
+    """Discord forum post (thread) showing the dossier; set by intercom."""
     opened_by: Mapped[str] = mapped_column(Text)
     version: Mapped[int] = mapped_column(server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

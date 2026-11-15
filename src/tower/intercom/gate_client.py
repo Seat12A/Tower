@@ -168,7 +168,7 @@ class GateClient:
         )
         return updated
 
-    async def get_dossier(self, acting: int, public_id: str) -> dict[str, Any]:
+    async def get_dossier(self, acting: int | None, public_id: str) -> dict[str, Any]:
         dossier: dict[str, Any] = await self._request(
             "GET", f"/v1/dossiers/{quote(public_id, safe='')}", acting
         )
@@ -308,6 +308,15 @@ class GateClient:
 
     async def mark_draft_notified(self, acting: int | None, draft_id: str) -> None:
         await self._request("POST", f"/v1/drafts/{quote(draft_id, safe='')}/notified", acting)
+
+    async def link_discord_thread(self, public_id: str, thread_id: int) -> None:
+        """Record the forum post (thread) showing a dossier."""
+        await self._request(
+            "PUT",
+            f"/v1/dossiers/{quote(public_id, safe='')}/discord-thread",
+            None,
+            body={"thread_id": str(thread_id)},
+        )
 
     # --- groups, reference facts and bands ----------------------------------------------
     async def get_group(self, acting: int, group_id: str) -> dict[str, Any]:

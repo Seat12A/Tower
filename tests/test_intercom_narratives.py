@@ -54,9 +54,9 @@ ENDED = {
 # --- notifications ----------------------------------------------------------------------
 
 
-def test_wave_topics_go_to_the_dossiers_channel() -> None:
-    assert TOPIC_CHANNELS["narrative.surge_detected"] == "dossiers"
-    assert TOPIC_CHANNELS["narrative.surge_ended"] == "dossiers"
+def test_wave_topics_go_to_the_narratives_channel() -> None:
+    assert TOPIC_CHANNELS["narrative.surge_detected"] == "narratives"
+    assert TOPIC_CHANNELS["narrative.surge_ended"] == "narratives"
 
 
 @pytest.mark.parametrize("locale", LOCALES)
@@ -64,7 +64,7 @@ def test_surge_alert_and_report_cards(locale: str) -> None:
     from tests.intercom_ui import assert_persistent
 
     surge = format_event(ev("1-1", "narrative.surge_detected", SURGE), locale)
-    assert surge is not None and surge[0] == "dossiers"
+    assert surge is not None and surge[0] == "narratives"
     surge_card = surge[1]
     for needle in ("aaaaaaaa", "Fausse hausse des prix", "3.4%", "41", "bluesky, x"):
         assert needle in surge_card.text
@@ -76,7 +76,7 @@ def test_surge_alert_and_report_cards(locale: str) -> None:
     assert alert is not None and alert[1].accent == "error" and alert[1] != surge_card
     assert ("Wave alert" if locale == "en" else "Alerte vague") in alert[1].title
     ended = format_event(ev("1-3", "narrative.surge_ended", ENDED), locale)
-    assert ended is not None and ended[0] == "dossiers"
+    assert ended is not None and ended[0] == "narratives"
     for needle in ("2h05", "1234", "2.50", "25 min"):
         assert needle in ended[1].text
     assert_persistent(ended[1])
@@ -119,7 +119,7 @@ async def test_a_replayed_surge_or_alert_is_notified_once_per_tier() -> None:
         for _, r in sent
     ]
     assert kinds == ["surge", "alert", "ended", "surge"]
-    assert {c for c, _ in sent} == {"dossiers"}
+    assert {c for c, _ in sent} == {"narratives"}
 
 
 async def test_two_narratives_are_notified_separately() -> None:

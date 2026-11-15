@@ -368,3 +368,17 @@ Décisions tranchées en session, Jules absent.
 | Permissions non attribuables : `dossiers:read_public`, `content:ingest`, `events:read` | Réservées aux anonymes, à l'extension et au radar, et aux services |
 | Un brouillon validé garde ses boutons de groupe et de fiche ; un rejeté perd tout | « Créer une fiche » et « Valider la bande » exigent un verdict validé |
 | Les anciens boutons de brouillon `fc:…` restent acceptés | Messages déjà publiés |
+
+## Forum des dossiers et messages publics en anglais (2026-11-15)
+
+| Décision | Raison |
+|---|---|
+| Messages publics (salons, forum, éditions de message) toujours en anglais ; `TOWER_DISCORD_LOCALE` dépréciée et ignorée | Les lecteurs d'un salon sont inconnus (demande de Jules) ; les réponses éphémères suivent la langue Discord de la personne |
+| Le texte produit par les modèles reste dans sa langue (français aujourd'hui) | Le traduire coûterait des appels de modèle ; à rouvrir si l'équipe le demande |
+| Dossiers dans un **forum** : un post par dossier, le message d'origine seul panneau d'actions (une barre + un menu « More actions »), le fil en sections fixes puis un journal | Un salon recevant des milliers de dossiers était illisible (3 à 4 messages par dossier, boutons éparpillés, URL répétées) |
+| Le post n'est jamais édité au clic : le notificateur le met à jour d'après les événements | Une seule source de vérité, pas de course entre clics et événements |
+| Lien dossier ↔ post dans gate (`dossiers.discord_thread_id`, `PUT /v1/dossiers/{id}/discord-thread`), marqueur opérationnel sans audit ni événement, comme `notified` | Le bot n'a pas de base ; il retrouve le post après un redémarrage |
+| Tags modérés, créés par nom sans jamais en supprimer, sans icône | Seul le bot fait foi sur le statut ; un tag de forum n'accepte probablement pas un émoji d'application |
+| Archivage (pas de verrouillage) des posts `published`, `rejected`, `superseded` | Limite de fils actifs du serveur ; on peut encore écrire dans le fil |
+| Alertes de vague dans un salon texte séparé (`TOWER_DISCORD_CHANNEL_NARRATIVES`) | Une vague n'est pas un dossier |
+| Icônes : tout ou rien par type d'élément ; icônes manquantes déclarées vides en attendant leur ajout | Règle de Jules : jamais une icône sur un bouton et pas sur ses voisins |

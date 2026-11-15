@@ -318,6 +318,11 @@ class Settings(BaseSettings):
     discord_channel_incidents: int | None = None
     discord_channel_budget: int | None = None
     discord_channel_dossiers: int | None = None
+    """Text channel of dossier cards: fallback when no forum is configured."""
+    discord_forum_dossiers: int | None = None
+    """Forum of dossiers: one post per dossier (preferred over the text channel)."""
+    discord_channel_narratives: int | None = None
+    """Wave alerts; without it, the dossiers text channel when no forum is configured."""
     discord_channel_admin: int | None = None
     discord_alert_role_id: int | None = None
     """Role mentioned in wave alerts (``narrative.surge_detected`` at tier ``alert``)."""
@@ -325,8 +330,9 @@ class Settings(BaseSettings):
     gate_token: SecretStr | None = None
     """Service token of the bot (scopes: see docs/intercom.md)."""
     intercom_cursor_name: str = "intercom"
-    discord_locale: str = "fr"
-    """Language of channel notifications (``fr`` or ``en``); replies follow the user."""
+    discord_locale: str = "en"
+    """Deprecated, ignored: public messages are always in English (readers unknown);
+    replies follow the member's Discord language."""
 
     # --- Railway (read-only)----------------------------------------------
     railway_replica_id: str | None = Field(

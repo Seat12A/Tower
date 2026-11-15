@@ -117,6 +117,9 @@ def container(reply: Reply, required_icon: str = "") -> ui.Container[Any]:
         text(f"### {reply.icon} {reply.title}" if reply.icon else f"### {reply.title}")
     if reply.body:
         text(reply.body)
+    for section in reply.sections:
+        c.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        text(section)
     if reply.details:
         text("\n".join(f"**{k}** · {v}" for k, v in reply.details))
     for item in reply.items[:MAX_ITEMS]:
@@ -145,6 +148,10 @@ def layout(reply: Reply) -> ui.LayoutView:
         for spec in reply.buttons[:5]:
             row.add_item(button(spec))
         view.add_item(row)
+    if reply.menu is not None:
+        menu_row: ui.ActionRow[Any] = ui.ActionRow()
+        menu_row.add_item(select(reply.menu))
+        view.add_item(menu_row)
     return view
 
 

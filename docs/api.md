@@ -26,7 +26,8 @@ Documentation interactive : `/docs` (hors production). Format d'erreur : voir
 |---|---|---|---|
 | GET | `/v1/dossiers` | public / `dossiers:read` | Liste (public : publiés seulement, vue réduite). Filtres `status`, `kind`, `limit` (≤ 200), `before_id` |
 | POST | `/v1/dossiers` | `dossiers:create` | Ouvre un dossier `{kind, x_post_id?, title?, priority?, reason?}` |
-| GET | `/v1/dossiers/{public_id}` | public / `dossiers:read` | Détail (public : publiés seulement) |
+| GET | `/v1/dossiers/{public_id}` | public / `dossiers:read` | Détail (public : publiés seulement). Vue interne : `discord_thread_id` (post du forum, chaîne) et `draft_id` (dernier brouillon de fact-check du dossier, seulement sur ce détail) |
+| PUT | `/v1/dossiers/{public_id}/discord-thread` | `dossiers:read` (`204`) | Enregistre le post du forum Discord du dossier `{thread_id}` (chaîne de chiffres). Marqueur opérationnel : ni audit ni événement. Erreurs : `TWR-DOS-007` (id invalide), `TWR-DOS-001` |
 | GET | `/v1/dossiers/{public_id}/history` | `dossiers:read` | Journal des transitions |
 | POST | `/v1/dossiers/{public_id}/transitions` | selon la cible | `{to, reason?, expected_version?}` |
 | POST | `/v1/dossiers/{public_id}/publish` | `dossiers:publish` | « Marquer comme publié » `{url, expected_version?}` |
@@ -128,7 +129,7 @@ brouillon est l'identifiant public du verdict.
 |---|---|---|
 | POST | `/v1/factcheck/requests` | `factcheck:request` (`202`) ; corps `{url}` ou `{platform, external_id}` ; répond `{platform, external_id, accepted, duplicate}`. Enfile `factcheck.request` (N4) |
 | GET | `/v1/drafts?status=pending&notified=&limit=&before_id=` | `dossiers:read` ; brouillons en relecture (`drafted_at` posé), du plus récent au plus ancien ; `before_id` = champ `seq` |
-| GET | `/v1/drafts/{id}` | `dossiers:read` ; brouillon complet : issue, besoin et types de contexte, confiance et bande, affirmation, contenu et lien, dossier, notes par langue (texte, fiche, origine), liens, justification avec citations (source, passage, traduction française), ce que les sources ne disent pas, points à vérifier, objection, critique, contrôles, indicateurs, sources citées, `version` |
+| GET | `/v1/drafts/{id}` | `dossiers:read` ; brouillon complet : issue, besoin et types de contexte, confiance et bande, affirmation, contenu et lien, dossier (`id`, `status`, `discord_thread_id`), notes par langue (texte, fiche, origine), liens, justification avec citations (source, passage, traduction française), ce que les sources ne disent pas, points à vérifier, objection, critique, contrôles, indicateurs, sources citées, `version` |
 | POST | `/v1/drafts/{id}/review` | `{decision: accept\|edit\|reject, veracity?, note_text?, note_lang?, labels?, reason?, expected_version?}` ; `dossiers:review` (avis favorable) ou `dossiers:decide` (validation, rejet) ; répond `{outcome, draft}`. Erreurs : `TWR-FCK-007` (inconnu), `TWR-FCK-008` (déjà décidé), `TWR-FCK-009` (revue invalide), conflit de version |
 | POST | `/v1/drafts/{id}/notified` | `dossiers:read` (`204`) ; marque le brouillon comme affiché par le bot (idempotent) |
 | GET | `/v1/content/{platform}/{external_id}/verdict?lang=` | **public** ; verdicts **validés** et non périmés seulement (lot 4 : aussi ceux qui couvrent la variante par rattachement ou par bande, avec `inherited: {rule, origin_verdict_id, origin_url}` ; la note d'origine n'est montrée que si son régime le permet), par affirmation : texte, issue, besoin et types de contexte, date de validation, note (langue choisie : `lang` demandée si elle existe, sinon langue du post, puis `en`, puis `fr`), fiche, liens, `machine_translated` ; en-tête `Cache-Control: public, max-age=300` ; `404` `TWR-FCK-013` sans verdict validé |

@@ -115,8 +115,12 @@ class Reply:
     fields: tuple[Field, ...] = ()
     footer: str = ""
     breadcrumb: tuple[str, ...] = ()
+    sections: tuple[str, ...] = ()
+    """Text blocks after the body, each one under a separator (forum starter)."""
     buttons: tuple[Button, ...] = ()
     """Action bar, outside the container."""
+    menu: Select | None = None
+    """A select on its own row under the action bar (forum "More actions")."""
     ephemeral: bool = True
     final: bool = False
     """The action settled the item (e.g. draft validated): the app may drop its buttons."""
@@ -132,6 +136,7 @@ class Reply:
             parts.append(self.title)
         if self.body:
             parts.append(self.body)
+        parts += list(self.sections)
         parts += [f"{k}: {v}" for k, v in self.details]
         parts += list(self.items)
         if self.more:
@@ -141,6 +146,8 @@ class Reply:
         if self.footer:
             parts.append(self.footer)
         parts += [b.label for b in self.buttons]
+        if self.menu is not None:
+            parts += [o.label for o in self.menu.options]
         return "\n".join(parts)
 
 

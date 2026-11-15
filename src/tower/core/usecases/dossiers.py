@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.domain import error_codes as ec
@@ -35,6 +35,7 @@ def dossier_payload(d: Dossier) -> dict[str, Any]:
         "priority": d.priority,
         "assigned_to": None if d.assigned_to is None else str(d.assigned_to),
         "published_url": d.published_url,
+        "discord_thread_id": None if d.discord_thread_id is None else str(d.discord_thread_id),
         "version": d.version,
     }
 
@@ -88,6 +89,22 @@ async def get_dossier(session: AsyncSession, actor: Actor, public_id: uuid.UUID)
     if dossier is None or not _can_see(actor, dossier):
         raise NotFound("Dossier not found", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
     return dossier
+
+
+async def link_discord_thread(
+    session: AsyncSession, actor: Actor, public_id: uuid.UUID, thread_id: int
+) -> None:
+    """Record the Discord forum post showing the dossier. Operational marker, like
+    ``mark_draft_notified``: no audit, no event, no version bump."""
+    actor.require(Permission.DOSSIER_READ)
+    if not 0 < thread_id < 2**63:
+        raise InvalidInput("Invalid Discord thread id", code=ec.DOS_BAD_THREAD_ID)
+    result = await session.execute(
+        text("UPDATE dossiers SET discord_thread_id = :t WHERE public_id = :p"),
+        {"t": thread_id, "p": public_id},
+    )
+    if result.rowcount == 0:  # type: ignore[attr-defined]
+        raise NotFound("Dossier not found", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
 
 
 async def list_dossiers(
