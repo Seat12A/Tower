@@ -552,6 +552,7 @@ async def test_build_atlas_from_settings(db: Database) -> None:
                 "fedlex",
                 "canada_laws",
                 "gdelt",
+                "insee",  # packaged INSEE series (TOWER_INSEE_SERIES empty)
             }
             and bare._search is None
         )
