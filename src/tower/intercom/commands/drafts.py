@@ -174,7 +174,7 @@ def _kit(ctx: Context) -> Any:
             super().__init__(title=t(locale, "draft.modal.samegroup.title")[:45])
             self.draft_id = draft_id
             self.group, label = text_input(
-                locale, "draft.modal.samegroup.group", min_length=36, max_length=36
+                locale, "draft.modal.samegroup.group", min_length=6, max_length=36
             )
             self.add_item(label)
             self.reason, label = text_input(

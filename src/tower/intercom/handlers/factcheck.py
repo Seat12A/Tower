@@ -30,6 +30,8 @@ from tower.intercom.handlers import (
     code,
     guarded,
     listing,
+    resolve_ref,
+    resolve_refs,
     short,
     success,
 )
@@ -675,14 +677,6 @@ def decided_reply(locale: str, status: object) -> Reply:
 # --- group, fact and band actions (buttons, modals, commands) -------------------------
 
 
-def _uuid_arg(value: str) -> str:
-    """A full public id typed by a member, or a clear input error."""
-    ref = value.strip()
-    if not _UUID.fullmatch(ref):
-        raise GateError(422, "TWR-GEN-001", "A full identifier is required")
-    return ref.lower()
-
-
 def _date_arg(value: str, what: str) -> str:
     ref = value.strip()
     if not _DATE.fullmatch(ref):
@@ -729,7 +723,7 @@ async def group_merge_same(
     merged = await gate.merge_groups(
         acting,
         target,
-        source_id=_uuid_arg(other_group),
+        source_id=await resolve_ref(gate, acting, "group", other_group),
         reason=(reason or "").strip() or "merged from the draft",
     )
     return _group_done(locale, "group.merged.title", "group.merged", merged)
@@ -747,7 +741,7 @@ async def group_split_draft(
 async def _split(
     gate: GateClient, acting: int, locale: str, group_id: str, claim_ids: str, reason: str
 ) -> Reply:
-    ids = [_uuid_arg(c) for c in re.split(r"[,\s]+", claim_ids.strip()) if c]
+    ids = await resolve_refs(gate, acting, "claim", claim_ids)
     if not ids:
         raise GateError(422, "TWR-GEN-001", "No claim id given")
     new = await gate.split_group(
@@ -760,7 +754,8 @@ async def _split(
 async def group_split(
     gate: GateClient, acting: int, locale: str, group_id: str, claim_ids: str, reason: str
 ) -> Reply:
-    return await _split(gate, acting, locale, _uuid_arg(group_id), claim_ids, reason)
+    group = await resolve_ref(gate, acting, "group", group_id)
+    return await _split(gate, acting, locale, group, claim_ids, reason)
 
 
 @guarded
@@ -768,7 +763,10 @@ async def group_merge(
     gate: GateClient, acting: int, locale: str, target: str, source: str, reason: str
 ) -> Reply:
     merged = await gate.merge_groups(
-        acting, _uuid_arg(target), source_id=_uuid_arg(source), reason=reason
+        acting,
+        await resolve_ref(gate, acting, "group", target),
+        source_id=await resolve_ref(gate, acting, "group", source),
+        reason=reason,
     )
     return _group_done(locale, "group.merged.title", "group.merged", merged)
 
@@ -780,7 +778,7 @@ def _footer_lines(lines: list[str]) -> str:
 
 @guarded
 async def group_show(gate: GateClient, acting: int, locale: str, group_id: str) -> Reply:
-    group = await gate.get_group(acting, _uuid_arg(group_id))
+    group = await gate.get_group(acting, await resolve_ref(gate, acting, "group", group_id))
     verdict = group.get("active_verdict")
     details: list[tuple[str, str]] = [
         (t(locale, "group.detail.id"), code(group["id"])),
@@ -1091,7 +1089,9 @@ async def fact_create(
 @guarded
 async def band_validate(gate: GateClient, acting: int, locale: str, verdict_id: str) -> Reply:
     """ "Validate band" button and ``/fact band``: the verdict's outcome becomes the band's."""
-    band = await gate.validate_band_from_verdict(acting, _uuid_arg(verdict_id))
+    band = await gate.validate_band_from_verdict(
+        acting, await resolve_ref(gate, acting, "draft", verdict_id)
+    )
     return success(
         t(locale, "band.validated.title"),
         t(locale, "band.validated.body"),

@@ -13,6 +13,7 @@ Every interactive component of a reply carries a ``custom_id`` that matches a re
 from __future__ import annotations
 
 import functools
+import re
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -39,6 +40,8 @@ __all__ = [
     "guarded",
     "listing",
     "ok",
+    "resolve_ref",
+    "resolve_refs",
     "short",
     "success",
 ]
@@ -214,6 +217,29 @@ def guarded[**P](
             return error_reply(locale, exc)
 
     return wrapper
+
+
+_FULL_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+async def resolve_ref(gate: GateClient, acting: int, kind: str, value: str) -> str:
+    """Full public id from what a member typed: the full id as is, or its first
+    characters (short id, 6 or more) resolved by gate (``TWR-GEN-005`` if ambiguous)."""
+    ref = value.strip().lower()
+    if _FULL_ID.fullmatch(ref):
+        return ref
+    if not ref:
+        raise GateError(422, "TWR-GEN-001", "An identifier is required")
+    return await gate.resolve_id(acting, kind, ref)
+
+
+async def resolve_refs(gate: GateClient, acting: int, kind: str, values: str) -> list[str]:
+    """Several ids separated by commas or spaces, each full or short."""
+    return [
+        await resolve_ref(gate, acting, kind, part)
+        for part in re.split(r"[,\s]+", values.strip())
+        if part
+    ]
 
 
 def code(value: object) -> str:

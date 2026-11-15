@@ -267,9 +267,9 @@ MESSAGES: dict[str, str] = {
     "draft.button.fact": "Create fact",
     "draft.button.band": "Validate band",
     "draft.modal.samegroup.title": "Merge another group into this one",
-    "draft.modal.samegroup.group": "Group id to absorb",
+    "draft.modal.samegroup.group": "Group id to absorb (short id is fine)",
     "draft.modal.split.title": "Split claims off this group",
-    "draft.modal.split.claims": "Claim ids (comma separated)",
+    "draft.modal.split.claims": "Claim ids, comma separated (short ids are fine)",
     "draft.modal.fact.title": "Create a reference fact",
     "draft.modal.fact.value": "Value",
     "draft.modal.fact.period": "Period (YYYY-MM-DD YYYY-MM-DD)",
@@ -377,4 +377,5 @@ MESSAGES: dict[str, str] = {
     "registry.history.line": "- v{version} {change} by {by} on {when}: {reason}",
     "registry.seed_queued": "Wikidata seeding of the controller of `{domain}` queued.",
     "registry.seed_pending": "A seeding of `{domain}` is already queued.",
+    "error.TWR-GEN-005": "Several items start with this identifier: type more characters. ({code})",
 }

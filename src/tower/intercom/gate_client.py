@@ -309,6 +309,13 @@ class GateClient:
     async def mark_draft_notified(self, acting: int | None, draft_id: str) -> None:
         await self._request("POST", f"/v1/drafts/{quote(draft_id, safe='')}/notified", acting)
 
+    async def resolve_id(self, acting: int | None, kind: str, ref: str) -> str:
+        """Full public id of a short identifier (prefix)."""
+        found: dict[str, Any] = await self._request(
+            "GET", f"/v1/ids/{quote(kind, safe='')}/{quote(ref, safe='')}", acting
+        )
+        return str(found["id"])
+
     async def link_discord_thread(self, public_id: str, thread_id: int) -> None:
         """Record the forum post (thread) showing a case."""
         await self._request(

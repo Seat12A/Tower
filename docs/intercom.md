@@ -251,6 +251,15 @@ journalisé, reprise avec recul (1 à 30 s) depuis le dernier curseur. Échec d'
 Discord : `TWR-BOT-003` journalisé, la boucle continue. Deux réplicas ne cassent rien
 (doublons possibles mais pas de perte) ; un seul est prévu.
 
+## Identifiants courts
+
+Partout où le bot demande un identifiant (fenêtres « Même groupe que… », « Scinder »,
+fusion et scission de groupes et de récits, `/group show`, `/narrative show`, validation
+de bande), l'**identifiant court** affiché par le bot (8 caractères) suffit : 6 caractères
+ou plus, complétés par gate (`GET /v1/ids/{kind}/{ref}`). Un identifiant complet est
+utilisé tel quel, sans appel. Plusieurs correspondances : `TWR-GEN-005`, « tapez plus de
+caractères ».
+
 ## Langues
 
 Chaque texte vient du catalogue `fr` ou `en` choisi d'après la langue Discord de

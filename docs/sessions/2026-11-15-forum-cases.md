@@ -39,6 +39,10 @@ pas d'usage.
   le facultatif derrière des boutons sous leur section, affichés à la seule personne qui
   clique (« Show quotes », « Show details ») ; la note dans les autres langues et les
   actions secondaires rangées dans le menu « More actions ».
+- Titres des posts : `Case <id>` (+ 3 mots du titre du récit s'il existe), plus la phrase
+  de l'affirmation. Préparation du forum (tags, réglages, post épinglé) dès le démarrage.
+- Identifiants courts acceptés dans les fenêtres et commandes (`GET /v1/ids/{kind}/{ref}`,
+  `TWR-GEN-005`).
 - Aucun sous-agent.
 
 ## Décisions

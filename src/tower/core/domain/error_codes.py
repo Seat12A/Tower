@@ -68,6 +68,13 @@ GEN_CONFLICT = _define(
     hint="Re-read the resource, then resend with the new version.",
 )
 GEN_RATE_LIMITED = _define("TWR-GEN-004", "Too many requests", http_status=429, severity=_INFO)
+GEN_AMBIGUOUS_ID = _define(
+    "TWR-GEN-005",
+    "Identifier prefix matches several items",
+    http_status=409,
+    severity=_INFO,
+    hint="Type more characters of the identifier.",
+)
 
 # --- AUTH: authentication and authorization ----------------------------------
 AUTH_INVALID_TOKEN = _define(

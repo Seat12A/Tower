@@ -61,10 +61,12 @@ MESSAGES: dict[str, str] = {
     "group.button.split": "Split claims",
     "group.modal.merge.title": "Merge a group into this one",
     "group.modal.source": "Group id to absorb",
-    "group.modal.source.hint": "The full id of the group that will be absorbed.",
+    "group.modal.source.hint": (
+        "The id of the group that will be absorbed: full, or its first 6+ characters."
+    ),
     "group.modal.split.title": "Split claims off this group",
     "group.modal.claims": "Claim ids",
-    "group.modal.claims.hint": "Comma separated; they move to a new group.",
+    "group.modal.claims.hint": "Comma separated, full or short ids; they move to a new group.",
     # --- reference facts and bands -----------------------------------------------------
     "fact.show.title": "Reference fact",
     "fact.list.title": "Reference facts",
@@ -131,10 +133,14 @@ MESSAGES: dict[str, str] = {
     "narrative.button.split": "Split",
     "narrative.modal.merge.title": "Merge a narrative into this one",
     "narrative.modal.source": "Narrative id to absorb",
-    "narrative.modal.source.hint": "The full id of the narrative that will be absorbed.",
+    "narrative.modal.source.hint": (
+        "The id of the narrative that will be absorbed: full, or its first 6+ characters."
+    ),
     "narrative.modal.split.title": "Split groups off this narrative",
     "narrative.modal.groups": "Group ids",
-    "narrative.modal.groups.hint": "Comma separated; they move to a new narrative.",
+    "narrative.modal.groups.hint": (
+        "Comma separated, full or short ids; they move to a new narrative."
+    ),
     "narrative.modal.title.title": "Narrative title",
     "narrative.modal.title": "Corrected title",
     "narrative.modal.title.hint": "Leave empty to validate the proposed title.",
