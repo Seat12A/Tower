@@ -26,7 +26,7 @@ PostgreSQL 16 (Railway). SQLAlchemy 2 en asynchrone (asyncpg), migrations Alembi
 | `event_cursors` | Position de chaque consommateur nommé dans l'outbox |
 | `jobs` | File de travaux (file, type, payload, priorité, statut, tentatives, bail, dédoublonnage) |
 | `service_clients` | Clients machine : nom, empreinte SHA-256 du token, scopes, révocation |
-| `staff_members` | Équipe : ID Discord, rôles, actif |
+| `staff_members` | Équipe : ID Discord, rôles (préréglages CLI), `permissions` (`TEXT[]`, liste individuelle explicite ; migration 0010), actif |
 | `error_reports` | Erreurs stockées, agrégées par empreinte (voir [error-handling.md](error-handling.md)) |
 
 ## Tables du routeur de modèles (migration 0002)

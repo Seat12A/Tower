@@ -31,6 +31,7 @@ from tower.gate.routes import (
     profiles,
     references,
     registry,
+    staff,
     usage,
     watchlist,
 )
@@ -53,7 +54,9 @@ def create_app(settings: Settings) -> FastAPI:
         app.state.settings = settings
         app.state.db = db
         app.state.listener = listener
-        app.state.resolver = ActorResolver(db, cache_ttl=settings.auth_cache_ttl)
+        app.state.resolver = ActorResolver(
+            db, cache_ttl=settings.auth_cache_ttl, admin_ids=settings.admin_discord_ids
+        )
         log.info("gate.started", port=settings.port)
         try:
             yield
@@ -88,6 +91,7 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(narratives.router)
     app.include_router(references.router)
     app.include_router(registry.router)
+    app.include_router(staff.router)
     if settings.cors_origin_list:
         app.add_middleware(
             CORSMiddleware,

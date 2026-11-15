@@ -12,6 +12,7 @@ from tower.intercom.gate_client import GateClient
 from tower.intercom.handlers import profiles as ph
 
 from .conftest import TokenFactory
+from .intercom_ui import assert_persistent
 from .test_drafts_usecases import build_draft
 
 REVIEWER = 1001
@@ -43,16 +44,20 @@ def test_parse_value() -> None:
 @pytest.mark.parametrize("locale", LOCALES)
 async def test_profile_show_set_history_rollback(gate: GateClient, locale: str) -> None:
     reply = await ph.show(gate, REVIEWER, locale)
-    assert reply.ephemeral and "N4" in reply.text and "0" in reply.text.splitlines()[0]
-    assert len(reply.text.splitlines()) == 7  # header, general, five levels
+    assert reply.ephemeral and "N4" in reply.text and ("`0`" in reply.text)
+    assert len(reply.items) == 5 and len(reply.buttons) == 3
+    assert_persistent(reply)
 
     reply = await ph.set_value(gate, ADMIN, locale, "draft_daily_quota", "40", "more drafts")
     assert "1" in reply.text and "draft_daily_quota" in reply.text and "40" in reply.text
+    assert reply.accent == "success"
+    assert_persistent(reply)
     shown = await ph.show(gate, EDITOR, locale)
-    assert "40" in shown.text.splitlines()[1]
+    assert "`40`" in shown.body
 
     history = await ph.history(gate, REVIEWER, locale)
     assert "more drafts" in history.text and "v1" in history.text and "v0" in history.text
+    assert_persistent(history)
 
     reply = await ph.set_value(gate, ADMIN, locale, "levels.N1.e1_threshold", "0.2", "stricter")
     assert "levels.N1.e1_threshold" in reply.text
@@ -81,10 +86,12 @@ async def test_level_set_list_revoke(gate: GateClient, db: Database, locale: str
         gate, EDITOR, locale, "content", "x:1850000000000000042", "N2", 6.0, "worth a look"
     )
     assert "N2" in reply.text and "1850000000000000042" in reply.text
+    assert_persistent(reply)
     listing = await ph.level_list(gate, REVIEWER, locale)
     assert "worth a look" in listing.text and "N2" in listing.text
-    short = listing.text.split("`")[1]
-    assert len(short) == 8
+    assert_persistent(listing)
+    short = str(listing.fields[0].control.options[0].value)[:8]  # type: ignore[union-attr]
+    assert short in listing.text
 
     reply = await ph.level_revoke(gate, EDITOR, locale, short, "enough")
     assert short in reply.text

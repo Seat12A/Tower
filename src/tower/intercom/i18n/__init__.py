@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
-from tower.intercom.i18n import en, fr
+from collections import ChainMap
+from collections.abc import Mapping
 
-__all__ = ["DEFAULT_LOCALE", "has", "locale_of", "t"]
+from tower.intercom.i18n import en, fc_en, fc_fr, fr, ops_en, ops_fr, team_en, team_fr
+
+__all__ = ["CATALOGS", "DEFAULT_LOCALE", "has", "locale_of", "t"]
 
 DEFAULT_LOCALE = "en"
-_CATALOGS: dict[str, dict[str, str]] = {"en": en.MESSAGES, "fr": fr.MESSAGES}
+# One base catalogue plus one module per area (ops, fc, team); an area key overrides
+# the base one.
+# Live views (ChainMap): the first mapping holding a key wins.
+CATALOGS: dict[str, Mapping[str, str]] = {
+    "en": ChainMap(team_en.MESSAGES, fc_en.MESSAGES, ops_en.MESSAGES, en.MESSAGES),
+    "fr": ChainMap(team_fr.MESSAGES, fc_fr.MESSAGES, ops_fr.MESSAGES, fr.MESSAGES),
+}
+_CATALOGS = CATALOGS
 
 
 def locale_of(value: str | None) -> str:
@@ -28,7 +38,7 @@ def t(locale: str, key: str, **kwargs: object) -> str:
     """Translate ``key`` and format it. Missing key: English, then the key itself."""
     template = _CATALOGS.get(locale, {}).get(key)
     if template is None:
-        template = en.MESSAGES.get(key)
+        template = CATALOGS["en"].get(key)
     if template is None:
         return key
     try:

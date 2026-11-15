@@ -4,7 +4,7 @@ import string
 
 import pytest
 
-from tower.intercom.i18n import en, fr, has, locale_of, t
+from tower.intercom.i18n import CATALOGS, en, fr, has, locale_of, t
 
 
 def _fields(template: str) -> set[str]:
@@ -12,14 +12,14 @@ def _fields(template: str) -> set[str]:
 
 
 def test_catalogs_have_identical_keys() -> None:
-    assert set(en.MESSAGES) == set(fr.MESSAGES)
+    assert set(CATALOGS["en"]) == set(CATALOGS["fr"])
 
 
 def test_placeholders_are_identical_per_key() -> None:
     mismatched = {
-        key: (_fields(en.MESSAGES[key]), _fields(fr.MESSAGES[key]))
-        for key in en.MESSAGES
-        if _fields(en.MESSAGES[key]) != _fields(fr.MESSAGES[key])
+        key: (_fields(CATALOGS["en"][key]), _fields(CATALOGS["fr"][key]))
+        for key in CATALOGS["en"]
+        if _fields(CATALOGS["en"][key]) != _fields(CATALOGS["fr"][key])
     }
     assert mismatched == {}
 

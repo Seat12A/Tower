@@ -26,13 +26,17 @@ class ServiceClient(Base):
 
 
 class StaffMember(Base):
-    """Team member, identified by their Discord ID, with their roles."""
+    """Ranked team member, identified by their Discord ID.
+
+    ``roles`` are legacy presets (CLI); ``permissions`` is the explicit individual list,
+    the single source of truth once a member's permissions have been edited."""
 
     __tablename__ = "staff_members"
 
     discord_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     display_name: Mapped[str | None] = mapped_column(Text)
     roles: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))
+    permissions: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))
     active: Mapped[bool] = mapped_column(server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())

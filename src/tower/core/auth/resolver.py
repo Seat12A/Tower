@@ -7,6 +7,7 @@ per call; a revocation takes effect at the latest after this delay.
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from typing import Any
 
 from sqlalchemy import select
@@ -32,6 +33,9 @@ class _TTLCache:
             return None
         return hit[1]
 
+    def drop(self, key: Any) -> None:
+        self._data.pop(key, None)
+
     def put(self, key: Any, value: Any) -> None:
         if len(self._data) >= _MAX_ENTRIES:
             self._data.clear()
@@ -39,10 +43,13 @@ class _TTLCache:
 
 
 class ActorResolver:
-    def __init__(self, db: Database, *, cache_ttl: float = 15.0) -> None:
+    def __init__(
+        self, db: Database, *, cache_ttl: float = 15.0, admin_ids: Iterable[int] = ()
+    ) -> None:
         self.db = db
+        self.admin_ids = frozenset(admin_ids)
         self._services = _TTLCache(cache_ttl)
-        self._staff = _TTLCache(cache_ttl)
+        self._staff_cache = _TTLCache(cache_ttl)
 
     async def resolve(self, token: str | None, acting_discord_id: str | None) -> Actor:
         if not token:
@@ -61,14 +68,20 @@ class ActorResolver:
             raise Unauthenticated(
                 "Invalid X-Acting-Discord-Id", code=ec.AUTH_BAD_ACTING_ID
             ) from None
-        roles = await self._staff_roles(discord_id)
-        if roles is None:
+        is_admin = discord_id in self.admin_ids
+        member = await self._staff(discord_id)
+        if member is None and not is_admin:
             raise PermissionDenied(
                 "Unknown or inactive member",
                 code=ec.AUTH_UNKNOWN_STAFF,
                 discord_id=str(discord_id),
             )
-        return Actor.staff(discord_id, roles, via=service)
+        roles, permissions = member or (frozenset(), frozenset())
+        return Actor.staff(discord_id, roles, service, permissions, is_admin=is_admin)
+
+    def forget(self, discord_id: int) -> None:
+        """Drop the cached entry of a member (after a rank or permission change)."""
+        self._staff_cache.drop(discord_id)
 
     async def _service(self, token: str) -> Actor:
         digest = hash_token(token)
@@ -88,16 +101,18 @@ class ActorResolver:
         self._services.put(digest, actor)
         return actor
 
-    async def _staff_roles(self, discord_id: int) -> frozenset[Role] | None:
-        cached = self._staff.get(discord_id)
+    async def _staff(self, discord_id: int) -> tuple[frozenset[Role], frozenset[Permission]] | None:
+        """Roles and individual permissions of an active ranked member, else ``None``."""
+        cached = self._staff_cache.get(discord_id)
         if cached is not None:
             return cached or None
         async with self.db.session() as session:
             member = await session.get(StaffMember, discord_id)
-        roles: frozenset[Role] = (
-            frozenset(Role(r) for r in member.roles if r in Role)
-            if member is not None and member.active
-            else frozenset()
-        )
-        self._staff.put(discord_id, roles)
-        return roles or None
+        found: tuple[frozenset[Role], frozenset[Permission]] | tuple[()] = ()
+        if member is not None and member.active:
+            found = (
+                frozenset(Role(r) for r in member.roles if r in Role),
+                frozenset(Permission(p) for p in member.permissions if p in Permission),
+            )
+        self._staff_cache.put(discord_id, found)
+        return found or None

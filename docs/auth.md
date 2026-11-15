@@ -8,12 +8,13 @@ Sources : `core/domain/security.py`, `core/auth/`, `gate/deps.py`.
 |---|---|---|
 | `anonymous` | aucune en-tête | `dossiers:read_public` (site public, lecture seule) |
 | `service` | `Authorization: Bearer <token>` | scopes du client de service |
-| `staff` | token de service + `X-Acting-Discord-Id: <id>` | **rôles du membre ∩ scopes du service** |
+| `staff` | token de service + `X-Acting-Discord-Id: <id>` | **(permissions du membre, ou toutes pour un administrateur) ∩ scopes du service** |
 | `system` | processus internes (hangar, CLI) | tout |
 | `installation` | extension Chromium : en-tête `X-Installation-Token` (aléatoire, jamais stocké) | `content:ingest` seulement ; quota quotidien et limite par IP (voir [ingestion.md](ingestion.md)) |
 
 Le bot (intercom) s'authentifie avec son token et transmet l'ID Discord de la
-personne qui agit. L'ID est contrôlé contre `staff_members` (actif et rôles).
+personne qui agit. L'ID est contrôlé contre `staff_members` (actif, rôles et permissions
+individuelles), sauf pour un administrateur codé en dur (voir ci-dessous).
 L'intersection garantit qu'un bot compromis ne peut pas dépasser ses scopes, et qu'un
 membre ne peut pas dépasser ses rôles.
 
@@ -28,7 +29,8 @@ membre ne peut pas dépasser ses rôles.
 ## Permissions
 
 `dossiers:read_public`, `dossiers:read`, `dossiers:create`, `dossiers:review`,
-`dossiers:decide`, `dossiers:publish`, `events:read`, `staff:manage`,
+`dossiers:decide`, `dossiers:publish`, `events:read`, `staff:read`, `staff:manage`,
+`permissions:manage_others`, `permissions:manage_self`,
 `errors:read`, `errors:manage`, `content:ingest` (envoi de contenus : extension,
 radar), `watchlist:read`, `watchlist:write` (liste des comptes suivis), `usage:read`
 (allocation gratuite et budgets du mois : `GET /v1/llm/usage`, commande `/usage`),
@@ -47,6 +49,40 @@ exige `dossiers:decide`. La lecture publique d'un verdict validé
 (accordée aux anonymes).
 
 Elles sont vérifiées **dans les cas d'usage**, pas seulement dans l'API.
+
+## Équipe : rangs, administrateurs et permissions individuelles
+
+Sources : `core/usecases/staff.py`, `core/domain/security.py`, `gate/routes/staff.py`.
+
+- **Administrateurs codés en dur** : `TOWER_ADMIN_DISCORD_IDS` (IDs Discord séparés par
+  des virgules). Ils ont **toutes** les permissions (∩ scopes du service), sans ligne dans
+  `staff_members`. Ils ne peuvent être ni classés, ni déclassés, ni modifiés (`TWR-STF-003`).
+- **Membre classé** : ligne `staff_members` active. Seuls les membres classés peuvent
+  recevoir des permissions (`TWR-STF-005`). `rank` crée ou réactive ; `unrank` désactive
+  et vide `roles` et `permissions`.
+- **Permissions individuelles** : colonne `staff_members.permissions`. Droits du membre =
+  permissions des `roles` (préréglages de la CLI `tower staff`) ∪ `permissions`. À la
+  première modification, les permissions des rôles sont **matérialisées** dans
+  `permissions` et `roles` est vidé : la liste explicite devient la seule source.
+- **Permissions attribuables** : toutes sauf `dossiers:read_public`, `content:ingest` et
+  `events:read` (propres au public et aux services).
+- **Qui peut quoi** : `staff:read` (lister, lire un membre ; soi-même sans permission),
+  `staff:manage` (classer, déclasser ; jamais soi-même, `TWR-STF-004`),
+  `permissions:manage_others` (modifier les permissions d'un autre membre),
+  `permissions:manage_self` (modifier les siennes). Chaque action est vérifiée par gate.
+- **Anti-escalade** : un non-administrateur ne peut ajouter ou retirer que des permissions
+  qu'il détient lui-même (`TWR-STF-006`). Les administrateurs détiennent tout.
+- **Hiérarchie Discord** (côté bot, pour les non-administrateurs) : on n'agit que sur un
+  membre dont le rôle le plus élevé est strictement inférieur au sien ; personne sauf un
+  administrateur n'agit sur un administrateur.
+- Le cache du résolveur est invalidé pour le membre visé après chaque écriture
+  (`resolver.forget`), sinon au plus tard après `TOWER_AUTH_CACHE_TTL`.
+
+Erreurs : `TWR-STF-001` membre non classé (404), `002` déjà classé (409), `003`
+administrateur protégé (409), `004` auto-classement (403), `005` cible non classée (409),
+`006` escalade (403), `007` permission inconnue ou non attribuable (422).
+Événements : `staff.ranked`, `staff.unranked`, `staff.permissions_changed`
+(voir [events.md](events.md)). Endpoints : [api.md](api.md#équipe).
 
 ## Tokens de service
 

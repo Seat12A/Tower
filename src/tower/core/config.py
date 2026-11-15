@@ -7,11 +7,11 @@ All variables are prefixed with ``TOWER_``, except those Railway injects itself
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Env = Literal["dev", "test", "prod"]
 LogFormat = Literal["json", "console"]
@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     sse_batch_size: int = Field(default=200, ge=1, le=1000)
     cors_origins: str = ""
     """Allowed origins, comma-separated (public site, extension)."""
+    admin_discord_ids: Annotated[list[int], NoDecode] = Field(default_factory=list)
+    """Hard-coded administrators (Discord ids, comma-separated): every permission, always,
+    without a ``staff_members`` row; they cannot be ranked, unranked or edited."""
 
     # --- hangar (worker) -------------------------------------------------------
     services: str = "ping"
@@ -338,6 +341,15 @@ class Settings(BaseSettings):
         if self.llm_fake and self.env == "prod":
             raise ValueError("TWR-FCK-016: TOWER_LLM_FAKE is refused when TOWER_ENV=prod")
         return self
+
+    @field_validator("admin_discord_ids", mode="before")
+    @classmethod
+    def _admin_ids(cls, v: object) -> object:
+        if isinstance(v, str):
+            return [int(part) for part in _split(v)]
+        if isinstance(v, int):
+            return [v]
+        return v
 
     @field_validator("log_level")
     @classmethod

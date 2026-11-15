@@ -15,6 +15,7 @@ from tower.intercom.gate_client import GateClient
 from tower.intercom.handlers import registry as h
 
 from .conftest import TokenFactory
+from .intercom_ui import assert_persistent
 
 REVIEWER = 1001
 EDITOR = 1002
@@ -48,8 +49,10 @@ async def gate(
 async def test_show_and_history(gate: GateClient, locale: str) -> None:
     reply = await h.registry_show(gate, REVIEWER, locale, "https://www.example.org/")
     assert "example.org" in reply.text and "secondary" in reply.text and reply.ephemeral
+    assert_persistent(reply)
     reply = await h.registry_history(gate, REVIEWER, locale, "example.org")
     assert "v1" in reply.text and "created" in reply.text
+    assert_persistent(reply)
 
 
 @pytest.mark.parametrize("locale", ["en", "fr"])
@@ -61,10 +64,11 @@ async def test_unknown_domain_shows_code(gate: GateClient, locale: str) -> None:
 async def test_set_tier_and_control(gate: GateClient) -> None:
     reply = await h.registry_set_tier(gate, EDITOR, "en", "example.org", "PRIMARY", "Official")
     assert "primary" in reply.text and "v2" in reply.text
+    assert_persistent(reply)
     reply = await h.registry_set_control(gate, EDITOR, "en", "example.org", "Some Group", "Report")
     assert "Some Group" in reply.text and "v3" in reply.text
     shown = await h.registry_show(gate, EDITOR, "en", "example.org")
-    assert "Some Group" in shown.text and "team" in shown.text
+    assert "Some Group" in shown.text and "set by" in shown.text
     reply = await h.registry_set_control(gate, EDITOR, "fr", "example.org", "none", "Erreur")
     assert "effacé" in reply.text and "v4" in reply.text
 

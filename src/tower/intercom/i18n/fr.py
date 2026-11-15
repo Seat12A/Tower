@@ -8,6 +8,15 @@ MESSAGES: dict[str, str] = {
     "common.ambiguous": "Plusieurs résultats pour `{ref}` : soyez plus précis.",
     "common.none": "aucun",
     # --- erreurs (le code TWR est toujours affiché) -------------------------------
+    "error.title": "Action refusée",
+    "error.title.TWR-AUTH-004": "Hors de l'équipe",
+    "error.title.TWR-AUTH-005": "Permission manquante",
+    "error.title.TWR-BOT-001": "Tower injoignable",
+    "error.title.TWR-GEN-002": "Introuvable",
+    "error.bug.title": "Erreur inattendue",
+    "error.bug.body": (
+        "Quelque chose a cassé de notre côté. Réessayez dans un instant ; l'équipe est prévenue."
+    ),
     "error.generic": "{message} ({code})",
     "error.TWR-BOT-001": (
         "L'API Tower est injoignable pour le moment. Réessayez dans un instant. ({code})"

@@ -824,6 +824,38 @@ FCK_CALIBRATION_NOT_BETTER = _define(
     severity=_INFO,
 )
 
+# --- STF: team ranks and individual permissions -------------------------------
+STF_NOT_RANKED = _define("TWR-STF-001", "Member not ranked", http_status=404, severity=_INFO)
+STF_ALREADY_RANKED = _define(
+    "TWR-STF-002", "Member already ranked", http_status=409, severity=_INFO
+)
+STF_ADMIN_PROTECTED = _define(
+    "TWR-STF-003",
+    "Hard-coded administrator cannot be ranked, unranked or edited",
+    http_status=409,
+    severity=_INFO,
+    hint="Administrators come from TOWER_ADMIN_DISCORD_IDS and hold every permission.",
+)
+STF_SELF_FORBIDDEN = _define(
+    "TWR-STF-004", "You cannot rank or unrank yourself", http_status=403, severity=_INFO
+)
+STF_TARGET_NOT_RANKED = _define(
+    "TWR-STF-005",
+    "Only ranked members can receive permissions",
+    http_status=409,
+    severity=_INFO,
+    hint="Rank the member first (PUT /v1/staff/{discord_id}).",
+)
+STF_ESCALATION = _define(
+    "TWR-STF-006",
+    "A permission you do not hold cannot be granted or removed",
+    http_status=403,
+    severity=_INFO,
+)
+STF_BAD_PERMISSION = _define(
+    "TWR-STF-007", "Unknown or non-grantable permission", http_status=422, severity=_INFO
+)
+
 
 def get(code: str) -> ErrorCode:
     return CATALOG[code]

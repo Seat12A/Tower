@@ -130,7 +130,7 @@ src/tower/core/domain     PUR (stdlib uniquement) : règles métier, sécurité,
 src/tower/core/usecases   seule porte d'entrée pour modifier l'état métier
 src/tower/core/{db,models,events,jobs,errors,auth,services,ports}
 src/tower/gate            HTTP      src/tower/hangar   worker
-src/tower/intercom        bot Discord (client de gate, discord.py seulement dans app.py)
+src/tower/intercom        bot Discord (client de gate, discord.py seulement dans app.py, commands/, ui/render et ui/base, delivery)
 src/tower/services/<nom>  services enfichables (modèle : services/ping)
 src/tower/migrations      Alembic (livré dans le paquet)
 ```

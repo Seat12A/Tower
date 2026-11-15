@@ -6,7 +6,7 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import Callable, Coroutine
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -21,7 +21,7 @@ from .conftest import TokenFactory
 from .test_drafts_usecases import Built, build_draft
 from .test_factcheck_references import active_draft, new_fact, prepare_group
 from .test_gate_groups_references import add_post, claim_public, group_public
-from .test_intercom_factcheck import DRAFT, make_view
+from .test_intercom_factcheck import DRAFT, cards, joined, make_view
 
 REVIEWER = 1001
 EDITOR = 1002
@@ -79,9 +79,9 @@ def rich_view() -> dict[str, Any]:
 
 @pytest.mark.parametrize("locale", LOCALES)
 def test_render_shows_group_fact_band_and_external_links(locale: str) -> None:
-    parts = fc.render_draft(rich_view(), locale)
-    text = "\n".join(parts)
-    assert all(len(p) <= MAX_MESSAGE for p in parts)
+    reply = fc.render_draft(rich_view(), locale)
+    text = joined(reply)
+    assert all(len(c.body) <= MAX_MESSAGE for c in cards(reply))
     assert "`g-1234`" in text and "3" in text and "bluesky, x" in text
     assert "<https://x.com/i/status/2>" in text
     assert "`g-9999`" in text  # the related group suggestion
@@ -97,7 +97,7 @@ def test_render_shows_group_fact_band_and_external_links(locale: str) -> None:
 
 @pytest.mark.parametrize("locale", LOCALES)
 def test_render_without_the_new_fields_is_unchanged(locale: str) -> None:
-    text = "\n".join(fc.render_draft(make_view(), locale))
+    text = joined(fc.render_draft(make_view(), locale))
     for needle in ("g-1234", "Reference", "Référence", "Band", "Bande", "Fact-checks"):
         assert needle not in text
 
@@ -120,11 +120,19 @@ async def test_discord_client_registers_the_commands_and_buttons(gate: GateClien
     }
     assert commands["group"] == {"show", "merge", "split"}
     assert commands["fact"] == {"show", "list", "validate", "reject", "band"}
-    template = client.draft_item.__discord_ui_compiled_template__
+    from tower.intercom import commands as bot_commands
+
+    items = bot_commands.dynamic_items(bot_commands.Context(gate=gate, default_locale="en"))
+    patterns = [cast(Any, i).__discord_ui_compiled_template__ for i in items]
     for action in fc.ACTIONS:
-        button = client.draft_item(action, DRAFT, "en")
-        assert template.fullmatch(button.item.custom_id)
-        assert button.item.label
+        for custom_id in (fc.custom_id(action, DRAFT), f"fc:{action}:{DRAFT}"):
+            assert sum(1 for p in patterns if p.fullmatch(custom_id)) == 1, custom_id
+    for custom_id in (
+        fc.group_custom_id("show", DRAFT),
+        fc.fact_custom_id("validate", DRAFT),
+        fc.fact_custom_id("open"),
+    ):
+        assert sum(1 for p in patterns if p.fullmatch(custom_id)) == 1, custom_id
 
 
 # --- buttons and commands against the gate -----------------------------------------
@@ -332,7 +340,42 @@ async def test_the_gate_serves_what_the_bot_renders(gate: GateClient, db: Databa
         assert group is not None
         group.band, group.band_side = "beyond", "above"
     view = await gate.get_draft(EDITOR, str(built.verdict))
-    text = "\n".join(fc.render_draft(view, "en"))
+    text = joined(fc.render_draft(view, "en"))
     assert "2 claim(s)" in text and "bluesky, x" in text
     assert "beyond 3 tau of the fact (above)" in text and "7.3" in text
     assert "Taux de chômage" in text
+
+
+async def test_group_and_fact_cards_carry_persistent_buttons(
+    gate: GateClient, db: Database
+) -> None:
+    from tests.intercom_ui import assert_persistent
+
+    a, b = await two_groups(db)
+    target, source = await group_public(db, a), await group_public(db, b)
+    shown = await fc.group_show(gate, REVIEWER, "en", target)
+    assert [x.label for x in shown.buttons] == [
+        "Refresh",
+        "Merge a group into this one",
+        "Split claims",
+    ]
+    assert_persistent(shown)
+    merged = await fc.group_merge(gate, EDITOR, "en", target, source, "same")
+    assert merged.accent == "success" and merged.buttons
+    assert_persistent(merged)
+    assert [x.disabled for x in (await fc.group_show(gate, REVIEWER, "en", source)).buttons] == [
+        False,
+        True,
+        True,
+    ]
+    fact = await new_fact(db, validate=False)
+    pending = await fc.fact_show(gate, REVIEWER, "en", str(fact.public_id))
+    assert [x.label for x in pending.buttons] == ["Refresh", "Validate", "Reject"]
+    assert_persistent(pending)
+    listed = await fc.fact_list(gate, REVIEWER, "en", "pending")
+    assert_persistent(listed)
+    (field,) = listed.fields
+    assert field.control.options[0].value == str(fact.public_id)  # type: ignore[union-attr]
+    await fc.fact_validate(gate, EDITOR, "en", str(fact.public_id))
+    done = await fc.fact_show(gate, REVIEWER, "en", str(fact.public_id))
+    assert [x.label for x in done.buttons] == ["Refresh"]
