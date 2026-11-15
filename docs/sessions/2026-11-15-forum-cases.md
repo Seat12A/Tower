@@ -43,6 +43,8 @@ pas d'usage.
   de l'affirmation. Préparation du forum (tags, réglages, post épinglé) dès le démarrage.
 - Identifiants courts acceptés dans les fenêtres et commandes (`GET /v1/ids/{kind}/{ref}`,
   `TWR-GEN-005`).
+- Correctif : le post « How to review » était recréé à chaque démarrage (cache des fils vide
+  avant la connexion) ; il est maintenant cherché auprès de Discord et créé une seule fois.
 - Aucun sous-agent.
 
 ## Décisions
