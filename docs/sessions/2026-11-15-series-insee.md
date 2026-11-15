@@ -28,9 +28,8 @@ Voir `decisions.md`, section « Séries INSEE par défaut ».
 ## Vérifications
 
 - **Appels réels** à `bdm.insee.fr` : catalogue des flux, titres des séries, et pour
-  chacune des 127 séries une lecture des dernières observations (toutes présentes ; deux
-  séries écartées : accidents du travail, sans valeur depuis 2019, et une série trop
-  vague). Lecture de bout en bout par `InseeSource.lookup` sur trois affirmations.
+  chacune des séries une lecture des dernières observations (toutes présentes). Série
+  écartée : accidents du travail, sans valeur depuis 2019. Mots-clés trop vagues retirés. Lecture de bout en bout par `InseeSource.lookup` sur trois affirmations.
 - `ruff`, `mypy` strict : verts. Tests INSEE sans base : verts.
 - **Non vérifié** : `test_insee_latest_observations` et la suite avec base (pgvector 0.8
   absent de la session, comme pour la session précédente).
