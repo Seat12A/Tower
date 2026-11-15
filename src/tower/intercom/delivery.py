@@ -4,7 +4,7 @@
 notifications and ``send_draft`` for fact-check drafts. A channel that is not configured
 is ignored; in dry-run mode nothing is sent, the call is only logged.
 
-``ForumDelivery`` is the Discord side of the forum of dossiers (``forum.ForumSink``): it
+``ForumDelivery`` is the Discord side of the forum of cases (``forum.ForumSink``): it
 creates the missing tags (moderated: only the bot sets them), the pinned "How to review"
 post and the forum settings once, then creates, edits and archives posts.
 """
@@ -99,7 +99,7 @@ def _tag_label(key: str) -> str:
 
 
 class ForumDelivery:
-    """Forum of dossiers on Discord. The bot needs, on the forum: Manage Channels (tags,
+    """Forum of cases on Discord. The bot needs, on the forum: Manage Channels (tags,
     settings), Manage Threads (moderated tags, archive, pin), Send Messages in Threads."""
 
     def __init__(self, client: discord.Client, forum_id: int) -> None:
@@ -113,7 +113,7 @@ class ForumDelivery:
     async def _forum(self) -> discord.ForumChannel:
         forum = await self._channel(self._forum_id)
         if not isinstance(forum, discord.ForumChannel):
-            raise TypeError("TOWER_DISCORD_FORUM_DOSSIERS is not a forum channel")
+            raise TypeError("TOWER_DISCORD_FORUM_CASES is not a forum channel")
         if self._tags is None:
             await self._setup(forum)
         return forum

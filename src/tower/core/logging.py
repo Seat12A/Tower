@@ -2,7 +2,7 @@
 
 Railway parses a log line as an object when it is a **single-line** JSON with a
 ``message`` field; ``level`` must be ``debug``, ``info``, ``warn`` or ``error``.
-Other top-level keys become filterable attributes (``@dossier_id:42``,
+Other top-level keys become filterable attributes (``@case_id:42``,
 ``@duration_ms:>500``). Everything goes to **stdout**: Railway classifies stderr
 as an error and shows it in red.
 

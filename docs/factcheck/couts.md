@@ -93,7 +93,7 @@ dizaine de tweets par jour et une montée possiblement rapide. Conséquences :
 | Recherche à 0,01 $ au lieu de 0,005 $ | +~12 $ | |
 | Budget atteint : escalade suspendue | plafonne au niveau « 10 % » | Dégradation prévue |
 | Volume × 3 (60 000 posts/jour) | +~10 $ (masse, repli payant) ; enquêtes inchangées | Le quota de brouillons plafonne les enquêtes |
-| Vague majeure (100 000 posts sur un récit en 24 h) | +~1 à 3 $ | Une collecte par récit, variantes jugées sur le dossier, copies sans modèle |
+| Vague majeure (100 000 posts sur un récit en 24 h) | +~1 à 3 $ | Une collecte par récit, variantes jugées sur le case, copies sans modèle |
 | Liste suivie à 1 000 posts/jour | API X → ~150 $ | Premier poste du projet, devant toute l'IA |
 
 ## RAM sur Railway

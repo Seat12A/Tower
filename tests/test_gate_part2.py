@@ -96,7 +96,7 @@ async def test_cursor_validation_and_permissions(
     r = await client.put("/v1/events/cursors/main", json={"cursor": "nope"}, headers=h(token))
     assert r.status_code == 422 and r.json()["error"]["code"] == "TWR-EVT-001"
 
-    limited = await make_token("limited", scopes=[Permission.DOSSIER_READ])
+    limited = await make_token("limited", scopes=[Permission.CASE_READ])
     r = await client.get("/v1/events/cursors/main", headers=h(limited))
     assert r.status_code == 403
     r = await client.put("/v1/events/cursors/main", json={"cursor": "1-1"}, headers=h(limited))

@@ -52,11 +52,11 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-DB-001` | Database unavailable | 503 | critical | oui | oui |  |
 | `TWR-DB-002` | LISTEN connection lost (reconnecting) | 500 | warning | oui | oui |  |
 
-## DOS : Dossiers
+## DOS : Cases
 
 | Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
 |---|---|---|---|---|---|---|
-| `TWR-DOS-001` | Dossier not found | 404 | info | non | non |  |
+| `TWR-DOS-001` | Case not found | 404 | info | non | non |  |
 | `TWR-DOS-002` | Forbidden status transition | 409 | info | non | non |  |
 | `TWR-DOS-003` | Invalid X publication link | 422 | info | non | non | Expected format: https://x.com/<account>/status/<id> |
 | `TWR-DOS-004` | X publication link required | 422 | info | non | non |  |

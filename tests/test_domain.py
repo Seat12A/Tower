@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 
 from tower.core.domain import error_codes as ec
-from tower.core.domain.dossiers import (
+from tower.core.domain.cases import (
     WORKFLOWS,
-    DossierKind,
-    DossierStatus,
+    CaseKind,
+    CaseStatus,
     check_transition,
     parse_publication_url,
 )
@@ -18,7 +18,7 @@ from tower.core.domain.errors import InvalidInput, InvalidTransition, Permission
 from tower.core.domain.security import Actor, Permission, Role
 
 ROOT = Path(__file__).resolve().parent.parent
-S = DossierStatus
+S = CaseStatus
 
 
 def test_domain_is_pure() -> None:
@@ -39,8 +39,8 @@ def test_domain_is_pure() -> None:
                 )
 
 
-@pytest.mark.parametrize("kind", list(DossierKind))
-def test_happy_path(kind: DossierKind) -> None:
+@pytest.mark.parametrize("kind", list(CaseKind))
+def test_happy_path(kind: CaseKind) -> None:
     for a, b in [(S.RECEIVED, S.IN_REVIEW), (S.IN_REVIEW, S.VALIDATED), (S.VALIDATED, S.PUBLISHED)]:
         check_transition(kind, a, b)
     check_transition(kind, S.IN_REVIEW, S.REJECTED)
@@ -56,15 +56,15 @@ def test_happy_path(kind: DossierKind) -> None:
         (S.REJECTED, S.IN_REVIEW),
     ],
 )
-def test_forbidden_transitions(current: DossierStatus, target: DossierStatus) -> None:
+def test_forbidden_transitions(current: CaseStatus, target: CaseStatus) -> None:
     with pytest.raises(InvalidTransition) as info:
-        check_transition(DossierKind.FACT_CHECK, current, target)
+        check_transition(CaseKind.FACT_CHECK, current, target)
     assert info.value.code == "TWR-DOS-002"
 
 
 def test_every_status_has_a_workflow_entry() -> None:
     for kind, flow in WORKFLOWS.items():
-        assert set(flow) == set(DossierStatus), kind
+        assert set(flow) == set(CaseStatus), kind
 
 
 @pytest.mark.parametrize(
@@ -89,20 +89,20 @@ def test_publication_url_rejected(url: str) -> None:
 
 
 def test_staff_permissions_are_capped_by_service_scopes() -> None:
-    bot = Actor.service("intercom", frozenset({Permission.DOSSIER_READ, Permission.DOSSIER_REVIEW}))
+    bot = Actor.service("intercom", frozenset({Permission.CASE_READ, Permission.CASE_REVIEW}))
     editor = Actor.staff(42, frozenset({Role.EDITOR}), via=bot)
-    assert editor.can(Permission.DOSSIER_REVIEW)
-    assert not editor.can(Permission.DOSSIER_PUBLISH)  # the bot does not have this scope
+    assert editor.can(Permission.CASE_REVIEW)
+    assert not editor.can(Permission.CASE_PUBLISH)  # the bot does not have this scope
     assert editor.label == "staff:42@intercom"
     assert editor.discord_id == 42
     with pytest.raises(PermissionDenied) as info:
-        editor.require(Permission.DOSSIER_PUBLISH)
+        editor.require(Permission.CASE_PUBLISH)
     assert info.value.code == "TWR-AUTH-005"
 
 
 def test_anonymous_is_read_public_only() -> None:
     anon = Actor.anonymous()
-    assert anon.permissions == frozenset({Permission.DOSSIER_READ_PUBLIC})
+    assert anon.permissions == frozenset({Permission.CASE_READ_PUBLIC})
 
 
 def test_error_codes_format_and_uniqueness() -> None:

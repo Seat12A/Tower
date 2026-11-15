@@ -12,10 +12,11 @@ from tower.core.models.atlas import (
     SourceRegistryVersion,
 )
 from tower.core.models.auth import ServiceClient, StaffMember
-from tower.core.models.dossiers import Dossier, DossierEvent
+from tower.core.models.cases import Case, CaseEvent
 from tower.core.models.errors import ErrorReport
 from tower.core.models.events import Event, EventCursor
 from tower.core.models.factcheck import (
+    CaseClaimGroup,
     Citation,
     Claim,
     ClaimGroup,
@@ -23,7 +24,6 @@ from tower.core.models.factcheck import (
     ContentClaim,
     ContextNote,
     ContextNoteTranslation,
-    DossierClaimGroup,
     EvidencePassage,
     Investigation,
     Review,
@@ -82,6 +82,9 @@ __all__ = [
     "AtlasSyncState",
     "BudgetCounter",
     "BudgetReservation",
+    "Case",
+    "CaseClaimGroup",
+    "CaseEvent",
     "Citation",
     "Claim",
     "ClaimGroup",
@@ -96,9 +99,6 @@ __all__ = [
     "ContentSnapshot",
     "ContextNote",
     "ContextNoteTranslation",
-    "Dossier",
-    "DossierClaimGroup",
-    "DossierEvent",
     "ElectionEntry",
     "Entity",
     "EntityRarity",

@@ -333,7 +333,7 @@ async def list_overrides(
     session: AsyncSession, actor: Actor, *, active: bool = True, limit: int = 100
 ) -> list[LevelOverride]:
     """Overrides, newest first; ``active``: not revoked and not expired."""
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     stmt = select(LevelOverride).order_by(LevelOverride.id.desc()).limit(limit)
     if active:
         stmt = stmt.where(

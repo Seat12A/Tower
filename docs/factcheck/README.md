@@ -30,8 +30,8 @@ vérifié est signalé « à vérifier ».
 
 1. **On vérifie des affirmations et des récits, pas des posts.** Les milliers de
    variantes d'une même rumeur se ramènent à un groupe d'affirmations, puis à un
-   **récit**. Un récit partage un dossier de preuves ; chaque variante reçoit son
-   propre verdict, calculé à bas coût sur ce dossier.
+   **récit**. Un récit partage un case de preuves ; chaque variante reçoit son
+   propre verdict, calculé à bas coût sur ce case.
 2. **Le moins cher est l'absence de modèle, puis le token gratuit.** Le code
    (normalisation, empreintes, classifieur en Python pur) écarte la majorité du flux.
    Les petits rôles (extraction, arbitrage, vérification légère, rédaction des

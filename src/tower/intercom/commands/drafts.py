@@ -23,7 +23,7 @@ from tower.intercom.commands import Context
 from tower.intercom.commands.factcheck import text_input
 from tower.intercom.gate_client import GateClient, GateError
 from tower.intercom.handlers import Reply, card, error_reply, forum
-from tower.intercom.handlers import dossiers as dos
+from tower.intercom.handlers import cases as dos
 from tower.intercom.handlers import factcheck as fc
 from tower.intercom.handlers import narratives as nar
 from tower.intercom.i18n import t
@@ -240,16 +240,16 @@ def _kit(ctx: Context) -> Any:
     class PublishModal(BaseModal):
         """Link of the post published on X; the forum post follows the event."""
 
-        def __init__(self, dossier_id: str, locale: str) -> None:
-            super().__init__(title=t(locale, "dossier.modal.publish.title")[:45])
-            self.dossier_id = dossier_id
-            self.url, label = text_input(locale, "dossier.modal.url", max_length=200)
+        def __init__(self, case_id: str, locale: str) -> None:
+            super().__init__(title=t(locale, "case.modal.publish.title")[:45])
+            self.case_id = case_id
+            self.url, label = text_input(locale, "case.modal.url", max_length=200)
             self.add_item(label)
 
         async def on_submit(self, interaction: discord.Interaction) -> None:
             url = self.url.value
             await run_handler(
-                interaction, lambda loc, uid: dos.publish(gate, uid, loc, self.dossier_id, url)
+                interaction, lambda loc, uid: dos.publish(gate, uid, loc, self.case_id, url)
             )
 
     async def secondary(
@@ -282,8 +282,8 @@ def _kit(ctx: Context) -> Any:
                 interaction, lambda loc, uid: nar.narrative_show(gate, uid, loc, narrative_id)
             )
         elif action == "publish":
-            dossier_id = str((draft.get("dossier") or {}).get("id") or "")
-            await interaction.response.send_modal(PublishModal(dossier_id, locale))
+            case_id = str((draft.get("case") or {}).get("id") or "")
+            await interaction.response.send_modal(PublishModal(case_id, locale))
 
     async def fetch(interaction: discord.Interaction, draft_id: str) -> dict[str, Any] | None:
         try:

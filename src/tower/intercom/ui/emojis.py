@@ -143,7 +143,7 @@ TRACK = "<:track:1571617449487368283>"
 COPYRIGHT = "<:copyright:1571617514616786974>"
 TOGGLE = TOGGLE_ON
 
-# Forum of dossiers: icons still to upload to the application (empty until then). An
+# Forum of cases: icons still to upload to the application (empty until then). An
 # element type shows icons only when all of its icons exist (``handlers.forum``).
 MERGE = ""  # Material Symbols "merge": same group / superseded (merged)
 SPLIT = ""  # "call_split": split a group

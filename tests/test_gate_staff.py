@@ -140,7 +140,7 @@ async def test_set_permissions_materialises_roles_and_publishes(
         topics = (await s.execute(text("SELECT topic, payload FROM events"))).all()
     changed = [p for t, p in topics if t == "staff.permissions_changed"]
     assert len(changed) == 1 and "usage:read" in changed[0]["added"]
-    assert "dossiers:review" in changed[0]["removed"]
+    assert "cases:review" in changed[0]["removed"]
 
 
 async def test_set_permissions_rules(api: httpx.AsyncClient, bot: str) -> None:

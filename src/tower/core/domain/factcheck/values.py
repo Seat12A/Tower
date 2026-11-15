@@ -217,7 +217,7 @@ class InvestigationStage(StrEnum):
     ESCALATING = "escalating"
     DRAFTING = "drafting"
     COMPLETED = "completed"  # E9 done, waiting for E10 (assembly)
-    ASSEMBLED = "assembled"  # E10 done (dossier opened, or kept off the review queue)
+    ASSEMBLED = "assembled"  # E10 done (case opened, or kept off the review queue)
     FAILED = "failed"
 
 

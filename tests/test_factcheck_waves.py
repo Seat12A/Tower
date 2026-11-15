@@ -313,7 +313,7 @@ async def test_surge_applies_wave_mode(db: Database, cfg: Settings) -> None:
         "representative_group_id": str(group_public),
     }
     assert [j["narrative_id"] for j in await jobs_of(db, names.JOB_NARRATIVE_TITLE)] == [nid]
-    assert await jobs_of(db, names.JOB_LIGHT_CHECK) == []  # no dossier yet
+    assert await jobs_of(db, names.JOB_LIGHT_CHECK) == []  # no case yet
     state_event = (
         await rows(
             db,
@@ -425,7 +425,7 @@ async def test_growth_is_ignored_for_24_hours_after_a_filter_version_change(
     assert await state_of(db, nid) == "surge"
 
 
-async def test_light_checks_wait_for_kept_passages_of_the_representative_dossier(
+async def test_light_checks_wait_for_kept_passages_of_the_representative_case(
     db: Database, cfg: Settings
 ) -> None:
     _nid, _g1, g2, _ = await two_group_narrative(db, cfg, main=30, side=10)
@@ -467,11 +467,11 @@ async def test_light_checks_wait_for_kept_passages_of_the_representative_dossier
     result = await wave(db, cfg)
     assert result["light_checks"] == 1  # the other group only: never the representative
     (job,) = await jobs_of(db, names.JOB_LIGHT_CHECK)
-    assert job["group_id"] == g2 and job["dossier_investigation_id"] == inv_id
+    assert job["group_id"] == g2 and job["case_investigation_id"] == inv_id
     assert job["_dedupe"] == f"light:{g2}:0"
     assert (await wave(db, cfg))["light_checks"] == 0  # still queued: deduplicated
 
-    async with db.transaction() as s:  # the light check ran after the dossier: done
+    async with db.transaction() as s:  # the light check ran after the case: done
         await s.execute(text("DELETE FROM jobs"))
         await s.execute(
             text("UPDATE claim_groups SET light_checked_at = now() WHERE id = :g"), {"g": g2}

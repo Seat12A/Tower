@@ -317,12 +317,17 @@ class Settings(BaseSettings):
     """Guild where slash commands are synced (instant); global sync when empty."""
     discord_channel_incidents: int | None = None
     discord_channel_budget: int | None = None
-    discord_channel_dossiers: int | None = None
-    """Text channel of dossier cards: fallback when no forum is configured."""
-    discord_forum_dossiers: int | None = None
-    """Forum of dossiers: one post per dossier (preferred over the text channel)."""
+    discord_channel_cases: int | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "TOWER_DISCORD_CHANNEL_CASES", "TOWER_DISCORD_CHANNEL_DOSSIERS"
+        ),
+    )
+    """Text channel of case cards: fallback when no forum is configured."""
+    discord_forum_cases: int | None = None
+    """Forum of cases: one post per case (preferred over the text channel)."""
     discord_channel_narratives: int | None = None
-    """Wave alerts; without it, the dossiers text channel when no forum is configured."""
+    """Wave alerts; without it, the cases text channel when no forum is configured."""
     discord_channel_admin: int | None = None
     discord_alert_role_id: int | None = None
     """Role mentioned in wave alerts (``narrative.surge_detected`` at tier ``alert``)."""

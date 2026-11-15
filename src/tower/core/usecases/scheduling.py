@@ -268,7 +268,7 @@ async def record_light_signal(
     evidence: Sequence[Mapping[str, str]],
     now: datetime,
     profile_version: int = 0,
-    dossier_investigation_id: int | None = None,
+    case_investigation_id: int | None = None,
 ) -> bool:
     """Store the E5 signal of a group (never published). False for a merged group."""
     actor.require(Permission.FACTCHECK_REQUEST)
@@ -285,6 +285,6 @@ async def record_light_signal(
         "explanation": explanation[:_MAX_EXPLANATION],
         "evidence": [dict(item) for item in evidence],
         "profile_version": profile_version,
-        "dossier_investigation_id": dossier_investigation_id,
+        "case_investigation_id": case_investigation_id,
     }
     return True

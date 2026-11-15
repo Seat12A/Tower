@@ -1,18 +1,18 @@
-"""Forum of dossiers: keeps one Discord forum post per dossier in sync with gate.
+"""Forum of cases: keeps one Discord forum post per case in sync with gate.
 
 Driven by the notifier (one event at a time, so posts are created one after another:
 back-pressure instead of bursts). The Discord side is an injected ``ForumSink`` so the
-logic is testable without Discord. The post of a dossier is found again through gate
-(``discord_thread_id`` of the dossier), never through a local cache.
+logic is testable without Discord. The post of a case is found again through gate
+(``discord_thread_id`` of the case), never through a local cache.
 
 Event flow:
 
-- ``dossier.opened``: create the post (short card) unless the dossier already has one;
+- ``case.opened``: create the post (short card) unless the case already has one;
 - ``draft.ready``: make sure the post exists, replace its card by the full draft card,
   post the thread sections, then mark the draft notified;
 - ``draft.reviewed``: one activity line, card and tags refreshed;
-- ``dossier.transitioned``: card and tags refreshed (archived once final), activity
-  line for transitions that no review explains (taken, published, manual dossiers).
+- ``case.transitioned``: card and tags refreshed (archived once final), activity
+  line for transitions that no review explains (taken, published, manual cases).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from tower.intercom.handlers import Reply
 from tower.intercom.handlers import forum as render
 from tower.intercom.i18n import t
 
-__all__ = ["DossierForum", "ForumSink"]
+__all__ = ["CaseForum", "ForumSink"]
 
 log = get_logger(__name__)
 
@@ -53,41 +53,41 @@ def _thread_id(value: object) -> int | None:
         return None
 
 
-class DossierForum:
+class CaseForum:
     def __init__(self, gate: GateClient, sink: ForumSink) -> None:
         self._gate = gate
         self._sink = sink
 
-    async def _create(self, dossier_id: str, post: render.Post) -> int:
+    async def _create(self, case_id: str, post: render.Post) -> int:
         thread_id = await self._sink.create(post)
         try:
-            await self._gate.link_discord_thread(dossier_id, thread_id)
+            await self._gate.link_discord_thread(case_id, thread_id)
         except GateError as exc:
             # Created but not linked: a later event may create a second post.
             log.warning("intercom.thread_link_failed", code=exc.code, status=exc.status)
         return thread_id
 
-    async def _show(self, dossier_id: str, thread_id: int | None, post: render.Post) -> int:
-        """Update the post of a dossier, or create it when it is missing."""
+    async def _show(self, case_id: str, thread_id: int | None, post: render.Post) -> int:
+        """Update the post of a case, or create it when it is missing."""
         if thread_id is not None and await self._sink.update(thread_id, post):
             return thread_id
-        return await self._create(dossier_id, post)
+        return await self._create(case_id, post)
 
-    async def on_dossier_opened(self, payload: dict[str, Any]) -> None:
+    async def on_case_opened(self, payload: dict[str, Any]) -> None:
         if _thread_id(payload.get("discord_thread_id")) is not None:
             return
-        await self._create(str(payload["public_id"]), render.dossier_post(payload))
+        await self._create(str(payload["public_id"]), render.case_post(payload))
 
     async def show_draft(self, view: dict[str, Any]) -> bool:
         """Post a draft (``draft.ready`` and the startup reconciliation): card, tags and
         sections, then mark it notified. ``True`` when shown."""
-        dossier = view.get("dossier") or {}
-        if not dossier.get("id"):
+        case = view.get("case") or {}
+        if not case.get("id"):
             return False
         draft_id = str(view["draft_id"])
         thread_id = await self._show(
-            str(dossier["id"]),
-            _thread_id(dossier.get("discord_thread_id")),
+            str(case["id"]),
+            _thread_id(case.get("discord_thread_id")),
             render.draft_post(view),
         )
         for card in render.draft_sections(view):
@@ -112,29 +112,29 @@ class DossierForum:
         if not draft_id:
             return
         view = await self._gate.get_draft(None, str(draft_id))
-        dossier = view.get("dossier") or {}
-        thread_id = _thread_id(dossier.get("discord_thread_id"))
-        if thread_id is None or not dossier.get("id"):
+        case = view.get("case") or {}
+        thread_id = _thread_id(case.get("discord_thread_id"))
+        if thread_id is None or not case.get("id"):
             return  # never displayed in the forum (posted before it existed)
-        thread_id = await self._show(str(dossier["id"]), thread_id, render.draft_post(view))
+        thread_id = await self._show(str(case["id"]), thread_id, render.draft_post(view))
         await self._sink.reply(thread_id, render.review_activity(payload))
 
-    async def on_dossier_transitioned(self, payload: dict[str, Any], actor: object) -> None:
+    async def on_case_transitioned(self, payload: dict[str, Any], actor: object) -> None:
         public_id = str(payload["public_id"])
-        dossier = await self._gate.get_dossier(None, public_id)
-        thread_id = _thread_id(dossier.get("discord_thread_id"))
-        draft_id = dossier.get("draft_id")
+        case = await self._gate.get_case(None, public_id)
+        thread_id = _thread_id(case.get("discord_thread_id"))
+        draft_id = case.get("draft_id")
         if draft_id:
             view = await self._gate.get_draft(None, str(draft_id))
             if thread_id is None and not view.get("notified_at"):
                 return  # draft.ready will create the post with the full card
-            post = render.draft_post(view, dossier.get("status"))
+            post = render.draft_post(view, case.get("status"))
         else:
-            post = render.dossier_post(dossier)
+            post = render.case_post(case)
         thread_id = await self._show(public_id, thread_id, post)
-        target = str(payload.get("to") or dossier.get("status"))
+        target = str(payload.get("to") or case.get("status"))
         if target == "published":
-            url = dossier.get("published_url") or "?"
+            url = case.get("published_url") or "?"
             await self._sink.reply(thread_id, render.activity_line("published", actor, url=url))
         elif not draft_id:
             # Fact-check decisions already have their line (``draft.reviewed``).

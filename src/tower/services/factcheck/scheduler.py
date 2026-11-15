@@ -404,7 +404,7 @@ async def _enqueue_light_checks(
             session,
             names.FC_BULK,
             names.JOB_LIGHT_CHECK,
-            {"group_id": group.id, "dossier_investigation_id": None},
+            {"group_id": group.id, "case_investigation_id": None},
             dedupe_key=names.light_check_key(group.id, version),
         )
         enqueued += job_id is not None

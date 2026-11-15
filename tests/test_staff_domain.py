@@ -24,7 +24,7 @@ P = Permission
 
 def test_grantable_excludes_service_and_public_permissions() -> None:
     assert not GRANTABLE_PERMISSIONS & {
-        P.DOSSIER_READ_PUBLIC,
+        P.CASE_READ_PUBLIC,
         P.CONTENT_INGEST,
         P.EVENTS_READ,
     }
@@ -35,8 +35,8 @@ def test_grantable_excludes_service_and_public_permissions() -> None:
 
 def test_staff_actor_unions_roles_and_individual_permissions() -> None:
     actor = Actor.staff(1, frozenset({Role.REVIEWER}), BOT, frozenset({P.WATCHLIST_WRITE}))
-    assert actor.can(P.DOSSIER_REVIEW) and actor.can(P.WATCHLIST_WRITE)
-    assert not actor.can(P.DOSSIER_DECIDE)
+    assert actor.can(P.CASE_REVIEW) and actor.can(P.WATCHLIST_WRITE)
+    assert not actor.can(P.CASE_DECIDE)
 
 
 def test_hard_coded_admin_has_everything_but_stays_bound_to_service_scopes() -> None:
@@ -44,12 +44,12 @@ def test_hard_coded_admin_has_everything_but_stays_bound_to_service_scopes() -> 
     assert all(admin.can(p) for p in Permission)
     narrow = Actor.service("narrow", frozenset({P.STAFF_READ}))
     scoped = Actor.staff(1, frozenset(), narrow, is_admin=True)
-    assert scoped.permissions == frozenset({P.STAFF_READ, P.DOSSIER_READ_PUBLIC})
+    assert scoped.permissions == frozenset({P.STAFF_READ, P.CASE_READ_PUBLIC})
 
 
 def test_member_without_anything_only_gets_public_permissions() -> None:
     actor = Actor.staff(2, frozenset(), BOT)
-    assert actor.permissions == frozenset({P.DOSSIER_READ_PUBLIC})
+    assert actor.permissions == frozenset({P.CASE_READ_PUBLIC})
 
 
 def test_member_permissions_presets_individual_and_admin() -> None:
@@ -64,7 +64,7 @@ def test_member_permissions_presets_individual_and_admin() -> None:
 
 def test_parse_grantable_rejects_unknown_and_non_grantable() -> None:
     assert parse_grantable(["usage:read", "usage:read"]) == {P.USAGE_READ}
-    for bad in ("nope", "events:read", "dossiers:read_public", "content:ingest"):
+    for bad in ("nope", "events:read", "cases:read_public", "content:ingest"):
         with pytest.raises(InvalidInput) as err:
             parse_grantable([bad])
         assert err.value.error_code is ec.STF_BAD_PERMISSION

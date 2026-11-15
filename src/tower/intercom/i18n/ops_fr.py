@@ -73,22 +73,22 @@ MESSAGES: dict[str, str] = {
     "watchlist.modal.priority.help": "De -100 à 100 (0 par défaut).",
     "watchlist.modal.note": "Note",
     "watchlist.modal.note.help": "Facultative, interne.",
-    # --- dossiers -------------------------------------------------------------------
-    "dossier.title": "Dossier {short_id}",
-    "dossier.btn.take": "Prendre",
-    "dossier.btn.validate": "Valider",
-    "dossier.btn.reject": "Rejeter",
-    "dossier.btn.publish": "Enregistrer la publication",
-    "dossier.btn.open_post": "Ouvrir le post",
-    "dossier.published": (
+    # --- cases -------------------------------------------------------------------
+    "case.title": "Case {short_id}",
+    "case.btn.take": "Prendre",
+    "case.btn.validate": "Valider",
+    "case.btn.reject": "Rejeter",
+    "case.btn.publish": "Enregistrer la publication",
+    "case.btn.open_post": "Ouvrir le post",
+    "case.published": (
         "Lien de publication enregistré. Le bot ne publie jamais sur X : publiez le post vous-même."
     ),
-    "dossier.modal.reject.title": "Rejeter le dossier",
-    "dossier.modal.note": "Note",
-    "dossier.modal.note.help": "Facultative : pourquoi ce dossier est rejeté.",
-    "dossier.modal.publish.title": "Enregistrer la publication",
-    "dossier.modal.publish.help": "Collez le lien du post que vous avez publié sur X.",
-    "dossier.modal.url": "Lien du post",
+    "case.modal.reject.title": "Rejeter le case",
+    "case.modal.note": "Note",
+    "case.modal.note.help": "Facultative : pourquoi ce case est rejeté.",
+    "case.modal.publish.title": "Enregistrer la publication",
+    "case.modal.publish.help": "Collez le lien du post que vous avez publié sur X.",
+    "case.modal.url": "Lien du post",
     # --- incidents ------------------------------------------------------------------
     "incidents.title": "Incidents ouverts",
     "incidents.item": "**{code}** {title}\n-# x{count} · vu le {last_seen} · {short_fp}",

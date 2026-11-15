@@ -144,7 +144,7 @@ async def list_members(
     include_removed: bool = False,
 ) -> list[dict[str, Any]]:
     """Claims of a group with their signature summary and the contents they come from."""
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     group = await _group_by_public_id(session, group_id)
     return await _members(session, group, include_removed=include_removed)
 
@@ -264,7 +264,7 @@ async def _active_verdict_view(session: AsyncSession, group: ClaimGroup) -> dict
 
 async def get_group(session: AsyncSession, actor: Actor, group_id: uuid.UUID) -> dict[str, Any]:
     """Group detail: state, fact and band, active verdict, active members, journal."""
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     group = await _group_by_public_id(session, group_id)
     merged_into = (
         await session.scalar(
@@ -294,7 +294,7 @@ async def get_group(session: AsyncSession, actor: Actor, group_id: uuid.UUID) ->
 
 
 async def get_fact(session: AsyncSession, actor: Actor, fact_id: uuid.UUID) -> dict[str, Any]:
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     fact = await session.scalar(select(ReferenceFact).where(ReferenceFact.public_id == fact_id))
     if fact is None:
         raise NotFound("Reference fact not found", code=ec.FCK_FACT_NOT_FOUND, fact=str(fact_id))
@@ -309,7 +309,7 @@ async def list_facts(
     indicator: str | None = None,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     stmt = select(ReferenceFact).order_by(ReferenceFact.id.desc()).limit(limit)
     if status:
         stmt = stmt.where(ReferenceFact.status == status)
@@ -322,7 +322,7 @@ async def list_bands(
     session: AsyncSession, actor: Actor, fact_id: uuid.UUID
 ) -> list[dict[str, Any]]:
     """Every band of a fact (active first, then revoked), newest first."""
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     fact = await session.scalar(select(ReferenceFact).where(ReferenceFact.public_id == fact_id))
     if fact is None:
         raise NotFound("Reference fact not found", code=ec.FCK_FACT_NOT_FOUND, fact=str(fact_id))

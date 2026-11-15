@@ -21,6 +21,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
+from tower.core.domain.cases import with_legacy_topics
 from tower.core.domain.security import Permission
 from tower.core.events.channels import EVENTS
 from tower.core.events.outbox import Cursor, read_events
@@ -75,6 +76,8 @@ async def stream_events(
     last_event_id: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
     actor.require(Permission.EVENTS_READ)
+    if topics:
+        topics = with_legacy_topics(topics)  # old dossier.* names keep working
     settings = request.app.state.settings
     listener = request.app.state.listener
 

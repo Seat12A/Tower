@@ -141,7 +141,7 @@ un signal de confiance bien plus fort que « aucune objection trouvée ».
 
 Sépare les deux fonctions du récit. Compter et détecter tolère un regroupement lâche ;
 appliquer un verdict exige un regroupement strict, déjà assuré par la signature. Le
-récit partage un dossier de preuves.
+récit partage un case de preuves.
 
 - 1. Rattachement : au moins deux signaux, dont un non sémantique, et au moins une
   ancre spécifique partagée : entité rare (pondération par rareté sur 30 jours), média
@@ -150,13 +150,13 @@ récit partage un dossier de preuves.
     posts ou plus de 3 comptes distincts.
   - Un média vu dans de nombreux récits sans rapport (mème, logo) est exclu.
 - 2. Bornes : clôture après 7 jours sans activité. Une résurgence crée un nouveau
-  récit lié à l'ancien, qui hérite du dossier. Scission proposée au-delà de 25
+  récit lié à l'ancien, qui hérite du case. Scission proposée au-delà de 25
   groupes, ou quand deux sous-ensembles ne tiennent que par un seul groupe.
 - 3. Centroïde : ni figé ni recalculé. Utilise 1 à 3 médoïdes, des affirmations
   réelles : le fondateur, fixe, plus les deux groupes à plus forte portée, réélus au
   plus une fois par jour. Tout membre doit être proche d'un médoïde.
 - 4. Héritage : insuffisant. Signaler chaque variante incompatible sature tes 12
-  relectures par jour. Les variantes sont jugées à bas coût sur le dossier de preuves
+  relectures par jour. Les variantes sont jugées à bas coût sur le case de preuves
   existant, façon E5, et seules celles à forte portée montent au relecteur.
 - Risque restant : une ancre partagée par hasard, comme un nom de ville dans deux
   affaires distinctes. La réversibilité des fusions le couvre.

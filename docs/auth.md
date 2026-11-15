@@ -6,7 +6,7 @@ Sources : `core/domain/security.py`, `core/auth/`, `gate/deps.py`.
 
 | Type | Comment | Droits |
 |---|---|---|
-| `anonymous` | aucune en-tête | `dossiers:read_public` (site public, lecture seule) |
+| `anonymous` | aucune en-tête | `cases:read_public` (site public, lecture seule) |
 | `service` | `Authorization: Bearer <token>` | scopes du client de service |
 | `staff` | token de service + `X-Acting-Discord-Id: <id>` | **(permissions du membre, ou toutes pour un administrateur) ∩ scopes du service** |
 | `system` | processus internes (hangar, CLI) | tout |
@@ -28,8 +28,9 @@ membre ne peut pas dépasser ses rôles.
 
 ## Permissions
 
-`dossiers:read_public`, `dossiers:read`, `dossiers:create`, `dossiers:review`,
-`dossiers:decide`, `dossiers:publish`, `events:read`, `staff:read`, `staff:manage`,
+Les anciens noms `dossiers:*` stockés sur un jeton ou un membre restent acceptés (transition du renommage, `to_permission`).
+`cases:read_public`, `cases:read`, `cases:create`, `cases:review`,
+`cases:decide`, `cases:publish`, `events:read`, `staff:read`, `staff:manage`,
 `permissions:manage_others`, `permissions:manage_self`,
 `errors:read`, `errors:manage`, `content:ingest` (envoi de contenus : extension,
 radar), `watchlist:read`, `watchlist:write` (liste des comptes suivis), `usage:read`
@@ -42,10 +43,10 @@ commande `/factcheck`). Lot 4 : `claim_groups:manage` (fusion et scission, édit
 des profils : **admin** seulement), `levels:override` (forçage de niveau, éditeur).
 
 Brouillons de fact-check (voir [fact-check.md](fact-check.md#revue-e11-et-publication)) :
-lecture avec `dossiers:read` ; `accept` et `edit` avec `dossiers:review` enregistrent un
-avis favorable (`endorsed`), avec `dossiers:decide` ils valident le verdict ; `reject`
-exige `dossiers:decide`. La lecture publique d'un verdict validé
-(`GET /v1/content/{platform}/{external_id}/verdict`) relève de `dossiers:read_public`
+lecture avec `cases:read` ; `accept` et `edit` avec `cases:review` enregistrent un
+avis favorable (`endorsed`), avec `cases:decide` ils valident le verdict ; `reject`
+exige `cases:decide`. La lecture publique d'un verdict validé
+(`GET /v1/content/{platform}/{external_id}/verdict`) relève de `cases:read_public`
 (accordée aux anonymes).
 
 Elles sont vérifiées **dans les cas d'usage**, pas seulement dans l'API.
@@ -64,7 +65,7 @@ Sources : `core/usecases/staff.py`, `core/domain/security.py`, `gate/routes/staf
   permissions des `roles` (préréglages de la CLI `tower staff`) ∪ `permissions`. À la
   première modification, les permissions des rôles sont **matérialisées** dans
   `permissions` et `roles` est vidé : la liste explicite devient la seule source.
-- **Permissions attribuables** : toutes sauf `dossiers:read_public`, `content:ingest` et
+- **Permissions attribuables** : toutes sauf `cases:read_public`, `content:ingest` et
   `events:read` (propres au public et aux services).
 - **Qui peut quoi** : `staff:read` (lister, lire un membre ; soi-même sans permission),
   `staff:manage` (classer, déclasser ; jamais soi-même, `TWR-STF-004`),
@@ -87,7 +88,7 @@ administrateur protégé (409), `004` auto-classement (403), `005` cible non cla
 ## Tokens de service
 
 ```bash
-railway run tower create-service-token intercom --scopes dossiers:read dossiers:create dossiers:review dossiers:decide dossiers:publish events:read
+railway run tower create-service-token intercom --scopes cases:read cases:create cases:review cases:decide cases:publish events:read
 ```
 
 ```bash

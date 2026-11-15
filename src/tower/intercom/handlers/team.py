@@ -89,14 +89,14 @@ class Category:
 
 CATEGORIES: tuple[Category, ...] = (
     Category(
-        "dossiers",
+        "cases",
         emojis.FOLDER,
         (
-            "dossiers:read",
-            "dossiers:create",
-            "dossiers:review",
-            "dossiers:decide",
-            "dossiers:publish",
+            "cases:read",
+            "cases:create",
+            "cases:review",
+            "cases:decide",
+            "cases:publish",
         ),
     ),
     Category(
@@ -134,13 +134,13 @@ PERM_MANAGE_SELF = "permissions:manage_self"
 
 # --- Command -> required permission (``None``: any team member) ---------------------
 _COMMANDS: tuple[tuple[str, str, str | None], ...] = (
-    ("dossiers", "dossier show", "dossiers:read"),
-    ("dossiers", "dossier take", "dossiers:review"),
-    ("dossiers", "dossier validate", "dossiers:decide"),
-    ("dossiers", "dossier reject", "dossiers:decide"),
-    ("dossiers", "dossier publish", "dossiers:publish"),
+    ("cases", "case show", "cases:read"),
+    ("cases", "case take", "cases:review"),
+    ("cases", "case validate", "cases:decide"),
+    ("cases", "case reject", "cases:decide"),
+    ("cases", "case publish", "cases:publish"),
     ("factcheck", "factcheck", "factcheck:request"),
-    ("factcheck", "group show", "dossiers:read"),
+    ("factcheck", "group show", "cases:read"),
     ("factcheck", "group merge", "claim_groups:manage"),
     ("factcheck", "group split", "claim_groups:manage"),
     ("factcheck", "fact show", None),
@@ -148,13 +148,13 @@ _COMMANDS: tuple[tuple[str, str, str | None], ...] = (
     ("factcheck", "fact validate", "reference_facts:validate"),
     ("factcheck", "fact reject", "reference_facts:validate"),
     ("factcheck", "fact band", "reference_facts:validate"),
-    ("factcheck", "narrative list", "dossiers:read"),
-    ("factcheck", "narrative show", "dossiers:read"),
+    ("factcheck", "narrative list", "cases:read"),
+    ("factcheck", "narrative show", "cases:read"),
     ("factcheck", "narrative merge", "claim_groups:manage"),
     ("factcheck", "narrative split", "claim_groups:manage"),
-    ("factcheck", "narrative title", "dossiers:review"),
+    ("factcheck", "narrative title", "cases:review"),
     ("factcheck", "level set", "levels:override"),
-    ("factcheck", "level list", "dossiers:read"),
+    ("factcheck", "level list", "cases:read"),
     ("factcheck", "level revoke", "levels:override"),
     ("watchlist", "watchlist list", "watchlist:read"),
     ("watchlist", "watchlist add", "watchlist:write"),

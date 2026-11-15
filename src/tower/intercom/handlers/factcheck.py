@@ -1139,7 +1139,7 @@ async def post_draft(
     view: dict[str, Any],
     locale: str,
     *,
-    channel: str = "dossiers",
+    channel: str = "cases",
 ) -> bool:
     """Post one draft with its buttons, then mark it notified. ``True`` when posted."""
     draft_id = str(view["draft_id"])

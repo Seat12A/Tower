@@ -12,7 +12,7 @@ modération.
 | [architecture.md](architecture.md) | Vue d'ensemble, processus, flux, principes de scalabilité et de sobriété mémoire |
 | [configuration.md](configuration.md) | Toutes les variables d'environnement |
 | [database.md](database.md) | Tables, conventions, migrations (règles expand/contract) |
-| [dossiers.md](dossiers.md) | Cycle de vie des dossiers, permissions, publication |
+| [cases.md](cases.md) | Cycle de vie des cases, permissions, publication |
 | [events.md](events.md) | Bus d'événements (outbox, LISTEN/NOTIFY, consommateurs, SSE) |
 | [jobs.md](jobs.md) | File de travaux, worker hangar, relances, bail, maintenance |
 | [services.md](services.md) | Écrire et brancher un service (fact-check, modération…) |

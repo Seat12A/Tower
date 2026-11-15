@@ -72,7 +72,7 @@ mémoire (voir les mesures dans [fact-check.md](fact-check.md#mesures-du-lot-4))
 4. Créer le premier token et le premier admin :
 
 ```bash
-railway run --service gate tower create-service-token intercom --scopes dossiers:read dossiers:create dossiers:review dossiers:decide dossiers:publish events:read errors:read errors:manage watchlist:read watchlist:write usage:read
+railway run --service gate tower create-service-token intercom --scopes cases:read cases:create cases:review cases:decide cases:publish events:read errors:read errors:manage watchlist:read watchlist:write usage:read
 ```
 
 ```bash

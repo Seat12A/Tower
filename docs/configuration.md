@@ -241,9 +241,9 @@ Voir [intercom.md](intercom.md). Le token Discord et le token de gate sont des s
 | `TOWER_DISCORD_GUILD_ID` | vide | Serveur où synchroniser les commandes (immédiat) ; vide : synchronisation globale |
 | `TOWER_DISCORD_CHANNEL_INCIDENTS` | vide | Salon des incidents (`incident.opened`, `incident.reopened`) |
 | `TOWER_DISCORD_CHANNEL_BUDGET` | vide | Salon du budget (`budget.threshold_reached`) |
-| `TOWER_DISCORD_FORUM_DOSSIERS` | vide | Forum des dossiers : un post par dossier (voir [intercom.md](intercom.md#forum-des-dossiers)). Prioritaire sur le salon texte |
-| `TOWER_DISCORD_CHANNEL_DOSSIERS` | vide | Repli sans forum : cartes des dossiers et brouillons dans un salon texte |
-| `TOWER_DISCORD_CHANNEL_NARRATIVES` | vide | Alertes et bilans de vague ; à défaut, le salon texte des dossiers s'il n'y a pas de forum |
+| `TOWER_DISCORD_FORUM_CASES` | vide | Forum des cases : un post par case (voir [intercom.md](intercom.md#forum-des-cases)). Prioritaire sur le salon texte |
+| `TOWER_DISCORD_CHANNEL_CASES` | vide | Repli sans forum : cartes des cases et brouillons dans un salon texte. L'ancien nom `TOWER_DISCORD_CHANNEL_DOSSIERS` reste lu (transition) |
+| `TOWER_DISCORD_CHANNEL_NARRATIVES` | vide | Alertes et bilans de vague ; à défaut, le salon texte des cases s'il n'y a pas de forum |
 | `TOWER_DISCORD_CHANNEL_ADMIN` | vide | Salon d'administration (`watchlist.changed`, `extension_filters.published`) |
 | `TOWER_DISCORD_ALERT_ROLE_ID` | vide | Rôle Discord mentionné en tête d'une alerte de vague (`narrative.surge_detected` au palier `alert`) ; seul ce rôle peut être notifié, toute autre mention est neutralisée |
 | `TOWER_DISCORD_LOCALE` | `en` | **Dépréciée, ignorée** : les messages publics sont toujours en anglais (lecteurs inconnus) ; les réponses suivent la langue Discord de la personne. À retirer de Railway |

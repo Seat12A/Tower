@@ -55,7 +55,7 @@ Principes non négociables :
 
 ### Déjà fait
 
-- **Socle** : dossiers, outbox et SSE, file de jobs, services enfichables, auth (rôles
+- **Socle** : cases, outbox et SSE, file de jobs, services enfichables, auth (rôles
   `reviewer`, `editor`, `admin`), erreurs `TWR-*`.
 - **Partie 1** : routeur de modèles (`docs/llm.md`) et ingestion multi-plateforme
   (`docs/ingestion.md`).

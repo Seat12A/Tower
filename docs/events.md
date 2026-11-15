@@ -17,8 +17,8 @@ from tower.core.events import publish
 
 async with db.transaction() as session:
     ...  # changement d'état
-    await publish(session, "dossier.transitioned", payload,
-                  aggregate_type="dossier", aggregate_id=public_id, actor=actor.label)
+    await publish(session, "case.transitioned", payload,
+                  aggregate_type="case", aggregate_id=public_id, actor=actor.label)
 ```
 
 ## Lecture sans trou : `(xid, id)`
@@ -54,7 +54,7 @@ Le curseur public est la chaîne `"<xid>-<id>"` (opaque pour les clients).
 
 - Reprise par l'en-tête `Last-Event-ID` (EventSource l'envoie automatiquement) ou
   par `?after=<curseur>`. `after=0` : depuis le début ; défaut : depuis maintenant.
-- Filtre `?topics=dossier.opened&topics=incident.opened`.
+- Filtre `?topics=case.opened&topics=incident.opened`. Les anciens noms `dossier.opened` et `dossier.transitioned` sont encore acceptés dans le filtre (complétés par les nouveaux) et compris par le bot (transition du renommage).
 - Keepalive toutes les `TOWER_SSE_HEARTBEAT_SECONDS`.
 - Aucune connexion SQL n'est tenue par client : une session courte par lot, réveil
   par la connexion LISTEN partagée du réplica.
@@ -74,8 +74,8 @@ identifiant d'événement.
 
 | Topic | Émis par | Payload |
 |---|---|---|
-| `dossier.opened` | cas d'usage `open_dossier` | état du dossier |
-| `dossier.transitioned` | `transition`, `mark_published` | état + `from`, `to`, `reason` |
+| `case.opened` | cas d'usage `open_case` | état du case |
+| `case.transitioned` | `transition`, `mark_published` | état + `from`, `to`, `reason` |
 | `incident.opened` | reporter d'erreurs (sévérité ≥ error, nouvelle empreinte) | code, titre, sévérité, processus, lieu, message |
 | `incident.reopened` | reporter (erreur résolue qui réapparaît) | idem |
 | `incident.resolved` | `errors.service.resolve` | empreinte, code, note |
@@ -91,9 +91,9 @@ identifiant d'événement.
 | `claim.extracted` | cas d'usage `record_extraction` (service `factcheck`, E2), un par contenu | `content_id` (clé interne en chaîne), `content_public_id`, `platform`, `external_id`, `level`, `claim_ids`, `group_ids` |
 | `investigation.requested` | `record_extraction`, promotion N4 | `investigation_id`, `group_id`, `level`, `depth`, `content_id` |
 | `investigation.completed` | `complete_investigation` / `fail_investigation` (service `investigate`) | `investigation_id`, `group_id`, `level`, `depth`, `verdict_id`, `veracity`, `context_need`, `outcome` (`drafted`, `unverifiable_at_framing`, `failed`) |
-| `draft.ready` | cas d'usage `open_draft` (service `factcheck`, E10) | `draft_id` (= identifiant public du verdict), `dossier_id`, `group_id`, `level`, `veracity`, `context_need`, `confidence`, `platform`, `external_id`, `url` |
-| `draft.reviewed` | cas d'usage `review_draft` | `draft_id`, `dossier_id`, `decision`, `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `labels`, `reviewer` |
-| `verdict.published` | `review_draft`, à la validation (dossier `validated` ; la publication sur X reste manuelle) | `verdict_id`, `group_id`, `dossier_id`, `veracity`, `context_need`, `platform`, `external_id`, `retranslate_from` |
+| `draft.ready` | cas d'usage `open_draft` (service `factcheck`, E10) | `draft_id` (= identifiant public du verdict), `case_id`, `group_id`, `level`, `veracity`, `context_need`, `confidence`, `platform`, `external_id`, `url` |
+| `draft.reviewed` | cas d'usage `review_draft` | `draft_id`, `case_id`, `decision`, `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `labels`, `reviewer` |
+| `verdict.published` | `review_draft`, à la validation (case `validated` ; la publication sur X reste manuelle) | `verdict_id`, `group_id`, `case_id`, `veracity`, `context_need`, `platform`, `external_id`, `retranslate_from` |
 | `claim_group.created` | `record_extraction` (E3), nouveau groupe | `group_id`, `claim_id`, `level`, `content_id`, `rule` (règle d'E3), `related_group_id` (groupe proche suggéré pour une fusion manuelle, ou nul), `reference_fact_id`, `band`, `band_side` |
 | `claim_group.merged` | cas d'usage `merge_groups` (gate, bot) | `target_group_id`, `source_group_id`, `claim_ids` (affirmations déplacées : une scission de ces affirmations annule la fusion), `actor`, `reason` |
 | `claim_group.split` | cas d'usage `split_group` | `group_id`, `new_group_id`, `claim_ids`, `actor`, `reason` |

@@ -1,4 +1,4 @@
-"""Forum of dossiers: pure rendering (post, sections, tags, activity) and the event flow
+"""Forum of cases: pure rendering (post, sections, tags, activity) and the event flow
 with a fake gate and a fake Discord sink."""
 
 from __future__ import annotations
@@ -10,21 +10,21 @@ import pytest
 
 from tests.intercom_ui import assert_persistent, custom_ids
 from tests.test_intercom_factcheck import DRAFT, make_view
-from tower.intercom.forum import DossierForum
+from tower.intercom.forum import CaseForum
 from tower.intercom.gate_client import GateClient
 from tower.intercom.handlers import MAX_MESSAGE, Reply
 from tower.intercom.handlers import forum as fr
 from tower.intercom.i18n import t
 from tower.intercom.ui import emojis
 
-DOSSIER = "11111111-2222-3333-4444-555555555555"
+CASE = "11111111-2222-3333-4444-555555555555"
 
 
 def full_view(**overrides: Any) -> dict[str, Any]:
     source = {"url": "https://factually.example/a", "publisher": "Factually", "title": "t"}
     cite = {"label": "P1", "quote": "no evidence", "valid": True, "lang": "en", "source": source}
     view = make_view(
-        dossier={"id": DOSSIER, "status": "received", "discord_thread_id": None},
+        case={"id": CASE, "status": "received", "discord_thread_id": None},
         group={"id": "8ab7ea0e-b743-485d-8d60-3acfcf7df3c0", "members": 1},
         narrative={
             "id": "2024338f-5f51-43a1-895f-4b5e9f5cb48b",
@@ -80,7 +80,7 @@ def test_post_title_is_clipped_to_the_discord_limit() -> None:
 
 
 @pytest.mark.parametrize(
-    ("dossier_status", "draft_status", "status", "archived"),
+    ("case_status", "draft_status", "status", "archived"),
     [
         ("in_review", "draft", "endorsed", False),
         ("validated", "active", "validated", False),
@@ -89,11 +89,11 @@ def test_post_title_is_clipped_to_the_discord_limit() -> None:
         ("received", "superseded", "superseded", True),
     ],
 )
-def test_post_follows_the_dossier(
-    dossier_status: str, draft_status: str, status: str, archived: bool
+def test_post_follows_the_case(
+    case_status: str, draft_status: str, status: str, archived: bool
 ) -> None:
     view = full_view(status=draft_status)
-    post = fr.draft_post(view, dossier_status)
+    post = fr.draft_post(view, case_status)
     assert post.tags[0] == f"status.{status}"
     assert post.archived is archived
     labels = [b.label for b in post.starter.buttons]
@@ -165,9 +165,9 @@ def test_icons_are_all_or_nothing() -> None:
         assert not any(section_icons)
 
 
-def test_dossier_post_without_draft() -> None:
-    post = fr.dossier_post(
-        {"public_id": DOSSIER, "status": "received", "title": "Manual check", "x_post_id": "42"}
+def test_case_post_without_draft() -> None:
+    post = fr.case_post(
+        {"public_id": CASE, "status": "received", "title": "Manual check", "x_post_id": "42"}
     )
     assert post.name == "Manual check" and post.tags == ("status.to_review",)
     assert [b.label for b in post.starter.buttons] == ["Open post"]
@@ -215,8 +215,8 @@ class FakeSink:
 class ForumGate:
     def __init__(self, view: dict[str, Any]) -> None:
         self.view = view
-        self.dossier: dict[str, Any] = {
-            "public_id": DOSSIER,
+        self.case: dict[str, Any] = {
+            "public_id": CASE,
             "status": "received",
             "kind": "fact_check",
             "title": "Unemployment",
@@ -228,29 +228,29 @@ class ForumGate:
 
     async def link_discord_thread(self, public_id: str, thread_id: int) -> None:
         self.links.append((public_id, thread_id))
-        self.dossier["discord_thread_id"] = str(thread_id)
-        self.view["dossier"]["discord_thread_id"] = str(thread_id)
+        self.case["discord_thread_id"] = str(thread_id)
+        self.view["case"]["discord_thread_id"] = str(thread_id)
 
     async def get_draft(self, acting: object, draft_id: str) -> dict[str, Any]:
         return copy.deepcopy(self.view)
 
-    async def get_dossier(self, acting: object, public_id: str) -> dict[str, Any]:
-        return dict(self.dossier)
+    async def get_case(self, acting: object, public_id: str) -> dict[str, Any]:
+        return dict(self.case)
 
     async def mark_draft_notified(self, acting: object, draft_id: str) -> None:
         self.notified.append(draft_id)
         self.view["notified_at"] = "now"
 
 
-def make_forum(view: dict[str, Any]) -> tuple[DossierForum, ForumGate, FakeSink]:
+def make_forum(view: dict[str, Any]) -> tuple[CaseForum, ForumGate, FakeSink]:
     gate, sink = ForumGate(view), FakeSink()
-    return DossierForum(cast(GateClient, gate), sink), gate, sink
+    return CaseForum(cast(GateClient, gate), sink), gate, sink
 
 
 async def test_opening_then_draft_makes_one_post() -> None:
     forum, gate, sink = make_forum(full_view())
-    await forum.on_dossier_opened(dict(gate.dossier))
-    assert list(sink.posts) == [100] and gate.links == [(DOSSIER, 100)]
+    await forum.on_case_opened(dict(gate.case))
+    assert list(sink.posts) == [100] and gate.links == [(CASE, 100)]
     await forum.on_draft_ready({"draft_id": DRAFT})
     assert list(sink.posts) == [100]  # same post, upgraded to the full card
     assert sink.posts[100].starter.menu is not None
@@ -259,31 +259,31 @@ async def test_opening_then_draft_makes_one_post() -> None:
     # A replayed draft.ready changes nothing.
     await forum.on_draft_ready({"draft_id": DRAFT})
     assert len(sink.replies[100]) == 4 and gate.notified == [DRAFT]
-    # Opening replayed: the dossier already has its post.
-    await forum.on_dossier_opened(dict(gate.dossier))
+    # Opening replayed: the case already has its post.
+    await forum.on_case_opened(dict(gate.case))
     assert list(sink.posts) == [100]
 
 
 async def test_draft_without_opening_creates_the_post() -> None:
     forum, gate, sink = make_forum(full_view())
     assert await forum.show_draft(copy.deepcopy(gate.view))
-    assert list(sink.posts) == [100] and gate.links == [(DOSSIER, 100)]
+    assert list(sink.posts) == [100] and gate.links == [(CASE, 100)]
 
 
 async def test_deleted_post_is_recreated() -> None:
     forum, gate, sink = make_forum(full_view())
-    await forum.on_dossier_opened(dict(gate.dossier))
+    await forum.on_case_opened(dict(gate.case))
     sink.gone.add(100)
     await forum.on_draft_ready({"draft_id": DRAFT})
-    assert 101 in sink.posts and gate.links[-1] == (DOSSIER, 101)
+    assert 101 in sink.posts and gate.links[-1] == (CASE, 101)
 
 
 async def test_review_and_transitions_update_the_post() -> None:
     forum, gate, sink = make_forum(full_view())
     await forum.on_draft_ready({"draft_id": DRAFT})
     gate.view["status"] = "active"
-    gate.view["dossier"]["status"] = "validated"
-    gate.dossier["status"] = "validated"
+    gate.view["case"]["status"] = "validated"
+    gate.case["status"] = "validated"
     await forum.on_draft_reviewed(
         {
             "draft_id": DRAFT,
@@ -297,11 +297,11 @@ async def test_review_and_transitions_update_the_post() -> None:
     assert "<@9>" in sink.replies[100][-1].body
     replies = len(sink.replies[100])
     # The transition of the same decision adds no second line.
-    await forum.on_dossier_transitioned({"public_id": DOSSIER, "to": "validated"}, "discord:9")
+    await forum.on_case_transitioned({"public_id": CASE, "to": "validated"}, "discord:9")
     assert len(sink.replies[100]) == replies
-    gate.dossier.update(status="published", published_url="https://x.com/s/status/1")
-    gate.view["dossier"]["status"] = "published"
-    await forum.on_dossier_transitioned({"public_id": DOSSIER, "to": "published"}, "discord:9")
+    gate.case.update(status="published", published_url="https://x.com/s/status/1")
+    gate.view["case"]["status"] = "published"
+    await forum.on_case_transitioned({"public_id": CASE, "to": "published"}, "discord:9")
     assert sink.posts[100].archived and sink.posts[100].tags[0] == "status.published"
     assert "https://x.com/s/status/1" in sink.replies[100][-1].body
 
@@ -312,17 +312,17 @@ async def test_review_of_a_draft_never_shown_in_the_forum_is_ignored() -> None:
     assert sink.posts == {}
 
 
-async def test_manual_dossier_transitions_are_logged() -> None:
+async def test_manual_case_transitions_are_logged() -> None:
     forum, gate, sink = make_forum(full_view())
-    gate.dossier["draft_id"] = None
-    await forum.on_dossier_opened(dict(gate.dossier))
-    gate.dossier["status"] = "rejected"
-    await forum.on_dossier_transitioned({"public_id": DOSSIER, "to": "rejected"}, "discord:5")
+    gate.case["draft_id"] = None
+    await forum.on_case_opened(dict(gate.case))
+    gate.case["status"] = "rejected"
+    await forum.on_case_transitioned({"public_id": CASE, "to": "rejected"}, "discord:5")
     assert sink.posts[100].archived
     assert "Rejected" in sink.replies[100][-1].body
 
 
-async def test_notifier_routes_dossier_events_to_the_forum() -> None:
+async def test_notifier_routes_case_events_to_the_forum() -> None:
     from tower.intercom.gate_client import SseEvent
     from tower.intercom.notifier import Notifier
 
@@ -340,7 +340,7 @@ async def test_notifier_routes_dossier_events_to_the_forum() -> None:
 
     notifier = Notifier(cast(GateClient, gate), send, cursor_name="c", locale="en", forum=forum)
     assert "draft.reviewed" in notifier.topics
-    await notifier._handle(SseEvent("1-1", "dossier.opened", {"payload": dict(gate.dossier)}))
+    await notifier._handle(SseEvent("1-1", "case.opened", {"payload": dict(gate.case)}))
     await notifier._handle(SseEvent("1-2", "draft.ready", {"payload": {"draft_id": DRAFT}}))
     assert list(sink.posts) == [100] and sent == []  # nothing in the text channel
     assert cursors == ["1-1", "1-2"]

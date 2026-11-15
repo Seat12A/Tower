@@ -785,7 +785,7 @@ async def test_light_check_goes_to_the_top_share_of_new_n1_groups(db: Database) 
     await run_pass(db, settings)
     found = await jobs(db, names.JOB_LIGHT_CHECK)
     assert [j["group_id"] for j in found] == [ids[4]]  # 20 % of 5 = 1, the highest priority
-    assert found[0]["dossier_investigation_id"] is None
+    assert found[0]["case_investigation_id"] is None
     assert found[0]["_dedupe"] == names.light_check_key(ids[4], 0)
     assert (await last_runs(db))[0][5]["light_checks"] == 1
 

@@ -13,15 +13,16 @@ PostgreSQL 16 (Railway). SQLAlchemy 2 en asynchrone (asyncpg), migrations Alembi
 - Horodatages `TIMESTAMPTZ`, valeurs par défaut `now()` côté serveur.
 - Noms de contraintes et d'index déterministes (`NAMING_CONVENTION` dans
   `core/db/base.py`) : les migrations restent stables.
-- Verrouillage optimiste sur `dossiers.version`, verrou de ligne
+- Verrouillage optimiste sur `cases.version`, verrou de ligne
   (`SELECT … FOR UPDATE`) pour les transitions.
 
 ## Tables du socle
 
 | Table | Rôle |
 |---|---|
-| `dossiers` | Dossiers de fact-check ou de modération (`kind`), statut, post X, assignation, lien de publication, post du forum Discord (`discord_thread_id`, migration 0011), version |
-| `dossier_events` | Audit immuable : une ligne par transition (de, vers, acteur, motif, données) |
+| `cases` | Cases de fact-check ou de modération (`kind`), statut, post X, assignation, lien de publication, post du forum Discord (`discord_thread_id`, migration 0011), version |
+| *(vues)* `dossiers`, `dossier_events`, `dossier_claim_groups` | Vues de compatibilité de la migration 0012 (anciens noms de tables et de colonnes) pour le code encore déployé pendant la bascule ; supprimées au contract |
+| `case_events` | Audit immuable : une ligne par transition (de, vers, acteur, motif, données) |
 | `events` | Outbox transactionnelle (topic, agrégat, payload, acteur, `xid` de la transaction) |
 | `event_cursors` | Position de chaque consommateur nommé dans l'outbox |
 | `jobs` | File de travaux (file, type, payload, priorité, statut, tentatives, bail, dédoublonnage) |
@@ -53,7 +54,7 @@ X, CHECK de format (`^[0-9]{1,19}$`, borne `BIGINT`) sur `external_id`.
 | `watched_accounts` | `public_id`, `account_id` (unique), `category` (rôle public), `priority` (-100..100), `since_cursor`, `active`, `note`, `added_by`, `version` (verrou optimiste) |
 | `watched_account_events` | Audit immuable de la liste de suivi : `action`, `actor`, `changes` JSONB |
 | `content_items` | Clé interne `BIGINT`, `public_id`, `platform`, `external_id` (`UNIQUE (platform, external_id)`), `author_account_id`, `text` (d'origine), `lang`, `lang_confidence`, `lang_hint`, `useful_words`, `content_hash` (32 octets), `simhash BIGINT` et `simhash_b0..b3` (colonnes générées stockées), `parent_external_id`, `quoted_external_id`, `copy_of_id`, `metrics` JSONB, `metrics_at`, `created_at_platform`, `first_seen_at`, `last_seen_at`, `observation_count`, `verification` (`unverified`, `platform`, `verified`, `mismatch`, `unavailable` ; défaut `unverified`), `checked_at` (vérification par l'intégration publique, quel qu'en soit le résultat). **Non partitionnée** |
-| `content_snapshots` | Copie d'un contenu à un instant : `reason` (`dossier_opened`, `recheck`, `manual`), `text`, `metrics`, `data` |
+| `content_snapshots` | Copie d'un contenu à un instant : `reason` (`case_opened`, `recheck`, `manual`), `text`, `metrics`, `data` |
 | `media_assets` | `kind` (`image`, `video`, `audio`, `document`), `url`, `url_sha256` (unique), `sha256`, `phash` et `phash_b0..b3` (générées ; empreinte perceptuelle calculée par un job ultérieur), `first_seen_at` |
 | `content_media` | PK `(content_id, media_id)`, `position` |
 | `observations` | **Partitionnée par semaine** sur `observed_at` (PK `(id, observed_at)`), `content_id`, `platform`, `source` (`extension`, `radar`, `feed`), `installation_pseudonym` (16 octets ou NULL), `filter_version` |
@@ -79,7 +80,7 @@ les comptes encore en attente avant de rétablir `NOT NULL`.
 ## Fact-check, lot 3
 
 Migration `0005`, **expand** uniquement : nouvelles tables, colonne nullable
-`dossiers.content_id` (FK `content_items`, `ON DELETE SET NULL`), et source
+`cases.content_id` (FK `content_items`, `ON DELETE SET NULL`), et source
 d'observation `manual` ajoutée aux CHECK de `observations` et `observation_counters`
 (élargissement). Définitions détaillées du plan : [factcheck/donnees.md](factcheck/donnees.md) ;
 seules les tables utilisées par le lot 3 sont créées (pas d'embedding). Voir
@@ -98,8 +99,8 @@ seules les tables utilisées par le lot 3 sont créées (pas d'embedding). Voir
 | `citations` | Verdict ↔ passage : citation exacte, assertion appuyée, `valid` (trouvée mot pour mot dans l'original), `position` |
 | `context_notes` | Note d'un verdict : `context_type` (15 types), `regime` (`object`, `formulation`, `provisional`), `object_type`, `object_id`, texte et langue du rédacteur dans la langue du post, `links`, `status` (`draft`, `validated`, `rejected`, `expired`), `expires_at` (6 h au plus pour une note provisoire), `checks` (contrôles d'E9), `critic` (critique de pontage) |
 | `context_note_translations` | Une ligne par langue (langue du post comprise), unique `(note_id, lang)` : `text`, `fact_sheet`, `origin` (`original`, `human`, `machine`), `validated_by` |
-| `reviews` | Décision de revue : verdict, dossier, `reviewer`, `decision` (`accept`, `edit`, `reject`), `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `diff`, `labels text[]`, `reason`, `review_seconds` |
-| `dossier_claim_groups` | PK `(dossier_id, claim_group_id)` |
+| `reviews` | Décision de revue : verdict, case, `reviewer`, `decision` (`accept`, `edit`, `reject`), `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `diff`, `labels text[]`, `reason`, `review_seconds` |
+| `case_claim_groups` | PK `(case_id, claim_group_id)` |
 | `source_registry` | Registre minimal : `domain` (unique, correspondance par suffixe), `publisher`, `tier`, `kind`, `country`, `reason`, `origin` (`seed`, `team`), `version`. Tout domaine absent est tertiaire |
 | `source_cache` | Cache des sources et des recherches : `key` (SHA-256 de l'adaptateur et de la requête canonique, PK), `adapter`, `response` JSONB, `fetched_at`, `expires_at` (indexé, purge horaire) |
 

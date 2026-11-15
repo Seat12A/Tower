@@ -371,7 +371,7 @@ class Verdict(Base):
     route_versions: Mapped[dict[str, Any]] = mapped_column(server_default=_EMPTY_JSON)
     expires_at: Mapped[datetime | None] = mapped_column()
     drafted_at: Mapped[datetime | None] = mapped_column()
-    """Set when the draft entered the review queue (dossier opened, quota counted)."""
+    """Set when the draft entered the review queue (case opened, quota counted)."""
     notified_at: Mapped[datetime | None] = mapped_column()
     """Set by the bot once the draft is displayed in Discord (reconciliation)."""
     validated_at: Mapped[datetime | None] = mapped_column()
@@ -471,8 +471,8 @@ class Review(Base):
     verdict_id: Mapped[int] = mapped_column(
         ForeignKey("verdicts.id", ondelete="CASCADE"), index=True
     )
-    dossier_id: Mapped[int | None] = mapped_column(
-        ForeignKey("dossiers.id", ondelete="SET NULL"), index=True
+    case_id: Mapped[int | None] = mapped_column(
+        ForeignKey("cases.id", ondelete="SET NULL"), index=True
     )
     reviewer: Mapped[str] = mapped_column(Text)
     """Actor label (``staff:<discord id>``)."""
@@ -486,11 +486,11 @@ class Review(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
-class DossierClaimGroup(Base):
-    __tablename__ = "dossier_claim_groups"
-    __table_args__ = (PrimaryKeyConstraint("dossier_id", "claim_group_id"),)
+class CaseClaimGroup(Base):
+    __tablename__ = "case_claim_groups"
+    __table_args__ = (PrimaryKeyConstraint("case_id", "claim_group_id"),)
 
-    dossier_id: Mapped[int] = mapped_column(ForeignKey("dossiers.id", ondelete="CASCADE"))
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id", ondelete="CASCADE"))
     claim_group_id: Mapped[int] = mapped_column(
         ForeignKey("claim_groups.id", ondelete="CASCADE"), index=True
     )

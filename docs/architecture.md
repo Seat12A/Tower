@@ -40,7 +40,7 @@ src/tower/
     logging.py           logs JSON compatibles Railway
     runtime.py           signaux, uvloop, arrêt gracieux
     db/                  moteur, sessions, Base, types PG
-    domain/              PUR : dossiers, sécurité, erreurs, catalogue de codes
+    domain/              PUR : cases, sécurité, erreurs, catalogue de codes
     models/              tables SQLAlchemy
     usecases/            seule porte d'entrée pour modifier l'état métier
     events/              outbox, listener LISTEN, consommateurs
@@ -92,9 +92,9 @@ domain  ←  models / events / jobs / errors / auth  ←  usecases  ←  gate, h
 
 ## Flux type
 
-1. Un client appelle gate : `POST /v1/dossiers/{id}/transitions`.
+1. Un client appelle gate : `POST /v1/cases/{id}/transitions`.
 2. gate résout l'acteur et ouvre une transaction ; le cas d'usage verrouille la ligne,
-   vérifie la transition, écrit `dossier_events` et insère `dossier.transitioned` dans
+   vérifie la transition, écrit `case_events` et insère `case.transitioned` dans
    l'outbox, puis appelle `pg_notify`.
 3. Au commit, PostgreSQL délivre la notification :
    - le flux SSE de gate pousse l'événement au bot ;

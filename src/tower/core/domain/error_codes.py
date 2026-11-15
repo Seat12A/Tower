@@ -91,8 +91,8 @@ AUTH_UNKNOWN_STAFF = _define(
 )
 AUTH_FORBIDDEN = _define("TWR-AUTH-005", "Missing permission", http_status=403, severity=_INFO)
 
-# --- DOS: dossiers ------------------------------------------------------------
-DOS_NOT_FOUND = _define("TWR-DOS-001", "Dossier not found", http_status=404, severity=_INFO)
+# --- DOS: cases ------------------------------------------------------------
+DOS_NOT_FOUND = _define("TWR-DOS-001", "Case not found", http_status=404, severity=_INFO)
 DOS_INVALID_TRANSITION = _define(
     "TWR-DOS-002", "Forbidden status transition", http_status=409, severity=_INFO
 )

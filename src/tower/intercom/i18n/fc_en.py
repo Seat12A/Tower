@@ -8,7 +8,7 @@ MESSAGES: dict[str, str] = {
     "fc.modal.reason.hint": "Recorded in the journal.",
     # --- /factcheck ---------------------------------------------------------------------
     "factcheck.accepted.title": "Fact-check requested",
-    "factcheck.accepted": "The draft will appear in the dossiers channel.",
+    "factcheck.accepted": "The draft will appear in the cases channel.",
     "factcheck.duplicate.title": "Already requested",
     "factcheck.duplicate": "A fact-check of this post is already queued.",
     "factcheck.detail.platform": "Platform",
@@ -151,8 +151,8 @@ MESSAGES: dict[str, str] = {
     "notify.title.incident.opened": "Incident opened",
     "notify.title.incident.reopened": "Incident reopened",
     "notify.title.budget": "Budget threshold reached",
-    "notify.title.dossier.opened": "New dossier",
-    "notify.title.dossier.transitioned": "Dossier updated",
+    "notify.title.case.opened": "New case",
+    "notify.title.case.transitioned": "Case updated",
     "notify.title.watchlist.added": "Watchlist: account added",
     "notify.title.watchlist.updated": "Watchlist: account updated",
     "notify.title.watchlist.resolved": "Watchlist: account resolved",
@@ -165,15 +165,15 @@ MESSAGES: dict[str, str] = {
     "notify.label.threshold": "Threshold",
     "notify.label.spent": "Spent",
     "notify.label.cap": "Cap",
-    "notify.label.dossier": "Dossier",
+    "notify.label.case": "Case",
     "notify.label.platform": "Platform",
     "notify.label.from": "From",
     "notify.label.to": "To",
     "notify.label.account": "Account",
     "notify.label.category": "Category",
     "notify.label.version": "Version",
-    # --- forum of dossiers (public: rendered in English) ---
-    "forum.untitled": "Untitled dossier",
+    # --- forum of cases (public: rendered in English) ---
+    "forum.untitled": "Untitled case",
     "forum.reinforced": "reinforced",
     "forum.status.to_review": "To review",
     "forum.status.endorsed": "Endorsed, awaiting an editor",
@@ -201,7 +201,7 @@ MESSAGES: dict[str, str] = {
     "forum.more.group.help": "Claims, posts and platforms of the group",
     "forum.more.narrative": "Show the narrative",
     "forum.more.narrative.help": "Groups and activity of the narrative",
-    "forum.footer.dossier": "Dossier `{id}`",
+    "forum.footer.case": "Case `{id}`",
     "forum.footer.draft": "Draft `{id}`",
     "forum.footer.group": "Group `{id}`",
     "forum.footer.narrative": "Narrative `{id}`",
@@ -218,18 +218,18 @@ MESSAGES: dict[str, str] = {
     "forum.activity.corrected": "{who} corrected the draft: {verdict}",
     "forum.activity.rejected": "{who} rejected the draft",
     "forum.activity.published": "{who} recorded the publication: <{url}>",
-    "forum.activity.transitioned": "{who} moved the dossier to {status}",
+    "forum.activity.transitioned": "{who} moved the case to {status}",
     "forum.activity.reason": "reason: {reason}",
     "forum.activity.awaiting_editor": "awaiting an editor",
     "forum.no_narrative": "This draft has no narrative.",
     "forum.guide.title": "How to review",
     "forum.guide.body": (
-        "One post = one dossier. The first message of a post is its only control panel: "
+        "One post = one case. The first message of a post is its only control panel: "
         "status, claim, proposed verdict and note, and every action (decision buttons, "
         "then the **More actions** menu). The thread holds, always in this order: "
         "**Evidence** (rationale, quotes, sources listed once), **Gaps & checks**, "
         "**Quality warnings**, **Context** (group, narrative, coordination signals, "
-        "reference fact), then one line per action taken. Discuss the dossier in the "
+        "reference fact), then one line per action taken. Discuss the case in the "
         "thread."
     ),
     "forum.guide.tags": (

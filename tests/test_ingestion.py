@@ -543,7 +543,7 @@ async def test_endpoint_auth(
     )
     assert r.status_code == 422
 
-    other = await make_token("other", [Permission.DOSSIER_READ])
+    other = await make_token("other", [Permission.CASE_READ])
     r = await post(client, [item(3)], headers={"Authorization": f"Bearer {other}"})
     assert r.status_code == 403 and r.json()["error"]["code"] == "TWR-AUTH-005"
 

@@ -21,7 +21,7 @@ avant le lot V1.
 | `watched_accounts` | Compte suivi : catégorie, priorité, curseur de lecture (`since`), actif, ajouté par | Liste tenue par l'équipe, publication recommandée |
 | `content_items` | Voir [plateformes-medias.md](plateformes-medias.md) ; clé interne `BIGINT` ; `UNIQUE (platform, external_id)` ; empreinte exacte, SimHash et bandes | **Non partitionnée** ; index sur expression pour les IDs X |
 | `content_embeddings` | Vecteur du post (`halfvec(512)`), modèle | Partitionnée par semaine, **sans index vectoriel**, conservée 14 jours |
-| `content_snapshots` | Copie du contenu à un instant (ouverture de dossier, revérification) | Déjà prévu par le socle |
+| `content_snapshots` | Copie du contenu à un instant (ouverture de case, revérification) | Déjà prévu par le socle |
 | `observations` | Source (extension, radar, flux), installation, horodatage, version des filtres de l'extension | **Partitionnée** (par semaine ou par mois) ; au-delà d'un seuil par contenu, agrégée en compteurs |
 | `extension_filter_versions` | Version des filtres serveur de l'extension, date | Gel des bases de détection de vague 24 h après un changement |
 | `observation_counters` | Contenu, heure, source, nombre | Tenue en charge des vagues |
@@ -37,7 +37,7 @@ avant le lot V1.
 | `claim_groups` | Affirmation représentative, niveau courant, état (`dormant`, `queued`, `investigating`, `verified`, `to_revalidate`, `passive`), portée cumulée, vecteur représentatif (**seul index vectoriel HNSW**), fiche et bande de valeurs, verdict actif |
 | `claim_group_members` | Lien affirmation ↔ groupe, avec historique (fusions et scissions réversibles) |
 | `claim_group_events` | Journal : création, fusion, scission, changement de niveau, auteur, motif |
-| `narratives` | Titre neutre, état (`active`, `watch`, `surge`, `alert`, `closed`), 1 à 3 médoïdes (fondateur fixe + deux groupes à plus forte portée), thème, dates d'ouverture et de clôture, récit précédent (résurgence), dossier de preuves |
+| `narratives` | Titre neutre, état (`active`, `watch`, `surge`, `alert`, `closed`), 1 à 3 médoïdes (fondateur fixe + deux groupes à plus forte portée), thème, dates d'ouverture et de clôture, récit précédent (résurgence), case de preuves |
 | `narrative_groups` | Lien groupe ↔ récit, avec historique |
 | `narrative_stats` | Agrégats par fenêtre (5 min, 1 h, 6 h) : posts, part du flux observé, comptes, plateformes, portée |
 | `narrative_novelty` | Empreintes de nouveautés (chiffre normalisé, lien, mention, média, entité), nombre de posts et de comptes, passage forcé |
@@ -78,11 +78,11 @@ déterministe d'E3 soit une requête SQL indexable.
 | `citations` | Verdict ↔ passage, citation exacte, assertion appuyée |
 | `context_note_translations` | Note, langue, texte, origine (`original`, `human`, `machine`), validée par | Traductions générées à la demande et mises en cache |
 | `context_notes` | Type (15 types), régime (`object`, `formulation`, `provisional`), objet rattaché (`object_type` : média, indicateur, texte juridique avec version, événement, document cité, citation ; `object_id`) ou groupe, texte (≤ 280) par langue, liens, statut, `expires_at` (6 h au plus pour une note provisoire), résultats des contrôles |
-| `reviews` | Dossier, relecteur, décision, issue finale, diff brouillon → publié, étiquettes d'apprentissage, temps de relecture |
+| `reviews` | Case, relecteur, décision, issue finale, diff brouillon → publié, étiquettes d'apprentissage, temps de relecture |
 
-Le lien avec le socle : un brouillon ouvre un **dossier** (`dossiers`, type
-`fact_check`) ; une table `dossier_claim_groups` relie un dossier à un ou plusieurs
-groupes (prévu dans [../dossiers.md](../dossiers.md), section « À venir »).
+Le lien avec le socle : un brouillon ouvre un **case** (`cases`, type
+`fact_check`) ; une table `case_claim_groups` relie un case à un ou plusieurs
+groupes (prévu dans [../cases.md](../cases.md), section « À venir »).
 
 ## Modèles, coûts, profils
 

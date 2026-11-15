@@ -1,10 +1,10 @@
 """Narratives: creation, attachment, state changes, medoids, titles, merge and split.
 
-A narrative groups claim groups that tell the same story. It shares an evidence dossier
+A narrative groups claim groups that tell the same story. It shares an evidence case
 and an alert, never a verdict (docs/factcheck/vagues.md). Every change is journaled in
 ``narrative_events``; merges, splits and surge transitions publish an event in the same
 transaction. Automatic operations use a system actor; merge and split need
-``GROUPS_MANAGE``, title validation ``DOSSIER_REVIEW``.
+``GROUPS_MANAGE``, title validation ``CASE_REVIEW``.
 """
 
 from __future__ import annotations
@@ -563,7 +563,7 @@ async def validate_title(
     title: str | None = None,
 ) -> Narrative:
     """A reviewer validates the draft title, or replaces it by ``title``."""
-    actor.require(Permission.DOSSIER_REVIEW)
+    actor.require(Permission.CASE_REVIEW)
     narrative = await get_narrative(session, narrative_id, lock=True)
     new_title = (title or "").strip() or narrative.title
     if not new_title:

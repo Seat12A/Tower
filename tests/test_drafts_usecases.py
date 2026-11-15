@@ -13,9 +13,10 @@ from tower.core.domain.errors import Conflict, InvalidInput, NotFound, Permissio
 from tower.core.domain.factcheck.urls import content_url, parse_content_url
 from tower.core.domain.security import Actor, Permission, Role
 from tower.core.factcheck import names
-from tower.core.models.dossiers import Dossier
+from tower.core.models.cases import Case
 from tower.core.models.events import Event
 from tower.core.models.factcheck import (
+    CaseClaimGroup,
     Citation,
     Claim,
     ClaimGroup,
@@ -23,7 +24,6 @@ from tower.core.models.factcheck import (
     ContentClaim,
     ContextNote,
     ContextNoteTranslation,
-    DossierClaimGroup,
     EvidencePassage,
     Investigation,
     Review,
@@ -47,8 +47,8 @@ class Built:
     verdict_id: int
     group_id: int
     note_id: int
-    dossier: uuid.UUID
-    dossier_id: int
+    case: uuid.UUID
+    case_id: int
     content_id: int
     claim_id: int
     passage_id: int
@@ -66,7 +66,7 @@ async def build_draft(
     flags: dict[str, Any] | None = None,
 ) -> Built:
     """Insert a complete draft (claim, group, investigation, sources, citations, note,
-    translations, dossier) the way E9 and E10 leave it."""
+    translations, case) the way E9 and E10 leave it."""
     async with db.transaction() as s:
         content = ContentItem(
             platform="x",
@@ -219,16 +219,16 @@ async def build_draft(
                     origin="machine",
                 )
             )
-        dossier = Dossier(
+        case = Case(
             kind="fact_check",
             status="received",
             x_post_id=int(ext),
             content_id=content.id,
             opened_by="system:factcheck",
         )
-        s.add(dossier)
+        s.add(case)
         await s.flush()
-        s.add(DossierClaimGroup(dossier_id=dossier.id, claim_group_id=group.id))
+        s.add(CaseClaimGroup(case_id=case.id, claim_group_id=group.id))
         await s.flush()
         assert previous_id is None or previous_id != verdict.id
         return Built(
@@ -236,8 +236,8 @@ async def build_draft(
             verdict_id=verdict.id,
             group_id=group.id,
             note_id=note.id,
-            dossier=dossier.public_id,
-            dossier_id=dossier.id,
+            case=case.public_id,
+            case_id=case.id,
             content_id=content.id,
             claim_id=claim.id,
             passage_id=passage.id,
@@ -346,7 +346,7 @@ async def test_get_draft_view(db: Database) -> None:
         "url": f"https://x.com/i/status/{EXT}",
         "lang": "fr",
     }
-    assert view.dossier == {"id": str(built.dossier), "status": "received"}
+    assert view.case == {"id": str(built.case), "status": "received"}
     assert set(view.notes) == {"fr"} and view.notes["fr"]["origin"] == "machine"
     assert view.links == [f"https://insee.example/{EXT}"]
     cites = view.rationale[0]["citations"]
@@ -399,14 +399,14 @@ async def test_accept_by_reviewer_is_an_endorsement(db: Database) -> None:
     async with db.transaction() as s:
         result = await uc.review_draft(s, REVIEWER, built.verdict, decision="accept")
     assert result.outcome == "endorsed" and result.draft.status == "draft"
-    assert result.draft.dossier == {"id": str(built.dossier), "status": "in_review"}
+    assert result.draft.case == {"id": str(built.case), "status": "in_review"}
     verdict = await verdict_row(db, built.verdict)
     assert verdict.status == "draft" and verdict.validated_at is None
-    assert [e.topic for e in await events(db)] == ["dossier.transitioned", "draft.reviewed"]
+    assert [e.topic for e in await events(db)] == ["case.transitioned", "draft.reviewed"]
     payload = (await events(db, "draft.reviewed"))[0].payload
     assert payload["outcome"] == "endorsed" and payload["reviewer"] == REVIEWER.label
-    assert payload["dossier_id"] == str(built.dossier)
-    # a second reviewer may endorse as well; the dossier is already in review
+    assert payload["case_id"] == str(built.case)
+    # a second reviewer may endorse as well; the case is already in review
     other = Actor.staff(1003, frozenset({Role.REVIEWER}), SERVICE)
     async with db.transaction() as s:
         again = await uc.review_draft(s, other, built.verdict, decision="accept")
@@ -414,7 +414,7 @@ async def test_accept_by_reviewer_is_an_endorsement(db: Database) -> None:
     async with db.session() as s:
         rows = (await s.scalars(select(Review).order_by(Review.id))).all()
     assert [r.reviewer for r in rows] == [REVIEWER.label, other.label]
-    assert len(await events(db, "dossier.transitioned")) == 1
+    assert len(await events(db, "case.transitioned")) == 1
 
 
 async def test_edit_by_reviewer_records_the_proposal_only(db: Database) -> None:
@@ -447,7 +447,7 @@ async def test_accept_by_editor_validates(db: Database) -> None:
             s, EDITOR, built.verdict, decision="accept", labels=["wrong_context", "wrong_context"]
         )
     assert result.outcome == "validated" and result.draft.status == "active"
-    assert result.draft.dossier == {"id": str(built.dossier), "status": "validated"}
+    assert result.draft.case == {"id": str(built.case), "status": "validated"}
     verdict = await verdict_row(db, built.verdict)
     assert verdict.status == "active" and verdict.validated_by == EDITOR.label
     assert verdict.validated_at is not None
@@ -467,8 +467,8 @@ async def test_accept_by_editor_validates(db: Database) -> None:
     assert all(r.validated_by == EDITOR.label for r in rows.values()) and set(rows) == {"fr", "en"}
     topics = [e.topic for e in await events(db)]
     assert topics == [
-        "dossier.transitioned",
-        "dossier.transitioned",
+        "case.transitioned",
+        "case.transitioned",
         "draft.reviewed",
         "verdict.published",
     ]
@@ -476,7 +476,7 @@ async def test_accept_by_editor_validates(db: Database) -> None:
     assert published == {
         "verdict_id": str(built.verdict),
         "group_id": published["group_id"],
-        "dossier_id": str(built.dossier),
+        "case_id": str(built.case),
         "veracity": "false",
         "context_need": "necessary",
         "platform": "x",
@@ -594,7 +594,7 @@ async def test_reject_by_editor(db: Database) -> None:
             labels=["wrong_source"],
         )
     assert result.outcome == "rejected" and result.draft.status == "rejected"
-    assert result.draft.dossier == {"id": str(built.dossier), "status": "rejected"}
+    assert result.draft.case == {"id": str(built.case), "status": "rejected"}
     async with db.session() as s:
         note = await s.get(ContextNote, built.note_id)
         assert note is not None and note.status == "rejected"
@@ -603,8 +603,8 @@ async def test_reject_by_editor(db: Database) -> None:
         review = (await s.scalars(select(Review))).one()
         assert review.outcome == "rejected" and review.reason == "Not checkable"
     assert [e.topic for e in await events(db)] == [
-        "dossier.transitioned",
-        "dossier.transitioned",
+        "case.transitioned",
+        "case.transitioned",
         "draft.reviewed",
     ]
 
@@ -656,8 +656,8 @@ async def test_validation_rolls_back_as_a_whole(db: Database) -> None:
     assert (await verdict_row(db, built.verdict)).status == "draft"
     assert await events(db) == []
     async with db.session() as s:
-        dossier = (await s.scalars(select(Dossier))).one()
-        assert dossier.status == "received"
+        case = (await s.scalars(select(Case))).one()
+        assert case.status == "received"
 
 
 # --- manual request ------------------------------------------------------------------

@@ -737,8 +737,8 @@ async def _wave_effects(
 async def _light_checks(
     session: AsyncSession, settings: Settings, narrative: Narrative, counters: dict[str, int]
 ) -> None:
-    """Groups of a surging narrative are judged on the dossier of the representative
-    investigation once it holds kept passages (and again if the dossier is newer than
+    """Groups of a surging narrative are judged on the case of the representative
+    investigation once it holds kept passages (and again if the case is newer than
     their last check)."""
     representative = narrative.representative_group_id
     if representative is None:
@@ -781,7 +781,7 @@ async def _light_checks(
             session,
             QUEUE,
             names.JOB_LIGHT_CHECK,
-            {"group_id": int(group_id), "dossier_investigation_id": investigation.id},
+            {"group_id": int(group_id), "case_investigation_id": investigation.id},
             dedupe_key=names.light_check_key(int(group_id), version),
         )
         if queued is not None:

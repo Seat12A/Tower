@@ -20,7 +20,7 @@ MODULES = (
     "team",
     "permissions",
     "watchlist",
-    "dossiers",
+    "cases",
     "incidents",
     "usage",
     "profiles",

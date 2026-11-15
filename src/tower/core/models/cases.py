@@ -9,18 +9,18 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from tower.core.db.base import Base
-from tower.core.domain.dossiers import DossierKind, DossierStatus
+from tower.core.domain.cases import CaseKind, CaseStatus
 from tower.core.models._helpers import check_in
 
 
-class Dossier(Base):
-    """Verification or moderation dossier concerning an X post."""
+class Case(Base):
+    """Verification or moderation case concerning an X post."""
 
-    __tablename__ = "dossiers"
+    __tablename__ = "cases"
     __table_args__ = (
-        check_in("kind", DossierKind, "kind"),
-        check_in("status", DossierStatus, "status"),
-        Index("ix_dossiers_status_kind_created", "status", "kind", "created_at"),
+        check_in("kind", CaseKind, "kind"),
+        check_in("status", CaseStatus, "status"),
+        Index("ix_cases_status_kind_created", "status", "kind", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -33,14 +33,14 @@ class Dossier(Base):
     content_id: Mapped[int | None] = mapped_column(
         ForeignKey("content_items.id", ondelete="SET NULL"), index=True
     )
-    """Content the dossier is about (any platform); ``x_post_id`` is kept for X."""
+    """Content the case is about (any platform); ``x_post_id`` is kept for X."""
     title: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
     assigned_to: Mapped[int | None] = mapped_column(BigInteger)
-    """Discord ID of the verifier who took the dossier for review."""
+    """Discord ID of the verifier who took the case for review."""
     published_url: Mapped[str | None] = mapped_column(Text)
     discord_thread_id: Mapped[int | None] = mapped_column(BigInteger)
-    """Discord forum post (thread) showing the dossier; set by intercom."""
+    """Discord forum post (thread) showing the case; set by intercom."""
     opened_by: Mapped[str] = mapped_column(Text)
     version: Mapped[int] = mapped_column(server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
@@ -49,15 +49,13 @@ class Dossier(Base):
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
 
 
-class DossierEvent(Base):
+class CaseEvent(Base):
     """Immutable audit log: one row per transition."""
 
-    __tablename__ = "dossier_events"
+    __tablename__ = "case_events"
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
-    dossier_id: Mapped[int] = mapped_column(
-        ForeignKey("dossiers.id", ondelete="RESTRICT"), index=True
-    )
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id", ondelete="RESTRICT"), index=True)
     from_status: Mapped[str | None] = mapped_column(Text)
     to_status: Mapped[str] = mapped_column(Text)
     actor: Mapped[str] = mapped_column(Text)

@@ -209,7 +209,7 @@ async def test_discord_client_registers_the_narrative_commands(gate: GateClient)
 
     from .conftest import make_settings
 
-    client = _build_client(make_settings(), gate, asyncio.Event(), {"dossiers": 1}, "en", True)
+    client = _build_client(make_settings(), gate, asyncio.Event(), {"cases": 1}, "en", True)
     commands = {
         c.name: {s.name for s in getattr(c, "commands", [])} for c in client.tree.get_commands()
     }

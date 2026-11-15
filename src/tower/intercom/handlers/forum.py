@@ -1,4 +1,4 @@
-"""Forum of dossiers: one forum post per dossier, rendered as pure data.
+"""Forum of cases: one forum post per case, rendered as pure data.
 
 A post has a **starter message** (the only control panel: status, claim, proposed
 verdict and note, alert counts, the decision buttons and one "More actions" menu) and a
@@ -29,7 +29,7 @@ __all__ = [
     "Post",
     "activity_line",
     "all_or_none",
-    "dossier_post",
+    "case_post",
     "draft_post",
     "draft_sections",
     "status_of",
@@ -126,8 +126,8 @@ class Post:
 # --- status and tags -------------------------------------------------------------------
 
 
-def status_of(dossier_status: object, draft_status: object = None) -> str:
-    """Forum status of a dossier (and of its draft when it has one)."""
+def status_of(case_status: object, draft_status: object = None) -> str:
+    """Forum status of a case (and of its draft when it has one)."""
     if draft_status == "superseded":
         return "superseded"
     return {
@@ -136,7 +136,7 @@ def status_of(dossier_status: object, draft_status: object = None) -> str:
         "validated": "validated",
         "published": "published",
         "rejected": "rejected",
-    }.get(str(dossier_status), "to_review")
+    }.get(str(case_status), "to_review")
 
 
 def _needs_attention(view: dict[str, Any]) -> bool:
@@ -251,11 +251,11 @@ def _attention_line(view: dict[str, Any]) -> str:
     return f"{icon} " + " · ".join(parts) + " " + _t("forum.post.see_thread")
 
 
-def draft_post(view: dict[str, Any], dossier_status: object = None) -> Post:
-    """The post of a dossier that has a fact-check draft."""
+def draft_post(view: dict[str, Any], case_status: object = None) -> Post:
+    """The post of a case that has a fact-check draft."""
     draft_id = str(view.get("draft_id", ""))
-    dossier = view.get("dossier") or {}
-    status = status_of(dossier_status or dossier.get("status"), view.get("status"))
+    case = view.get("case") or {}
+    status = status_of(case_status or case.get("status"), view.get("status"))
     if status == "to_review" and view.get("status") == "active":
         status = "validated"
     if view.get("status") == "rejected":
@@ -271,7 +271,7 @@ def draft_post(view: dict[str, Any], dossier_status: object = None) -> Post:
     url = (view.get("content") or {}).get("url")
     narrative = view.get("narrative") or {}
     group = view.get("group") or {}
-    ids = [_t("forum.footer.dossier", id=short(dossier.get("id", "?")))] if dossier else []
+    ids = [_t("forum.footer.case", id=short(case.get("id", "?")))] if case else []
     ids.append(_t("forum.footer.draft", id=short(draft_id)))
     if group.get("id"):
         ids.append(_t("forum.footer.group", id=short(group["id"])))
@@ -335,27 +335,27 @@ def draft_post(view: dict[str, Any], dossier_status: object = None) -> Post:
     )
 
 
-def dossier_post(dossier: dict[str, Any]) -> Post:
-    """The post of a dossier without a draft (manual dossier, moderation): title,
-    platform, status. Its actions stay in ``/dossier``."""
-    status = status_of(dossier.get("status"))
+def case_post(case: dict[str, Any]) -> Post:
+    """The post of a case without a draft (manual case, moderation): title,
+    platform, status. Its actions stay in ``/case``."""
+    status = status_of(case.get("status"))
     title, icon = _status_title(status)
-    public_id = str(dossier.get("public_id") or dossier.get("id") or "?")
-    platform = str(dossier.get("platform") or ("x" if dossier.get("x_post_id") else "-"))
-    x_post = dossier.get("x_post_id")
+    public_id = str(case.get("public_id") or case.get("id") or "?")
+    platform = str(case.get("platform") or ("x" if case.get("x_post_id") else "-"))
+    x_post = case.get("x_post_id")
     url = f"https://x.com/i/status/{x_post}" if x_post else None
     starter = Reply(
         title=title,
         icon=icon,
         accent=_STATUS_ACCENTS[status],  # type: ignore[arg-type]
-        body=fc._quote_block(str(dossier.get("title") or _t("forum.untitled"))),
+        body=fc._quote_block(str(case.get("title") or _t("forum.untitled"))),
         details=((_t("notify.label.platform"), f"`{platform}`"),),
-        footer=_t("forum.footer.dossier", id=short(public_id)),
+        footer=_t("forum.footer.case", id=short(public_id)),
         buttons=_bar([], url),
         ephemeral=False,
     )
     return Post(
-        name=_name(dossier.get("title")),
+        name=_name(case.get("title")),
         tags=_tags(status, None, None, []),
         starter=starter,
         archived=status in _FINAL_STATUSES,

@@ -38,13 +38,13 @@ async def serve(settings: Settings, stop: asyncio.Event, *, dry_run: bool = Fals
 
     gate = GateClient(settings.gate_url, gate_token)
     locale = PUBLIC_LOCALE  # public messages: readers' language unknown
-    forum_id = settings.discord_forum_dossiers
+    forum_id = settings.discord_forum_cases
     channel_ids: dict[str, int | None] = {
         "incidents": settings.discord_channel_incidents,
         "budget": settings.discord_channel_budget,
-        "dossiers": None if forum_id else settings.discord_channel_dossiers,
+        "cases": None if forum_id else settings.discord_channel_cases,
         "narratives": settings.discord_channel_narratives
-        or (None if forum_id else settings.discord_channel_dossiers),
+        or (None if forum_id else settings.discord_channel_cases),
         "admin": settings.discord_channel_admin,
     }
 
@@ -97,7 +97,7 @@ def _build_client(
     from discord import app_commands
 
     from tower.intercom import commands, delivery
-    from tower.intercom.forum import DossierForum, ForumSink
+    from tower.intercom.forum import CaseForum, ForumSink
 
     intents = discord.Intents.none()
     intents.guilds = True  # channel and role cache, nothing else (no members, no content)
@@ -129,14 +129,14 @@ def _build_client(
     client.tree = app_commands.CommandTree(client)
     commands.register_all(client.tree, ctx)
     send, send_draft = delivery.build(client, settings, channel_ids, dry_run=dry_run)
-    forum: DossierForum | None = None
-    if settings.discord_forum_dossiers:
+    forum: CaseForum | None = None
+    if settings.discord_forum_cases:
         sink: ForumSink = (
             delivery.DryRunForum()
             if dry_run
-            else delivery.ForumDelivery(client, settings.discord_forum_dossiers)
+            else delivery.ForumDelivery(client, settings.discord_forum_cases)
         )
-        forum = DossierForum(gate, sink)
+        forum = CaseForum(gate, sink)
     client.notifier = Notifier(
         gate,
         send,

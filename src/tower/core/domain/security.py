@@ -16,12 +16,12 @@ from tower.core.domain.errors import InvalidInput, PermissionDenied
 
 
 class Permission(StrEnum):
-    DOSSIER_READ_PUBLIC = "dossiers:read_public"
-    DOSSIER_READ = "dossiers:read"
-    DOSSIER_CREATE = "dossiers:create"
-    DOSSIER_REVIEW = "dossiers:review"
-    DOSSIER_DECIDE = "dossiers:decide"
-    DOSSIER_PUBLISH = "dossiers:publish"
+    CASE_READ_PUBLIC = "cases:read_public"
+    CASE_READ = "cases:read"
+    CASE_CREATE = "cases:create"
+    CASE_REVIEW = "cases:review"
+    CASE_DECIDE = "cases:decide"
+    CASE_PUBLISH = "cases:publish"
     EVENTS_READ = "events:read"
     STAFF_READ = "staff:read"  # list the ranked team and read a member
     STAFF_MANAGE = "staff:manage"  # rank and unrank members
@@ -45,7 +45,7 @@ class Permission(StrEnum):
 
 
 class Role(StrEnum):
-    REVIEWER = "reviewer"  # takes a dossier into review
+    REVIEWER = "reviewer"  # takes a case into review
     EDITOR = "editor"  # validates, rejects and marks as published
     ADMIN = "admin"  # everything, including team management
 
@@ -61,10 +61,10 @@ class ActorKind(StrEnum):
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.REVIEWER: frozenset(
         {
-            Permission.DOSSIER_READ_PUBLIC,
-            Permission.DOSSIER_READ,
-            Permission.DOSSIER_CREATE,
-            Permission.DOSSIER_REVIEW,
+            Permission.CASE_READ_PUBLIC,
+            Permission.CASE_READ,
+            Permission.CASE_CREATE,
+            Permission.CASE_REVIEW,
             Permission.WATCHLIST_READ,
             Permission.FACTS_WRITE,
             Permission.PROFILES_READ,
@@ -73,12 +73,12 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     ),
     Role.EDITOR: frozenset(
         {
-            Permission.DOSSIER_READ_PUBLIC,
-            Permission.DOSSIER_READ,
-            Permission.DOSSIER_CREATE,
-            Permission.DOSSIER_REVIEW,
-            Permission.DOSSIER_DECIDE,
-            Permission.DOSSIER_PUBLISH,
+            Permission.CASE_READ_PUBLIC,
+            Permission.CASE_READ,
+            Permission.CASE_CREATE,
+            Permission.CASE_REVIEW,
+            Permission.CASE_DECIDE,
+            Permission.CASE_PUBLISH,
             Permission.WATCHLIST_READ,
             Permission.WATCHLIST_WRITE,
             Permission.USAGE_READ,
@@ -95,27 +95,39 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.ADMIN: frozenset(Permission),
 }
 
-PUBLIC_PERMISSIONS = frozenset({Permission.DOSSIER_READ_PUBLIC})
+PUBLIC_PERMISSIONS = frozenset({Permission.CASE_READ_PUBLIC})
 INSTALLATION_PERMISSIONS = frozenset({Permission.CONTENT_INGEST})
 
 NOT_GRANTABLE = frozenset(
-    {Permission.DOSSIER_READ_PUBLIC, Permission.CONTENT_INGEST, Permission.EVENTS_READ}
+    {Permission.CASE_READ_PUBLIC, Permission.CONTENT_INGEST, Permission.EVENTS_READ}
 )
 """Permissions that belong to the service or the public, never to a member."""
 GRANTABLE_PERMISSIONS: frozenset[Permission] = frozenset(Permission) - NOT_GRANTABLE
 """Permissions that can be granted individually to a ranked team member."""
 
 
+_LEGACY_PREFIXES = (("dossiers:", "cases:"),)
+"""Old permission names still accepted (expand step of the dossier -> case rename;
+contract: rewrite the stored names, then drop this alias)."""
+
+
+def to_permission(value: str) -> Permission | None:
+    """Permission of a stored or typed name (legacy names included), else ``None``."""
+    for old, new in _LEGACY_PREFIXES:
+        if value.startswith(old):
+            value = new + value[len(old) :]
+    return Permission(value) if value in Permission else None
+
+
 def parse_grantable(values: Iterable[str]) -> frozenset[Permission]:
     """Validate permission names for an individual grant (``InvalidInput`` otherwise)."""
     out: set[Permission] = set()
     for value in values:
-        try:
-            permission = Permission(value)
-        except ValueError:
+        permission = to_permission(str(value))
+        if permission is None:
             raise InvalidInput(
                 "Unknown permission", code=ec.STF_BAD_PERMISSION, permission=str(value)[:64]
-            ) from None
+            )
         if permission not in GRANTABLE_PERMISSIONS:
             raise InvalidInput(
                 "Permission cannot be granted to a member",
@@ -142,7 +154,7 @@ def member_permissions(
     permissions of the roles (presets) and the individual ones."""
     if is_admin:
         return GRANTABLE_PERMISSIONS
-    individual = {Permission(p) for p in permissions if p in Permission}
+    individual = {q for p in permissions if (q := to_permission(p)) is not None}
     return role_permissions(roles) | (frozenset(individual) & GRANTABLE_PERMISSIONS)
 
 

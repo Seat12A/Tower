@@ -111,7 +111,7 @@ async def list_narratives(
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Narratives by last activity. Without ``state``: the open ones (not closed)."""
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     stmt = select(Narrative).order_by(Narrative.last_activity_at.desc(), Narrative.id.desc())
     stmt = (
         stmt.where(Narrative.state == state)
@@ -271,7 +271,7 @@ async def narrative_detail(
     """Narrative with medoids, groups, the stats of the three windows (last 12 points
     each), the journal (50), representative group, previous narrative, split suggestion
     and the novelty fingerprints that took (top 10)."""
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     narrative = await get_narrative(session, public_id)
     groups = await _groups_view(session, narrative)
     medoids: list[str] = []

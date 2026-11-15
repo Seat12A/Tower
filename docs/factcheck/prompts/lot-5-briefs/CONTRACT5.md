@@ -89,7 +89,7 @@ Already committed for lot 5 (read, do not change unless your brief says so):
    `needs_context`, other bands → `likely_false`). Otherwise evidence = validated facts,
    existing fact-checks and structured sources of the Atlas (no encyclopedia, **no web
    search**), or, for a group of a surging narrative, the kept passages of the
-   narrative's representative investigation (evidence dossier); role `light_check`.
+   narrative's representative investigation (evidence case); role `light_check`.
    Result in `claim_groups.light_signal/light_checked_at/light_evidence`.
 8. Narratives: every new group is attached (job) to an existing active narrative when
    ALL of: ≥ 2 signals of 4 with ≥ 1 non-semantic (semantic: cosine to a medoid ≥
@@ -108,7 +108,7 @@ Already committed for lot 5 (read, do not change unless your brief says so):
    an extension filter version change. Up immediately; surge/alert end after
    `fc_surge_end_hours` below watch (`narrative.surge_ended` with a report). Entering surge:
    groups ≥ N2 (alert: N4), representative group investigated once (jobs priority high),
-   other groups light-checked on the dossier; `narrative.surge_detected` (payload:
+   other groups light-checked on the case; `narrative.surge_detected` (payload:
    `narrative_id`, `tier`, `share`, `accounts`, `platforms`, `title`). Surge drafts use a
    separate daily quota `fc_surge_daily_quota`; verdicts validated in a surge expire
    within `fc_surge_verdict_ttl_hours`.

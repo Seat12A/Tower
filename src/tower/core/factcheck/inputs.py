@@ -360,7 +360,7 @@ def light_check_input(
 ) -> dict[str, Any]:
     """E5: the claim (as for the frame) and short evidence items ``{id, kind, source,
     text}`` (reference facts, existing fact-checks, structured sources, or passages of the
-    narrative's evidence dossier), texts datamarked by the caller."""
+    narrative's evidence case), texts datamarked by the caller."""
     return {
         "claim": claim.as_input(),
         "post_date": _iso(post_date),

@@ -8,7 +8,7 @@ MESSAGES: dict[str, str] = {
     "fc.modal.reason.hint": "Inscrit au journal.",
     # --- /factcheck ---------------------------------------------------------------------
     "factcheck.accepted.title": "Fact-check demandé",
-    "factcheck.accepted": "Le brouillon apparaîtra dans le salon des dossiers.",
+    "factcheck.accepted": "Le brouillon apparaîtra dans le salon des cases.",
     "factcheck.duplicate.title": "Déjà demandé",
     "factcheck.duplicate": "Un fact-check de ce post est déjà en file d'attente.",
     "factcheck.detail.platform": "Plateforme",
@@ -151,8 +151,8 @@ MESSAGES: dict[str, str] = {
     "notify.title.incident.opened": "Incident ouvert",
     "notify.title.incident.reopened": "Incident rouvert",
     "notify.title.budget": "Seuil de budget atteint",
-    "notify.title.dossier.opened": "Nouveau dossier",
-    "notify.title.dossier.transitioned": "Dossier mis à jour",
+    "notify.title.case.opened": "Nouveau case",
+    "notify.title.case.transitioned": "Case mis à jour",
     "notify.title.watchlist.added": "Liste de suivi : compte ajouté",
     "notify.title.watchlist.updated": "Liste de suivi : compte modifié",
     "notify.title.watchlist.resolved": "Liste de suivi : compte résolu",
@@ -165,15 +165,15 @@ MESSAGES: dict[str, str] = {
     "notify.label.threshold": "Seuil",
     "notify.label.spent": "Dépensé",
     "notify.label.cap": "Plafond",
-    "notify.label.dossier": "Dossier",
+    "notify.label.case": "Case",
     "notify.label.platform": "Plateforme",
     "notify.label.from": "De",
     "notify.label.to": "Vers",
     "notify.label.account": "Compte",
     "notify.label.category": "Catégorie",
     "notify.label.version": "Version",
-    # --- forum of dossiers (public: rendered in English) ---
-    "forum.untitled": "Dossier sans titre",
+    # --- forum of cases (public: rendered in English) ---
+    "forum.untitled": "Case sans titre",
     "forum.reinforced": "renforcée",
     "forum.status.to_review": "À relire",
     "forum.status.endorsed": "Avis favorable, en attente d'un éditeur",
@@ -201,7 +201,7 @@ MESSAGES: dict[str, str] = {
     "forum.more.group.help": "Affirmations, posts et plateformes du groupe",
     "forum.more.narrative": "Voir le récit",
     "forum.more.narrative.help": "Groupes et activité du récit",
-    "forum.footer.dossier": "Dossier `{id}`",
+    "forum.footer.case": "Case `{id}`",
     "forum.footer.draft": "Brouillon `{id}`",
     "forum.footer.group": "Groupe `{id}`",
     "forum.footer.narrative": "Récit `{id}`",
@@ -218,19 +218,19 @@ MESSAGES: dict[str, str] = {
     "forum.activity.corrected": "{who} a corrigé le brouillon : {verdict}",
     "forum.activity.rejected": "{who} a rejeté le brouillon",
     "forum.activity.published": "{who} a enregistré la publication : <{url}>",
-    "forum.activity.transitioned": "{who} a passé le dossier en {status}",
+    "forum.activity.transitioned": "{who} a passé le case en {status}",
     "forum.activity.reason": "motif : {reason}",
     "forum.activity.awaiting_editor": "en attente d'un éditeur",
     "forum.no_narrative": "Ce brouillon n'a pas de récit.",
     "forum.guide.title": "Comment relire",
     "forum.guide.body": (
-        "Un post = un dossier. Le premier message d'un post est son seul panneau de "
+        "Un post = un case. Le premier message d'un post est son seul panneau de "
         "contrôle : statut, affirmation, verdict et note proposés, et toutes les actions "
         "(boutons de décision, puis le menu **Autres actions**). Le fil contient, "
         "toujours dans cet ordre : **Preuves** (justification, citations, sources listées"
         " une fois), **Lacunes et vérifications**, **Avertissements de qualité**, "
         "**Contexte** (groupe, récit, signaux de coordination, fiche), puis une ligne par"
-        " action. Discutez du dossier dans le fil."
+        " action. Discutez du case dans le fil."
     ),
     "forum.guide.tags": (
         "**Tags** (posés par le bot, à utiliser comme filtres) : un statut, le verdict "

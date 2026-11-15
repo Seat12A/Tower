@@ -9,10 +9,10 @@ hangar les exécute. Source : `src/tower/core/services/`.
 ```python
 from tower.core.services import JobContext, JobSpec, Service, Subscription
 
-async def on_dossier_opened(session, events):        # court, transactionnel
+async def on_case_opened(session, events):        # court, transactionnel
     for e in events:
         await enqueue(session, "moderation", "moderation.analyze",
-                      {"dossier": e.aggregate_id}, dedupe_key=f"mod:{e.aggregate_id}")
+                      {"case": e.aggregate_id}, dedupe_key=f"mod:{e.aggregate_id}")
 
 async def analyze(ctx: JobContext) -> None:          # le vrai travail
     async with ctx.db.transaction() as session:
@@ -23,7 +23,7 @@ service = Service(
     name="moderation",
     description="Modération de contenus X",
     jobs=(JobSpec("moderation.analyze", analyze, queue="moderation", timeout=120),),
-    subscriptions=(Subscription("dossiers", ("dossier.opened",), on_dossier_opened),),
+    subscriptions=(Subscription("cases", ("case.opened",), on_case_opened),),
 )
 ```
 
@@ -63,7 +63,7 @@ maintenance du socle. Exemple : partitions et secrets du service `ingest`.
 | `ping` | Démonstration et supervision (`ping.requested` → `ping.done`) | ✅ |
 | `ingest` | Liaison des copies, partitions des observations, secrets d'installation (l'endpoint de l'extension est dans gate) | ✅ file `ingest`, voir [ingestion.md](ingestion.md) |
 | `radar` | Lecture des comptes suivis par l'API officielle de X (puis Bluesky) : planification adaptative, budget `provider:x`, résolution des pseudos | ✅ file `radar`, voir [radar.md](radar.md) |
-| `factcheck` | Déclenchement N3, extraction E2, demande manuelle N4, assemblage E10 (confiance, revérification, quota, dossier), traductions à la validation ; lot 4 : embeddings et routage E1, appariement E3, réutilisation, péremption et revalidation, partitions `content_embeddings`, alimentation INSEE ; lot 5 : micro-lots E2 du flux de masse (`factcheck:compose_batches`), ordonnanceur E4 (`factcheck:schedule`, promotions), vérification légère E5, récits et vagues (`factcheck:narratives`, échantillonnage, nouveauté) | ✅ (lots 3 à 5) files `fc-fast` et `fc-bulk`, voir [fact-check.md](fact-check.md) |
+| `factcheck` | Déclenchement N3, extraction E2, demande manuelle N4, assemblage E10 (confiance, revérification, quota, case), traductions à la validation ; lot 4 : embeddings et routage E1, appariement E3, réutilisation, péremption et revalidation, partitions `content_embeddings`, alimentation INSEE ; lot 5 : micro-lots E2 du flux de masse (`factcheck:compose_batches`), ordonnanceur E4 (`factcheck:schedule`, promotions), vérification légère E5, récits et vagues (`factcheck:narratives`, échantillonnage, nouveauté) | ✅ (lots 3 à 5) files `fc-fast` et `fc-bulk`, voir [fact-check.md](fact-check.md) |
 | `investigate` | Enquêtes (E6 à E9) : cadrage, collecte (Atlas), jugement, second avis, objection, escalade, rédaction | ✅ (lot 3) file `fc-deep`, réplica dédié possible, voir [fact-check.md](fact-check.md) |
 | `atlas` | Synchronisations de l'Atlas : miroir LEGI (différences quotidiennes `atlas.legi_sync` ; le dump global s'importe une fois par `tower atlas legi-sync`), flux d'actualité toutes les 15 min (`atlas.news_poll`, purge horaire à 90 jours), fiches statistiques internationales (`atlas.stat_refresh`, quotidien), amorçage de `controlled_by` depuis Wikidata (`atlas.control_seed`, hebdomadaire) | ✅ (lot 6) file `atlas`, **réplica dédié** (`TOWER_SERVICES=atlas`, `TOWER_QUEUES=atlas`), voir [fact-check.md](fact-check.md) |
 | `media` | Empreintes, OCR, transcription, provenance des médias | futur |

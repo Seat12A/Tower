@@ -57,9 +57,9 @@ def test_locale_of(value: str | None, expected: str) -> None:
 
 
 def test_translation_and_fallbacks() -> None:
-    assert t("fr", "dossier.taken", short_id="abc") == "Dossier `abc` pris en revue."
-    assert t("en", "dossier.taken", short_id="abc") == "Dossier `abc` taken into review."
-    assert t("de", "dossier.taken", short_id="abc") == "Dossier `abc` taken into review."
+    assert t("fr", "case.taken", short_id="abc") == "Case `abc` pris en revue."
+    assert t("en", "case.taken", short_id="abc") == "Case `abc` taken into review."
+    assert t("de", "case.taken", short_id="abc") == "Case `abc` taken into review."
     assert t("fr", "no.such.key") == "no.such.key"
     # a key only present in English falls back to English
     en.MESSAGES["test.only_en"] = "english only"
@@ -69,7 +69,7 @@ def test_translation_and_fallbacks() -> None:
     finally:
         del en.MESSAGES["test.only_en"]
     # a missing placeholder never raises
-    assert "{short_id}" in t("en", "dossier.taken")
+    assert "{short_id}" in t("en", "case.taken")
 
 
 def test_french_has_accents() -> None:

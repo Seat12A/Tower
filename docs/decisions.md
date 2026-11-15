@@ -8,9 +8,9 @@ rouvrir les mêmes débats.
 | Date | Décision | Raison |
 |---|---|---|
 | 2026-11 | Aucune publication automatique sur X : le bot notifie, l'équipe publie et colle le lien | Contrôle éditorial humain, traçabilité |
-| 2026-11 | Copie du post X stockée à l'ouverture d'un dossier | Les posts peuvent être modifiés ou supprimés |
+| 2026-11 | Copie du post X stockée à l'ouverture d'un case | Les posts peuvent être modifiés ou supprimés |
 | 2026-11 | Deux sources de surveillance : extension « bridée » et API officielle de X sur comptes ciblés | Coût maîtrisé, conformité |
-| 2026-11 | Données de l'extension non fiables par défaut ; relecture via l'API X avant ouverture de dossier (une lecture par dossier) | Résistance aux signalements coordonnés |
+| 2026-11 | Données de l'extension non fiables par défaut ; relecture via l'API X avant ouverture de case (une lecture par case) | Résistance aux signalements coordonnés |
 | 2026-11 | Liste des comptes politiques surveillés équilibrée sur tout le spectre, idéalement publique | Neutralité mesurable |
 
 ### Écartées
@@ -110,7 +110,7 @@ arbitrages **remplacent** les propositions correspondantes du tableau ci-dessus.
 | Confiance | Régression logistique à coefficients posés à la main, plafonnée à 0,90 avant calibration ; réestimation partielle à 200 revues, complète à 100 refus | Grille fixe puis régression à 200 revues | 200 revues ne donnent qu'environ 30 refus |
 | Seconde passe du juge | Sur désaccord et toujours en N4 | Systématique en N3/N4 | Le second avis couvre déjà le biais de position |
 | Lots d'extraction | 10 posts ou 2 500 tokens (plafond 12), N3/N4 en solo, préfixe de 900 tokens, composition par dissemblance, fidélité dans les deux sens, rejeu solo de 2 %, canaris, réglage automatique | Micro-lots de 10 à 20 | Moins de risque de contamination pour presque le même coût |
-| Récits | Un récit partage un **dossier de preuves**, pas un verdict ; rattachement à deux signaux dont un non sémantique et une ancre spécifique ; médoïdes ; clôture après 7 jours, scission au-delà de 25 groupes ; variantes jugées à bas coût sur le dossier | Une enquête et un verdict pour tout le récit | Séparer détection (lâche) et application (stricte) |
+| Récits | Un récit partage un **case de preuves**, pas un verdict ; rattachement à deux signaux dont un non sémantique et une ancre spécifique ; médoïdes ; clôture après 7 jours, scission au-delà de 25 groupes ; variantes jugées à bas coût sur le case | Une enquête et un verdict pour tout le récit | Séparer détection (lâche) et application (stricte) |
 | Détection de vague | Part du flux observé, écart de type Poisson avec plancher, seuils absolus jusqu'à 1 000 récits clos puis quantiles ; filtres de l'extension versionnés ; veille sur 2 plateformes = vague | z-score robuste par thème | Le z-score dégénère sur des comptages creux |
 | Échantillonnage en vague | Passage forcé d'une nouveauté qui prend (3 posts de 3 comptes, ou 90e centile d'engagement), un exemplaire, plafond de 20 % du budget du récit | — | Ne pas rater la variante décisive sans ouvrir une faille de coût |
 | Identifiants et partitions | `content_items` non partitionnée, clé interne `BIGINT`, index sur expression pour les IDs X ; `observations` partitionnée | Colonne générée `x_post_id` et partition mensuelle | Une partition impose sa clé dans toute clé unique et étrangère |
@@ -218,11 +218,11 @@ Détail : [fact-check.md](fact-check.md).
 | Cadrage « non vérifiable » : pas de brouillon en N3, brouillon « Non vérifiable » en N4 | Ne pas occuper le quota avec des opinions ; une demande manuelle de l'équipe reçoit toujours une réponse |
 | Refus d'un modèle : jamais converti en « Vrai » ou « Faux » ; refus du juge → brouillon « Non vérifiable » signalé au relecteur | Règle des refus du plan ; l'équipe tranche |
 | La règle d'indépendance ne relève le besoin de contexte qu'en cas de rétrogradation | Un « Vrai » bien sourcé ne doit pas recevoir un besoin de contexte artificiel |
-| Revue : `accept` ou `edit` par un `reviewer` = avis favorable (dossier en revue) ; par un `editor` = validation (verdict actif, `verdict.published`) ; `reject` réservé à l'`editor` | Modèle de permissions existant des dossiers (`dossiers:review`, `dossiers:decide`) |
+| Revue : `accept` ou `edit` par un `reviewer` = avis favorable (case en revue) ; par un `editor` = validation (verdict actif, `verdict.published`) ; `reject` réservé à l'`editor` | Modèle de permissions existant des cases (`cases:review`, `cases:decide`) |
 | Origine des versions de la note : `machine` pour tout texte de modèle non relu (y compris la version du rédacteur dans la langue du post), `original` pour une version fr/en validée telle quelle, `human` pour une correction | La lecture publique signale toute traduction ou rédaction non relue (AI Act, article 50) |
 | Quota : ouverture immédiate s'il reste une place, sinon attente et tâche `factcheck:drain_quota` (priorité : N4, doute, « Faux »/« Trompeur », portée, ancienneté) | Flux continu : la priorité ne peut s'appliquer qu'aux brouillons en attente |
 | Source d'observation `manual` pour les demandes de l'équipe (CHECK élargi en 0005) | Distinguer ces contenus des lectures du radar et de l'extension |
-| `dossiers.content_id` (multi-plateforme) ; `x_post_id` conservé pour X | Expand : rien n'est supprimé |
+| `cases.content_id` (multi-plateforme) ; `x_post_id` conservé pour X | Expand : rien n'est supprimé |
 | `verdicts.notified_at` écrit par le bot (marqueur opérationnel, sans audit ni événement) et réconciliation au démarrage | Corrige la limite du notificateur au tout premier démarrage ; idempotent |
 | Rejeu de l'extraction avec une consigne ajoutée à l'entrée ; requêtes du tour 2 avec les requêtes précédentes en entrée | Le cache de contenu renverrait sinon la même sortie |
 | Pages web récupérées jamais mises en cache ; seules les réponses des API (et des recherches) le sont | Conservation limitée aux passages cités (droit d'auteur, article L. 122-5-3) |
@@ -334,7 +334,7 @@ Décisions tranchées en session, Jules absent.
 | N4 : revalidation continue par une durée de vie plafonnée (24 h, `TOWER_FC_N4_REVALIDATE_HOURS`) | Seul élément de `niveaux.md` absent du code ; réutilise la péremption et la revalidation existantes |
 | Date de vérification de l'évaluation fixée à son jour | Cause de l'échec intermittent du test de bout en bout : la minute courante changeait le prompt du rédacteur |
 | Tâches périodiques lancées une fois au démarrage du hangar | Correctif : l'origine 0 de l'horloge monotone empêchait les tâches quotidiennes de tourner sur un conteneur démarré depuis moins d'un jour |
-| Constitution identifiée par `JORFTEXT000000571356` | C'est l'identifiant du dossier et du `cid` des articles dans le dump LEGI (mesuré à la synchronisation réelle) |
+| Constitution identifiée par `JORFTEXT000000571356` | C'est l'identifiant du case et du `cid` des articles dans le dump LEGI (mesuré à la synchronisation réelle) |
 
 ## Substitution temporaire des modèles Anthropic (2026-11-14)
 
@@ -365,20 +365,31 @@ Décisions tranchées en session, Jules absent.
 | Permissions individuelles par membre (`staff_members.permissions`) ; les rôles restent des préréglages pour la CLI ; au premier changement par le bot, les permissions des rôles sont recopiées et les rôles vidés | Une seule source de vérité sans casser `tower staff` (expand/contract) |
 | Admins codés en dur dans `TOWER_ADMIN_DISCORD_IDS`, lus par **gate** : toutes les permissions, rangés d'office, intouchables | Demande de Jules ; gate reste la seule autorité |
 | La hiérarchie des rôles Discord est vérifiée par le **bot** (gate ne connaît pas les rôles) ; gate vérifie les permissions et l'anti-escalade (un non-admin ne donne ou ne retire que ce qu'il a) | Règle propre à Discord ; la vérification par gate garde le bot sous contrôle |
-| Permissions non attribuables : `dossiers:read_public`, `content:ingest`, `events:read` | Réservées aux anonymes, à l'extension et au radar, et aux services |
+| Permissions non attribuables : `cases:read_public`, `content:ingest`, `events:read` | Réservées aux anonymes, à l'extension et au radar, et aux services |
 | Un brouillon validé garde ses boutons de groupe et de fiche ; un rejeté perd tout | « Créer une fiche » et « Valider la bande » exigent un verdict validé |
 | Les anciens boutons de brouillon `fc:…` restent acceptés | Messages déjà publiés |
 
-## Forum des dossiers et messages publics en anglais (2026-11-15)
+## Forum des cases et messages publics en anglais (2026-11-15)
 
 | Décision | Raison |
 |---|---|
 | Messages publics (salons, forum, éditions de message) toujours en anglais ; `TOWER_DISCORD_LOCALE` dépréciée et ignorée | Les lecteurs d'un salon sont inconnus (demande de Jules) ; les réponses éphémères suivent la langue Discord de la personne |
 | Le texte produit par les modèles reste dans sa langue (français aujourd'hui) | Le traduire coûterait des appels de modèle ; à rouvrir si l'équipe le demande |
-| Dossiers dans un **forum** : un post par dossier, le message d'origine seul panneau d'actions (une barre + un menu « More actions »), le fil en sections fixes puis un journal | Un salon recevant des milliers de dossiers était illisible (3 à 4 messages par dossier, boutons éparpillés, URL répétées) |
+| Cases dans un **forum** : un post par case, le message d'origine seul panneau d'actions (une barre + un menu « More actions »), le fil en sections fixes puis un journal | Un salon recevant des milliers de cases était illisible (3 à 4 messages par case, boutons éparpillés, URL répétées) |
 | Le post n'est jamais édité au clic : le notificateur le met à jour d'après les événements | Une seule source de vérité, pas de course entre clics et événements |
-| Lien dossier ↔ post dans gate (`dossiers.discord_thread_id`, `PUT /v1/dossiers/{id}/discord-thread`), marqueur opérationnel sans audit ni événement, comme `notified` | Le bot n'a pas de base ; il retrouve le post après un redémarrage |
+| Lien case ↔ post dans gate (`cases.discord_thread_id`, `PUT /v1/cases/{id}/discord-thread`), marqueur opérationnel sans audit ni événement, comme `notified` | Le bot n'a pas de base ; il retrouve le post après un redémarrage |
 | Tags modérés, créés par nom sans jamais en supprimer, sans icône | Seul le bot fait foi sur le statut ; un tag de forum n'accepte probablement pas un émoji d'application |
 | Archivage (pas de verrouillage) des posts `published`, `rejected`, `superseded` | Limite de fils actifs du serveur ; on peut encore écrire dans le fil |
-| Alertes de vague dans un salon texte séparé (`TOWER_DISCORD_CHANNEL_NARRATIVES`) | Une vague n'est pas un dossier |
+| Alertes de vague dans un salon texte séparé (`TOWER_DISCORD_CHANNEL_NARRATIVES`) | Une vague n'est pas un case |
 | Icônes : tout ou rien par type d'élément ; icônes manquantes déclarées vides en attendant leur ajout | Règle de Jules : jamais une icône sur un bouton et pas sur ses voisins |
+
+## Renommage « dossier » → « case » (2026-11-15)
+
+| Décision | Raison |
+|---|---|
+| « case » remplace « dossier » partout : textes (fr et en), commande `/case`, docs, code, API `/v1/cases`, permissions `cases:*`, topics `case.*`, tables `cases`, `case_events`, `case_claim_groups`, colonnes `case_id`, variables `TOWER_DISCORD_*_CASES` | Demande de Jules (« plus joli »), technique compris |
+| Renommage fait par **script** (sans appel de modèle), puis couche de compatibilité écrite à la main | Coût nul en usage ; cohérence garantie |
+| **Expand** (migration 0012) : tables, colonnes, index, contraintes et séquences renommés + **vues** aux anciens noms ; anciens chemins `/v1/dossiers`, noms `dossiers:*`, topics `dossier.*`, variable `TOWER_DISCORD_CHANNEL_DOSSIERS`, clé de job `dossier_investigation_id` et raison `dossier_opened` encore acceptés | Le pre-deploy tourne avant le nouveau code : rien ne casse pendant la bascule, ni le site ni l'extension |
+| **Contract** (lot suivant, une fois le site, l'extension et les jetons passés aux nouveaux noms) : supprimer les vues, réécrire les noms stockés (`dossiers:*`, `dossier_opened`), retirer les alias | Règle expand/contract : jamais de renommage en une étape |
+| Codes d'erreur `TWR-DOS-*` et leurs constantes `DOS_*` inchangés ; identifiants de boutons `t12a:dos:*` inchangés | Un code n'est jamais renuméroté ; les boutons des anciens messages doivent continuer à marcher |
+| Résumés de session (`docs/sessions/`) et migrations existantes non modifiés | Historique |

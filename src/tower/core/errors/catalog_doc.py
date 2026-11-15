@@ -9,7 +9,7 @@ from tower.core.domain.error_codes import CATALOG
 _DOMAINS = {
     "GEN": "Général",
     "AUTH": "Authentification et autorisations",
-    "DOS": "Dossiers",
+    "DOS": "Cases",
     "EVT": "Bus d'événements",
     "JOB": "File de travaux",
     "DB": "Base de données",

@@ -29,7 +29,7 @@ D'après la [documentation Railway](https://docs.railway.com/guides/logs) :
 Exemple :
 
 ```json
-{"http_method":"POST","http_path":"/v1/dossiers","http_status":201,"duration_ms":34.8,"request_id":"55b5dead2a0642a3","level":"info","logger":"tower.gate.access","ts":"2026-11-10T19:14:55.551421Z","process":"gate","message":"POST /v1/dossiers 201"}
+{"http_method":"POST","http_path":"/v1/cases","http_status":201,"duration_ms":34.8,"request_id":"55b5dead2a0642a3","level":"info","logger":"tower.gate.access","ts":"2026-11-10T19:14:55.551421Z","process":"gate","message":"POST /v1/cases 201"}
 ```
 
 ## Filtres utiles dans Railway
@@ -47,7 +47,7 @@ Exemple :
 
 ## Bonnes pratiques
 
-- Message court et stable (`job.succeeded`, `POST /v1/dossiers 201`), données dans
+- Message court et stable (`job.succeeded`, `POST /v1/cases 201`), données dans
   les attributs, jamais concaténées dans le message.
 - Pas de log dans une boucle chaude ; agréger plutôt (limite de 500 lignes/s).
 - Jamais de secret ni de donnée personnelle d'utilisateur de l'extension.
