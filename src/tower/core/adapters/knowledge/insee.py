@@ -22,11 +22,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from tower.core.adapters.knowledge.http import SourceHttp, cached
@@ -39,12 +41,16 @@ from tower.core.ports.knowledge import (
     Tier,
 )
 
-__all__ = ["InseeSource", "parse_series_config"]
+__all__ = ["InseeSource", "default_series", "parse_series_config"]
 
 NAME = "insee"
 LICENSE = "Licence Ouverte 2.0"
 BASE = "https://bdm.insee.fr/series/sdmx/data/SERIES_BDM"
 LAST_N = 4
+FETCH_N = 12
+"""Observations requested: the latest periods are often published as ``NaN`` before
+their value (annual surveys), so more are fetched and the ``LAST_N`` numeric ones kept."""
+DEFAULT_SERIES_FILE = Path(__file__).with_name("insee_series.json")
 MAX_SERIES = 2
 MAX_BYTES = 1_000_000
 _IDBANK = re.compile(r"[0-9]{9}")
@@ -70,6 +76,19 @@ def parse_series_config(raw: str) -> dict[str, str]:
     if not isinstance(data, dict):
         return {}
     return {str(k): str(v) for k, v in data.items() if _IDBANK.fullmatch(str(v))}
+
+
+def default_series() -> dict[str, str]:
+    """Packaged ``{keyword: idbank}`` list (``insee_series.json``), used when
+    ``TOWER_INSEE_SERIES`` is empty. Every idbank was checked against bdm.insee.fr."""
+    return parse_series_config(DEFAULT_SERIES_FILE.read_text(encoding="utf-8"))
+
+
+def _numeric(value: str) -> bool:
+    try:
+        return math.isfinite(float(value))
+    except ValueError:
+        return False
 
 
 def _local(tag: str) -> str:
@@ -126,13 +145,13 @@ class InseeSource:
         return out
 
     async def _series_evidence(self, idbank: str, query: SourceQuery) -> Evidence | None:
-        request = {"op": "series", "idbank": idbank, "last": LAST_N}
+        request = {"op": "series", "idbank": idbank, "last": LAST_N, "fetch": FETCH_N}
 
         async def fetch() -> dict[str, Any]:
             response = await self._http.request(
                 "GET",
                 f"{BASE}/{idbank}",
-                params={"lastNObservations": LAST_N},
+                params={"lastNObservations": FETCH_N},
                 headers={"Accept": "application/xml"},
             )
             if len(response.content) > MAX_BYTES:
@@ -191,10 +210,11 @@ class InseeSource:
                 continue
             value = obs.attrib.get("OBS_VALUE")
             period = obs.attrib.get("TIME_PERIOD")
-            if value is None or period is None:
-                continue
+            if value is None or period is None or not _numeric(value):
+                continue  # "NaN": period announced, value not published yet
             observations.append({"period": period, "value": value})
         observations.sort(key=lambda o: o["period"], reverse=True)
+        observations = observations[:LAST_N]
         attrs = series.attrib
         unit = attrs.get("UNIT_MEASURE", "")
         mult = attrs.get("UNIT_MULT", "0")

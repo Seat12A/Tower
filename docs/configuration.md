@@ -172,8 +172,8 @@ Voir [fact-check.md](fact-check.md#lot-5--v2--flux-de-masse-ordonnanceur-récits
 | `TOWER_BRAVE_API_KEY` | — | Jeton Brave Search API ; absent : pas de recherche web |
 | `TOWER_PISTE_CLIENT_ID` / `TOWER_PISTE_CLIENT_SECRET` | — | Légifrance via PISTE (OAuth2, identifiants client) ; absents : source sautée |
 | `TOWER_PISTE_SANDBOX` | `false` | Utiliser les points d'accès bac à sable de PISTE |
-| `TOWER_INSEE_API_KEY` | — | Clé du portail des API de l'INSEE, si le portail l'exige |
-| `TOWER_INSEE_SERIES` | vide | Objet JSON `{"indicateur": "idbank"}` des séries BDM consultées ; vide : source sautée |
+| `TOWER_INSEE_API_KEY` | — | **Inutilisée** : l'adresse publique `bdm.insee.fr` ne demande ni compte ni clé. Ne pas s'inscrire sur le portail des API de l'INSEE |
+| `TOWER_INSEE_SERIES` | vide | Objet JSON `{"mot-clé": "idbank"}` des séries BDM consultées. Une affirmation qui contient tous les mots d'un mot-clé (casse et accents ignorés) reçoit les dernières valeurs de la série, deux séries au plus, la plus précise d'abord. Vide : liste fournie (`core/adapters/knowledge/insee_series.json`, environ 200 mots-clés, 127 séries vérifiées) ; `{}` : source coupée |
 | `TOWER_ATLAS_WIKIPEDIA_CONCURRENCY` | `3` | Requêtes Wikimedia simultanées par processus (limite Wikimedia : 3) |
 | `TOWER_ATLAS_CACHE_TTL_S` | `604800` | Fraîcheur par défaut de `source_cache` (7 jours ; résultats de recherche : 1 jour) |
 | `TOWER_ATLAS_HTTP_TIMEOUT_S` | `10` | Délai des appels aux sources |

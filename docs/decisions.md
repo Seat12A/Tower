@@ -345,3 +345,12 @@ Décisions tranchées en session, Jules absent.
 | Haiku → `gpt-6-luna` ; Sonnet, Opus et Fable → `gpt-6.1-terra` | Modèles sans groupe gratuit, utilisables avec la clé sans partage des routes `frame`, `judge`, `writer`, `auditor` (`gpt-5.6-sol` y serait sauté) ; moins chers |
 | Toutes les routes de modèles de langage passent par l'organisation **avec partage** (`frame`, `judge`, `writer`, `auditor` compris) ; l'amorçage réaligne les routes qu'il possède encore | Décision de Jules. Toutes les entrées passent par `core/factcheck/inputs.py` (contenu public pseudonymisé, sans auteur) : la règle « données publiques seulement » est respectée. `TOWER_OPENAI_API_KEY` devient facultative |
 | Décorrélation juge / contradicteur réduite (même fournisseur, modèles différents) acceptée pendant la substitution | Écart temporaire à la décision « juge et contradicteur de fournisseurs différents » |
+
+## Séries INSEE par défaut (2026-11-15)
+
+| Décision | Raison |
+|---|---|
+| Liste de séries INSEE fournie avec le code (`insee_series.json`), utilisée quand `TOWER_INSEE_SERIES` est vide ; `{}` coupe la source | Demande de Jules (« viser très large ») ; un JSON de 200 entrées dans une variable Railway serait illisible |
+| Mots-clés en minuscules sans accents, singulier et pluriel pour les plus courants ; mots trop vagues écartés (« croissance », « industrie », « habitants ») | Le sélecteur exige tous les mots du mot-clé et garde deux séries : un mot vague ferait remonter une série hors sujet |
+| L'adaptateur lit 12 observations et ignore les valeurs `NaN` | Les séries annuelles annoncent l'année en cours en `NaN` : le juge recevait « NaN » comme valeur |
+| `TOWER_INSEE_API_KEY` déclarée inutilisée (gardée dans les réglages) | L'adresse publique ne demande pas de clé ; la supprimer casserait un déploiement qui l'a renseignée |

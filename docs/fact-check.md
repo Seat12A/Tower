@@ -159,6 +159,16 @@ puis élargie ; 4 recherches en standard, 4 de plus en renforcé). Une source in
 est capturée (`TWR-ATL-*`) et sautée. Ce qui a été vérifié dans la documentation
 officielle de chaque API est consigné dans la docstring de chaque adaptateur.
 
+**INSEE BDM** : adresse publique `bdm.insee.fr`, sans clé. La liste des séries consultées
+est fournie (`core/adapters/knowledge/insee_series.json`, environ 200 mots-clés vers
+127 séries, chacune vérifiée par un appel réel le 2026-11-15) : chômage et emploi, prix
+(inflation par poste, carburants, baguette), PIB, dette et déficit publics, budget de
+l'État, commerce extérieur, salaires et Smic, pauvreté et inégalités, démographie,
+logement, entreprises, santé, sécurité et éducation (indicateurs ODD).
+`TOWER_INSEE_SERIES` la remplace. L'adaptateur lit les 12 dernières observations et
+garde les 4 dernières valeurs numériques : les séries annuelles annoncent souvent
+l'année en cours en `NaN` avant de publier sa valeur.
+
 Registre minimal `source_registry` (domaine → niveau, type, pays) amorcé par
 `uv run tower factcheck seed-registry` avec une courte liste d'institutions primaires et
 d'agences ; tout domaine absent est tertiaire. `controlled_by` et l'indépendance
