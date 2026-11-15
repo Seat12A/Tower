@@ -177,6 +177,8 @@ async def test_errors_api(
     assert [r["fingerprint"] for r in rows] == [fp]
     detail = (await client.get(f"/v1/errors/{fp}", headers=h(admin))).json()
     assert "RuntimeError" in detail["last_traceback"]
+    assert detail["hint"] == ec.MNT_TASK_FAILED.hint
+    assert detail["retryable"] is ec.MNT_TASK_FAILED.retryable
     r = await client.post(f"/v1/errors/{fp}/resolve", json={"note": "ok"}, headers=h(admin))
     assert r.json()["resolved_by"] == "service:admin-tool"
     assert (await client.get("/v1/errors", headers=h(admin))).json() == []

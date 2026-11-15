@@ -100,12 +100,19 @@ Format unique :
 
 ## 8. Consulter et résoudre
 
+Depuis Discord : `/incidents list [code] [all]`, `/incidents show <empreinte>` (message,
+contexte, piste, fin de trace) et `/incidents resolve <empreinte>` ([intercom.md](intercom.md)).
+
+En ligne de commande, dans la console SSH Railway du service gate (`railway ssh --service
+gate`). La console ne reprend pas le `PATH` de l'image : utiliser le chemin complet.
+`railway run` exécute la commande sur le poste local, qui ne joint pas la base.
+
 ```bash
-railway run tower errors list
+/app/.venv/bin/tower errors list
 ```
 
 ```bash
-railway run tower errors resolve <empreinte> --note "corrigé dans abc123"
+/app/.venv/bin/tower errors resolve <empreinte> --note "corrigé dans abc123"
 ```
 
 API (permission `errors:read` / `errors:manage`) : `GET /v1/errors`,

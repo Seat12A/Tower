@@ -165,6 +165,7 @@ _COMMANDS: tuple[tuple[str, str, str | None], ...] = (
     ("registry", "registry set-tier", "registry:write"),
     ("registry", "registry set-control", "registry:write"),
     ("supervision", "incidents list", "errors:read"),
+    ("supervision", "incidents show", "errors:read"),
     ("supervision", "incidents resolve", "errors:manage"),
     ("supervision", "usage", "usage:read"),
     ("supervision", "profile show", "profiles:read"),

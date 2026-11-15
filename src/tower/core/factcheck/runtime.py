@@ -83,7 +83,8 @@ def get_llm(settings: Settings, db: Database) -> LLMClient:
 
 
 def get_embedder(settings: Settings, db: Database) -> EmbeddingService:
-    """``EmbeddingService`` over OpenAI (non-sharing organization key), or over the
+    """``EmbeddingService`` over OpenAI (non-sharing organization key, else the
+    data-sharing one), or over the
     deterministic ``FakeEmbedder`` with ``TOWER_LLM_FAKE=1``. One instance per process
     (its cache is bounded)."""
     if "embedder" in _overrides:
@@ -98,12 +99,15 @@ def get_embedder(settings: Settings, db: Database) -> EmbeddingService:
 
             embedder = FakeEmbedder()
         else:
-            from tower.core.adapters.openai_embedder import OpenAIEmbedder
+            from tower.core.adapters.factory import build_embedder
             from tower.core.llm.errors import ProviderNotConfigured
 
-            if settings.openai_api_key is None:
+            # Non-sharing key first, else the data-sharing one (TOWER_OPENAI_API_KEY is
+            # optional since every route goes through the data-sharing organization).
+            built = build_embedder(settings)
+            if built is None:
                 raise ProviderNotConfigured("OpenAI API key is not configured", role="embed")
-            embedder = OpenAIEmbedder(settings.openai_api_key.get_secret_value())
+            embedder = built
         _instances["embedder"] = EmbeddingService(
             db,
             embedder,

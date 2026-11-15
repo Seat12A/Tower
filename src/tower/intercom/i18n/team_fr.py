@@ -150,6 +150,7 @@ MESSAGES: dict[str, str] = {
     "help.cmd.registry set-tier": "Changer le niveau d'une source",
     "help.cmd.registry set-control": "Définir l'entité de contrôle",
     "help.cmd.incidents list": "Lister les incidents ouverts",
+    "help.cmd.incidents show": "Détail d'un incident (message, contexte, trace)",
     "help.cmd.incidents resolve": "Résoudre un incident",
     "help.cmd.usage": "Quota et dépenses LLM",
     "help.cmd.profile show": "Afficher le profil actif",
