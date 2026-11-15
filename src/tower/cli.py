@@ -220,7 +220,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("create-service-token", help="Create a service client")
     p.add_argument("name")
-    p.add_argument("--scopes", nargs="+", required=True, help="e.g. dossiers:read events:read")
+    p.add_argument("--scopes", nargs="+", required=True, help="e.g. cases:read events:read")
     p.set_defaults(func=cmd_create_service_token)
 
     p = sub.add_parser("staff", help="Add or update a staff member")

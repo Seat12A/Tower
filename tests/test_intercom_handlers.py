@@ -17,7 +17,7 @@ from tower.core.domain.security import Permission
 from tower.core.errors import get_reporter
 from tower.core.events.outbox import publish
 from tower.intercom.gate_client import GateClient, GateError, GateUnavailable, SseEvent
-from tower.intercom.handlers import dossiers, incidents, usage, watchlist
+from tower.intercom.handlers import cases, incidents, usage, watchlist
 
 from .conftest import TokenFactory
 from .intercom_ui import assert_persistent
@@ -40,9 +40,9 @@ async def bot(
     return GateClient(base_url="http://gate", token=token, http=client)
 
 
-async def open_dossier(gate: GateClient, acting: int = EDITOR) -> str:
+async def open_case(gate: GateClient, acting: int = EDITOR) -> str:
     r = await gate._http.post(
-        "/v1/dossiers",
+        "/v1/cases",
         json={"kind": "fact_check", "x_post_id": POST},
         headers=gate._headers(acting),
     )
@@ -106,45 +106,45 @@ async def test_french_and_english_replies(bot: GateClient) -> None:
     assert "permission" in denied.text and "TWR-AUTH-005" in denied.text
 
 
-# --- dossiers ----------------------------------------------------------------------
+# --- cases ----------------------------------------------------------------------
 
 
-async def test_dossier_happy_path(bot: GateClient) -> None:
-    pid = await open_dossier(bot)
-    shown = await dossiers.show(bot, REVIEWER, "en", pid)
+async def test_case_happy_path(bot: GateClient) -> None:
+    pid = await open_case(bot)
+    shown = await cases.show(bot, REVIEWER, "en", pid)
     assert pid[:8] in shown.text and "received" in shown.text and POST in shown.text
     assert_persistent(shown)
     assert [b.disabled for b in shown.buttons[:4]] == [False, True, False, True]
 
-    r = await dossiers.take(bot, REVIEWER, "en", pid)
+    r = await cases.take(bot, REVIEWER, "en", pid)
     assert "taken into review" in r.text and "in review" in r.text
-    r = await dossiers.validate(bot, EDITOR, "en", pid)
+    r = await cases.validate(bot, EDITOR, "en", pid)
     assert "validated" in r.text and r.accent == "primary"
-    r = await dossiers.publish(bot, EDITOR, "fr", pid, f"https://x.com/seat12a/status/{POST}")
+    r = await cases.publish(bot, EDITOR, "fr", pid, f"https://x.com/seat12a/status/{POST}")
     assert "publiez le post vous-même" in r.text and r.accent == "success"
-    d = await bot.get_dossier(EDITOR, pid)
+    d = await bot.get_case(EDITOR, pid)
     assert d["status"] == "published" and d["published_url"].endswith(POST)
 
 
-async def test_dossier_reject_and_errors(bot: GateClient) -> None:
-    pid = await open_dossier(bot)
-    await dossiers.take(bot, EDITOR, "en", pid)
-    r = await dossiers.reject(bot, EDITOR, "en", pid, "not checkable")
+async def test_case_reject_and_errors(bot: GateClient) -> None:
+    pid = await open_case(bot)
+    await cases.take(bot, EDITOR, "en", pid)
+    r = await cases.reject(bot, EDITOR, "en", pid, "not checkable")
     assert "rejected" in r.text
-    assert (await bot.get_dossier(EDITOR, pid))["status"] == "rejected"
-    r = await dossiers.take(bot, EDITOR, "en", pid)
+    assert (await bot.get_case(EDITOR, pid))["status"] == "rejected"
+    r = await cases.take(bot, EDITOR, "en", pid)
     assert "TWR-DOS-002" in r.text and r.ephemeral
 
-    pid2 = await open_dossier(bot)
-    await dossiers.take(bot, REVIEWER, "en", pid2)
-    forbidden = await dossiers.validate(bot, REVIEWER, "en", pid2)
+    pid2 = await open_case(bot)
+    await cases.take(bot, REVIEWER, "en", pid2)
+    forbidden = await cases.validate(bot, REVIEWER, "en", pid2)
     assert "TWR-AUTH-005" in forbidden.text and forbidden.ephemeral
-    r = await dossiers.publish(bot, EDITOR, "en", pid2, "https://x.com/a/status/1")
+    r = await cases.publish(bot, EDITOR, "en", pid2, "https://x.com/a/status/1")
     assert "TWR-DOS-002" in r.text
-    r = await dossiers.show(bot, EDITOR, "en", "00000000-0000-0000-0000-000000000000")
+    r = await cases.show(bot, EDITOR, "en", "00000000-0000-0000-0000-000000000000")
     assert "TWR-DOS-001" in r.text
-    await dossiers.validate(bot, EDITOR, "en", pid2)
-    r = await dossiers.publish(bot, EDITOR, "en", pid2, "not a link")
+    await cases.validate(bot, EDITOR, "en", pid2)
+    r = await cases.publish(bot, EDITOR, "en", pid2, "not a link")
     assert "TWR-DOS-003" in r.text
 
 
@@ -288,7 +288,7 @@ async def test_client_headers_and_error_mapping() -> None:
             return httpx.Response(403, json=body)
         if request.url.path == "/v1/errors":
             return httpx.Response(503)
-        if request.url.path == "/v1/dossiers/x":
+        if request.url.path == "/v1/cases/x":
             return httpx.Response(502, text="<html>bad gateway</html>")
         return httpx.Response(200, json={"cursor": "5-5", "name": "n"})
 
@@ -304,7 +304,7 @@ async def test_client_headers_and_error_mapping() -> None:
         await gate.list_incidents(42)
     assert down.value.code == "TWR-BOT-001" and down.value.status == 503
     with pytest.raises(GateUnavailable):
-        await gate.get_dossier(42, "x")
+        await gate.get_case(42, "x")
     assert await gate.get_cursor("n") == "5-5"
     assert "x-acting-discord-id" not in seen[-1].headers  # the service itself
     assert "secret-token" not in repr(gate)
@@ -331,14 +331,14 @@ async def test_client_request_bodies() -> None:
         return httpx.Response(200, json={})
 
     gate = mock_gate(handler)
-    await gate.transition_dossier(1, "abc", to="rejected", version=3, note="why")
-    await gate.publish_dossier(1, "abc", url="https://x.com/a/status/1", version=4)
+    await gate.transition_case(1, "abc", to="rejected", version=3, note="why")
+    await gate.publish_case(1, "abc", url="https://x.com/a/status/1", version=4)
     await gate.list_watched(1, active=None, platform="x", limit=7)
     await gate.put_cursor("intercom", "1-2")
-    assert bodies["POST /v1/dossiers/abc/transitions"][0] == (
+    assert bodies["POST /v1/cases/abc/transitions"][0] == (
         '{"to":"rejected","expected_version":3,"reason":"why"}'
     )
-    assert '"expected_version":4' in bodies["POST /v1/dossiers/abc/publish"][0]
+    assert '"expected_version":4' in bodies["POST /v1/cases/abc/publish"][0]
     assert bodies["GET /v1/watched-accounts"][1] == "limit=7&platform=x"
     assert bodies["PUT /v1/events/cursors/intercom"][0] == '{"cursor":"1-2"}'
 
@@ -347,7 +347,7 @@ async def test_client_sse_parsing() -> None:
     body = (
         "retry: 3000\n\n"
         ": keepalive\n\n"
-        'id: 1-1\nevent: dossier.opened\ndata: {"topic": "dossier.opened", "payload": {"a": 1}}\n\n'
+        'id: 1-1\nevent: case.opened\ndata: {"topic": "case.opened", "payload": {"a": 1}}\n\n'
         ": another comment\n"
         "id: 1-2\nevent: incident.opened\n"
         'data: {"topic": "incident.opened",\ndata: "payload": {}}\n\n'
@@ -365,7 +365,7 @@ async def test_client_sse_parsing() -> None:
     with pytest.raises(GateUnavailable):  # EOF raises
         async for event in gate.stream_events(after="0-1", topics=["a.b", "c.d"]):
             got.append(event)
-    assert [(e.id, e.topic) for e in got] == [("1-1", "dossier.opened"), ("1-2", "incident.opened")]
+    assert [(e.id, e.topic) for e in got] == [("1-1", "case.opened"), ("1-2", "incident.opened")]
     assert got[0].data["payload"] == {"a": 1}
     query = requests[0].url.params
     assert query.get_list("topics") == ["a.b", "c.d"] and query["after"] == "0-1"
@@ -422,16 +422,16 @@ async def test_client_streams_from_real_gate(
     gate = GateClient(live_url, token)
     try:
         async with db.transaction() as s:
-            await publish(s, "dossier.opened", {"public_id": "p1"})
+            await publish(s, "case.opened", {"public_id": "p1"})
             await publish(s, "ping.done", {})
         got: list[SseEvent] = []
         async with asyncio.timeout(5):
-            stream = gate.stream_events(after="0", topics=["dossier.opened"])
+            stream = gate.stream_events(after="0", topics=["case.opened"])
             async for event in stream:
                 got.append(event)
                 break
             await cast(Any, stream).aclose()
-        assert got[0].topic == "dossier.opened" and got[0].data["payload"] == {"public_id": "p1"}
+        assert got[0].topic == "case.opened" and got[0].data["payload"] == {"public_id": "p1"}
     finally:
         await gate.aclose()
 
@@ -515,7 +515,7 @@ async def test_watchlist_forms_validate_before_calling_gate() -> None:
     assert watchlist.parse_priority("") == 0 and watchlist.parse_priority("-100") == -100
 
 
-async def test_dossier_card_buttons_follow_the_status() -> None:
+async def test_case_card_buttons_follow_the_status() -> None:
     pid = "11111111-2222-3333-4444-555555555555"
     states = {
         "received": [False, True, False, True],
@@ -530,14 +530,14 @@ async def test_dossier_card_buttons_follow_the_status() -> None:
             body = {"public_id": pid, "status": status, "version": 2, "x_post_id": "42"}
             return httpx.Response(200, json=body)
 
-        card = await dossiers.show(mock_gate(handler), 1, "en", pid)
+        card = await cases.show(mock_gate(handler), 1, "en", pid)
         assert [b.disabled for b in card.buttons[:4]] == disabled, status
         assert card.buttons[4].url == "https://x.com/i/status/42"
         assert_persistent(card)
     assert card.accent == "neutral"
 
 
-async def test_dossier_take_refreshes_the_card_with_the_new_status() -> None:
+async def test_case_take_refreshes_the_card_with_the_new_status() -> None:
     pid = "11111111-2222-3333-4444-555555555555"
     calls: list[str] = []
 
@@ -547,8 +547,8 @@ async def test_dossier_take_refreshes_the_card_with_the_new_status() -> None:
             return httpx.Response(200, json={"public_id": pid, "status": "received", "version": 1})
         return httpx.Response(200, json={"public_id": pid, "status": "in_review", "version": 2})
 
-    r = await dossiers.take(mock_gate(handler), 1, "en", pid)
-    assert calls == [f"GET /v1/dossiers/{pid}", f"POST /v1/dossiers/{pid}/transitions"]
+    r = await cases.take(mock_gate(handler), 1, "en", pid)
+    assert calls == [f"GET /v1/cases/{pid}", f"POST /v1/cases/{pid}/transitions"]
     assert "in review" in r.text and r.buttons[1].disabled is False and "taken" in r.footer
 
 
@@ -636,7 +636,7 @@ def test_modals_build_with_their_components() -> None:
     import asyncio
 
     from tower.intercom import commands
-    from tower.intercom.commands import dossiers as cd
+    from tower.intercom.commands import cases as cd
     from tower.intercom.commands import profiles as cp
     from tower.intercom.commands import registry as cr
     from tower.intercom.commands import watchlist as cw

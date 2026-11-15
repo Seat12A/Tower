@@ -30,7 +30,7 @@ MESSAGES: dict[str, str] = {
     "error.TWR-GEN-002": "Introuvable. ({code})",
     "error.TWR-GEN-003": "Quelqu'un a modifié cet élément entre-temps. Réessayez. ({code})",
     "error.TWR-GEN-004": "Trop de requêtes. Patientez un instant. ({code})",
-    "error.TWR-DOS-001": "Dossier introuvable. ({code})",
+    "error.TWR-DOS-001": "Case introuvable. ({code})",
     "error.TWR-DOS-002": (
         "Ce changement de statut n'est pas autorisé depuis le statut actuel. ({code})"
     ),
@@ -61,9 +61,9 @@ MESSAGES: dict[str, str] = {
     "watchlist.updated": "{platform} {account} mis à jour (`{short_id}`).",
     "watchlist.deactivated": "{platform} {account} désactivé (`{short_id}`).",
     "watchlist.nothing_to_change": "Rien à modifier : indiquez au moins un champ à changer.",
-    # --- dossiers ------------------------------------------------------------------
-    "dossier.show": (
-        "Dossier `{public_id}`\n"
+    # --- cases ------------------------------------------------------------------
+    "case.show": (
+        "Case `{public_id}`\n"
         "Statut : {status} | type : {kind} | priorité : {priority}\n"
         "Titre : {title}\n"
         "Post X : {x_post_id}\n"
@@ -71,12 +71,12 @@ MESSAGES: dict[str, str] = {
         "Publication : {published_url}\n"
         "Version : {version}"
     ),
-    "dossier.transitioned": "Dossier `{short_id}` : {from_status} -> {to_status}.",
-    "dossier.taken": "Dossier `{short_id}` pris en revue.",
-    "dossier.validated": "Dossier `{short_id}` validé.",
-    "dossier.rejected": "Dossier `{short_id}` rejeté.",
-    "dossier.published": (
-        "Lien de publication enregistré pour le dossier `{short_id}` : {url}\n"
+    "case.transitioned": "Case `{short_id}` : {from_status} -> {to_status}.",
+    "case.taken": "Case `{short_id}` pris en revue.",
+    "case.validated": "Case `{short_id}` validé.",
+    "case.rejected": "Case `{short_id}` rejeté.",
+    "case.published": (
+        "Lien de publication enregistré pour le case `{short_id}` : {url}\n"
         "Le bot ne publie jamais sur X : publiez le post vous-même."
     ),
     # --- incidents -----------------------------------------------------------------
@@ -96,8 +96,8 @@ MESSAGES: dict[str, str] = {
     "notify.incident.opened": "Incident ouvert {code} : {title} ({process}) `{short_fp}`",
     "notify.incident.reopened": "Incident rouvert {code} : {title} ({process}) `{short_fp}`",
     "notify.budget.threshold": "Budget {scope} : {threshold} % atteint ({spent} $ / {cap} $).",
-    "notify.dossier.opened": "Nouveau dossier `{short_id}`{platform} : {title}",
-    "notify.dossier.transitioned": "Dossier `{short_id}`{platform} : {from_status} -> {to_status}",
+    "notify.case.opened": "Nouveau case `{short_id}`{platform} : {title}",
+    "notify.case.transitioned": "Case `{short_id}`{platform} : {from_status} -> {to_status}",
     "notify.watchlist.added": "Liste de suivi : {platform} {account} ajouté ({category}).",
     "notify.watchlist.updated": "Liste de suivi : {platform} {account} mis à jour.",
     "notify.watchlist.resolved": "Liste de suivi : {platform} {account} résolu.",
@@ -196,7 +196,7 @@ MESSAGES: dict[str, str] = {
     "draft.review.rejected": "Brouillon `{short_id}` rejeté.",
     "factcheck.accepted": (
         "Fact-check demandé pour le post {platform} `{external_id}`. "
-        "Le brouillon apparaîtra dans le salon des dossiers."
+        "Le brouillon apparaîtra dans le salon des cases."
     ),
     "factcheck.duplicate": ("Un fact-check du post {platform} `{external_id}` est déjà en file."),
     # --- profils de traitement et forçages de niveau -----------------------------------

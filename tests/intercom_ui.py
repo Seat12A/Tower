@@ -23,6 +23,8 @@ def templates() -> tuple[re.Pattern[str], ...]:
 def custom_ids(reply: Reply) -> list[str]:
     out: list[str] = []
     controls: list[Button | Select] = list(reply.buttons)
+    if reply.menu is not None:
+        controls.append(reply.menu)
     for f in reply.fields:
         controls += [f.control] if isinstance(f.control, Select) else list(f.control)
     for c in controls:

@@ -1,4 +1,4 @@
-"""Assembly use cases (E10): open the review dossier of a draft, store machine translations."""
+"""Assembly use cases (E10): open the review case of a draft, store machine translations."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tower.core.domain.dossiers import DossierKind
+from tower.core.domain.cases import CaseKind
 from tower.core.domain.errors import Conflict
 from tower.core.domain.factcheck.urls import content_url
 from tower.core.domain.factcheck.values import TranslationOrigin
@@ -17,17 +17,17 @@ from tower.core.domain.platforms import Platform
 from tower.core.domain.security import Actor, Permission
 from tower.core.events.outbox import publish
 from tower.core.factcheck import names
-from tower.core.models.dossiers import Dossier
+from tower.core.models.cases import Case
 from tower.core.models.factcheck import (
+    CaseClaimGroup,
     Claim,
     ClaimGroup,
     ContextNoteTranslation,
-    DossierClaimGroup,
     Investigation,
     Verdict,
 )
 from tower.core.models.ingestion import ContentItem
-from tower.core.usecases import dossiers as dossier_uc
+from tower.core.usecases import cases as case_uc
 
 __all__ = ["N4_PRIORITY", "open_draft", "store_machine_translations"]
 
@@ -37,13 +37,13 @@ _TITLE_MAX = 200
 
 async def open_draft(
     session: AsyncSession, actor: Actor, verdict: Verdict, investigation: Investigation
-) -> Dossier:
-    """Open the ``fact_check`` dossier of a draft verdict, link it to the claim group and
+) -> Case:
+    """Open the ``fact_check`` case of a draft verdict, link it to the claim group and
     the content, mark the verdict as drafted (it now counts in the daily quota) and publish
     ``draft.ready``. The caller holds the quota lock when the quota matters."""
-    actor.require(Permission.DOSSIER_CREATE)
+    actor.require(Permission.CASE_CREATE)
     if verdict.drafted_at is not None:
-        raise Conflict("The draft already has a dossier", draft_id=str(verdict.public_id))
+        raise Conflict("The draft already has a case", draft_id=str(verdict.public_id))
     group = await session.get(ClaimGroup, verdict.claim_group_id)
     if group is None:  # pragma: no cover (foreign key)
         raise Conflict("Claim group missing", group_id=verdict.claim_group_id)
@@ -60,17 +60,17 @@ async def open_draft(
         if content is not None and content.platform == Platform.X.value
         else None
     )
-    dossier = await dossier_uc.open_dossier(
+    case = await case_uc.open_case(
         session,
         actor,
-        kind=DossierKind.FACT_CHECK,
+        kind=CaseKind.FACT_CHECK,
         x_post_id=x_post_id,
         title=claim.text_fr[:_TITLE_MAX],
         priority=N4_PRIORITY if group.level == "N4" else 0,
     )
     if content is not None:
-        dossier.content_id = content.id
-    session.add(DossierClaimGroup(dossier_id=dossier.id, claim_group_id=group.id))
+        case.content_id = content.id
+    session.add(CaseClaimGroup(case_id=case.id, claim_group_id=group.id))
     verdict.drafted_at = datetime.now(UTC)
     verdict.updated_at = func.now()
     await session.flush()
@@ -79,7 +79,7 @@ async def open_draft(
         names.DRAFT_READY,
         {
             "draft_id": str(verdict.public_id),
-            "dossier_id": str(dossier.public_id),
+            "case_id": str(case.public_id),
             "group_id": str(group.public_id),
             "level": group.level,
             "veracity": verdict.veracity,
@@ -95,7 +95,7 @@ async def open_draft(
         aggregate_id=str(verdict.public_id),
         actor=actor.label,
     )
-    return dossier
+    return case
 
 
 async def store_machine_translations(

@@ -19,7 +19,7 @@ from tower.gate.errors import install_error_handlers
 from tower.gate.middleware import ObservabilityMiddleware
 from tower.gate.ratelimit import TokenBucketLimiter
 from tower.gate.routes import (
-    dossiers,
+    cases,
     errors,
     events,
     factcheck,
@@ -78,7 +78,10 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.limiter = TokenBucketLimiter()
     install_error_handlers(app)
     app.include_router(health.router)
-    app.include_router(dossiers.router)
+    app.include_router(cases.router)
+    # Old /v1/dossiers paths (site, extension, tokens of older clients): same handlers,
+    # hidden from the schema. Expand step of the dossier -> case rename.
+    app.include_router(cases.legacy_router())
     app.include_router(events.router)
     app.include_router(errors.router)
     app.include_router(ingest.router)

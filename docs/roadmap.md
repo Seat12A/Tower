@@ -2,9 +2,9 @@
 
 ## Fait : socle (2026-11-10)
 
-Ossature, config, logs Railway, base et migrations, domaine des dossiers, outbox et
+Ossature, config, logs Railway, base et migrations, domaine des cases, outbox et
 LISTEN/NOTIFY, file de jobs, worker hangar, services enfichables, auth (tokens,
-staff, rôles), gestion d'erreurs (codes, stockage, incidents), gate (dossiers, SSE,
+staff, rôles), gestion d'erreurs (codes, stockage, incidents), gate (cases, SSE,
 erreurs), Docker, Railway, CI, documentation.
 
 ## Fait : partie 1 du fact-check (2026-11-11)
@@ -61,14 +61,16 @@ gratuite et bornée par l'intégration publique d'X (oEmbed). Voir
 
 ## Prochaines étapes
 
-1. **Ingestion (suite)** : règles d'ouverture de dossier (plusieurs installations
+- **Contract du renommage « dossier » → « case »** (après passage du site, de l'extension et des jetons aux nouveaux noms) : supprimer les vues de la migration 0012, réécrire les noms stockés (`dossiers:*`, `dossier_opened`), retirer les alias (`/v1/dossiers`, topics `dossier.*`, `TOWER_DISCORD_CHANNEL_DOSSIERS`, clé `dossier_investigation_id`).
+
+1. **Ingestion (suite)** : règles d'ouverture de case (plusieurs installations
    distinctes, mot-clé prioritaire) et relecture via l'API X.
 2. ✅ **radar** (partie 2, 2026-11-11) : service hangar `radar`, adaptateur
    `XPlatformClient`, planification adaptative plafonnée par le budget `provider:x`,
    résolution des pseudos ([radar.md](radar.md)). Reste : premier appel réel (clé),
    relecture d'un post par l'API (lot 3), flux Bluesky.
 3. ✅ **intercom** (partie 2) : bot Discord client de gate, notifications, commandes
-   `/watchlist`, `/dossier`, `/incidents`, `/usage`, reprise du flux par curseur
+   `/watchlist`, `/case`, `/incidents`, `/usage`, reprise du flux par curseur
    stocké ([intercom.md](intercom.md)). Reste : premier lancement réel (token
    Discord) ; la revue des brouillons de fact-check est livrée (lot 3).
 4. **Fact-check** : session de validation et de réglage du lot 3 (clés Anthropic,
@@ -82,7 +84,7 @@ gratuite et bornée par l'intégration publique d'X (oEmbed). Voir
    (flux de masse, ordonnanceur, récits et mode vague), V3 (Atlas complet : droit,
    statistiques, actualité ; classifieur distillé ; confiance calibrée), plateformes
    supplémentaires, médias, audit et neutralité.
-5. **Modération** : définir le cycle et le service `moderation` (type de dossier déjà
+5. **Modération** : définir le cycle et le service `moderation` (type de case déjà
    prévu).
 6. **blackbox** : archive publique des verdicts.
 

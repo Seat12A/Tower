@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.config import get_settings
 from tower.core.domain import error_codes as ec
-from tower.core.domain.dossiers import DossierKind, DossierStatus, allowed_transitions
+from tower.core.domain.cases import CaseKind, CaseStatus, allowed_transitions
 from tower.core.domain.errors import Conflict, InvalidInput, NotFound
 from tower.core.domain.factcheck.checks import NOTE_MAX_CHARS, note_length
 from tower.core.domain.factcheck.expiry import parse_ttl_overrides, verdict_expiry
@@ -44,15 +44,15 @@ from tower.core.factcheck import names
 from tower.core.factcheck.coordination import coordination_signals
 from tower.core.jobs.queue import enqueue
 from tower.core.logging import get_logger
-from tower.core.models.dossiers import Dossier
+from tower.core.models.cases import Case
 from tower.core.models.factcheck import (
+    CaseClaimGroup,
     Claim,
     ClaimGroup,
     ClaimGroupMember,
     ContentClaim,
     ContextNote,
     ContextNoteTranslation,
-    DossierClaimGroup,
     EvidencePassage,
     Investigation,
     Review,
@@ -61,7 +61,7 @@ from tower.core.models.factcheck import (
 )
 from tower.core.models.factcheck_v1 import ReferenceFact
 from tower.core.models.ingestion import ContentItem
-from tower.core.usecases import dossiers as dossier_uc
+from tower.core.usecases import cases as case_uc
 from tower.core.usecases import group_views, narrative_views
 from tower.core.usecases import references as references_uc
 from tower.core.usecases.narratives import group_in_surge
@@ -108,7 +108,7 @@ class DraftView:
     confidence_band: str | None
     claim: dict[str, Any]
     content: dict[str, Any] | None
-    dossier: dict[str, Any] | None
+    case: dict[str, Any] | None
     notes: dict[str, dict[str, Any]]
     links: list[str]
     rationale: list[dict[str, Any]]
@@ -186,12 +186,23 @@ class PublicVerdict:
 # --- reading ---------------------------------------------------------------------------
 
 
-async def _dossier_of_group(session: AsyncSession, group_id: int) -> Dossier | None:
+async def _case_of_group(session: AsyncSession, group_id: int) -> Case | None:
     return await session.scalar(
-        select(Dossier)
-        .join(DossierClaimGroup, DossierClaimGroup.dossier_id == Dossier.id)
-        .where(DossierClaimGroup.claim_group_id == group_id)
-        .order_by(Dossier.id.desc())
+        select(Case)
+        .join(CaseClaimGroup, CaseClaimGroup.case_id == Case.id)
+        .where(CaseClaimGroup.claim_group_id == group_id)
+        .order_by(Case.id.desc())
+        .limit(1)
+    )
+
+
+async def draft_id_of_case(session: AsyncSession, case_id: int) -> uuid.UUID | None:
+    """Public id of the latest draft (drafted verdict) of a case's claim groups."""
+    return await session.scalar(
+        select(Verdict.public_id)
+        .join(CaseClaimGroup, CaseClaimGroup.claim_group_id == Verdict.claim_group_id)
+        .where(CaseClaimGroup.case_id == case_id, Verdict.drafted_at.is_not(None))
+        .order_by(Verdict.id.desc())
         .limit(1)
     )
 
@@ -206,10 +217,10 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         if verdict.investigation_id is not None
         else None
     )
-    dossier = await _dossier_of_group(session, group.id)
+    case = await _case_of_group(session, group.id)
     content_id = (
-        dossier.content_id
-        if dossier is not None and dossier.content_id is not None
+        case.content_id
+        if case is not None and case.content_id is not None
         else (investigation.content_id if investigation is not None else None)
     )
     content = await session.get(ContentItem, content_id) if content_id is not None else None
@@ -309,9 +320,15 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         confidence_band=flags.get("confidence_band"),
         claim=claim_view,
         content=content_view,
-        dossier=(
-            {"id": str(dossier.public_id), "status": dossier.status}
-            if dossier is not None
+        case=(
+            {
+                "id": str(case.public_id),
+                "status": case.status,
+                "discord_thread_id": (
+                    None if case.discord_thread_id is None else str(case.discord_thread_id)
+                ),
+            }
+            if case is not None
             else None
         ),
         notes=notes,
@@ -350,7 +367,7 @@ async def list_pending_drafts(
     """Drafts waiting for a decision: status ``draft`` and in the review queue
     (``drafted_at`` set). Newest first; ``before_id`` is the internal verdict id of the
     last row of the previous page."""
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     stmt = (
         select(Verdict)
         .where(Verdict.status == VerdictStatus.DRAFT.value, Verdict.drafted_at.is_not(None))
@@ -380,14 +397,14 @@ async def _verdict_by_public_id(
 
 
 async def get_draft(session: AsyncSession, actor: Actor, public_id: uuid.UUID) -> DraftView:
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     return await _build_view(session, await _verdict_by_public_id(session, public_id))
 
 
 async def mark_draft_notified(session: AsyncSession, actor: Actor, public_id: uuid.UUID) -> None:
     """Record that the draft is displayed in Discord. Operational marker: no audit, no
     event, no version bump (plain SQL, the row has an optimistic version column)."""
-    actor.require(Permission.DOSSIER_READ)
+    actor.require(Permission.CASE_READ)
     result = await session.execute(
         text(
             "UPDATE verdicts SET notified_at = now() "
@@ -423,21 +440,21 @@ def _clean_labels(labels: Sequence[str]) -> list[str]:
     return out
 
 
-async def _advance_dossier(
-    session: AsyncSession, actor: Actor, dossier: Dossier | None, *targets: DossierStatus
+async def _advance_case(
+    session: AsyncSession, actor: Actor, case: Case | None, *targets: CaseStatus
 ) -> None:
-    """Move the dossier through ``targets`` in order, skipping steps already done or no
-    longer reachable (a dossier can hold several drafts)."""
-    if dossier is None:
+    """Move the case through ``targets`` in order, skipping steps already done or no
+    longer reachable (a case can hold several drafts)."""
+    if case is None:
         return
     for target in targets:
-        current = DossierStatus(dossier.status)
+        current = CaseStatus(case.status)
         if current is target:
             continue
-        if target not in allowed_transitions(DossierKind(dossier.kind), current):
+        if target not in allowed_transitions(CaseKind(case.kind), current):
             continue
-        await dossier_uc.transition(
-            session, actor, dossier.public_id, target, reason="fact-check draft review"
+        await case_uc.transition(
+            session, actor, case.public_id, target, reason="fact-check draft review"
         )
 
 
@@ -458,13 +475,13 @@ async def review_draft(
     """Decide a draft. A reviewer endorses (the draft waits for an editor); an editor
     validates (verdict active, ``verdict.published``) or rejects. With ``validate_band``,
     a validation also validates the value band of the group (same transaction)."""
-    actor.require(Permission.DOSSIER_REVIEW)
+    actor.require(Permission.CASE_REVIEW)
     try:
         decision = ReviewDecision(decision)
     except ValueError:
         raise _bad_review("Unknown review decision", decision=str(decision)[:32]) from None
     if decision is ReviewDecision.REJECT:
-        actor.require(Permission.DOSSIER_DECIDE)
+        actor.require(Permission.CASE_DECIDE)
     clean_labels = _clean_labels(labels)
     reason = reason.strip() if reason else None
     new_veracity: Veracity | None = None
@@ -511,7 +528,7 @@ async def review_draft(
     group = await session.get(ClaimGroup, verdict.claim_group_id)
     if group is None:  # pragma: no cover - foreign key
         raise NotFound("Draft not found", code=ec.FCK_DRAFT_NOT_FOUND)
-    dossier = await _dossier_of_group(session, group.id)
+    case = await _case_of_group(session, group.id)
     note = await session.scalar(
         select(ContextNote).where(ContextNote.verdict_id == verdict.id).with_for_update()
     )
@@ -543,7 +560,7 @@ async def review_draft(
             if new_note != before:
                 diff["note"] = {"lang": lang, "before": before, "after": new_note}
 
-    can_decide = actor.can(Permission.DOSSIER_DECIDE)
+    can_decide = actor.can(Permission.CASE_DECIDE)
     retranslate_from: str | None = None
     if decision is ReviewDecision.REJECT:
         outcome = ReviewOutcome.REJECTED
@@ -553,19 +570,15 @@ async def review_draft(
         outcome = ReviewOutcome.VALIDATED
 
     if outcome is ReviewOutcome.ENDORSED:
-        await _advance_dossier(session, actor, dossier, DossierStatus.IN_REVIEW)
+        await _advance_case(session, actor, case, CaseStatus.IN_REVIEW)
     elif outcome is ReviewOutcome.REJECTED:
-        await _advance_dossier(
-            session, actor, dossier, DossierStatus.IN_REVIEW, DossierStatus.REJECTED
-        )
+        await _advance_case(session, actor, case, CaseStatus.IN_REVIEW, CaseStatus.REJECTED)
         verdict.status = VerdictStatus.REJECTED.value
         if note is not None:
             note.status = NoteStatus.REJECTED.value
             note.updated_at = func.now()
     else:
-        await _advance_dossier(
-            session, actor, dossier, DossierStatus.IN_REVIEW, DossierStatus.VALIDATED
-        )
+        await _advance_case(session, actor, case, CaseStatus.IN_REVIEW, CaseStatus.VALIDATED)
         previous = (
             await session.scalars(
                 select(Verdict)
@@ -628,7 +641,7 @@ async def review_draft(
     session.add(
         Review(
             verdict_id=verdict.id,
-            dossier_id=dossier.id if dossier is not None else None,
+            case_id=case.id if case is not None else None,
             reviewer=reviewer,
             decision=decision.value,
             outcome=outcome.value,
@@ -639,13 +652,13 @@ async def review_draft(
             review_seconds=review_seconds,
         )
     )
-    dossier_public = str(dossier.public_id) if dossier is not None else None
+    case_public = str(case.public_id) if case is not None else None
     await publish(
         session,
         names.DRAFT_REVIEWED,
         {
             "draft_id": str(verdict.public_id),
-            "dossier_id": dossier_public,
+            "case_id": case_public,
             "decision": decision.value,
             "outcome": outcome.value,
             "final_veracity": verdict.veracity,
@@ -657,14 +670,14 @@ async def review_draft(
         actor=reviewer,
     )
     if outcome is ReviewOutcome.VALIDATED:
-        content = await _content_of(session, dossier, verdict)
+        content = await _content_of(session, case, verdict)
         await publish(
             session,
             names.VERDICT_PUBLISHED,
             {
                 "verdict_id": str(verdict.public_id),
                 "group_id": str(group.public_id),
-                "dossier_id": dossier_public,
+                "case_id": case_public,
                 "veracity": verdict.veracity,
                 "context_need": verdict.context_need,
                 "platform": content.platform if content is not None else None,
@@ -719,9 +732,9 @@ async def _expiry_of(
 
 
 async def _content_of(
-    session: AsyncSession, dossier: Dossier | None, verdict: Verdict
+    session: AsyncSession, case: Case | None, verdict: Verdict
 ) -> ContentItem | None:
-    content_id = dossier.content_id if dossier is not None else None
+    content_id = case.content_id if case is not None else None
     if content_id is None and verdict.investigation_id is not None:
         content_id = await session.scalar(
             select(Investigation.content_id).where(Investigation.id == verdict.investigation_id)
@@ -778,7 +791,7 @@ async def get_public_verdict(
 ) -> PublicVerdict:
     """Validated verdicts of a content (never drafts), notes in the best language:
     requested, then the post language, then English, then French."""
-    actor.require(Permission.DOSSIER_READ_PUBLIC)
+    actor.require(Permission.CASE_READ_PUBLIC)
     not_found = NotFound(
         "No validated verdict for this content",
         code=ec.FCK_VERDICT_NOT_FOUND,

@@ -134,7 +134,7 @@ async def split(
 async def set_title(
     narrative_id: uuid.UUID, body: NarrativeTitleIn, actor: ActorDep, session: WriteSession
 ) -> NarrativeOut:
-    """Validate the draft title, or set a corrected one (``dossiers:review``)."""
+    """Validate the draft title, or set a corrected one (``cases:review``)."""
     await uc.validate_title(session, actor, narrative_id, title=body.title)
     return NarrativeOut.model_validate(
         await narrative_views.narrative_detail(session, actor, narrative_id)

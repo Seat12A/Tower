@@ -28,7 +28,7 @@ MESSAGES: dict[str, str] = {
     "error.TWR-GEN-002": "Not found. ({code})",
     "error.TWR-GEN-003": "Someone modified this item meanwhile. Try again. ({code})",
     "error.TWR-GEN-004": "Too many requests. Wait a moment. ({code})",
-    "error.TWR-DOS-001": "Dossier not found. ({code})",
+    "error.TWR-DOS-001": "Case not found. ({code})",
     "error.TWR-DOS-002": "This status change is not allowed from the current status. ({code})",
     "error.TWR-DOS-003": "Invalid X link. Expected: https://x.com/<account>/status/<id> ({code})",
     "error.TWR-DOS-004": "An X publication link is required. ({code})",
@@ -55,9 +55,9 @@ MESSAGES: dict[str, str] = {
     "watchlist.updated": "Updated {platform} {account} (`{short_id}`).",
     "watchlist.deactivated": "Deactivated {platform} {account} (`{short_id}`).",
     "watchlist.nothing_to_change": "Nothing to change: give at least one field to edit.",
-    # --- dossiers -------------------------------------------------------------------
-    "dossier.show": (
-        "Dossier `{public_id}`\n"
+    # --- cases -------------------------------------------------------------------
+    "case.show": (
+        "Case `{public_id}`\n"
         "Status: {status} | kind: {kind} | priority: {priority}\n"
         "Title: {title}\n"
         "X post: {x_post_id}\n"
@@ -65,12 +65,12 @@ MESSAGES: dict[str, str] = {
         "Publication: {published_url}\n"
         "Version: {version}"
     ),
-    "dossier.transitioned": "Dossier `{short_id}`: {from_status} -> {to_status}.",
-    "dossier.taken": "Dossier `{short_id}` taken into review.",
-    "dossier.validated": "Dossier `{short_id}` validated.",
-    "dossier.rejected": "Dossier `{short_id}` rejected.",
-    "dossier.published": (
-        "Publication link recorded for dossier `{short_id}`: {url}\n"
+    "case.transitioned": "Case `{short_id}`: {from_status} -> {to_status}.",
+    "case.taken": "Case `{short_id}` taken into review.",
+    "case.validated": "Case `{short_id}` validated.",
+    "case.rejected": "Case `{short_id}` rejected.",
+    "case.published": (
+        "Publication link recorded for case `{short_id}`: {url}\n"
         "The bot never posts on X: publish the post manually."
     ),
     # --- incidents ------------------------------------------------------------------
@@ -90,8 +90,8 @@ MESSAGES: dict[str, str] = {
     "notify.incident.opened": "Incident opened {code}: {title} ({process}) `{short_fp}`",
     "notify.incident.reopened": "Incident reopened {code}: {title} ({process}) `{short_fp}`",
     "notify.budget.threshold": "Budget {scope}: {threshold}% reached (${spent} / ${cap}).",
-    "notify.dossier.opened": "New dossier `{short_id}`{platform}: {title}",
-    "notify.dossier.transitioned": "Dossier `{short_id}`{platform}: {from_status} -> {to_status}",
+    "notify.case.opened": "New case `{short_id}`{platform}: {title}",
+    "notify.case.transitioned": "Case `{short_id}`{platform}: {from_status} -> {to_status}",
     "notify.watchlist.added": "Watchlist: added {platform} {account} ({category}).",
     "notify.watchlist.updated": "Watchlist: updated {platform} {account}.",
     "notify.watchlist.resolved": "Watchlist: {platform} {account} resolved.",
@@ -185,7 +185,7 @@ MESSAGES: dict[str, str] = {
     "draft.review.rejected": "Draft `{short_id}` rejected.",
     "factcheck.accepted": (
         "Fact-check requested for the {platform} post `{external_id}`. "
-        "The draft will appear in the dossiers channel."
+        "The draft will appear in the cases channel."
     ),
     "factcheck.duplicate": (
         "A fact-check of the {platform} post `{external_id}` is already queued."

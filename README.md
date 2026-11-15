@@ -23,7 +23,7 @@ uv run tower hangar
 
 ## Documentation
 
-Tout est dans [`docs/`](docs/README.md) : architecture, API, dossiers, événements,
+Tout est dans [`docs/`](docs/README.md) : architecture, API, cases, événements,
 jobs, services, auth, gestion des erreurs, logs, déploiement Railway, développement,
 décisions et feuille de route. Les contributeurs (et Claude) suivent
 [`CLAUDE.md`](CLAUDE.md).

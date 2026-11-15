@@ -34,7 +34,7 @@ investigation.requested ──(investigate)──▶ investigate.frame (E6)
                                               ▼  investigation.completed
 investigation.completed ──(factcheck)──▶ factcheck.assemble (E10)
                                               │  confiance, revérification, quota,
-                                              ▼  dossier ouvert, draft.ready
+                                              ▼  case ouvert, draft.ready
 draft.ready ──(bot)──▶ message Discord avec boutons ─▶ POST /v1/drafts/{id}/review (E11)
                                               │  draft.reviewed (+ verdict.published)
 verdict.published ──(factcheck)──▶ factcheck.translate ─▶ lecture publique
@@ -188,7 +188,7 @@ statutaire arrivent au lot 6.
    consultatif. Au-delà, le brouillon attend (`drafted_at` vide) ; la tâche
    `factcheck:drain_quota` ouvre les brouillons en attente dès qu'une place se libère,
    dans l'ordre : N4, cas de doute, issues « Faux » et « Trompeur », portée, ancienneté.
-4. **Ouverture** : dossier `fact_check` (avec `content_id`), `dossier_claim_groups`,
+4. **Ouverture** : case `fact_check` (avec `content_id`), `case_claim_groups`,
    `verdicts.drafted_at`, événement `draft.ready`. Un brouillon dont le groupe a été
    fusionné pendant l'enquête n'est pas ouvert : il passe à `superseded` dès
    l'assemblage (le groupe cible porte les affirmations), au lieu d'être refusé plus tard
@@ -201,13 +201,13 @@ Endpoint `POST /v1/drafts/{id}/review` (voir [api.md](api.md)), boutons du bot (
 
 | Décision | Relecteur (`reviewer`) | Éditeur (`editor`) |
 |---|---|---|
-| `accept` | Avis favorable enregistré, dossier en revue (`endorsed`) | Verdict actif, dossier `validated`, `verdict.published` |
+| `accept` | Avis favorable enregistré, case en revue (`endorsed`) | Verdict actif, case `validated`, `verdict.published` |
 | `edit` (issue et/ou texte de la note) | Correction proposée enregistrée (`endorsed`) | Verdict actif avec les corrections, `verdict.published` |
-| `reject` (motif obligatoire) | Refusé (permission) | Verdict rejeté, dossier `rejected` |
+| `reject` (motif obligatoire) | Refusé (permission) | Verdict rejeté, case `rejected` |
 
 Chaque décision est une ligne `reviews` (issue finale, diff, étiquettes
 d'apprentissage, temps de relecture). « Marquer comme publié » sur X reste manuel
-(`POST /v1/dossiers/{id}/publish`).
+(`POST /v1/cases/{id}/publish`).
 
 ## Langues
 
@@ -563,7 +563,7 @@ priorité et la promotion. Affirmation chiffrée avec une fiche validée : signa
 déterministe par la bande, sans modèle (`contains` → `likely_true`, `within_1_tau` →
 `needs_context`, sinon `likely_false`). Sinon, preuves = fact-checks existants et sources
 structurées de l'Atlas (**ni encyclopédie, ni recherche web**), ou, pour un groupe d'un
-récit en vague, les passages retenus de l'enquête représentative du récit (dossier de
+récit en vague, les passages retenus de l'enquête représentative du récit (case de
 preuves) ; rôle `light_check`. Aucune preuve : `uncertain` sans appel de modèle. Résultat
 dans `claim_groups.light_signal`, `light_checked_at`, `light_evidence`. Échec :
 `TWR-FCK-041`. Idempotent par groupe et version de profil.
@@ -587,7 +587,7 @@ dans `claim_groups.light_signal`, `light_checked_at`, `light_evidence`. Échec :
   (`claim_groups:manage`, `TWR-FCK-043`, `TWR-FCK-044`).
 - Titre : job `factcheck.narrative_title` (rôle `narrative_title`) quand un récit
   atteint `watch` sans titre ; titre français en brouillon, validé ou corrigé par un
-  relecteur (`dossiers:review`).
+  relecteur (`cases:review`).
 
 ### Vagues
 
@@ -605,7 +605,7 @@ dans `claim_groups.light_signal`, `light_checked_at`, `light_evidence`. Échec :
   représentant), groupe représentatif (plus grande portée, puis affirmation chiffrée)
   enquêté une fois, avec **priorité 10 dans `fc-deep`** pour tous les jobs de son enquête
   (voie rapide, pas de file dédiée) ; les autres groupes reçoivent une vérification légère
-  sur le dossier de preuves dès que l'enquête a des passages retenus ;
+  sur le case de preuves dès que l'enquête a des passages retenus ;
   `narrative.surge_detected`. Les brouillons de vague (`flags.surge`) ont leur quota
   quotidien `TOWER_FC_SURGE_DAILY_QUOTA` ; quota plein : règles du quota quotidien. Un
   verdict validé pendant une vague expire au plus tard

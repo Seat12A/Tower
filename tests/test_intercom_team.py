@@ -44,7 +44,7 @@ class FakeGate:
     def __init__(self, me_perms: list[str], *, me_admin: bool = False) -> None:
         self.members: dict[int, dict[str, Any]] = {
             ME: member(ME, me_perms, admin=me_admin),
-            TARGET: member(TARGET, ["usage:read", "dossiers:read"]),
+            TARGET: member(TARGET, ["usage:read", "cases:read"]),
             ADMIN_ID: member(ADMIN_ID, [], admin=True),
         }
         self.me_perms = me_perms
@@ -124,11 +124,11 @@ def test_can_act_on_hierarchy() -> None:
 
 def test_new_permissions_ignores_forged_values() -> None:
     new = h.new_permissions(
-        current={"dossiers:read", "usage:read"},
-        options=("dossiers:read", "dossiers:create"),
-        selected=["dossiers:create", "staff:manage"],
+        current={"cases:read", "usage:read"},
+        options=("cases:read", "cases:create"),
+        selected=["cases:create", "staff:manage"],
     )
-    assert new == {"usage:read", "dossiers:create"}
+    assert new == {"usage:read", "cases:create"}
 
 
 def test_command_map_unknown_command_is_shown() -> None:
@@ -221,9 +221,9 @@ async def test_panel_for_administrator_offers_every_category() -> None:
     assert_persistent(reply)
     sel = selects(reply)
     assert len(sel) == len(h.CATEGORIES) and not any(s.disabled for s in sel.values())
-    dossiers = sel[h.cid_perm_set(TARGET, "dossiers")]
-    assert {o.value for o in dossiers.options if o.default} == {"dossiers:read"}
-    assert len(dossiers.options) == 5 and dossiers.min_values == 0
+    cases = sel[h.cid_perm_set(TARGET, "cases")]
+    assert {o.value for o in cases.options if o.default} == {"cases:read"}
+    assert len(cases.options) == 5 and cases.min_values == 0
     assert len(reply.fields) + len(reply.buttons) + 4 < 40
 
 
@@ -234,8 +234,8 @@ async def test_panel_offers_only_what_the_actor_holds_and_locks_the_rest() -> No
     sel = selects(reply)
     supervision = sel[h.cid_perm_set(TARGET, "supervision")]
     assert [o.value for o in supervision.options] == ["usage:read", "errors:read"]
-    assert h.cid_perm_set(TARGET, "dossiers") not in sel  # nothing to offer there...
-    assert any("dossiers" in i.lower() or "dossier" in i.lower() for i in reply.items)  # ...locked
+    assert h.cid_perm_set(TARGET, "cases") not in sel  # nothing to offer there...
+    assert any("cases" in i.lower() or "case" in i.lower() for i in reply.items)  # ...locked
     assert_persistent(reply)
 
 
@@ -266,15 +266,15 @@ async def test_set_category_computes_new_list_and_rerenders() -> None:
         ME,
         "en",
         TARGET,
-        "dossiers",
-        ["dossiers:create", "dossiers:review"],
+        "cases",
+        ["cases:create", "cases:review"],
         1,
         1,
     )
     puts = [c for c in fake.writes() if c[1].endswith("/permissions")]
     # the "usage:read" permission, outside the category, is kept
-    assert puts[0][2] == {"permissions": ["dossiers:create", "dossiers:review", "usage:read"]}
-    assert reply.footer and "dossiers:create" in str(
+    assert puts[0][2] == {"permissions": ["cases:create", "cases:review", "usage:read"]}
+    assert reply.footer and "cases:create" in str(
         [o.value for s in selects(reply).values() for o in s.options if o.default]
     )
     assert_persistent(reply)
@@ -287,12 +287,12 @@ async def test_set_category_ignores_values_the_actor_may_not_change() -> None:
     )
     puts = [c for c in fake.writes() if c[1].endswith("/permissions")]
     # usage:read (held by the actor, offered) is removed; nothing forged is added
-    assert puts[0][2] == {"permissions": ["dossiers:read"]}
+    assert puts[0][2] == {"permissions": ["cases:read"]}
 
 
 async def test_set_category_without_change_writes_nothing() -> None:
     fake = FakeGate([], me_admin=True)
-    reply = await h.set_category(fake.client, ME, "en", TARGET, "dossiers", ["dossiers:read"], 1, 1)
+    reply = await h.set_category(fake.client, ME, "en", TARGET, "cases", ["cases:read"], 1, 1)
     assert not fake.writes() and not reply.footer
 
 
@@ -308,7 +308,7 @@ async def test_clear_all_removes_only_what_the_actor_may_change() -> None:
     fake = FakeGate(["permissions:manage_others", "usage:read"])
     await h.clear_permissions(fake.client, ME, "en", TARGET, 10, 2)
     puts = [c for c in fake.writes() if c[1].endswith("/permissions")]
-    assert puts[0][2] == {"permissions": ["dossiers:read"]}
+    assert puts[0][2] == {"permissions": ["cases:read"]}
     admin = FakeGate([], me_admin=True)
     await h.clear_permissions(admin.client, ME, "en", TARGET, 1, 1)
     sent = next(c for c in admin.writes() if c[1].endswith("/permissions"))

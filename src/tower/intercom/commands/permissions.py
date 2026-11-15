@@ -19,7 +19,7 @@ from tower.intercom.handlers import team as h
 from tower.intercom.ui.base import guarded_callback, run_handler
 
 SAMPLE_CUSTOM_IDS = (
-    h.cid_perm_set(123456789012345678, "dossiers"),
+    h.cid_perm_set(123456789012345678, "cases"),
     h.cid_perm_clear("ask", 123456789012345678),
 )
 

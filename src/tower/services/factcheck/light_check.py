@@ -3,7 +3,7 @@
 Two paths. A numeric claim with a validated reference fact is decided by its value band, no
 model involved. Otherwise a small model compares the claim with short evidence items: the
 existing fact-checks and structured sources of the Atlas (no encyclopedia, no web search),
-or the kept passages of the evidence dossier of a surging narrative. The result only feeds
+or the kept passages of the evidence case of a surging narrative. The result only feeds
 the priority (``claim_groups.light_signal``).
 """
 
@@ -112,18 +112,22 @@ def _item(n: int, kind: str, source: str, text: str) -> dict[str, str]:
     }
 
 
-def _already_done(group: ClaimGroup, version: int, dossier: int | None) -> bool:
-    """Idempotence: one check per (group, profile version, dossier)."""
+_LEGACY_KEY = "dossier_investigation_id"
+"""Key written before the dossier -> case rename (stored evidence, queued jobs)."""
+
+
+def _already_done(group: ClaimGroup, version: int, case: int | None) -> bool:
+    """Idempotence: one check per (group, profile version, case)."""
     evidence = group.light_evidence
     return (
         group.light_checked_at is not None
         and evidence is not None
         and evidence.get("profile_version") == version
-        and evidence.get("dossier_investigation_id") == dossier
+        and evidence.get("case_investigation_id", evidence.get(_LEGACY_KEY)) == case
     )
 
 
-async def _dossier_evidence(session: AsyncSession, investigation_id: int) -> list[dict[str, str]]:
+async def _case_evidence(session: AsyncSession, investigation_id: int) -> list[dict[str, str]]:
     """Kept passages (or passages whose text is still there) of an investigation."""
     rows = (
         await session.execute(
@@ -141,7 +145,7 @@ async def _dossier_evidence(session: AsyncSession, investigation_id: int) -> lis
     for text, translation, domain in rows:
         body = text or translation
         if body:
-            items.append(_item(len(items) + 1, "dossier_passage", str(domain), str(body)))
+            items.append(_item(len(items) + 1, "case_passage", str(domain), str(body)))
     return items
 
 
@@ -184,7 +188,7 @@ async def _write(
     explanation: str,
     evidence: Sequence[Mapping[str, str]],
     version: int,
-    dossier: int | None,
+    case: int | None,
 ) -> None:
     async with ctx.db.transaction() as session:
         await uc.record_light_signal(
@@ -196,18 +200,18 @@ async def _write(
             evidence=evidence,
             now=datetime.now(UTC),
             profile_version=version,
-            dossier_investigation_id=dossier,
+            case_investigation_id=case,
         )
     log.info("light_check.done", group=group_id, signal=signal.value)
 
 
 async def light_check(ctx: JobContext) -> None:
-    """Job ``factcheck.light_check``. Payload ``{"group_id", "dossier_investigation_id"}``."""
+    """Job ``factcheck.light_check``. Payload ``{"group_id", "case_investigation_id"}``."""
     payload = ctx.job.payload
     try:
         group_id = int(payload["group_id"])
-        raw = payload.get("dossier_investigation_id")
-        dossier = None if raw is None else int(raw)
+        raw = payload.get("case_investigation_id", payload.get(_LEGACY_KEY))
+        case = None if raw is None else int(raw)
     except (KeyError, TypeError, ValueError) as exc:
         raise PermanentError("bad light_check payload") from exc
 
@@ -217,7 +221,7 @@ async def light_check(ctx: JobContext) -> None:
         if group is None or group.state == "merged":
             log.info("light_check.skipped", group=group_id)
             return
-        if _already_done(group, version, dossier):
+        if _already_done(group, version, case):
             return
         claim = await session.get(Claim, group.representative_claim_id)
         if claim is None:
@@ -237,7 +241,7 @@ async def light_check(ctx: JobContext) -> None:
         else:
             band = None
             fact_evidence, fact_explanation = [], ""
-        evidence_items = await _dossier_evidence(session, dossier) if dossier is not None else []
+        evidence_items = await _case_evidence(session, case) if case is not None else []
     if band is not None:
         await _write(
             ctx,
@@ -246,12 +250,12 @@ async def light_check(ctx: JobContext) -> None:
             explanation=fact_explanation,
             evidence=fact_evidence,
             version=version,
-            dossier=dossier,
+            case=case,
         )
         return
 
     try:
-        if dossier is None:
+        if case is None:
             evidence_items = await _atlas_evidence(ctx, claim, post_date)
     except Exception as exc:  # the lookup is optional: a failure leaves the group unchecked
         capture(ec.FCK_LIGHT_CHECK_FAILED, exc, group=group_id, stage="evidence")
@@ -264,7 +268,7 @@ async def light_check(ctx: JobContext) -> None:
             explanation="No evidence found.",
             evidence=[],
             version=version,
-            dossier=dossier,
+            case=case,
         )
         return
 
@@ -303,5 +307,5 @@ async def light_check(ctx: JobContext) -> None:
         explanation=output.explanation,
         evidence=cited,
         version=version,
-        dossier=dossier,
+        case=case,
     )

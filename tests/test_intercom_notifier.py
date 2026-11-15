@@ -4,19 +4,20 @@ import asyncio
 from collections.abc import AsyncIterator, Callable
 from typing import Any, cast
 
+from tower.core.domain.cases import with_legacy_topics
 from tower.intercom.gate_client import GateClient, GateError, GateUnavailable, SseEvent
 from tower.intercom.handlers import Reply
 from tower.intercom.notifier import TOPIC_CHANNELS, Notifier, format_event
 
-DOSSIER = "11111111-2222-3333-4444-555555555555"
+CASE = "11111111-2222-3333-4444-555555555555"
 
 
 def ev(event_id: str, topic: str, payload: dict[str, Any] | None = None) -> SseEvent:
     return SseEvent(event_id, topic, {"topic": topic, "payload": payload or {}})
 
 
-def dossier_event(event_id: str) -> SseEvent:
-    return ev(event_id, "dossier.opened", {"public_id": DOSSIER, "title": "T", "x_post_id": "1"})
+def case_event(event_id: str) -> SseEvent:
+    return ev(event_id, "case.opened", {"public_id": CASE, "title": "T", "x_post_id": "1"})
 
 
 class FakeGate:
@@ -74,7 +75,7 @@ async def run_until(
 
 
 async def test_first_start_has_no_cursor_and_topics_exclude_content() -> None:
-    gate = FakeGate([[dossier_event("1-1")]])
+    gate = FakeGate([[case_event("1-1")]])
     sent: list[tuple[str, Reply]] = []
 
     async def send(channel: str, reply: Reply) -> None:
@@ -83,16 +84,17 @@ async def test_first_start_has_no_cursor_and_topics_exclude_content() -> None:
     await run_until(gate, send, lambda: bool(sent))
     after, topics = gate.calls[0]
     assert after is None
-    assert set(topics) == set(TOPIC_CHANNELS) and "content.ingested" not in topics
-    assert sent[0][0] == "dossiers"
+    assert set(topics) == set(with_legacy_topics(list(TOPIC_CHANNELS)))
+    assert "content.ingested" not in topics
+    assert sent[0][0] == "cases"
     assert gate.stored == ["1-1"]
 
 
 async def test_resume_dedup_and_cursor_after_each_event() -> None:
     gate = FakeGate(
         [
-            [dossier_event("1-1"), dossier_event("1-2"), GateUnavailable(0, "TWR-BOT-001", "x")],
-            [dossier_event("1-2"), dossier_event("1-3"), GateUnavailable(0, "TWR-BOT-001", "x")],
+            [case_event("1-1"), case_event("1-2"), GateUnavailable(0, "TWR-BOT-001", "x")],
+            [case_event("1-2"), case_event("1-3"), GateUnavailable(0, "TWR-BOT-001", "x")],
         ],
         cursor="0-9",
     )
@@ -108,7 +110,7 @@ async def test_resume_dedup_and_cursor_after_each_event() -> None:
 
 
 async def test_unknown_topic_ignored_and_send_failure_does_not_stop() -> None:
-    gate = FakeGate([[ev("1-1", "content.ingested"), dossier_event("1-2"), dossier_event("1-3")]])
+    gate = FakeGate([[ev("1-1", "content.ingested"), case_event("1-2"), case_event("1-3")]])
     attempts: list[str] = []
 
     async def send(channel: str, reply: Reply) -> None:
@@ -122,7 +124,7 @@ async def test_unknown_topic_ignored_and_send_failure_does_not_stop() -> None:
 
 
 async def test_cursor_store_failure_is_not_fatal() -> None:
-    gate = FakeGate([[dossier_event("1-1"), dossier_event("1-2")]])
+    gate = FakeGate([[case_event("1-1"), case_event("1-2")]])
     gate.fail_put = True
     sent: list[str] = []
 
@@ -135,9 +137,9 @@ async def test_cursor_store_failure_is_not_fatal() -> None:
 async def test_seen_set_is_bounded() -> None:
     gate = FakeGate(
         [
-            [dossier_event("1-1"), dossier_event("1-2"), dossier_event("1-3")],
+            [case_event("1-1"), case_event("1-2"), case_event("1-3")],
             [GateError(500, "TWR-INT-001", "boom")],
-            [dossier_event("1-1")],  # evicted from the seen set: delivered again
+            [case_event("1-1")],  # evicted from the seen set: delivered again
         ]
     )
     sent: list[str] = []
@@ -198,14 +200,14 @@ def test_format_event_cards_include_platform() -> None:
     )
     assert "deactivated" in text_of(format_event(deactivated, "en"))
 
-    opened = format_event(dossier_event("1-3"), "en")
-    assert opened is not None and opened[0] == "dossiers" and "`x`" in opened[1].text
+    opened = format_event(case_event("1-3"), "en")
+    assert opened is not None and opened[0] == "cases" and "`x`" in opened[1].text
     assert opened[1].accent == "primary"
     moved = format_event(
         ev(
             "1-4",
-            "dossier.transitioned",
-            {"public_id": DOSSIER, "from": "received", "to": "in_review"},
+            "case.transitioned",
+            {"public_id": CASE, "from": "received", "to": "in_review"},
         ),
         "en",
     )
@@ -246,8 +248,8 @@ def test_every_notification_card_is_public_and_has_an_icon() -> None:
     events = [
         ev("1", "incident.reopened", {"code": "TWR-X-001"}),
         ev("2", "extension_filters.published", {"version": 3}),
-        ev("3", "narrative.surge_detected", {"narrative_id": DOSSIER, "tier": "surge"}),
-        ev("4", "narrative.surge_ended", {"narrative_id": DOSSIER}),
+        ev("3", "narrative.surge_detected", {"narrative_id": CASE, "tier": "surge"}),
+        ev("4", "narrative.surge_ended", {"narrative_id": CASE}),
     ]
     for event in events:
         out = format_event(event, "fr")

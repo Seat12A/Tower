@@ -71,7 +71,7 @@ __all__ = [
 
 log = get_logger(__name__)
 
-ACTIONS = ("validate", "correct", "reject", "samegroup", "split", "fact", "band")
+ACTIONS = ("validate", "correct", "reject", "samegroup", "split", "fact", "band", "publish")
 DECISION_ACTIONS = ("validate", "correct", "reject")
 """Draft buttons on the action bar: they settle (or endorse) the draft."""
 GROUP_ACTIONS = ("show", "merge", "split")
@@ -83,9 +83,7 @@ VERACITIES = ("true", "mostly_true", "misleading", "false", "unverifiable")
 DRAFT_PREFIX = "t12a:fc:"
 LEGACY_DRAFT_PREFIX = "fc:"
 """Draft buttons posted before the redesign carry ``fc:<action>:<draft id>``."""
-_CUSTOM_ID = re.compile(
-    r"^(?:t12a:)?fc:(validate|correct|reject|samegroup|split|fact|band):([0-9a-fA-F-]{36})$"
-)
+_CUSTOM_ID = re.compile(rf"^(?:t12a:)?fc:({'|'.join(ACTIONS)}):([0-9a-fA-F-]{{36}})$")
 _QUOTE_MAX = 300
 _ASSERTION_MAX = 400
 _MAX_PARTS = 10
@@ -1141,7 +1139,7 @@ async def post_draft(
     view: dict[str, Any],
     locale: str,
     *,
-    channel: str = "dossiers",
+    channel: str = "cases",
 ) -> bool:
     """Post one draft with its buttons, then mark it notified. ``True`` when posted."""
     draft_id = str(view["draft_id"])

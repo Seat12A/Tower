@@ -43,7 +43,7 @@ def make_view(**overrides: Any) -> dict[str, Any]:
             "url": "https://x.com/i/status/1850000000000000042",
             "lang": "en",
         },
-        "dossier": {"id": "d", "status": "received"},
+        "case": {"id": "d", "status": "received"},
         "notes": {
             "fr": {
                 "text": "Le taux est stable.\nDepuis 2023.",
@@ -514,7 +514,7 @@ async def test_post_draft_marks_notified_only_when_posted() -> None:
         return True
 
     assert await fc.post_draft(cast(GateClient, gate), send, make_view(), "fr")
-    assert gate.notified == [DRAFT] and sent[0][0] == "dossiers" and sent[0][2] == DRAFT
+    assert gate.notified == [DRAFT] and sent[0][0] == "cases" and sent[0][2] == DRAFT
 
     async def not_posted(channel: str, reply: Reply, draft_id: str) -> bool:
         return False
@@ -566,7 +566,7 @@ async def _noop(channel: str, reply: Reply) -> None:
 
 
 def test_draft_ready_is_a_subscribed_topic_but_not_a_text_notification() -> None:
-    assert TOPIC_CHANNELS["draft.ready"] == "dossiers"
+    assert TOPIC_CHANNELS["draft.ready"] == "cases"
     assert format_event(draft_ready("1-1", DRAFT), "en") is None
 
 
@@ -583,7 +583,7 @@ async def test_notifier_posts_draft_ready_with_buttons_then_marks_notified() -> 
     await run_until(gate, _noop, lambda: bool(gate.notified), send_draft=send_draft)
     assert gate.notified == [DRAFT]
     channel, reply, draft_id = sent[0]
-    assert channel == "dossiers" and draft_id == DRAFT
+    assert channel == "cases" and draft_id == DRAFT
     # notifier locale is "en"; public cards are not ephemeral
     assert "Fact-check draft" in joined(reply) and "`False`" in joined(reply)
     assert not reply.ephemeral and reply.buttons
@@ -685,7 +685,7 @@ async def test_discord_client_builds_with_draft_ui_and_factcheck_command() -> No
     settings = Settings(process="test")
     gate = GateClient("http://gate.invalid", "token")
     try:
-        client = _build_client(settings, gate, asyncio.Event(), {"dossiers": 1}, "fr", dry_run=True)
+        client = _build_client(settings, gate, asyncio.Event(), {"cases": 1}, "fr", dry_run=True)
         names = {c.name for c in client.tree.get_commands()}
         assert {"factcheck", "group", "fact", "narrative"} <= names
         items = commands.dynamic_items(commands.Context(gate=gate, default_locale="fr"))

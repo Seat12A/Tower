@@ -1,5 +1,9 @@
 """Discord notifications fed by gate's SSE stream.
 
+With a forum configured (``forum``), case events keep one forum post per case up
+to date (``tower.intercom.forum``); without one, they are posted as cards in the
+cases text channel (fallback). Public messages are always in English.
+
 The notifier resumes from a cursor stored in gate (``intercom_cursor_name``), delivers
 at least once and de-duplicates by event id in a bounded in-memory set. Every
 notification is a Components V2 card (``Reply``) sent through an injected
@@ -18,9 +22,16 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from tower.core.domain import error_codes as ec
+from tower.core.domain.cases import LEGACY_TOPICS, current_topic, with_legacy_topics
 from tower.core.errors import capture
-from tower.core.factcheck.names import DRAFT_READY, NARRATIVE_SURGE_DETECTED, NARRATIVE_SURGE_ENDED
+from tower.core.factcheck.names import (
+    DRAFT_READY,
+    DRAFT_REVIEWED,
+    NARRATIVE_SURGE_DETECTED,
+    NARRATIVE_SURGE_ENDED,
+)
 from tower.core.logging import get_logger
+from tower.intercom.forum import CaseForum
 from tower.intercom.gate_client import GateClient, GateError, SseEvent
 from tower.intercom.handlers import Accent, Reply, card, code, fmt_usd, short
 from tower.intercom.handlers.factcheck import SendDraft, post_draft, reconcile_drafts
@@ -39,14 +50,17 @@ TOPIC_CHANNELS: dict[str, str] = {
     "incident.opened": "incidents",
     "incident.reopened": "incidents",
     "budget.threshold_reached": "budget",
-    "dossier.opened": "dossiers",
-    "dossier.transitioned": "dossiers",
-    DRAFT_READY: "dossiers",
-    NARRATIVE_SURGE_DETECTED: "dossiers",
-    NARRATIVE_SURGE_ENDED: "dossiers",
+    "case.opened": "cases",
+    "case.transitioned": "cases",
+    DRAFT_READY: "cases",
+    NARRATIVE_SURGE_DETECTED: "narratives",
+    NARRATIVE_SURGE_ENDED: "narratives",
     "watchlist.changed": "admin",
     "extension_filters.published": "admin",
 }
+
+FORUM_TOPICS = frozenset({"case.opened", "case.transitioned", DRAFT_READY, DRAFT_REVIEWED})
+"""Topics handled by the forum of cases when it is configured."""
 
 _MAX_BACKOFF = 30.0
 
@@ -122,26 +136,26 @@ def format_event(event: SseEvent, locale: str) -> tuple[str, Reply] | None:
                 _detail(locale, "cap", f"${fmt_usd(p.get('cap_usd_micros', 0))}"),
             ),
         )
-    elif topic == "dossier.opened":
+    elif topic == "case.opened":
         reply = _notification(
             locale,
-            "notify.title.dossier.opened",
+            "notify.title.case.opened",
             emojis.FOLDER,
             "primary",
             body=str(p.get("title") or "-"),
             details=(
-                _detail(locale, "dossier", short(p.get("public_id", "?"))),
+                _detail(locale, "case", short(p.get("public_id", "?"))),
                 _detail(locale, "platform", _platform(p)),
             ),
         )
-    elif topic == "dossier.transitioned":
+    elif topic == "case.transitioned":
         reply = _notification(
             locale,
-            "notify.title.dossier.transitioned",
+            "notify.title.case.transitioned",
             emojis.FOLDER,
             "primary",
             details=(
-                _detail(locale, "dossier", short(p.get("public_id", "?"))),
+                _detail(locale, "case", short(p.get("public_id", "?"))),
                 _detail(locale, "platform", _platform(p)),
                 _detail(locale, "from", _status(locale, p.get("from"))),
                 _detail(locale, "to", _status(locale, p.get("to"))),
@@ -204,9 +218,11 @@ class Notifier:
         initial_backoff: float = 1.0,
         send_draft: SendDraft | None = None,
         alert_role_id: int | None = None,
+        forum: CaseForum | None = None,
     ) -> None:
         """``alert_role_id``: Discord role mentioned at the top of a wave alert
-        (``narrative.surge_detected`` at tier ``alert``); ``None`` = no mention."""
+        (``narrative.surge_detected`` at tier ``alert``); ``None`` = no mention.
+        ``forum``: forum of cases; ``None`` = cards in the cases channel."""
         self._gate = gate
         self._send = send
         self._cursor_name = cursor_name
@@ -219,7 +235,8 @@ class Notifier:
         self._initial_backoff = initial_backoff
         self._send_draft = send_draft
         self._alert_role_id = alert_role_id
-        self._reconciled = send_draft is None
+        self._forum = forum
+        self._reconciled = send_draft is None and forum is None
 
     def _mark_seen(self, event_id: str) -> None:
         self._seen[event_id] = None
@@ -261,10 +278,38 @@ class Notifier:
                 return  # already displayed (replayed event) or already decided
             await post_draft(self._gate, self._send_draft, view, self._locale)
         except Exception as exc:
-            capture(ec.BOT_DELIVERY_FAILED, exc, topic=event.topic, channel="dossiers")
+            capture(ec.BOT_DELIVERY_FAILED, exc, topic=event.topic, channel="cases")
+
+    @property
+    def topics(self) -> list[str]:
+        """Topics read from gate's stream."""
+        topics = list(TOPIC_CHANNELS)
+        if self._forum is not None:
+            topics.append(DRAFT_REVIEWED)
+        return with_legacy_topics(topics)
+
+    async def _forum_event(self, event: SseEvent) -> None:
+        """A case event, forum mode. A failure is stored and the loop goes on; the
+        reconciliation of the next start shows drafts that were never displayed."""
+        if self._forum is None:
+            return
+        p = _payload(event)
+        try:
+            if event.topic == "case.opened":
+                await self._forum.on_case_opened(p)
+            elif event.topic == DRAFT_READY:
+                await self._forum.on_draft_ready(p)
+            elif event.topic == DRAFT_REVIEWED:
+                await self._forum.on_draft_reviewed(p)
+            else:
+                await self._forum.on_case_transitioned(p, event.data.get("actor"))
+        except Exception as exc:
+            capture(ec.BOT_DELIVERY_FAILED, exc, topic=event.topic, channel="forum")
 
     async def reconcile(self) -> int:
         """Post the pending drafts never displayed (startup, before reading events)."""
+        if self._forum is not None:
+            return await reconcile_drafts(self._gate, self._forum.show_draft)
         if self._send_draft is None:
             return 0
         send = self._send_draft
@@ -277,8 +322,12 @@ class Notifier:
     async def _handle(self, event: SseEvent) -> None:
         if event.id in self._seen:
             return
+        if event.topic in LEGACY_TOPICS:  # published before the dossier -> case rename
+            event = dataclasses.replace(event, topic=current_topic(event.topic))
         formatted = format_event(event, self._locale)
-        if event.topic == DRAFT_READY:
+        if self._forum is not None and event.topic in FORUM_TOPICS:
+            await self._forum_event(event)
+        elif event.topic == DRAFT_READY:
             await self._notify_draft(event)
         elif formatted is not None and not self._wave_already_notified(event):
             channel, reply = formatted
@@ -302,7 +351,7 @@ class Notifier:
             log.warning("intercom.cursor_store_failed", code=exc.code, status=exc.status)
 
     async def _consume(self, stop: asyncio.Event) -> None:
-        stream = self._gate.stream_events(after=self._cursor, topics=list(TOPIC_CHANNELS))
+        stream = self._gate.stream_events(after=self._cursor, topics=self.topics)
         try:
             async for event in stream:
                 if stop.is_set():

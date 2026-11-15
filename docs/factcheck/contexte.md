@@ -49,7 +49,7 @@ Q10). Chaque type a un **régime** de réutilisation (voir plus bas).
 | `causation` | Corrélation présentée comme causalité | « À cause de », « depuis que » | Études, consensus | Formulation (groupe) |
 | `definition` | Définition ambiguë ou changeante | Chômage, pauvreté, immigré ou étranger, délinquance | Définition officielle de la source | Objet (indicateur) |
 | `scope` | Autre territoire ou autre population | Chiffre étranger appliqué à la France, chiffre d'une catégorie appliqué à tous | Source du territoire ou de la population | Formulation (groupe) |
-| `procedure` | Procédure en cours présentée comme achevée | Projet de loi, enquête, mise en examen | Légifrance, dossier législatif, communiqué judiciaire | Objet (texte juridique avec version, événement) |
+| `procedure` | Procédure en cours présentée comme achevée | Projet de loi, enquête, mise en examen | Légifrance, case législatif, communiqué judiciaire | Objet (texte juridique avec version, événement) |
 | `scientific_uncertainty` | Consensus ou incertitude scientifique | Étude isolée, prépublication | Revues, agences sanitaires | Formulation (groupe) |
 | `satire` | Origine satirique reprise au premier degré | Compte parodique, site satirique | Contenu satirique d'origine | Objet (contenu d'origine) |
 | `missing_event_context` | Fait exact sans les circonstances | Vidéo coupée, chronologie partielle | Couverture de référence | Objet (événement) |

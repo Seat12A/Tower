@@ -163,7 +163,7 @@ async def test_recheck_flags(db: Database, settings: Settings) -> None:
     assert await scalar(db, "SELECT count(*) FROM verdicts WHERE drafted_at IS NOT NULL") == 5
 
 
-async def test_assemble_opens_the_dossier_and_publishes_draft_ready(
+async def test_assemble_opens_the_case_and_publishes_draft_ready(
     db: Database, settings: Settings
 ) -> None:
     cid = await make_content(db, "4020", POST, metrics={"impressions": 10})
@@ -171,18 +171,15 @@ async def test_assemble_opens_the_dossier_and_publishes_draft_ready(
     runtime.set_override("platform:x", FakePlatform(platform_item("4020")))
     await run_assemble(db, settings, inv.id)
 
-    dossier = (
+    case = (
         await rows(
             db,
-            "SELECT id, public_id, kind, status, x_post_id, content_id, title, priority"
-            " FROM dossiers",
+            "SELECT id, public_id, kind, status, x_post_id, content_id, title, priority FROM cases",
         )
     )[0]
-    assert dossier[2:] == ("fact_check", "received", 4020, cid, "Le chômage est de 7 %.", 50)
+    assert case[2:] == ("fact_check", "received", 4020, cid, "Le chômage est de 7 %.", 50)
     assert (
-        await scalar(
-            db, "SELECT count(*) FROM dossier_claim_groups WHERE dossier_id = :d", d=dossier[0]
-        )
+        await scalar(db, "SELECT count(*) FROM case_claim_groups WHERE case_id = :d", d=case[0])
         == 1
     )
     verdict_public, group_public = (
@@ -193,11 +190,11 @@ async def test_assemble_opens_the_dossier_and_publishes_draft_ready(
         )
     )[0]
     ready = (await rows(db, "SELECT payload, xid FROM events WHERE topic = 'draft.ready'"))[0]
-    opened_xid = await scalar(db, "SELECT xid FROM events WHERE topic = 'dossier.opened'")
+    opened_xid = await scalar(db, "SELECT xid FROM events WHERE topic = 'case.opened'")
     confidence = (await verdict_row(db, inv.id))[0]
     assert ready[0] == {
         "draft_id": str(verdict_public),
-        "dossier_id": str(dossier[1]),
+        "case_id": str(case[1]),
         "group_id": str(group_public),
         "level": "N4",
         "veracity": "false",
@@ -220,7 +217,7 @@ async def test_n3_draft_has_priority_zero_and_title_is_truncated(
         await s.execute(text("UPDATE claims SET text_fr = :t"), {"t": "é" * 250})
     runtime.set_override("platform:x", FakePlatform(platform_item("4021")))
     await run_assemble(db, settings, inv.id)
-    title, priority = (await rows(db, "SELECT title, priority FROM dossiers"))[0]
+    title, priority = (await rows(db, "SELECT title, priority FROM cases"))[0]
     assert priority == 0 and title == "é" * 200
 
 
@@ -232,23 +229,23 @@ async def test_assemble_is_a_noop_unless_the_investigation_is_completed(
     await run_assemble(db, settings, inv.id)
     await run_assemble(db, settings, 987654)
     assert await stage(db, inv.id) == "judging"
-    assert await scalar(db, "SELECT count(*) FROM dossiers") == 0
+    assert await scalar(db, "SELECT count(*) FROM cases") == 0
     done = await seed(db, await make_content(db, "4031", POST), stage="completed")
     runtime.set_override("platform:x", FakePlatform(platform_item("4031")))
     await run_assemble(db, settings, done.id)
     await run_assemble(db, settings, done.id)  # second run: already assembled
-    assert await scalar(db, "SELECT count(*) FROM dossiers") == 1
+    assert await scalar(db, "SELECT count(*) FROM cases") == 1
     assert await scalar(db, "SELECT count(*) FROM events WHERE topic = 'draft.ready'") == 1
 
 
-async def test_unverifiable_at_framing_is_assembled_without_a_dossier(
+async def test_unverifiable_at_framing_is_assembled_without_a_case(
     db: Database, settings: Settings
 ) -> None:
     cid = await make_content(db, "4040", POST)
     inv = await seed(db, cid, with_verdict=False, flags={"unverifiable_at_framing": True})
     await run_assemble(db, settings, inv.id)
     assert await stage(db, inv.id) == "assembled"
-    assert await scalar(db, "SELECT count(*) FROM dossiers") == 0
+    assert await scalar(db, "SELECT count(*) FROM cases") == 0
     assert await scalar(db, "SELECT count(*) FROM events WHERE topic = 'draft.ready'") == 0
 
 
@@ -267,7 +264,7 @@ async def test_quota_reached_leaves_the_draft_waiting_then_drain_opens_it(
     assert drafted_at is None and "over_quota_since" in flags
     assert confidence is not None and flags["confidence_band"] in ("low", "medium", "high")
     assert await stage(db, second.id) == "assembled"
-    assert await scalar(db, "SELECT count(*) FROM dossiers") == 1
+    assert await scalar(db, "SELECT count(*) FROM cases") == 1
 
     async with db.transaction() as s:
         assert await drain_quota(s, settings) == 0  # no slot left today
@@ -609,7 +606,7 @@ async def test_draft_of_a_group_merged_during_the_investigation_is_superseded(
     runtime.set_override("platform:x", FakePlatform(platform_item("4090")))
     await run_assemble(db, settings, inv.id)
 
-    assert await scalar(db, "SELECT count(*) FROM dossiers") == 0
+    assert await scalar(db, "SELECT count(*) FROM cases") == 0
     assert (
         await scalar(db, "SELECT status FROM verdicts WHERE investigation_id = :i", i=inv.id)
         == "superseded"

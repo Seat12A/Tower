@@ -40,7 +40,7 @@ X_ID_CHECK = (
     "AND external_id::numeric <= 9223372036854775807)"
 )
 OBSERVATION_SOURCES = ("extension", "radar", "feed", "manual")
-SNAPSHOT_REASONS = ("dossier_opened", "recheck", "manual")
+SNAPSHOT_REASONS = ("case_opened", "recheck", "manual")
 MEDIA_KINDS = ("image", "video", "audio", "document")
 
 

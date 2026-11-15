@@ -347,7 +347,7 @@ Contrôles déterministes, sans modèle (échec → brouillon rejeté ou rétrog
   brouillon sans pouvoir influencer le jugement.
 - **Revérification** : une lecture de l'API de la plateforme sur le post représentatif
   (toujours en ligne, texte inchangé).
-- Création du dossier (cas d'usage `open_dossier`, type `fact_check`) et publication
+- Création du case (cas d'usage `open_case`, type `fact_check`) et publication
   de `draft.ready`.
 
 ### E11 — Revue et apprentissage (équipe, bot Discord)
@@ -396,7 +396,7 @@ jobs) et par **jobs** ; aucun import croisé.
 | `narrative.surge_detected` / `narrative.surge_ended` | factcheck (E4) | récit, vélocité, niveau d'alerte |
 | `investigation.requested` | factcheck (E4) | groupe, niveau, version de profil |
 | `investigation.completed` | investigate (E8/E9) | groupe, issue, besoin de contexte |
-| `draft.ready` | factcheck (E10) | dossier, groupe, confiance |
+| `draft.ready` | factcheck (E10) | case, groupe, confiance |
 | `draft.reviewed` | cas d'usage de revue | décision, diff, étiquettes |
 | `verdict.published` / `verdict.expired` | cas d'usage, maintenance | groupe, verdict |
 | `budget.threshold_reached` | routeur de modèles | périmètre, pourcentage |

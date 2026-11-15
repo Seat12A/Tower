@@ -73,22 +73,22 @@ MESSAGES: dict[str, str] = {
     "watchlist.modal.priority.help": "-100 to 100 (0 by default).",
     "watchlist.modal.note": "Note",
     "watchlist.modal.note.help": "Optional, internal.",
-    # --- dossiers -------------------------------------------------------------------
-    "dossier.title": "Dossier {short_id}",
-    "dossier.btn.take": "Take",
-    "dossier.btn.validate": "Validate",
-    "dossier.btn.reject": "Reject",
-    "dossier.btn.publish": "Record publication",
-    "dossier.btn.open_post": "Open post",
-    "dossier.published": (
+    # --- cases -------------------------------------------------------------------
+    "case.title": "Case {short_id}",
+    "case.btn.take": "Take",
+    "case.btn.validate": "Validate",
+    "case.btn.reject": "Reject",
+    "case.btn.publish": "Record publication",
+    "case.btn.open_post": "Open post",
+    "case.published": (
         "Publication link recorded. The bot never posts on X: publish the post yourself."
     ),
-    "dossier.modal.reject.title": "Reject the dossier",
-    "dossier.modal.note": "Note",
-    "dossier.modal.note.help": "Optional: why this dossier is rejected.",
-    "dossier.modal.publish.title": "Record the publication",
-    "dossier.modal.publish.help": "Paste the link of the post you published on X.",
-    "dossier.modal.url": "Post link",
+    "case.modal.reject.title": "Reject the case",
+    "case.modal.note": "Note",
+    "case.modal.note.help": "Optional: why this case is rejected.",
+    "case.modal.publish.title": "Record the publication",
+    "case.modal.publish.help": "Paste the link of the post you published on X.",
+    "case.modal.url": "Post link",
     # --- incidents ------------------------------------------------------------------
     "incidents.title": "Open incidents",
     "incidents.item": "**{code}** {title}\n-# x{count} · last seen {last_seen} · {short_fp}",

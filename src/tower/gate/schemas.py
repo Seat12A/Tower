@@ -9,74 +9,84 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from tower.core.domain.dossiers import DossierKind, DossierStatus
+from tower.core.domain.cases import CaseKind, CaseStatus
 from tower.core.domain.factcheck.values import ReviewDecision, ReviewOutcome
-from tower.core.models.dossiers import Dossier, DossierEvent
+from tower.core.models.cases import Case, CaseEvent
 from tower.core.usecases.drafts import DraftView, PublicVerdict
 
 
-class DossierOut(BaseModel):
+class CaseOut(BaseModel):
     public_id: uuid.UUID
-    kind: DossierKind
-    status: DossierStatus
+    kind: CaseKind
+    status: CaseStatus
     x_post_id: str | None
     title: str | None
     priority: int
     assigned_to: str | None
     published_url: str | None
+    discord_thread_id: str | None = None
+    """Discord forum post showing the case (string, like every Discord id)."""
+    draft_id: uuid.UUID | None = None
+    """Latest fact-check draft of the case: only on ``GET /v1/cases/{id}``."""
     version: int
     created_at: datetime
     updated_at: datetime
 
     @classmethod
-    def of(cls, d: Dossier) -> DossierOut:
+    def of(cls, d: Case, *, draft_id: uuid.UUID | None = None) -> CaseOut:
         return cls(
             public_id=d.public_id,
-            kind=DossierKind(d.kind),
-            status=DossierStatus(d.status),
+            kind=CaseKind(d.kind),
+            status=CaseStatus(d.status),
             x_post_id=None if d.x_post_id is None else str(d.x_post_id),
             title=d.title,
             priority=d.priority,
             assigned_to=None if d.assigned_to is None else str(d.assigned_to),
             published_url=d.published_url,
+            discord_thread_id=None if d.discord_thread_id is None else str(d.discord_thread_id),
+            draft_id=draft_id,
             version=d.version,
             created_at=d.created_at,
             updated_at=d.updated_at,
         )
 
 
-class DossierPublicOut(BaseModel):
-    """Public website view: published dossiers only, no internal data."""
+class CasePublicOut(BaseModel):
+    """Public website view: published cases only, no internal data."""
 
     public_id: uuid.UUID
-    kind: DossierKind
+    kind: CaseKind
     x_post_id: str | None
     title: str | None
     published_url: str | None
     updated_at: datetime
 
 
-class DossierEventOut(BaseModel):
-    from_status: DossierStatus | None
-    to_status: DossierStatus
+class CaseEventOut(BaseModel):
+    from_status: CaseStatus | None
+    to_status: CaseStatus
     actor: str
     reason: str | None
     created_at: datetime
 
     @classmethod
-    def of(cls, ev: DossierEvent) -> DossierEventOut:
+    def of(cls, ev: CaseEvent) -> CaseEventOut:
         return cls(
-            from_status=None if ev.from_status is None else DossierStatus(ev.from_status),
-            to_status=DossierStatus(ev.to_status),
+            from_status=None if ev.from_status is None else CaseStatus(ev.from_status),
+            to_status=CaseStatus(ev.to_status),
             actor=ev.actor,
             reason=ev.reason,
             created_at=ev.created_at,
         )
 
 
-class DossierCreate(BaseModel):
+class DiscordThreadIn(BaseModel):
+    thread_id: str = Field(pattern=r"^[0-9]{1,20}$", description="Discord thread id")
+
+
+class CaseCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    kind: DossierKind
+    kind: CaseKind
     x_post_id: str | None = Field(default=None, pattern=r"^\d{1,20}$")
     title: str | None = Field(default=None, max_length=300)
     priority: int = Field(default=0, ge=-100, le=100)
@@ -85,7 +95,7 @@ class DossierCreate(BaseModel):
 
 class TransitionIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    to: DossierStatus
+    to: CaseStatus
     reason: str | None = Field(default=None, max_length=1000)
     expected_version: int | None = None
     published_url: str | None = Field(default=None, max_length=300)
@@ -150,9 +160,10 @@ class DraftContentOut(BaseModel):
     lang: str
 
 
-class DraftDossierOut(BaseModel):
+class DraftCaseOut(BaseModel):
     id: str
     status: str
+    discord_thread_id: str | None = None
 
 
 class DraftNoteOut(BaseModel):
@@ -229,7 +240,7 @@ class DraftOut(BaseModel):
     confidence_band: str | None
     claim: DraftClaimOut
     content: DraftContentOut | None
-    dossier: DraftDossierOut | None
+    case: DraftCaseOut | None
     notes: dict[str, DraftNoteOut]
     links: list[str]
     rationale: list[DraftRationaleOut]

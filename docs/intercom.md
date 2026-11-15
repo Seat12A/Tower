@@ -62,28 +62,28 @@ unique d'au moins 6 caractères**.
 | `/watchlist list [plateforme]` | Liste paginée (8 par page), filtre de plateforme, menu « gérer un compte » (carte : modifier, désactiver), bouton « Ajouter » | `watchlist:read` |
 | `/watchlist add` | Modal : plateforme et catégorie (menus), pseudo, priorité, note ; le radar résout l'identifiant ([radar.md](radar.md)) | `watchlist:write` |
 | `/watchlist edit id` / `deactivate id` | Modal (champ vide = inchangé ; verrou optimiste géré par le bot) / confirmation sur place | `watchlist:write` |
-| `/dossier show id` | Carte avec Prendre, Valider, Rejeter (modal), Publier (modal : lien) selon le statut, lien vers le post | `dossiers:read` (+ actions) |
-| `/dossier take` / `validate` / `reject` / `publish id` | Mêmes actions en commande ; **la publication sur X reste manuelle** | `dossiers:review` / `dossiers:decide` / `dossiers:publish` |
+| `/case show id` | Carte avec Prendre, Valider, Rejeter (modal), Publier (modal : lien) selon le statut, lien vers le post | `cases:read` (+ actions) |
+| `/case take` / `validate` / `reject` / `publish id` | Mêmes actions en commande ; **la publication sur X reste manuelle** | `cases:review` / `cases:decide` / `cases:publish` |
 | `/incidents list [code] [all]` | Liste (filtre par code `TWR-…`, `all` : résolus compris), menus « voir » et « résoudre » (modal : note), actualisation | `errors:read` |
 | `/incidents show empreinte` | Détail (préfixe de 6 caractères accepté, résolus compris) : statut, sévérité, occurrences, première et dernière occurrence, processus, emplacement, exception, relançable, note de résolution, dernier message, piste du catalogue, dernier contexte (12 clés au plus) et fin de la dernière trace, le tout borné à un message Discord ; boutons « Résoudre » (si ouvert) et retour à la liste | `errors:read` (`errors:manage` pour résoudre) |
 | `/incidents resolve empreinte` | Modal : note facultative | `errors:manage` |
 | `/usage` | Allocation gratuite du jour, dépense du mois par portée ; actualisation | `usage:read` |
 | `/factcheck url` | Demande de fact-check manuelle (N4) : « demandée » ou « déjà demandée » | `factcheck:request` |
-| `/group show id` | Carte du groupe : actualiser, fusionner ici (modal), scinder (modal) | `dossiers:read`, `claim_groups:manage` |
+| `/group show id` | Carte du groupe : actualiser, fusionner ici (modal), scinder (modal) | `cases:read`, `claim_groups:manage` |
 | `/group merge` / `split` | Fusion et scission (réversibles) | `claim_groups:manage` |
-| `/fact show id` / `list [statut]` | Fiche (valider, rejeter avec modal) / liste avec menu d'ouverture | `dossiers:read`, `reference_facts:validate` |
+| `/fact show id` / `list [statut]` | Fiche (valider, rejeter avec modal) / liste avec menu d'ouverture | `cases:read`, `reference_facts:validate` |
 | `/fact validate` / `reject` / `band` | Validation d'une fiche ou de la bande d'un verdict | `reference_facts:validate` |
 | `/profile show` / `history` | Profil actif (boutons historique, modifier, revenir) / versions | `profiles:read` |
 | `/profile set` / `rollback` | Modal (chemin, valeur, motif) / modal (motif) ; bornes de sécurité | `profiles:manage` |
 | `/level set` / `list` / `revoke id` | Modal (type de cible en choix unique, cible, niveau, heures, motif) / liste avec menu « révoquer » / révocation (modal : motif) | `levels:override` |
-| `/narrative list [état]` / `show id` | Liste avec menu / carte (accent selon l'état) : actualiser, valider le titre, corriger le titre, fusionner, scinder (modals) | `dossiers:read` (+ actions) |
-| `/narrative merge` / `split` / `title` | Fusion, scission, titre | `claim_groups:manage` / `dossiers:review` |
+| `/narrative list [état]` / `show id` | Liste avec menu / carte (accent selon l'état) : actualiser, valider le titre, corriger le titre, fusionner, scinder (modals) | `cases:read` (+ actions) |
+| `/narrative merge` / `split` / `title` | Fusion, scission, titre | `claim_groups:manage` / `cases:review` |
 | `/registry show domaine` | Carte : niveau, contrôle (modals, motif obligatoire), historique, amorçage Wikidata | `registry:read` / `registry:write` |
 | `/registry history` / `set-tier` / `set-control` / `seed-control domaine` | Versions / changement de niveau / relation de contrôle (`control_origin = team`) / amorçage | `registry:read` / `registry:write` |
 
 Les droits effectifs sont l'intersection des permissions de la personne et des scopes
-du token du bot ([auth.md](auth.md)). Token du bot : `dossiers:read dossiers:create
-dossiers:review dossiers:decide dossiers:publish events:read errors:read errors:manage
+du token du bot ([auth.md](auth.md)). Token du bot : `cases:read cases:create
+cases:review cases:decide cases:publish events:read errors:read errors:manage
 watchlist:read watchlist:write usage:read factcheck:request claim_groups:manage
 reference_facts:write reference_facts:validate profiles:read profiles:manage
 levels:override registry:read registry:write staff:read staff:manage
@@ -95,7 +95,7 @@ token existant).
 - **Admins codés en dur** (`TOWER_ADMIN_DISCORD_IDS`, lu par gate) : toutes les
   permissions, rangés d'office, ni modifiables ni retirables.
 - **Seuls les membres rangés** (`/rank`) reçoivent des permissions ; `/unrank` retire tout.
-- Permissions détaillées par catégorie (Dossiers, Fact-check, Liste de suivi, Registre,
+- Permissions détaillées par catégorie (Cases, Fact-check, Liste de suivi, Registre,
   Profils, Supervision, Équipe) avec une description par permission (`handlers/team.py`).
 - Modifier les permissions des autres (`permissions:manage_others`) et les siennes
   (`permissions:manage_self`) sont deux permissions distinctes. Un non-admin ne donne ou ne
@@ -111,13 +111,15 @@ token existant).
 |---|---|---|
 | `incident.opened`, `incident.reopened` | `TOWER_DISCORD_CHANNEL_INCIDENTS` | rouge |
 | `budget.threshold_reached` | `TOWER_DISCORD_CHANNEL_BUDGET` | jaune, rouge à 100 % |
-| `dossier.opened`, `dossier.transitioned` | `TOWER_DISCORD_CHANNEL_DOSSIERS` | bleu |
-| `draft.ready` (brouillon de fact-check complet, avec boutons) | `TOWER_DISCORD_CHANNEL_DOSSIERS` | voir ci-dessous |
-| `narrative.surge_detected` (palier `surge` ; palier `alert` marqué « ALERTE VAGUE », précédé de la mention du rôle `TOWER_DISCORD_ALERT_ROLE_ID` s'il est configuré), `narrative.surge_ended` (bilan) | `TOWER_DISCORD_CHANNEL_DOSSIERS` | jaune (`surge`), rouge (`alert`), bleu (fin) |
+| `case.opened`, `case.transitioned`, `draft.ready`, `draft.reviewed` | Forum `TOWER_DISCORD_FORUM_CASES` (un post par case, voir ci-dessous) ; repli sans forum : salon texte `TOWER_DISCORD_CHANNEL_CASES` | voir ci-dessous |
+| `narrative.surge_detected` (palier `surge` ; palier `alert` marqué « ALERTE VAGUE », précédé de la mention du rôle `TOWER_DISCORD_ALERT_ROLE_ID` s'il est configuré), `narrative.surge_ended` (bilan) | `TOWER_DISCORD_CHANNEL_NARRATIVES` (à défaut, salon texte des cases sans forum) | jaune (`surge`), rouge (`alert`), bleu (fin) |
 | `watchlist.changed`, `extension_filters.published` | `TOWER_DISCORD_CHANNEL_ADMIN` | bleu |
 
-Cartes V2 publiques (titre avec icône, corps, détails), avec la plateforme d'origine quand l'événement en porte une, dans la
-langue `TOWER_DISCORD_LOCALE` (`fr` par défaut). Salon non configuré : notification
+Cartes V2 publiques (titre avec icône, corps, détails), avec la plateforme d'origine quand l'événement en porte une, **toujours en
+anglais** : les lecteurs d'un salon ou d'un forum sont inconnus (`TOWER_DISCORD_LOCALE`
+est dépréciée et ignorée). Le texte produit par les modèles (justification, critique,
+points à vérifier) reste dans sa langue (le pipeline l'écrit en français), marqué `(FR)`
+quand il s'agit de l'affirmation. Salon non configuré : notification
 ignorée. Aucun événement à haut volume : le bot ne s'abonne pas à `content.ingested`.
 
 ### Brouillons de fact-check (E11)
@@ -171,6 +173,66 @@ vague ultérieure ; mémoire bornée). Seule l'alerte de vague mentionne un rôl
 rôle) ; tout le reste part sans mention. Les cartes de vague portent un bouton
 `t12a:nar:open:<id>` qui ouvre le récit en message privé. Les erreurs
 `TWR-FCK-043` et `044` sont traduites.
+
+### Forum des cases
+
+Avec `TOWER_DISCORD_FORUM_CASES` (salon de type forum), **un post = un case**
+(`intercom/forum.py`, rendu pur dans `handlers/forum.py`, côté Discord
+`delivery.ForumDelivery`). Le lien case ↔ post est enregistré dans gate
+(`PUT /v1/cases/{id}/discord-thread`), jamais en mémoire : après un redémarrage, le bot
+retrouve le post d'un case par `discord_thread_id`.
+
+**Le message d'origine est le seul panneau de contrôle** (édité à chaque changement) :
+titre = statut et niveau ; l'affirmation ; verdict proposé, besoin de contexte,
+confiance ; la note proposée avec sa longueur (`n/280`) ; le **nombre**
+d'avertissements et l'objection éventuelle (le détail est dans le fil) ; une barre
+(Validate, Correct, Reject, Open post) ; un seul menu **More actions**
+(`t12a:fc:more:<id>`) qui range tout le secondaire : Same group as…, Split, Create a
+reference fact, Validate the band, Note in every language (si la note existe en plusieurs
+langues). Une fois validé : Mark as published + Open post, menu réduit (fiche, bande,
+traductions) ; rejeté ou publié : lien du post (+ traductions). Le bot n'édite jamais un
+post au clic : il le met à jour d'après les événements de la décision (`draft.reviewed`,
+`case.transitioned`).
+
+**Le fil** ne garde que l'essentiel, toujours dans cet ordre, chaque section omise si
+vide et découpée en « (cont.) » si elle dépasse la limite V2 : *Evidence* condensée
+(chaque affirmation avec ses renvois `[S1]`, puis les sources listées **une seule fois**),
+*Gaps & checks*, *Quality warnings*, *Context* (une ligne courte par élément : groupe,
+récit, signaux de coordination, fiche ; fact-checks externes). Le long et le facultatif
+est **derrière des boutons placés sous leur section**, qui l'affichent à la seule personne
+qui clique, dans sa langue, relu dans gate à chaque clic (`t12a:fc:info:<kind>:<id>`) :
+« Show quotes » (citations complètes, avec la traduction française en français) sous
+Evidence, « Show details » (groupe, autres posts, récit, signaux, fiche et bande) sous
+Context. Puis une ligne par action (avis, validation, correction, rejet avec motif,
+publication ; transitions des cases sans brouillon), avec la mention de la personne sans
+notification. Le fil sert aussi à la discussion. Les anciens menus (options « Show the
+group » et « Show the narrative ») restent pris en charge.
+
+**Tags** (18, `moderated` : seul le bot les pose ; créés au démarrage s'ils manquent, par
+nom, jamais supprimés) : un statut (*To review*, *Endorsed*, *Validated*, *Published*,
+*Rejected*, *Superseded*), l'issue proposée, le niveau (*N1* à *N4*) et au plus deux
+signaux (*Needs attention* : avertissements ou objection ; *Wave* : récit en vague ;
+*Post deleted*). Au plus 5 par post (limite Discord). Le bot règle aussi le tri par date
+de création, la vue liste, et épingle un post « How to review » (légende).
+
+**Cycle de vie** : `case.opened` crée le post (carte courte) ; `draft.ready` le
+complète (carte entière, tags, sections) puis appelle `notified` ; un post supprimé à la
+main est recréé ; `published`, `rejected` et `superseded` **archivent** le post (sans le
+verrouiller : on peut encore écrire), pour rester sous la limite de fils actifs du serveur.
+Un événement à la fois : les posts sont créés l'un après l'autre (contre-pression). Un
+échec est journalisé (`TWR-BOT-003`) ; la réconciliation du démarrage affiche les
+brouillons jamais affichés.
+
+**Icônes** : tout ou rien par type d'élément (barre, options du menu, titres de section,
+titres de statut, lignes du journal). Les icônes propres au forum sont des émojis du
+serveur (`MERGE`, `SPLIT`, `BAND`, `NARRATIVE`, `EVIDENCE`, `CHECKLIST`, `CONTEXT`,
+`ENDORSED`, `PUBLISH`, `WAVE` dans `ui/emojis.py`) ; si une icône d'un type venait à
+manquer (chaîne vide), tout ce type s'afficherait sans icône. C'est le cas des boutons
+d'information du fil tant que `QUOTE` (« format_quote ») n'est pas fourni. Les tags n'ont pas encore
+d'icône (émojis du serveur à fournir).
+
+Permissions du bot sur le forum : Gérer le salon (tags, réglages), Gérer les fils (tags
+modérés, archivage, épinglage), Envoyer des messages dans les fils.
 
 ### Reprise sans perte
 

@@ -1,5 +1,5 @@
 """E5 light check: deterministic band path (no model), evidence path (fake Atlas, scripted
-model), dossier mode, no evidence, failures and idempotence. Real PostgreSQL."""
+model), case mode, no evidence, failures and idempotence. Real PostgreSQL."""
 
 from __future__ import annotations
 
@@ -82,12 +82,12 @@ def _reset() -> Iterator[None]:
     invalidate_profile_cache()
 
 
-def check_ctx(db: Database, settings: Settings, group_id: int, dossier: int | None = None) -> Any:
+def check_ctx(db: Database, settings: Settings, group_id: int, case: int | None = None) -> Any:
     return ctx(
         db,
         settings,
         names.JOB_LIGHT_CHECK,
-        {"group_id": group_id, "dossier_investigation_id": dossier},
+        {"group_id": group_id, "case_investigation_id": case},
     )
 
 
@@ -273,10 +273,10 @@ async def test_empty_documents_are_ignored(db: Database, settings: Settings) -> 
     assert (await light(db, gid)).light_signal == "uncertain" and llm.requests == []
 
 
-# ----------------------------------------------------------------- dossier mode
+# ----------------------------------------------------------------- case mode
 
 
-async def seed_dossier(db: Database, group_id: int, content_id: int) -> int:
+async def seed_case(db: Database, group_id: int, content_id: int) -> int:
     async with db.transaction() as session:
         investigation = Investigation(
             public_id=uuid.uuid4(),
@@ -321,12 +321,12 @@ async def seed_dossier(db: Database, group_id: int, content_id: int) -> int:
         return int(investigation.id)
 
 
-async def test_dossier_mode_reads_the_kept_passages_not_the_atlas(
+async def test_case_mode_reads_the_kept_passages_not_the_atlas(
     db: Database, settings: Settings
 ) -> None:
     gid, cid = await make_group(db, "30")
     other, _ = await make_group(db, "31", level="N2")
-    inv = await seed_dossier(db, other, cid)
+    inv = await seed_case(db, other, cid)
     atlas = FakeAtlas(error=RuntimeError("must not be called"))
     llm = ScriptedLLM(verdict("likely_false", ("E1", "E2")))
     runtime.set_override("atlas", atlas)
@@ -337,19 +337,19 @@ async def test_dossier_mode_reads_the_kept_passages_not_the_atlas(
     assert atlas.requests == []
     evidence = llm.requests[0].input["evidence"]
     assert [(e["id"], e["kind"], e["source"]) for e in evidence] == [
-        ("E1", "dossier_passage", "insee.fr"),
-        ("E2", "dossier_passage", "insee.fr"),
-        ("E3", "dossier_passage", "insee.fr"),
+        ("E1", "case_passage", "insee.fr"),
+        ("E2", "case_passage", "insee.fr"),
+        ("E3", "case_passage", "insee.fr"),
     ]
     assert unmark(evidence[0]["text"]) == "Kept passage with its text."
     assert unmark(evidence[1]["text"]) == "Traduction du passage."
     row = await light(db, gid)
     assert row.light_signal == "likely_false"
-    assert row.light_evidence["dossier_investigation_id"] == inv
+    assert row.light_evidence["case_investigation_id"] == inv
     assert [e["id"] for e in row.light_evidence["evidence"]] == ["E1", "E2"]
 
 
-async def test_dossier_without_passages_is_uncertain(db: Database, settings: Settings) -> None:
+async def test_case_without_passages_is_uncertain(db: Database, settings: Settings) -> None:
     gid, cid = await make_group(db, "32")
     async with db.transaction() as session:
         inv = Investigation(
@@ -370,11 +370,11 @@ async def test_dossier_without_passages_is_uncertain(db: Database, settings: Set
     assert (await light(db, gid)).light_signal == "uncertain" and llm.requests == []
 
 
-async def test_dossier_mode_still_prefers_the_band(db: Database, settings: Settings) -> None:
+async def test_case_mode_still_prefers_the_band(db: Database, settings: Settings) -> None:
     gid, cid = await make_group(db, "33")
     await numeric(db, gid, "7.0", "7.6")
     await validated_fact(db)
-    inv = await seed_dossier(db, gid, cid)
+    inv = await seed_case(db, gid, cid)
     llm = ScriptedLLM(UNAVAILABLE)
     runtime.set_override("llm", llm)
     await light_check(check_ctx(db, settings, gid, inv))
@@ -468,10 +468,10 @@ async def test_new_profile_version_checks_again(db: Database, settings: Settings
     assert len(llm.requests) == 2
 
 
-async def test_dossier_check_follows_a_plain_check(db: Database, settings: Settings) -> None:
+async def test_case_check_follows_a_plain_check(db: Database, settings: Settings) -> None:
     gid, cid = await make_group(db, "52")
     other, _ = await make_group(db, "53", level="N2")
-    inv = await seed_dossier(db, other, cid)
+    inv = await seed_case(db, other, cid)
     llm = ScriptedLLM(verdict("uncertain", ()), verdict("likely_false", ("E1",)))
     runtime.set_override("atlas", FakeAtlas(doc("A fact-check")))
     runtime.set_override("llm", llm)
@@ -480,7 +480,7 @@ async def test_dossier_check_follows_a_plain_check(db: Database, settings: Setti
     assert len(llm.requests) == 2
     row = await light(db, gid)
     assert row.light_signal == "likely_false"
-    assert row.light_evidence["dossier_investigation_id"] == inv
+    assert row.light_evidence["case_investigation_id"] == inv
 
 
 # ------------------------------------------------------------------ skips and input
@@ -500,6 +500,6 @@ async def test_unknown_group_is_skipped(db: Database, settings: Settings) -> Non
 
 
 async def test_bad_payload_is_permanent(db: Database, settings: Settings) -> None:
-    for payload in ({}, {"group_id": "x"}, {"group_id": 1, "dossier_investigation_id": "y"}):
+    for payload in ({}, {"group_id": "x"}, {"group_id": 1, "case_investigation_id": "y"}):
         with pytest.raises(PermanentError):
             await light_check(ctx(db, settings, names.JOB_LIGHT_CHECK, payload))

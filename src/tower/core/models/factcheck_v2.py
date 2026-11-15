@@ -134,7 +134,7 @@ class SchedulerRun(Base):
 
 
 class Narrative(Base):
-    """A story told by several claim groups: shares an evidence dossier and an alert,
+    """A story told by several claim groups: shares an evidence case and an alert,
     never a verdict (docs/factcheck/vagues.md)."""
 
     __tablename__ = "narratives"
@@ -162,7 +162,7 @@ class Narrative(Base):
     previous_narrative_id: Mapped[int | None] = mapped_column(
         ForeignKey("narratives.id", ondelete="SET NULL")
     )
-    """Resurgence: the closed narrative this one continues (inherits its dossier)."""
+    """Resurgence: the closed narrative this one continues (inherits its case)."""
     merged_into_id: Mapped[int | None] = mapped_column(
         ForeignKey("narratives.id", ondelete="SET NULL")
     )

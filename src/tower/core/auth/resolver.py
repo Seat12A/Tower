@@ -16,7 +16,7 @@ from tower.core.auth.tokens import hash_token
 from tower.core.db.database import Database
 from tower.core.domain import error_codes as ec
 from tower.core.domain.errors import PermissionDenied, Unauthenticated
-from tower.core.domain.security import Actor, Permission, Role
+from tower.core.domain.security import Actor, Permission, Role, to_permission
 from tower.core.models.auth import ServiceClient, StaffMember
 
 _MAX_ENTRIES = 1024
@@ -96,7 +96,7 @@ class ActorResolver:
             )
         if client is None:
             raise Unauthenticated("Service token is invalid or revoked", code=ec.AUTH_INVALID_TOKEN)
-        scopes = frozenset(Permission(s) for s in client.scopes if s in Permission)
+        scopes = frozenset(q for s in client.scopes if (q := to_permission(s)) is not None)
         actor = Actor.service(client.name, scopes)
         self._services.put(digest, actor)
         return actor
@@ -112,7 +112,7 @@ class ActorResolver:
         if member is not None and member.active:
             found = (
                 frozenset(Role(r) for r in member.roles if r in Role),
-                frozenset(Permission(p) for p in member.permissions if p in Permission),
+                frozenset(q for p in member.permissions if (q := to_permission(p)) is not None),
             )
         self._staff_cache.put(discord_id, found)
         return found or None

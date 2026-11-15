@@ -88,7 +88,7 @@ l'extension.
 - E9 : brouillon **et note de contexte** dès le MVP (demande de Jules), contrôles
   déterministes.
 - E10 : confiance par régression logistique à coefficients posés à la main,
-  revérification, ouverture de dossier, `draft.ready`.
+  revérification, ouverture de case, `draft.ready`.
 - E11 : revue dans le bot Discord (dépend du lot intercom du socle), capture des
   corrections, journal de coûts.
 - Ni embeddings, ni cache de verdicts, ni récits à ce stade.
@@ -139,7 +139,7 @@ sécurité.
 - E5 vérification légère.
 - **Récits et mode vague** ([vagues.md](vagues.md)) : rattachement incrémental,
   détection par part du flux (écart de type Poisson, seuils absolus puis quantiles),
-  dossier de preuves partagé, nouveautés qui prennent, voie rapide, compteurs d'observations,
+  case de preuves partagé, nouveautés qui prennent, voie rapide, compteurs d'observations,
   échantillonnage sous charge, signaux de coordination.
 
 Critère : masse sous 0,00001 $ par post ; test de charge d'une vague simulée

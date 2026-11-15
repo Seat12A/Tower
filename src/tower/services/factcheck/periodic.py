@@ -26,7 +26,7 @@ _MAX_CANDIDATES = 500
 
 
 async def drain_quota(session: AsyncSession, settings: Settings) -> int:
-    """Open the dossiers of the waiting drafts that fit in today's remaining quota,
+    """Open the cases of the waiting drafts that fit in today's remaining quota,
     best candidates first (``quota.select_for_review``). Returns how many were opened."""
     await asm.lock_quota(session)
     quota = (await active_profile(session, settings)).draft_daily_quota

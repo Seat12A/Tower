@@ -1,4 +1,4 @@
-"""Dossier types and lifecycle.
+"""Case types and lifecycle.
 
 Two types share the same foundation: ``fact_check`` and ``moderation`` (X content).
 Each type has its own transition graph, defined here and nowhere else.
@@ -13,13 +13,36 @@ from tower.core.domain import error_codes as ec
 from tower.core.domain.errors import InvalidInput, InvalidTransition
 from tower.core.domain.security import Permission
 
+LEGACY_TOPICS: dict[str, str] = {
+    "dossier.opened": "case.opened",
+    "dossier.transitioned": "case.transitioned",
+}
+"""Topics published before the dossier -> case rename (expand step: still understood;
+contract: drop once no stored event or client uses them)."""
 
-class DossierKind(StrEnum):
+
+def current_topic(topic: str) -> str:
+    """Current name of a topic (a legacy name is translated)."""
+    return LEGACY_TOPICS.get(topic, topic)
+
+
+def with_legacy_topics(topics: list[str]) -> list[str]:
+    """A topic filter completed with the old and new names of the renamed topics."""
+    out = list(topics)
+    for old, new in LEGACY_TOPICS.items():
+        if old in out and new not in out:
+            out.append(new)
+        if new in out and old not in out:
+            out.append(old)
+    return out
+
+
+class CaseKind(StrEnum):
     FACT_CHECK = "fact_check"
     MODERATION = "moderation"
 
 
-class DossierStatus(StrEnum):
+class CaseStatus(StrEnum):
     RECEIVED = "received"  # received
     IN_REVIEW = "in_review"  # in review
     VALIDATED = "validated"  # validated
@@ -27,9 +50,9 @@ class DossierStatus(StrEnum):
     REJECTED = "rejected"  # rejected
 
 
-S = DossierStatus
+S = CaseStatus
 
-_EDITORIAL_FLOW: dict[DossierStatus, frozenset[DossierStatus]] = {
+_EDITORIAL_FLOW: dict[CaseStatus, frozenset[CaseStatus]] = {
     S.RECEIVED: frozenset({S.IN_REVIEW}),
     S.IN_REVIEW: frozenset({S.VALIDATED, S.REJECTED}),
     S.VALIDATED: frozenset({S.PUBLISHED}),
@@ -37,19 +60,19 @@ _EDITORIAL_FLOW: dict[DossierStatus, frozenset[DossierStatus]] = {
     S.REJECTED: frozenset(),
 }
 
-WORKFLOWS: dict[DossierKind, dict[DossierStatus, frozenset[DossierStatus]]] = {
-    DossierKind.FACT_CHECK: _EDITORIAL_FLOW,
+WORKFLOWS: dict[CaseKind, dict[CaseStatus, frozenset[CaseStatus]]] = {
+    CaseKind.FACT_CHECK: _EDITORIAL_FLOW,
     # Moderation currently follows the same cycle; specialize it here if needed.
-    DossierKind.MODERATION: _EDITORIAL_FLOW,
+    CaseKind.MODERATION: _EDITORIAL_FLOW,
 }
 
 INITIAL_STATUS = S.RECEIVED
 
-TRANSITION_PERMISSION: dict[DossierStatus, Permission] = {
-    S.IN_REVIEW: Permission.DOSSIER_REVIEW,
-    S.VALIDATED: Permission.DOSSIER_DECIDE,
-    S.REJECTED: Permission.DOSSIER_DECIDE,
-    S.PUBLISHED: Permission.DOSSIER_PUBLISH,
+TRANSITION_PERMISSION: dict[CaseStatus, Permission] = {
+    S.IN_REVIEW: Permission.CASE_REVIEW,
+    S.VALIDATED: Permission.CASE_DECIDE,
+    S.REJECTED: Permission.CASE_DECIDE,
+    S.PUBLISHED: Permission.CASE_PUBLISH,
 }
 
 _X_STATUS_URL = re.compile(
@@ -57,18 +80,18 @@ _X_STATUS_URL = re.compile(
 )
 
 
-def allowed_transitions(kind: DossierKind, current: DossierStatus) -> frozenset[DossierStatus]:
+def allowed_transitions(kind: CaseKind, current: CaseStatus) -> frozenset[CaseStatus]:
     return WORKFLOWS[kind][current]
 
 
-def is_terminal(kind: DossierKind, status: DossierStatus) -> bool:
+def is_terminal(kind: CaseKind, status: CaseStatus) -> bool:
     return not WORKFLOWS[kind][status]
 
 
-def check_transition(kind: DossierKind, current: DossierStatus, target: DossierStatus) -> None:
+def check_transition(kind: CaseKind, current: CaseStatus, target: CaseStatus) -> None:
     if target not in WORKFLOWS[kind][current]:
         raise InvalidTransition(
-            f"Transition not allowed for a dossier {kind}: {current} → {target}",
+            f"Transition not allowed for a case {kind}: {current} → {target}",
             kind=kind.value,
             current=current.value,
             target=target.value,

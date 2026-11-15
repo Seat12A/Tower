@@ -18,9 +18,9 @@ Le récit a deux fonctions qu'on sépare :
 | **Compter et détecter** (vélocité, alerte, vue d'ensemble pour l'équipe) | Lâche : mieux vaut un récit un peu large qu'une vague fragmentée | Rattachement des groupes aux récits (ci-dessous) |
 | **Appliquer un verdict** | Strict : une variante différente ne doit jamais hériter d'un verdict qui ne la concerne pas | La signature et les bandes de valeurs, au niveau du **groupe** ([pipeline.md](pipeline.md), E3) |
 
-Le récit porte un **dossier de preuves** (passages collectés, fiches de référence,
+Le récit porte un **case de preuves** (passages collectés, fiches de référence,
 notes de contexte rattachées à des objets) que toutes ses variantes réutilisent. Chaque
-groupe du récit reçoit **son propre verdict**, calculé à bas coût sur ce dossier.
+groupe du récit reçoit **son propre verdict**, calculé à bas coût sur ce case.
 
 ## Trois niveaux de regroupement
 
@@ -28,7 +28,7 @@ groupe du récit reçoit **son propre verdict**, calculé à bas coût sur ce do
 |---|---|---|---|
 | Copie | Posts au texte quasi identique (SimHash, distance ≤ 3) | Le même message copié par 300 comptes | Mêmes affirmations, sans appel de modèle |
 | Groupe d'affirmations | Affirmations qui se résolvent vers la même fiche et la même bande de valeurs | « 12 000 migrants arrivés hier à Calais » et « 12 000 migrants hier à Calais » | Même verdict |
-| **Récit** | Groupes qui racontent la même histoire | « Les migrants de Calais ont reçu des logements sociaux » + « La mairie a expulsé des familles pour les loger » + photo d'un camp présentée comme récente | Même dossier de preuves, même alerte, verdicts distincts |
+| **Récit** | Groupes qui racontent la même histoire | « Les migrants de Calais ont reçu des logements sociaux » + « La mairie a expulsé des familles pour les loger » + photo d'un camp présentée comme récente | Même case de preuves, même alerte, verdicts distincts |
 
 ## Rattachement d'un groupe à un récit
 
@@ -59,7 +59,7 @@ Un centroïde dérive à mesure que des groupes s'ajoutent. Le récit est repré
 ### Bornes
 
 - **Clôture** après 7 jours sans activité. Une résurgence ultérieure crée un nouveau
-  récit, lié à l'ancien et qui hérite de son dossier de preuves.
+  récit, lié à l'ancien et qui hérite de son case de preuves.
 - **Scission proposée** au relecteur au-delà de 25 groupes, ou quand deux
   sous-ensembles ne tiennent ensemble que par un seul groupe (pont).
 - Fusions et scissions journalisées et réversibles. Le risque restant (une ancre
@@ -118,9 +118,9 @@ Quand un récit entre en vague :
 
 1. **Collecte unique.** L'ordonnanceur choisit le groupe représentatif (le plus repris,
    le plus précis) et lance une enquête complète. Ses passages, fiches et notes
-   alimentent le **dossier de preuves** du récit.
+   alimentent le **case de preuves** du récit.
 2. **Variantes jugées à bas coût.** Les autres groupes du récit sont jugés sur ce
-   dossier, à la façon de la vérification légère E5 (petit modèle, sans nouvelle
+   case, à la façon de la vérification légère E5 (petit modèle, sans nouvelle
    collecte sauf manque explicite). Seules les variantes **à forte portée** montent
    au relecteur : signaler chaque variante incompatible saturerait les quelque 12
    relectures quotidiennes.
@@ -164,7 +164,7 @@ coordonnée reste vrai. Ils ne dépendent pas du bord politique supposé des com
 |---|---|
 | Flot d'insertions | `observations` (table partitionnée) : au-delà d'un seuil par contenu, agrégation en **compteurs** par contenu, heure et source ; les copies exactes n'insèrent qu'un compteur |
 | Flot d'extractions | Copies (SimHash) et quasi-doublons héritent des affirmations sans appel de modèle ; en vague, la part de copies est très élevée |
-| Coût des modèles | Une collecte par récit ; variantes jugées sur le dossier ; budget de vague plafonné |
+| Coût des modèles | Une collecte par récit ; variantes jugées sur le case ; budget de vague plafonné |
 | Files saturées | Contre-pression : l'ordonnanceur n'enfile pas plus que la capacité mesurée de chaque file ; les jobs N1 sont différés avant les N3/N4 |
 | Échantillonnage | Au-delà d'un débit par récit (200 posts par minute au départ), seul un échantillon aléatoire stratifié (plateforme, heure) passe en extraction ; le reste est compté |
 | RAM | Aucun état en mémoire : tout est en base, lots courts, réplicas ajoutés par configuration |

@@ -20,16 +20,19 @@ Documentation interactive : `/docs` (hors production). Format d'erreur : voir
 | GET | `/health` | Vivacité (sans base) : `{"status": "ok", "version": "…"}` |
 | GET | `/ready` | Disponibilité : 200 si la base répond, sinon 503 `TWR-DB-001` |
 
-## Dossiers
+## Cases
+
+Les anciens chemins `/v1/dossiers…` répondent encore à l'identique (cachés du schéma) pendant la transition du renommage « dossier » → « case » (voir [decisions.md](decisions.md)).
 
 | Méthode | Chemin | Permission | Description |
 |---|---|---|---|
-| GET | `/v1/dossiers` | public / `dossiers:read` | Liste (public : publiés seulement, vue réduite). Filtres `status`, `kind`, `limit` (≤ 200), `before_id` |
-| POST | `/v1/dossiers` | `dossiers:create` | Ouvre un dossier `{kind, x_post_id?, title?, priority?, reason?}` |
-| GET | `/v1/dossiers/{public_id}` | public / `dossiers:read` | Détail (public : publiés seulement) |
-| GET | `/v1/dossiers/{public_id}/history` | `dossiers:read` | Journal des transitions |
-| POST | `/v1/dossiers/{public_id}/transitions` | selon la cible | `{to, reason?, expected_version?}` |
-| POST | `/v1/dossiers/{public_id}/publish` | `dossiers:publish` | « Marquer comme publié » `{url, expected_version?}` |
+| GET | `/v1/cases` | public / `cases:read` | Liste (public : publiés seulement, vue réduite). Filtres `status`, `kind`, `limit` (≤ 200), `before_id` |
+| POST | `/v1/cases` | `cases:create` | Ouvre un case `{kind, x_post_id?, title?, priority?, reason?}` |
+| GET | `/v1/cases/{public_id}` | public / `cases:read` | Détail (public : publiés seulement). Vue interne : `discord_thread_id` (post du forum, chaîne) et `draft_id` (dernier brouillon de fact-check du case, seulement sur ce détail) |
+| PUT | `/v1/cases/{public_id}/discord-thread` | `cases:read` (`204`) | Enregistre le post du forum Discord du case `{thread_id}` (chaîne de chiffres). Marqueur opérationnel : ni audit ni événement. Erreurs : `TWR-DOS-007` (id invalide), `TWR-DOS-001` |
+| GET | `/v1/cases/{public_id}/history` | `cases:read` | Journal des transitions |
+| POST | `/v1/cases/{public_id}/transitions` | selon la cible | `{to, reason?, expected_version?}` |
+| POST | `/v1/cases/{public_id}/publish` | `cases:publish` | « Marquer comme publié » `{url, expected_version?}` |
 
 Vue complète :
 
@@ -49,12 +52,12 @@ Vue publique : `public_id`, `kind`, `x_post_id`, `title`, `published_url`, `upda
 | Paramètre | Description |
 |---|---|
 | `after` | Curseur `"<xid>-<id>"`, `0` (début) ou `latest` (défaut) |
-| `topics` | Répétable : `?topics=dossier.opened&topics=incident.opened` |
+| `topics` | Répétable : `?topics=case.opened&topics=incident.opened` |
 
 ```
 id: 1300-42
-event: dossier.transitioned
-data: {"id":"1300-42","topic":"dossier.transitioned","aggregate_type":"dossier",...}
+event: case.transitioned
+data: {"id":"1300-42","topic":"case.transitioned","aggregate_type":"case",...}
 ```
 
 ### Curseurs stockés (clients de service)
@@ -127,10 +130,10 @@ brouillon est l'identifiant public du verdict.
 | Méthode | Chemin | Accès |
 |---|---|---|
 | POST | `/v1/factcheck/requests` | `factcheck:request` (`202`) ; corps `{url}` ou `{platform, external_id}` ; répond `{platform, external_id, accepted, duplicate}`. Enfile `factcheck.request` (N4) |
-| GET | `/v1/drafts?status=pending&notified=&limit=&before_id=` | `dossiers:read` ; brouillons en relecture (`drafted_at` posé), du plus récent au plus ancien ; `before_id` = champ `seq` |
-| GET | `/v1/drafts/{id}` | `dossiers:read` ; brouillon complet : issue, besoin et types de contexte, confiance et bande, affirmation, contenu et lien, dossier, notes par langue (texte, fiche, origine), liens, justification avec citations (source, passage, traduction française), ce que les sources ne disent pas, points à vérifier, objection, critique, contrôles, indicateurs, sources citées, `version` |
-| POST | `/v1/drafts/{id}/review` | `{decision: accept\|edit\|reject, veracity?, note_text?, note_lang?, labels?, reason?, expected_version?}` ; `dossiers:review` (avis favorable) ou `dossiers:decide` (validation, rejet) ; répond `{outcome, draft}`. Erreurs : `TWR-FCK-007` (inconnu), `TWR-FCK-008` (déjà décidé), `TWR-FCK-009` (revue invalide), conflit de version |
-| POST | `/v1/drafts/{id}/notified` | `dossiers:read` (`204`) ; marque le brouillon comme affiché par le bot (idempotent) |
+| GET | `/v1/drafts?status=pending&notified=&limit=&before_id=` | `cases:read` ; brouillons en relecture (`drafted_at` posé), du plus récent au plus ancien ; `before_id` = champ `seq` |
+| GET | `/v1/drafts/{id}` | `cases:read` ; brouillon complet : issue, besoin et types de contexte, confiance et bande, affirmation, contenu et lien, case (`id`, `status`, `discord_thread_id`), notes par langue (texte, fiche, origine), liens, justification avec citations (source, passage, traduction française), ce que les sources ne disent pas, points à vérifier, objection, critique, contrôles, indicateurs, sources citées, `version` |
+| POST | `/v1/drafts/{id}/review` | `{decision: accept\|edit\|reject, veracity?, note_text?, note_lang?, labels?, reason?, expected_version?}` ; `cases:review` (avis favorable) ou `cases:decide` (validation, rejet) ; répond `{outcome, draft}`. Erreurs : `TWR-FCK-007` (inconnu), `TWR-FCK-008` (déjà décidé), `TWR-FCK-009` (revue invalide), conflit de version |
+| POST | `/v1/drafts/{id}/notified` | `cases:read` (`204`) ; marque le brouillon comme affiché par le bot (idempotent) |
 | GET | `/v1/content/{platform}/{external_id}/verdict?lang=` | **public** ; verdicts **validés** et non périmés seulement (lot 4 : aussi ceux qui couvrent la variante par rattachement ou par bande, avec `inherited: {rule, origin_verdict_id, origin_url}` ; la note d'origine n'est montrée que si son régime le permet), par affirmation : texte, issue, besoin et types de contexte, date de validation, note (langue choisie : `lang` demandée si elle existe, sinon langue du post, puis `en`, puis `fr`), fiche, liens, `machine_translated` ; en-tête `Cache-Control: public, max-age=300` ; `404` `TWR-FCK-013` sans verdict validé |
 
 ### Fact-check V1 (lot 4)
@@ -144,16 +147,16 @@ groupe proche suggéré), `reference_fact`, `band` (`band`, `side`, `label`), `o
 
 | Méthode | Chemin | Accès |
 |---|---|---|
-| GET | `/v1/groups/{id}` | `dossiers:read` ; groupe (niveau, état, `merged_into`, fiche et bande, verdict actif avec `reuse_rule`), membres actifs (texte d'origine et langue, texte pivot, posts), journal (50 derniers) |
-| GET | `/v1/groups/{id}/members?include_removed=` | `dossiers:read` |
+| GET | `/v1/groups/{id}` | `cases:read` ; groupe (niveau, état, `merged_into`, fiche et bande, verdict actif avec `reuse_rule`), membres actifs (texte d'origine et langue, texte pivot, posts), journal (50 derniers) |
+| GET | `/v1/groups/{id}/members?include_removed=` | `cases:read` |
 | POST | `/v1/groups/{target}/merge` | `claim_groups:manage` ; `{source_group_id, reason}` ; `TWR-FCK-020` à `023` |
 | POST | `/v1/groups/{id}/split` | `claim_groups:manage` ; `{claim_ids, reason}` ; répond le nouveau groupe ; `TWR-FCK-024` |
 | POST | `/v1/reference-facts` | `reference_facts:write` (`201`) ; fiche complète, statut `pending` ; `TWR-FCK-026` |
 | POST | `/v1/reference-facts/from-verdict` | `reference_facts:write` (`201`) ; `{verdict_id, value, period_start, period_end, source_url, source_name, published_at, next_publication?, indicator?, label?}` ; verdict actif d'une statistique |
-| GET | `/v1/reference-facts?status=&indicator=`, `/v1/reference-facts/{id}` | `dossiers:read` |
+| GET | `/v1/reference-facts?status=&indicator=`, `/v1/reference-facts/{id}` | `cases:read` |
 | POST | `/v1/reference-facts/{id}/validate` | `reference_facts:validate` ; `reference_fact.validated` |
 | POST | `/v1/reference-facts/{id}/reject` | `reference_facts:validate` ; `{reason}` |
-| GET | `/v1/reference-facts/{id}/bands` | `dossiers:read` |
+| GET | `/v1/reference-facts/{id}/bands` | `cases:read` |
 | POST | `/v1/verdict-bands` | `reference_facts:validate` (`201`) ; `{fact_id, band, side, veracity, context_need, context_types, source_verdict_id}` ; `TWR-FCK-027`, `028` |
 | POST | `/v1/verdict-bands/from-verdict` | `reference_facts:validate` (`201`) ; `{verdict_id}` : bande et issue du verdict |
 | POST | `/v1/verdict-bands/{id}/revoke` | `reference_facts:validate` ; `{reason}` |
@@ -162,7 +165,7 @@ groupe proche suggéré), `reference_fact`, `band` (`band`, `side`, `label`), `o
 | POST | `/v1/profiles` | `profiles:manage` (`201`) ; `{settings?\|changes?, reason, activate}` (`changes` : chemins plats, ex. `levels.N1.e1_threshold`) ; `TWR-FCK-030` hors bornes |
 | POST | `/v1/profiles/{version}/activate`, `/v1/profiles/rollback` | `profiles:manage` ; `{reason}` ; `TWR-FCK-029` |
 | POST | `/v1/level-overrides` | `levels:override` (`201`) ; `{target_type: content\|group\|account, target, level, hours, reason}` ; répond le forçage et `applied` ; `TWR-FCK-031`, `032` |
-| GET | `/v1/level-overrides?active=true` | `dossiers:read` |
+| GET | `/v1/level-overrides?active=true` | `cases:read` |
 | POST | `/v1/level-overrides/{id}/revoke` | `levels:override` ; `{reason}` |
 
 ### Fact-check V2 (lot 5) : récits et vagues
@@ -175,11 +178,11 @@ réponses de fusion et de scission) gagne `narrative` (`{id, state}` ou nul).
 
 | Méthode | Chemin | Accès |
 |---|---|---|
-| GET | `/v1/narratives?state=&limit=` | `dossiers:read` ; `state` parmi `active`, `watch`, `surge`, `alert`, `closed` ; sans `state` : récits ouverts, activité la plus récente d'abord. Par récit : `id`, `title`, `title_status`, `state`, `theme`, `groups`, `stats_1h` (`window_end`, `share`, `accounts`, `platforms`), `opened_at`, `last_activity_at` |
-| GET | `/v1/narratives/{id}` | `dossiers:read` ; en plus : `groups_count`, `closed_at`, `medoids`, `groups` (`id`, `level`, `state`, `verdict` `{id, status, veracity}`, `light_signal`, `reach`), `stats` (`5m`, `1h`, `6h` : 12 derniers points, du plus ancien au plus récent), `journal` (50 derniers), `representative_group`, `previous_narrative`, `merged_into`, `split_suggested`, `novelty` (10 empreintes qui ont forcé une extraction) ; `TWR-FCK-043` |
+| GET | `/v1/narratives?state=&limit=` | `cases:read` ; `state` parmi `active`, `watch`, `surge`, `alert`, `closed` ; sans `state` : récits ouverts, activité la plus récente d'abord. Par récit : `id`, `title`, `title_status`, `state`, `theme`, `groups`, `stats_1h` (`window_end`, `share`, `accounts`, `platforms`), `opened_at`, `last_activity_at` |
+| GET | `/v1/narratives/{id}` | `cases:read` ; en plus : `groups_count`, `closed_at`, `medoids`, `groups` (`id`, `level`, `state`, `verdict` `{id, status, veracity}`, `light_signal`, `reach`), `stats` (`5m`, `1h`, `6h` : 12 derniers points, du plus ancien au plus récent), `journal` (50 derniers), `representative_group`, `previous_narrative`, `merged_into`, `split_suggested`, `novelty` (10 empreintes qui ont forcé une extraction) ; `TWR-FCK-043` |
 | POST | `/v1/narratives/{target}/merge` | `claim_groups:manage` ; `{source_id, reason}` ; répond le récit cible ; `TWR-FCK-043`, `044` ; `narrative.merged` |
 | POST | `/v1/narratives/{id}/split` | `claim_groups:manage` ; `{group_ids, reason}` ; répond le nouveau récit ; `TWR-FCK-043`, `044` ; `narrative.split` |
-| POST | `/v1/narratives/{id}/title` | `dossiers:review` ; `{title?}` : sans titre, valide le brouillon de titre ; avec, enregistre le titre corrigé (validé) |
+| POST | `/v1/narratives/{id}/title` | `cases:review` ; `{title?}` : sans titre, valide le brouillon de titre ; avec, enregistre le titre corrigé (validé) |
 
 **Signaux de coordination** (`coordination` du brouillon) : liste de `{kind, count,
 window_minutes, detail}`, **informative seulement**, jamais utilisée pour un verdict ni

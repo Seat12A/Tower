@@ -2,6 +2,9 @@
 
 Draft messages carry ``t12a:fc:<action>:<draft id>`` buttons; a second dynamic item keeps
 the legacy ``fc:<action>:<draft id>`` ids of messages posted before the redesign working.
+Forum posts add the ``t12a:fc:more:<draft id>`` "More actions" menu and a "Mark as
+published" button; a forum post is never edited here: the notifier refreshes it from the
+events of the decision.
 Every click re-fetches the draft from gate. After a final decision the decision buttons
 are removed from the message (``settle_view``); once the verdict is validated the group
 and reference-fact buttons stay: creating a fact or validating a band needs a validated
@@ -19,8 +22,10 @@ from tower.core.logging import get_logger
 from tower.intercom.commands import Context
 from tower.intercom.commands.factcheck import text_input
 from tower.intercom.gate_client import GateClient, GateError
-from tower.intercom.handlers import Reply, error_reply
+from tower.intercom.handlers import Reply, card, error_reply, forum
+from tower.intercom.handlers import cases as dos
 from tower.intercom.handlers import factcheck as fc
+from tower.intercom.handlers import narratives as nar
 from tower.intercom.i18n import t
 from tower.intercom.ui import render
 from tower.intercom.ui.base import BaseModal, guarded_callback, interaction_locale, run_handler
@@ -31,9 +36,17 @@ _ACTIONS = "|".join(fc.ACTIONS)
 _UUID = "[0-9a-fA-F-]{36}"
 _TEMPLATE = rf"t12a:fc:(?P<action>{_ACTIONS}):(?P<draft>{_UUID})"
 _LEGACY_TEMPLATE = rf"fc:(?P<action>{_ACTIONS}):(?P<draft>{_UUID})"
+_MORE_TEMPLATE = rf"t12a:fc:more:(?P<draft>{_UUID})"
+_INFO_TEMPLATE = rf"t12a:fc:info:(?P<kind>{'|'.join(forum.INFO_KINDS)}):(?P<draft>{_UUID})"
+_MENU_VALUES = (*forum.MORE_ACTIONS, "notes", *forum.LEGACY_MENU_VALUES)
 
 _SAMPLE_UUID = "00000000-0000-0000-0000-000000000000"
-SAMPLE_CUSTOM_IDS = (fc.custom_id("validate", _SAMPLE_UUID), f"fc:validate:{_SAMPLE_UUID}")
+SAMPLE_CUSTOM_IDS = (
+    fc.custom_id("validate", _SAMPLE_UUID),
+    f"fc:validate:{_SAMPLE_UUID}",
+    fc.custom_id("more", _SAMPLE_UUID),
+    forum.info_custom_id("quotes", _SAMPLE_UUID),
+)
 
 _NOTE_PREFILL_MAX = 1000
 
@@ -84,6 +97,8 @@ def _kit(ctx: Context) -> Any:
         message = interaction.message
         if reply is None or not reply.final or message is None:
             return
+        if isinstance(message.channel, discord.Thread):
+            return  # forum post: refreshed by the notifier from the decision events
         try:
             status = (await gate.get_draft(interaction.user.id, draft_id)).get("status")
             view = ui.LayoutView.from_message(message, timeout=None)
@@ -225,6 +240,94 @@ def _kit(ctx: Context) -> Any:
                 ),
             )
 
+    class PublishModal(BaseModal):
+        """Link of the post published on X; the forum post follows the event."""
+
+        def __init__(self, case_id: str, locale: str) -> None:
+            super().__init__(title=t(locale, "case.modal.publish.title")[:45])
+            self.case_id = case_id
+            self.url, label = text_input(locale, "case.modal.url", max_length=200)
+            self.add_item(label)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            url = self.url.value
+            await run_handler(
+                interaction, lambda loc, uid: dos.publish(gate, uid, loc, self.case_id, url)
+            )
+
+    async def secondary(
+        interaction: discord.Interaction, action: str, draft: dict[str, Any]
+    ) -> None:
+        """Group, reference-fact, band and information actions (menu or legacy button)."""
+        locale = interaction_locale(interaction)
+        draft_id = str(draft["draft_id"])
+        if action == "band":
+            await run_handler(
+                interaction, lambda loc, uid: fc.band_validate(gate, uid, loc, draft_id)
+            )
+        elif action == "samegroup":
+            await interaction.response.send_modal(SameGroupModal(draft_id, locale))
+        elif action == "split":
+            await interaction.response.send_modal(SplitModal(draft_id, locale))
+        elif action == "fact":
+            await interaction.response.send_modal(FactModal(draft_id, locale))
+        elif action == "group":
+            group_id = str((draft.get("group") or {}).get("id") or "")
+            await run_handler(interaction, lambda loc, uid: fc.group_show(gate, uid, loc, group_id))
+        elif action == "narrative":
+            narrative_id = str((draft.get("narrative") or {}).get("id") or "")
+            if not narrative_id:
+                await render.send(
+                    interaction, card(t(locale, "forum.no_narrative"), accent="neutral")
+                )
+                return
+            await run_handler(
+                interaction, lambda loc, uid: nar.narrative_show(gate, uid, loc, narrative_id)
+            )
+        elif action == "notes":
+            await render.send(interaction, forum.info_reply(draft, "notes", locale))
+        elif action == "publish":
+            case_id = str((draft.get("case") or {}).get("id") or "")
+            await interaction.response.send_modal(PublishModal(case_id, locale))
+
+    async def fetch(interaction: discord.Interaction, draft_id: str) -> dict[str, Any] | None:
+        try:
+            # Every click works from the draft as gate has it now.
+            draft = await gate.get_draft(interaction.user.id, draft_id)
+        except GateError as exc:
+            await render.send(interaction, error_reply(interaction_locale(interaction), exc))
+            return None
+        draft.setdefault("draft_id", draft_id)
+        return draft
+
+    class MoreSelect(ui.DynamicItem[ui.Select[Any]], template=_MORE_TEMPLATE):
+        """ "More actions" menu of a forum post."""
+
+        def __init__(self, draft_id: str) -> None:
+            super().__init__(
+                ui.Select(
+                    custom_id=fc.custom_id("more", draft_id),
+                    options=[discord.SelectOption(label=a, value=a) for a in _MENU_VALUES],
+                )
+            )
+            self.draft_id = draft_id
+
+        @classmethod
+        async def from_custom_id(
+            cls, interaction: discord.Interaction, item: ui.Item[Any], match: re.Match[str], /
+        ) -> Self:
+            return cls(match["draft"])
+
+        @guarded_callback
+        async def callback(self, interaction: discord.Interaction) -> None:  # type: ignore[override]
+            values = self.item.values
+            action = values[0] if values else ""
+            if action not in _MENU_VALUES:
+                return
+            draft = await fetch(interaction, self.draft_id)
+            if draft is not None:
+                await secondary(interaction, action, draft)
+
     class DraftButton(ui.DynamicItem[ui.Button[Any]], template=_TEMPLATE):
         prefix = fc.DRAFT_PREFIX
 
@@ -242,13 +345,9 @@ def _kit(ctx: Context) -> Any:
         @guarded_callback
         async def callback(self, interaction: discord.Interaction) -> None:  # type: ignore[override]
             locale = interaction_locale(interaction)
-            try:
-                # Every click works from the draft as gate has it now.
-                draft = await gate.get_draft(interaction.user.id, self.draft_id)
-            except GateError as exc:
-                await render.send(interaction, error_reply(locale, exc))
+            draft = await fetch(interaction, self.draft_id)
+            if draft is None:
                 return
-            draft.setdefault("draft_id", self.draft_id)
             action = self.action
             if action in fc.DECISION_ACTIONS and draft.get("status") != "draft":
                 await render.send(interaction, fc.decided_reply(locale, draft.get("status")))
@@ -263,28 +362,41 @@ def _kit(ctx: Context) -> Any:
                     interaction, lambda loc, uid: fc.review_accept(gate, uid, loc, self.draft_id)
                 )
                 await settle(interaction, reply, self.draft_id)
-            elif action == "band":
-                await run_handler(
-                    interaction, lambda loc, uid: fc.band_validate(gate, uid, loc, self.draft_id)
-                )
             elif action == "correct":
                 # A modal must be the first response: no defer.
                 await interaction.response.send_modal(CorrectModal(draft, locale))
             elif action == "reject":
                 await interaction.response.send_modal(RejectModal(self.draft_id, locale))
-            elif action == "samegroup":
-                await interaction.response.send_modal(SameGroupModal(self.draft_id, locale))
-            elif action == "split":
-                await interaction.response.send_modal(SplitModal(self.draft_id, locale))
             else:
-                await interaction.response.send_modal(FactModal(self.draft_id, locale))
+                await secondary(interaction, action, draft)
 
     class LegacyDraftButton(DraftButton, template=_LEGACY_TEMPLATE):
         """Buttons of draft messages posted before the redesign (``fc:<action>:<id>``)."""
 
         prefix = fc.LEGACY_DRAFT_PREFIX
 
-    return DraftButton, LegacyDraftButton
+    class InfoButton(ui.DynamicItem[ui.Button[Any]], template=_INFO_TEMPLATE):
+        """Read-only details of a forum post, shown to the clicker only."""
+
+        def __init__(self, kind: str, draft_id: str) -> None:
+            super().__init__(ui.Button(custom_id=forum.info_custom_id(kind, draft_id)))
+            self.kind = kind
+            self.draft_id = draft_id
+
+        @classmethod
+        async def from_custom_id(
+            cls, interaction: discord.Interaction, item: ui.Item[Any], match: re.Match[str], /
+        ) -> Self:
+            return cls(match["kind"], match["draft"])
+
+        @guarded_callback
+        async def callback(self, interaction: discord.Interaction) -> None:  # type: ignore[override]
+            draft = await fetch(interaction, self.draft_id)
+            if draft is not None:
+                locale = interaction_locale(interaction)
+                await render.send(interaction, forum.info_reply(draft, self.kind, locale))
+
+    return DraftButton, LegacyDraftButton, MoreSelect, InfoButton
 
 
 def dynamic_items(ctx: Context) -> list[type]:
