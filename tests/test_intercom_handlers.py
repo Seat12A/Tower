@@ -167,6 +167,36 @@ async def test_incidents_list_and_resolve(bot: GateClient) -> None:
     assert "TWR-AUTH-005" in forbidden.text
 
 
+async def test_incident_show_filters_and_resolved(bot: GateClient) -> None:
+    exc = RuntimeError("X API 403 on tweets.get")
+    fp = get_reporter().capture(ec.FCK_PLATFORM_UNAVAILABLE, exc, platform="x", attempt=3)
+    await get_reporter().flush()
+    r = await incidents.show(bot, ADMIN, "en", fp[:8])
+    assert "TWR-FCK-019" in r.title and r.accent == "warning"
+    assert "X API 403 on tweets.get" in r.body and "platform = x" in r.body
+    assert "attempt = 3" in r.body and "RuntimeError" in r.text and "Retryable: yes" in r.text
+    assert "Status: open" in r.text and r.footer == f"`{fp}`"
+    assert [b.custom_id for b in r.buttons] == [f"t12a:inc:res:{fp}", "t12a:inc:list"]
+    assert_persistent(r)
+    filtered = await incidents.list_incidents(bot, ADMIN, "en", code_filter="twr-fck-019")
+    assert fp[:12] in filtered.text and "TWR-FCK-019" in filtered.title
+    other = await incidents.list_incidents(bot, ADMIN, "en", code_filter="TWR-MNT-001")
+    assert "No incident matches this filter." in other.text
+    bad = await incidents.list_incidents(bot, ADMIN, "en", code_filter="nope")
+    assert "Invalid code" in bad.text and bad.accent == "warning"
+    await incidents.resolve(bot, ADMIN, "en", fp, "token rotated")
+    assert fp[:12] not in (await incidents.list_incidents(bot, ADMIN, "en")).text
+    every = await incidents.list_incidents(bot, ADMIN, "fr", include_resolved=True)
+    assert fp[:12] in every.text and "résolus compris" in every.title
+    assert [f.control.custom_id for f in every.fields] == ["t12a:inc:show"]  # type: ignore[union-attr]
+    done = await incidents.show(bot, ADMIN, "fr", fp[:6])
+    assert "résolu le" in done.text and "token rotated" in done.text
+    assert [b.custom_id for b in done.buttons] == ["t12a:inc:list"]
+    missing = await incidents.show(bot, ADMIN, "en", "ffffffffffffffff")
+    assert "TWR-GEN-" in missing.text
+    assert "TWR-AUTH-005" in (await incidents.show(bot, EDITOR, "en", fp)).text
+
+
 # --- usage -------------------------------------------------------------------------
 
 
@@ -231,7 +261,7 @@ async def test_unavailable_reply_with_fake_gate() -> None:
         async def get_usage(self, acting: int) -> dict[str, Any]:
             raise GateUnavailable(0, "TWR-BOT-001", "down")
 
-        async def list_incidents(self, acting: int, *, limit: int = 10) -> list[dict[str, Any]]:
+        async def list_incidents(self, acting: int, **kwargs: Any) -> list[dict[str, Any]]:
             raise GateError(418, "TWR-XXX-999", "teapot")
 
     r = await usage.show_usage(cast(GateClient, Down()), 1, "en")
@@ -530,10 +560,44 @@ async def test_incident_list_offers_a_resolve_select() -> None:
     gate = mock_gate(lambda request: httpx.Response(200, json=rows))
     r = await incidents.list_incidents(gate, 1, "en")
     assert len(r.items) == 2 and "x3" in r.items[0] and "a" * 12 in r.items[0]
-    select = r.fields[0].control
-    assert select.custom_id == "t12a:inc:pick" and select.options[1].value == "b" * 64  # type: ignore[union-attr]
+    show, pick = (f.control for f in r.fields)
+    assert show.custom_id == "t12a:inc:show" and show.options[0].value == "a" * 64  # type: ignore[union-attr]
+    assert pick.custom_id == "t12a:inc:pick" and pick.options[1].value == "b" * 64  # type: ignore[union-attr]
     assert r.buttons[0].custom_id == "t12a:inc:list"
     assert_persistent(r)
+
+
+async def test_incident_show_bounds_a_long_report() -> None:
+    fp = "0123456789abcdef"
+    report = {
+        "fingerprint": fp,
+        "code": "TWR-INT-001",
+        "title": "Unexpected",
+        "severity": "error",
+        "last_message": "m```" * 400,
+        "last_context": {f"k{i}": "v" * 500 for i in range(30)},
+        "last_traceback": "frame\n" * 2000 + "ValueError: boom",
+        "hint": "Look at the logs.",
+        "retryable": False,
+        "occurrences": 2,
+    }
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url.copy_with(query=None)) + "?" + request.url.query.decode())
+        if request.url.path == "/v1/errors":
+            return httpx.Response(200, json=[report])
+        return httpx.Response(200, json=report)
+
+    r = await incidents.show(mock_gate(handler), 1, "en", fp[:8])
+    assert seen == [
+        "http://gate/v1/errors?limit=200&include_resolved=true",
+        f"http://gate/v1/errors/{fp}?",
+    ]
+    assert r.accent == "error"
+    assert len(r.body) < 3800 and r.body.count("```") == 6
+    assert r.body.rstrip("`\n").endswith("ValueError: boom") and "... and 18 more" in r.body
+    assert "Look at the logs." in r.body and "Retryable: no" in r.text
 
 
 async def test_registry_buttons_and_long_domains() -> None:

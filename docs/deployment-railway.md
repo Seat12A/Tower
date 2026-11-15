@@ -121,7 +121,8 @@ railway run --service gate tower staff <discord_id> --roles admin --name "Jules"
 ## Exploitation
 
 - Logs : voir [logging.md](logging.md) pour les filtres (`@level:error`, `@error_code:…`).
-- Erreurs : `tower errors list` dans un terminal du conteneur (`railway ssh --service
-  gate`). `railway run` exécute la commande sur le poste local, qui ne joint pas
+- Erreurs : `/incidents` sur Discord, ou `/app/.venv/bin/tower errors list` dans un
+  terminal du conteneur (`railway ssh --service gate` ; la console ne reprend pas le `PATH`
+  de l'image). `railway run` exécute la commande sur le poste local, qui ne joint pas
   l'adresse privée de la base.
 - File : requête de supervision dans [jobs.md](jobs.md).

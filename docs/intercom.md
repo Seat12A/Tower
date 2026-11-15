@@ -64,7 +64,9 @@ unique d'au moins 6 caractères**.
 | `/watchlist edit id` / `deactivate id` | Modal (champ vide = inchangé ; verrou optimiste géré par le bot) / confirmation sur place | `watchlist:write` |
 | `/dossier show id` | Carte avec Prendre, Valider, Rejeter (modal), Publier (modal : lien) selon le statut, lien vers le post | `dossiers:read` (+ actions) |
 | `/dossier take` / `validate` / `reject` / `publish id` | Mêmes actions en commande ; **la publication sur X reste manuelle** | `dossiers:review` / `dossiers:decide` / `dossiers:publish` |
-| `/incidents list` / `resolve empreinte` | Liste avec menu « résoudre » (modal : note) et actualisation | `errors:read` / `errors:manage` |
+| `/incidents list [code] [all]` | Liste (filtre par code `TWR-…`, `all` : résolus compris), menus « voir » et « résoudre » (modal : note), actualisation | `errors:read` |
+| `/incidents show empreinte` | Détail (préfixe de 6 caractères accepté, résolus compris) : statut, sévérité, occurrences, première et dernière occurrence, processus, emplacement, exception, relançable, note de résolution, dernier message, piste du catalogue, dernier contexte (12 clés au plus) et fin de la dernière trace, le tout borné à un message Discord ; boutons « Résoudre » (si ouvert) et retour à la liste | `errors:read` (`errors:manage` pour résoudre) |
+| `/incidents resolve empreinte` | Modal : note facultative | `errors:manage` |
 | `/usage` | Allocation gratuite du jour, dépense du mois par portée ; actualisation | `usage:read` |
 | `/factcheck url` | Demande de fact-check manuelle (N4) : « demandée » ou « déjà demandée » | `factcheck:request` |
 | `/group show id` | Carte du groupe : actualiser, fusionner ici (modal), scinder (modal) | `dossiers:read`, `claim_groups:manage` |

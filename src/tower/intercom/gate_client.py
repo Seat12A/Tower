@@ -196,11 +196,28 @@ class GateClient:
         )
         return dossier
 
-    async def list_incidents(self, acting: int, *, limit: int = 10) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = await self._request(
-            "GET", "/v1/errors", acting, params={"limit": limit}
-        )
+    async def list_incidents(
+        self,
+        acting: int,
+        *,
+        limit: int = 10,
+        code: str | None = None,
+        include_resolved: bool = False,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if code:
+            params["code"] = code
+        if include_resolved:
+            params["include_resolved"] = "true"
+        rows: list[dict[str, Any]] = await self._request("GET", "/v1/errors", acting, params=params)
         return rows
+
+    async def get_incident(self, acting: int, fingerprint: str) -> dict[str, Any]:
+        """Stored error with its last traceback and the catalog hint."""
+        report: dict[str, Any] = await self._request(
+            "GET", f"/v1/errors/{quote(fingerprint, safe='')}", acting
+        )
+        return report
 
     async def resolve_incident(
         self, acting: int, fingerprint: str, *, note: str | None = None

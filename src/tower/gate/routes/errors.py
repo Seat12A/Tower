@@ -37,6 +37,9 @@ class ErrorReportOut(BaseModel):
 
 class ErrorReportDetail(ErrorReportOut):
     last_traceback: str | None
+    hint: str = ""
+    """Catalog hint of the code (empty when the code has none or is unknown)."""
+    retryable: bool = False
 
 
 class ResolveIn(BaseModel):
@@ -87,8 +90,13 @@ async def list_errors(
 
 
 @router.get("/{fingerprint}", response_model=ErrorReportDetail)
-async def get_error(fingerprint: str, actor: ActorDep, session: ReadSession) -> ErrorReport:
-    return await service.get_report(session, actor, fingerprint)
+async def get_error(fingerprint: str, actor: ActorDep, session: ReadSession) -> ErrorReportDetail:
+    report = await service.get_report(session, actor, fingerprint)
+    entry = CATALOG.get(report.code)
+    detail = ErrorReportDetail.model_validate(report)
+    if entry is not None:
+        detail = detail.model_copy(update={"hint": entry.hint, "retryable": entry.retryable})
+    return detail
 
 
 @router.post("/{fingerprint}/resolve", response_model=ErrorReportOut)

@@ -85,7 +85,7 @@ reserved_usd_micros, cap_usd_micros}]}`. Même source que `tower llm usage`
 |---|---|---|
 | GET | `/v1/errors/catalog` | public |
 | GET | `/v1/errors?include_resolved=&code=&limit=` | `errors:read` |
-| GET | `/v1/errors/{empreinte}` | `errors:read` (avec trace) |
+| GET | `/v1/errors/{empreinte}` | `errors:read` (avec trace, `hint` et `retryable` du catalogue) |
 | POST | `/v1/errors/{empreinte}/resolve` `{note?}` | `errors:manage` |
 
 ## Équipe
