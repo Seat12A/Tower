@@ -336,3 +336,12 @@ Décisions tranchées en session, Jules absent.
 | Tâches périodiques lancées une fois au démarrage du hangar | Correctif : l'origine 0 de l'horloge monotone empêchait les tâches quotidiennes de tourner sur un conteneur démarré depuis moins d'un jour |
 | Constitution identifiée par `JORFTEXT000000571356` | C'est l'identifiant du dossier et du `cid` des articles dans le dump LEGI (mesuré à la synchronisation réelle) |
 
+## Substitution temporaire des modèles Anthropic (2026-11-14)
+
+| Décision | Raison |
+|---|---|
+| Tous les modèles Anthropic sont servis par OpenAI, **temporairement** (demande de Jules) | Coût |
+| Substitution faite par le routeur (`TOWER_LLM_MODEL_SUBSTITUTIONS`), routes en base inchangées | Réversible par une variable, sans migration ni nouvelle version de route ; s'applique aussi à une base déjà amorcée |
+| Haiku → `gpt-6-luna` ; Sonnet, Opus et Fable → `gpt-6.1-terra` | Modèles sans groupe gratuit, utilisables avec la clé sans partage des routes `frame`, `judge`, `writer`, `auditor` (`gpt-5.6-sol` y serait sauté) ; moins chers |
+| Toutes les routes de modèles de langage passent par l'organisation **avec partage** (`frame`, `judge`, `writer`, `auditor` compris) ; l'amorçage réaligne les routes qu'il possède encore | Décision de Jules. Toutes les entrées passent par `core/factcheck/inputs.py` (contenu public pseudonymisé, sans auteur) : la règle « données publiques seulement » est respectée. `TOWER_OPENAI_API_KEY` devient facultative |
+| Décorrélation juge / contradicteur réduite (même fournisseur, modèles différents) acceptée pendant la substitution | Écart temporaire à la décision « juge et contradicteur de fournisseurs différents » |

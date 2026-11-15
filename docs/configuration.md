@@ -51,11 +51,12 @@ Voir [llm.md](llm.md). Les clés sont des secrets : lues par la configuration
 
 | Variable | Défaut | Description |
 |---|---|---|
-| `TOWER_OPENAI_API_KEY` | vide | Organisation OpenAI **sans** partage des données (routes `data_sharing_ok = false`) |
+| `TOWER_OPENAI_API_KEY` | vide | Organisation OpenAI **sans** partage des données (routes `data_sharing_ok = false`). Facultative depuis le 2026-11-14 : aucune route de modèle par défaut n'est sans partage ; si elle est vide, les embeddings utilisent la clé avec partage |
 | `TOWER_OPENAI_API_KEY_SHARED` | vide | Organisation OpenAI **avec** partage (allocation gratuite ; données publiques seulement) |
 | `TOWER_ANTHROPIC_API_KEY` | vide | Clé Anthropic |
 | `TOWER_OPENAI_USAGE_TIER` | `1` | Palier d'usage OpenAI (1 à 5) : fixe l'allocation gratuite quotidienne |
 | `TOWER_LLM_FREE_MARGIN` | `0.10` | Marge appliquée à l'estimation avant d'utiliser l'allocation gratuite |
+| `TOWER_LLM_MODEL_SUBSTITUTIONS` | modèles Anthropic → OpenAI | JSON `{"modèle": "remplaçant"}` appliqué par le routeur à toutes les routes ; `{}` désactive. Défaut temporaire : voir [llm.md](llm.md#substitution-temporaire-des-modèles-anthropic) |
 
 ## Ingestion et fact-check
 

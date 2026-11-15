@@ -17,6 +17,16 @@ Env = Literal["dev", "test", "prod"]
 LogFormat = Literal["json", "console"]
 
 
+DEFAULT_MODEL_SUBSTITUTIONS: dict[str, str] = {
+    # Temporary (2026-11-14): Anthropic models are replaced by OpenAI models to cut costs.
+    # Only non-free-group OpenAI models: routes without data sharing use the plain key.
+    "claude-haiku-5-5": "gpt-6-luna",
+    "claude-sonnet-5-5": "gpt-6.1-terra",
+    "claude-opus-5-5": "gpt-6.1-terra",
+    "claude-fable-5-2": "gpt-6.1-terra",
+}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="TOWER_", env_file=".env", extra="ignore", frozen=True
@@ -75,6 +85,12 @@ class Settings(BaseSettings):
     openai_usage_tier: int = Field(default=1, ge=1, le=5)
     llm_free_margin: float = Field(default=0.10, ge=0, le=1)
     """Safety margin applied to token estimates before using the free allocation."""
+    llm_model_substitutions: dict[str, str] = Field(
+        default_factory=lambda: dict(DEFAULT_MODEL_SUBSTITUTIONS)
+    )
+    """Model name -> replacement model name, applied by the router to every route (main
+    model and fallbacks) without touching the stored routes. Temporary default: every
+    Anthropic model is served by OpenAI (cost). JSON in the environment; ``{}`` disables."""
 
     # --- Outbound HTTP ----------------------------------------------------------
     http_user_agent: str = "Seat12A-Tower/0.1"

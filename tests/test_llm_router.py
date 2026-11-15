@@ -698,6 +698,12 @@ async def test_seed_is_idempotent_and_keeps_modified_routes(
             )
         )
         await session.execute(text("UPDATE llm_models SET input_usd_per_mtok = 99"))
+        await session.execute(
+            text("UPDATE llm_routes SET data_sharing_ok = false WHERE role IN ('judge', 'writer')")
+        )
+        await session.execute(
+            text("UPDATE llm_routes SET created_by = 'jules' WHERE role = 'writer'")
+        )
         await session.execute(text("UPDATE budget_counters SET cap_usd_micros = 1"))
     await run_seed(settings)
     second = capsys.readouterr().out
@@ -710,6 +716,15 @@ async def test_seed_is_idempotent_and_keeps_modified_routes(
     assert (
         await scalar(db, "SELECT cap_usd_micros FROM budget_counters WHERE scope = 'global'") == 1
     )
+    # Seed-owned routes get the seed's data-sharing choice back; a team route is kept.
+    assert await scalar(db, "SELECT bool_and(data_sharing_ok) FROM llm_routes WHERE role = 'judge'")
+    assert not await scalar(db, "SELECT data_sharing_ok FROM llm_routes WHERE role = 'writer'")
+    assert (
+        await scalar(
+            db, "SELECT count(*) FROM llm_routes WHERE NOT data_sharing_ok AND role <> 'writer'"
+        )
+        == 1
+    )  # embed
     assert await scalar(
         db, "SELECT input_usd_per_mtok FROM llm_models WHERE model = 'gpt-5-nano'"
     ) == Decimal("0.05")
@@ -732,3 +747,56 @@ async def test_run_usage_prints(
     assert "openai/small" in out and "10.0%" in out
     assert "openai/large" in out
     assert "global" in out and "$30.00" in out
+
+
+async def test_model_substitution_replaces_route_models(
+    db: Database, prompts: PromptRegistry
+) -> None:
+    opus = await add_model(db, "anthropic", "claude-opus-5-5")
+    sonnet = await add_model(db, "anthropic", "claude-sonnet-5-5")
+    await add_model(db, "openai", "gpt-6.1-terra")
+    await add_route(db, opus, sonnet)
+    openai = FakeProvider(ProviderRetryable("down"), name="openai")
+    anthropic = FakeProvider(name="anthropic")
+    subs = {"claude-opus-5-5": "gpt-6.1-terra", "claude-sonnet-5-5": "gpt-6.1-terra"}
+    router = make_router(
+        db, {"openai": openai, "anthropic": anthropic}, prompts, model_substitutions=subs
+    )
+    with pytest.raises(ProviderUnavailable):
+        await router.complete(request())
+    # Both models map to the same replacement: called once, never Anthropic.
+    assert openai.models == ["gpt-6.1-terra"]
+    assert anthropic.calls == []
+
+    result = await router.complete(request("other"))
+    assert (result.provider, result.model) == ("openai", "gpt-6.1-terra")
+    assert anthropic.calls == []
+
+
+async def test_model_substitution_keeps_unmapped_models_and_checks_target(
+    db: Database, prompts: PromptRegistry
+) -> None:
+    haiku = await add_model(db, "anthropic", "claude-haiku-5-5")
+    luna = await add_model(db, "openai", "gpt-6-luna")
+    await add_route(db, luna, haiku)
+    openai = FakeProvider(name="openai")
+    router = make_router(
+        db, {"openai": openai}, prompts, model_substitutions={"claude-haiku-5-5": "missing"}
+    )
+    with pytest.raises(UnknownModel):
+        await router.complete(request())
+
+    router = make_router(db, {"openai": openai}, prompts, model_substitutions={"x": "y"})
+    await router.complete(request())
+    assert openai.models == ["gpt-6-luna"]
+
+
+def test_default_substitutions_cover_every_seeded_anthropic_model() -> None:
+    from tower.core.llm.admin import _MODELS
+
+    subs = Settings().llm_model_substitutions
+    openai_plain = {m.model for m in _MODELS if m.provider == "openai" and m.free_group is None}
+    for m in _MODELS:
+        if m.provider == "anthropic":
+            # Targets must be usable with the plain key (routes without data sharing).
+            assert subs[m.model] in openai_plain
