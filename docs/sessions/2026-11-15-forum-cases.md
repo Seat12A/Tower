@@ -25,8 +25,8 @@ pas d'usage.
   `TWR-DOS-007`, `draft_id` et `discord_thread_id` dans le détail du case.
 - Messages publics toujours en anglais (`TOWER_DISCORD_LOCALE` dépréciée) ; alertes de
   vague dans `TOWER_DISCORD_CHANNEL_NARRATIVES`.
-- Icônes : règle tout ou rien codée (`all_or_none`) ; 10 icônes à fournir déclarées
-  vides dans `ui/emojis.py`.
+- Icônes : règle tout ou rien codée (`all_or_none`) ; les 10 icônes du forum, fournies
+  par Jules en émojis du serveur, sont branchées dans `ui/emojis.py`.
 - **Renommage** par script Python (aucun appel de modèle) : 104 fichiers, 7 fichiers
   renommés ; puis compatibilité expand écrite à la main : migration 0012 (renommage des
   tables, colonnes, index, contraintes, séquences + vues aux anciens noms), alias
@@ -60,7 +60,7 @@ Voir `decisions.md`, sections « Forum des dossiers et messages publics en angla
 - Sur Railway : créer le forum, renseigner `TOWER_DISCORD_FORUM_CASES` et
   `TOWER_DISCORD_CHANNEL_NARRATIVES`, retirer `TOWER_DISCORD_LOCALE` ; droits du bot sur
   le forum (Gérer le salon, Gérer les fils, Envoyer des messages dans les fils).
-- Fournir les 10 icônes manquantes (liste dans `ui/emojis.py` et `intercom.md`).
+- ✅ Les 10 icônes du forum sont fournies (émojis du serveur) et branchées. Reste : les émojis des 18 tags (proposition faite à Jules), puis leur pose par le bot.
 - Passer le site et l'extension à `/v1/cases` et `cases:*`, puis faire le **contract**
   du renommage (voir `roadmap.md`).
 - Texte des modèles toujours en français : traduction à décider (coût).

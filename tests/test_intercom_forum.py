@@ -153,16 +153,20 @@ def test_empty_sections_are_omitted_and_long_ones_split() -> None:
 def test_icons_are_all_or_nothing() -> None:
     assert fr.all_or_none({"a": "<:a:1>", "b": ""}) == {"a": "", "b": ""}
     assert fr.all_or_none({"a": "<:a:1>"}) == {"a": "<:a:1>"}
+    # Every forum icon exists: each element type shows all of its icons.
     post = fr.draft_post(full_view())
-    icons = [b.icon for b in post.starter.buttons]
-    assert all(icons) or not any(icons)
+    assert all(b.icon for b in post.starter.buttons) and post.starter.icon == emojis.PENDING
     assert post.starter.menu is not None
-    menu_icons = [o.icon for o in post.starter.menu.options]
-    assert all(menu_icons) or not any(menu_icons)
-    section_icons = [c.icon for c in fr.draft_sections(full_view())]
-    assert all(section_icons) or not any(section_icons)
-    if not emojis.EVIDENCE:  # icon not uploaded yet: no section title has one
-        assert not any(section_icons)
+    assert all(o.icon for o in post.starter.menu.options)
+    assert all(c.icon for c in fr.draft_sections(full_view()))
+    validated = fr.draft_post(full_view(status="active"), "validated")
+    assert [b.icon for b in validated.starter.buttons] == [emojis.PUBLISH, emojis.LINK]
+    for status, icon in (("endorsed", emojis.ENDORSED), ("superseded", emojis.MERGE)):
+        draft_status = "superseded" if status == "superseded" else "draft"
+        dossier_status = "in_review" if status == "endorsed" else "received"
+        assert fr.draft_post(full_view(status=draft_status), dossier_status).starter.icon == icon
+    line = fr.activity_line("published", "discord:1", url="https://x.com/a/status/1")
+    assert line.body.startswith(emojis.PUBLISH)
 
 
 def test_case_post_without_draft() -> None:

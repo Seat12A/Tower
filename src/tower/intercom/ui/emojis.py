@@ -143,15 +143,15 @@ TRACK = "<:track:1571617449487368283>"
 COPYRIGHT = "<:copyright:1571617514616786974>"
 TOGGLE = TOGGLE_ON
 
-# Forum of cases: icons still to upload to the application (empty until then). An
-# element type shows icons only when all of its icons exist (``handlers.forum``).
-MERGE = ""  # Material Symbols "merge": same group / superseded (merged)
-SPLIT = ""  # "call_split": split a group
-BAND = ""  # "linear_scale": validate the band
-NARRATIVE = ""  # "hub": narrative
-EVIDENCE = ""  # "fact_check": Evidence section
-CHECKLIST = ""  # "checklist": Gaps & checks section
-CONTEXT = ""  # "layers": Context section
-ENDORSED = ""  # "thumb_up": endorsed by a reviewer
-PUBLISH = ""  # "publish": published / mark as published
-WAVE = ""  # "waves": narrative wave
+# Forum of cases (server emojis). An element type shows icons only when all of its
+# icons exist (``handlers.forum.all_or_none``).
+MERGE = "<:merge:1571659952450310164>"  # Material Symbols "merge": same group / superseded (merged)
+SPLIT = "<:call_split:1571659950437179554>"  # "call_split": split a group
+BAND = "<:linear_scale:1571659948939546665>"  # "linear_scale": validate the band
+NARRATIVE = "<:hub:1571659947266154596>"  # "hub": narrative
+EVIDENCE = "<:fact_check:1571659946024767548>"  # "fact_check": Evidence section
+CHECKLIST = "<:checklist:1571659944758083725>"  # "checklist": Gaps & checks section
+CONTEXT = "<:layers:1571659943294148629>"  # "layers": Context section
+ENDORSED = "<:thumb_up:1571659942161686658>"  # "thumb_up": endorsed by a reviewer
+PUBLISH = "<:publish:1571659940865511494>"  # "publish": published / mark as published
+WAVE = "<:wave:1571659939431059617>"  # "waves": narrative wave

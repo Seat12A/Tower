@@ -219,10 +219,11 @@ Un événement à la fois : les posts sont créés l'un après l'autre (contre-p
 brouillons jamais affichés.
 
 **Icônes** : tout ou rien par type d'élément (barre, options du menu, titres de section,
-titres de statut, lignes du journal). Les icônes manquantes sont déclarées vides dans
-`ui/emojis.py` (`MERGE`, `SPLIT`, `BAND`, `NARRATIVE`, `EVIDENCE`, `CHECKLIST`, `CONTEXT`,
-`ENDORSED`, `PUBLISH`, `WAVE`) : tant qu'une icône d'un type manque, ce type s'affiche sans
-icône. Les tags n'ont pas d'icône.
+titres de statut, lignes du journal). Les icônes propres au forum sont des émojis du
+serveur (`MERGE`, `SPLIT`, `BAND`, `NARRATIVE`, `EVIDENCE`, `CHECKLIST`, `CONTEXT`,
+`ENDORSED`, `PUBLISH`, `WAVE` dans `ui/emojis.py`) ; si une icône d'un type venait à
+manquer (chaîne vide), tout ce type s'afficherait sans icône. Les tags n'ont pas encore
+d'icône (émojis du serveur à fournir).
 
 Permissions du bot sur le forum : Gérer le salon (tags, réglages), Gérer les fils (tags
 modérés, archivage, épinglage), Envoyer des messages dans les fils.
