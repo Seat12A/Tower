@@ -111,6 +111,9 @@ class ForumDelivery:
         return self._client.get_channel(channel_id) or await self._client.fetch_channel(channel_id)
 
     async def prepare(self) -> None:
+        # The notifier starts from setup_hook, before the gateway is ready: wait so the
+        # forum and its threads are known (otherwise the guide is never found).
+        await self._client.wait_until_ready()
         await self._forum()
 
     async def _forum(self) -> discord.ForumChannel:
@@ -134,19 +137,46 @@ class ForumDelivery:
                 default_sort_order=discord.ForumOrderType.creation_date,
                 default_layout=discord.ForumLayoutType.list_view,
             )
-        if not any(thread.flags.pinned for thread in forum.threads):
-            guide = Reply(
-                title=t(forum_render.PUBLIC_LOCALE, "forum.guide.title"),
-                icon=emojis.INFO,
-                body=t(forum_render.PUBLIC_LOCALE, "forum.guide.body"),
-                sections=(t(forum_render.PUBLIC_LOCALE, "forum.guide.tags"),),
-                ephemeral=False,
-            )
-            created = await forum.create_thread(
-                name=guide.title, view=_stopped(guide), allowed_mentions=_NO_MENTIONS
-            )
-            await created.thread.edit(pinned=True)
+        await self._ensure_guide(forum)
         log.info("intercom.forum_ready", tags=len(self._tags))
+
+    async def _find_guide(self, forum: discord.ForumChannel) -> discord.Thread | None:
+        """The pinned guide, or the bot's own post titled like it, asked to Discord (not
+        the cache): active threads first, then the most recent archived ones."""
+        title = t(forum_render.PUBLIC_LOCALE, "forum.guide.title")
+        me = self._client.user.id if self._client.user else None
+
+        def is_guide(thread: discord.Thread) -> bool:
+            return thread.parent_id == forum.id and (
+                thread.flags.pinned or (thread.owner_id == me and thread.name == title)
+            )
+
+        for thread in await forum.guild.active_threads():
+            if is_guide(thread):
+                return thread
+        async for thread in forum.archived_threads(limit=100):
+            if is_guide(thread):
+                return thread
+        return None
+
+    async def _ensure_guide(self, forum: discord.ForumChannel) -> None:
+        """Create the pinned "How to review" post once; pin an existing unpinned one."""
+        found = await self._find_guide(forum)
+        if found is not None:
+            if found.archived or not found.flags.pinned:
+                await found.edit(archived=False, pinned=True)
+            return
+        guide = Reply(
+            title=t(forum_render.PUBLIC_LOCALE, "forum.guide.title"),
+            icon=emojis.INFO,
+            body=t(forum_render.PUBLIC_LOCALE, "forum.guide.body"),
+            sections=(t(forum_render.PUBLIC_LOCALE, "forum.guide.tags"),),
+            ephemeral=False,
+        )
+        created = await forum.create_thread(
+            name=guide.title, view=_stopped(guide), allowed_mentions=_NO_MENTIONS
+        )
+        await created.thread.edit(pinned=True)
 
     def _applied(self, post: forum_render.Post) -> list[discord.ForumTag]:
         tags = self._tags or {}
