@@ -1,14 +1,15 @@
-"""Fact-check in Discord: draft rendering (pure), review actions, ``/factcheck`` and the
-startup reconciliation. Independent of discord.py: the app wires buttons and modals to
-the functions below.
+"""Fact-check in Discord: draft cards (pure), review actions, ``/factcheck``, ``/group``,
+``/fact`` and the startup reconciliation. Independent of discord.py: the commands wire
+buttons and modals to the functions below.
 
-``render_draft`` returns plain-text message parts (Discord markdown) of at most
-``MAX_MESSAGE`` characters each; links are wrapped in ``<...>`` (no embed preview) and a
-part is never cut inside a URL.
+``render_draft`` returns a ``Reply`` (a Components V2 card): long drafts are split under
+the V2 limits into further cards (``Reply.extra``), never inside a URL, and the persistent
+buttons sit on the last card.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import re
 import unicodedata
 from collections.abc import Awaitable, Callable
@@ -18,19 +19,38 @@ from tower.core.domain import error_codes as ec
 from tower.core.errors import capture
 from tower.core.logging import get_logger
 from tower.intercom.gate_client import GateClient, GateError
-from tower.intercom.handlers import MAX_MESSAGE, Reply, guarded, listing, ok, short
+from tower.intercom.handlers import (
+    MAX_MESSAGE,
+    Button,
+    Field,
+    Option,
+    Reply,
+    Select,
+    card,
+    code,
+    guarded,
+    listing,
+    short,
+    success,
+)
 from tower.intercom.i18n import has, t
+from tower.intercom.ui import emojis
 
 __all__ = [
     "ACTIONS",
+    "DECISION_ACTIONS",
+    "FACT_ACTIONS",
+    "GROUP_ACTIONS",
     "VERACITIES",
     "band_validate",
     "custom_id",
     "fact_create",
+    "fact_custom_id",
     "fact_list",
     "fact_reject",
     "fact_show",
     "fact_validate",
+    "group_custom_id",
     "group_merge",
     "group_merge_same",
     "group_show",
@@ -52,30 +72,51 @@ __all__ = [
 log = get_logger(__name__)
 
 ACTIONS = ("validate", "correct", "reject", "samegroup", "split", "fact", "band")
+DECISION_ACTIONS = ("validate", "correct", "reject")
+"""Draft buttons on the action bar: they settle (or endorse) the draft."""
+GROUP_ACTIONS = ("show", "merge", "split")
+"""``/group show`` card buttons (``show`` refreshes in place)."""
+FACT_ACTIONS = ("show", "validate", "reject")
+"""``/fact show`` card buttons."""
 VERACITIES = ("true", "mostly_true", "misleading", "false", "unverifiable")
+
+DRAFT_PREFIX = "t12a:fc:"
+LEGACY_DRAFT_PREFIX = "fc:"
+"""Draft buttons posted before the redesign carry ``fc:<action>:<draft id>``."""
 _CUSTOM_ID = re.compile(
-    r"^fc:(validate|correct|reject|samegroup|split|fact|band):([0-9a-fA-F-]{36})$"
+    r"^(?:t12a:)?fc:(validate|correct|reject|samegroup|split|fact|band):([0-9a-fA-F-]{36})$"
 )
 _QUOTE_MAX = 300
 _ASSERTION_MAX = 400
 _MAX_PARTS = 10
+_CARD_OVERHEAD = 700
+"""Room kept in every card for the title, the detail lines, the footer and the controls."""
 
-SendDraft = Callable[[str, list[str], str], Awaitable[bool]]
-"""``(channel key, message parts, draft id) -> posted``: posts the parts, the buttons go
-on the last one; ``False`` when nothing was posted (channel not configured)."""
+SendDraft = Callable[[str, Reply, str], Awaitable[bool]]
+"""``(channel key, card, draft id) -> posted``: posts the card and its ``extra`` cards, the
+buttons are on the last one; ``False`` when nothing was posted (channel not configured)."""
 
 
 # --- custom ids ----------------------------------------------------------------------
 
 
 def custom_id(action: str, draft_id: str) -> str:
-    """Persistent component id (survives restarts): ``fc:<action>:<draft id>``."""
-    return f"fc:{action}:{draft_id}"
+    """Persistent component id (survives restarts): ``t12a:fc:<action>:<draft id>``."""
+    return f"{DRAFT_PREFIX}{action}:{draft_id}"
 
 
 def parse_custom_id(value: str) -> tuple[str, str] | None:
+    """``(action, draft id)`` of a draft button id, current or legacy (``fc:...``)."""
     match = _CUSTOM_ID.match(value)
     return (match.group(1), match.group(2)) if match else None
+
+
+def group_custom_id(action: str, group_id: str) -> str:
+    return f"t12a:grp:{action}:{group_id}"
+
+
+def fact_custom_id(action: str, fact_id: str = "") -> str:
+    return f"t12a:fact:{action}:{fact_id}" if fact_id else f"t12a:fact:{action}"
 
 
 # --- vocabulary ----------------------------------------------------------------------
@@ -172,24 +213,26 @@ def _pack(blocks: list[str], limit: int) -> list[str]:
 # --- draft rendering -----------------------------------------------------------------
 
 
-def _header(view: dict[str, Any], locale: str) -> str:
+def _details(view: dict[str, Any], locale: str) -> tuple[tuple[str, str], ...]:
     confidence = view.get("confidence")
     pct = f"{round(float(confidence) * 100)}%" if confidence is not None else "?"
     band = view.get("confidence_band")
-    depth = t(locale, "draft.depth.reinforced") if view.get("depth") == "reinforced" else ""
+    if band:
+        pct = f"{pct} ({_label(locale, 'band', band)})"
+    level = str(view.get("level", "?"))
+    if view.get("depth") == "reinforced":
+        level = f"{level} · {t(locale, 'draft.depth.reinforced')}"
     return (
-        t(locale, "draft.title")
-        + "\n"
-        + t(
-            locale,
-            "draft.header",
-            veracity=veracity_label(locale, str(view.get("veracity"))),
-            context_need=_label(locale, "context_need", view.get("context_need")),
-            confidence=pct,
-            band=_label(locale, "band", band) if band else "-",
-            level=view.get("level", "?"),
-            depth=depth,
-        )
+        (
+            t(locale, "draft.detail.verdict"),
+            code(veracity_label(locale, str(view.get("veracity")))),
+        ),
+        (
+            t(locale, "draft.detail.context"),
+            code(_label(locale, "context_need", view.get("context_need"))),
+        ),
+        (t(locale, "draft.detail.confidence"), code(pct)),
+        (t(locale, "draft.detail.level"), code(level)),
     )
 
 
@@ -455,12 +498,12 @@ def _warning_lines(view: dict[str, Any], locale: str) -> list[str]:
     return out
 
 
-def render_draft(view: dict[str, Any], locale: str) -> list[str]:
-    """Message parts of a draft for the reviewers, in the order of docs/factcheck/contexte.md:
-    header, claim and post link, proposed note, rationale, what the sources do not say,
-    points to check first (objection highlighted), warnings."""
+def _draft_blocks(view: dict[str, Any], locale: str) -> list[str]:
+    """Text blocks of a draft, in the order of docs/factcheck/contexte.md: claim and post
+    link, group, narrative, coordination, reference fact, external fact-checks, proposed
+    note, rationale, what the sources do not say, points to check first (objection
+    highlighted), warnings."""
     blocks: list[str | None] = [
-        _header(view, locale),
         _claim_block(view, locale),
         _group_block(view, locale),
         _narrative_block(view, locale),
@@ -475,8 +518,76 @@ def render_draft(view: dict[str, Any], locale: str) -> list[str]:
     warnings = _warning_lines(view, locale)
     if warnings:
         blocks.append("\n".join([t(locale, "draft.warnings.header"), *warnings]))
-    parts = _pack([b for b in blocks if b], MAX_MESSAGE)
-    return parts[:_MAX_PARTS]
+    return [b for b in blocks if b]
+
+
+def draft_controls(draft_id: str, locale: str) -> tuple[tuple[Button, ...], Field]:
+    """``(action bar, group and fact field)`` of a draft: the decision buttons sit on the
+    bar, the four group and reference-fact buttons in a field of the card."""
+
+    def button(action: str, icon: str, style: Any) -> Button:
+        return Button(
+            t(locale, f"draft.button.{action}"),
+            custom_id(action, draft_id),
+            icon=icon,
+            style=style,
+        )
+
+    bar = (
+        button("validate", emojis.DONE, "success"),
+        button("correct", emojis.EDIT, "primary"),
+        button("reject", emojis.UNDONE, "danger"),
+    )
+    group_field = Field(
+        t(locale, "draft.field.group"),
+        (
+            button("samegroup", emojis.GROUPS, "secondary"),
+            button("split", "", "secondary"),
+            button("fact", emojis.BOOK, "secondary"),
+            button("band", "", "secondary"),
+        ),
+        help=t(locale, "draft.field.group.help"),
+    )
+    return bar, group_field
+
+
+def render_draft(view: dict[str, Any], locale: str, *, buttons: bool = True) -> Reply:
+    """The draft as a card for the reviewers. A long draft is split at block, line or
+    word boundaries (never inside a URL) into further cards chained in ``Reply.extra``;
+    the persistent buttons are on the last card (``buttons=False``: none)."""
+    parts = _pack(_draft_blocks(view, locale), MAX_MESSAGE - _CARD_OVERHEAD)
+    parts = parts[:_MAX_PARTS] or [""]
+    draft_id = str(view.get("draft_id", ""))
+    accent = "warning" if view.get("objection") or _warning_lines(view, locale) else "primary"
+    total = len(parts)
+    title = t(locale, "draft.title")
+    cards: list[Reply] = []
+    for index, body in enumerate(parts, start=1):
+        cards.append(
+            Reply(
+                title=(
+                    t(locale, "draft.title.part", title=title, index=index, total=total)
+                    if total > 1
+                    else title
+                ),
+                icon=emojis.NOTE,
+                accent=accent,  # type: ignore[arg-type]
+                body=body,
+                details=_details(view, locale) if index == 1 else (),
+                ephemeral=False,
+            )
+        )
+    if draft_id:
+        last = cards[-1]
+        footer = t(locale, "draft.footer", short_id=short(draft_id))
+        if buttons:
+            bar, group_field = draft_controls(draft_id, locale)
+            last = dataclasses.replace(last, buttons=bar, fields=(group_field,), footer=footer)
+        else:
+            last = dataclasses.replace(last, footer=footer)
+        cards[-1] = last
+    first_card, *later = cards
+    return dataclasses.replace(first_card, extra=tuple(later))
 
 
 # --- review actions (buttons and modals) ---------------------------------------------
@@ -485,13 +596,18 @@ def render_draft(view: dict[str, Any], locale: str) -> list[str]:
 def _review_reply(locale: str, draft_id: str, result: dict[str, Any]) -> Reply:
     outcome = str(result.get("outcome"))
     draft = result.get("draft") or {}
-    text = t(
+    body = t(
         locale,
         f"draft.review.{outcome}",
         short_id=short(draft_id),
         veracity=veracity_label(locale, str(draft.get("veracity"))),
     )
-    return Reply(text, ephemeral=True, final=outcome in ("validated", "rejected"))
+    title_key = f"draft.review.title.{outcome}"
+    title = t(locale, title_key if has(locale, title_key) else "draft.review.title.other")
+    final = outcome in ("validated", "rejected")
+    if outcome == "rejected":
+        return card(title, body, icon=emojis.UNDONE, accent="neutral", final=final)
+    return success(title, body, final=final)
 
 
 @guarded
@@ -518,7 +634,12 @@ async def review_edit(
         value = parse_veracity(locale, veracity)
         if value is None:
             values = ", ".join(veracity_label(locale, v) for v in VERACITIES)
-            return ok(t(locale, "draft.bad_veracity", value=_clip(veracity, 40), values=values))
+            return card(
+                t(locale, "draft.bad_veracity.title"),
+                t(locale, "draft.bad_veracity", value=_clip(veracity, 40), values=values),
+                icon=emojis.WARNING,
+                accent="warning",
+            )
     note = (note_text or "").strip() or None
     result = await gate.review_draft(
         acting,
@@ -541,6 +662,16 @@ async def review_reject(
         acting, draft_id, decision="reject", reason=(reason or "").strip() or None
     )
     return _review_reply(locale, draft_id, result)
+
+
+def decided_reply(locale: str, status: object) -> Reply:
+    """Card shown when a button of an already settled draft is clicked."""
+    return card(
+        t(locale, "draft.decided.title"),
+        t(locale, "draft.decided", status=_label(locale, "draft.status", status)),
+        icon=emojis.INFO,
+        accent="primary",
+    )
 
 
 # --- group, fact and band actions (buttons, modals, commands) -------------------------
@@ -569,6 +700,27 @@ async def _draft_group(gate: GateClient, acting: int, draft_id: str) -> str:
     return str(group["id"])
 
 
+def _show_group_button(locale: str, group_id: object) -> Button:
+    return Button(
+        t(locale, "group.button.show"),
+        group_custom_id("show", str(group_id)),
+        icon=emojis.GROUPS,
+    )
+
+
+def _group_done(locale: str, title_key: str, body_key: str, group: dict[str, Any]) -> Reply:
+    members = len(group.get("members", []))
+    return success(
+        t(locale, title_key),
+        t(locale, body_key, group_id=group["id"], members=members),
+        details=(
+            (t(locale, "group.detail.id"), code(group["id"])),
+            (t(locale, "group.detail.members"), code(members)),
+        ),
+        buttons=(_show_group_button(locale, group["id"]),),
+    )
+
+
 @guarded
 async def group_merge_same(
     gate: GateClient, acting: int, locale: str, draft_id: str, other_group: str, reason: str | None
@@ -582,9 +734,7 @@ async def group_merge_same(
         source_id=_uuid_arg(other_group),
         reason=(reason or "").strip() or "merged from the draft",
     )
-    return ok(
-        t(locale, "group.merged", group_id=merged["id"], members=len(merged.get("members", [])))
-    )
+    return _group_done(locale, "group.merged.title", "group.merged", merged)
 
 
 @guarded
@@ -605,7 +755,7 @@ async def _split(
     new = await gate.split_group(
         acting, group_id, claim_ids=ids, reason=reason.strip() or "split from the draft"
     )
-    return ok(t(locale, "group.split", group_id=new["id"], members=len(new.get("members", []))))
+    return _group_done(locale, "group.split.title", "group.split", new)
 
 
 @guarded
@@ -622,50 +772,55 @@ async def group_merge(
     merged = await gate.merge_groups(
         acting, _uuid_arg(target), source_id=_uuid_arg(source), reason=reason
     )
-    return ok(
-        t(locale, "group.merged", group_id=merged["id"], members=len(merged.get("members", [])))
-    )
+    return _group_done(locale, "group.merged.title", "group.merged", merged)
+
+
+def _footer_lines(lines: list[str]) -> str:
+    """Several grey lines: the renderer prefixes only the first one with ``-#``."""
+    return "\n-# ".join(lines)
 
 
 @guarded
 async def group_show(gate: GateClient, acting: int, locale: str, group_id: str) -> Reply:
     group = await gate.get_group(acting, _uuid_arg(group_id))
     verdict = group.get("active_verdict")
-    lines = [
-        t(
-            locale,
-            "group.show.header",
-            group_id=group["id"],
-            level=group["level"],
-            state=group["state"],
-            members=len(group["members"]),
-        )
+    details: list[tuple[str, str]] = [
+        (t(locale, "group.detail.id"), code(group["id"])),
+        (t(locale, "group.detail.level"), code(group["level"])),
+        (t(locale, "group.detail.state"), code(group["state"])),
+        (t(locale, "group.detail.members"), code(len(group["members"]))),
     ]
     if group.get("merged_into"):
-        lines.append(t(locale, "group.show.merged_into", group_id=group["merged_into"]))
+        details.append((t(locale, "group.detail.merged_into"), code(group["merged_into"])))
     if verdict:
-        lines.append(
-            t(
-                locale,
-                "group.show.verdict",
-                veracity=veracity_label(locale, str(verdict["veracity"])),
-                expires=_day(verdict.get("expires_at")),
-                rule=verdict.get("reuse_rule") or "-",
+        details.append(
+            (
+                t(locale, "group.detail.verdict"),
+                t(
+                    locale,
+                    "group.show.verdict",
+                    veracity=code(veracity_label(locale, str(verdict["veracity"]))),
+                    expires=code(_day(verdict.get("expires_at"))),
+                    rule=code(verdict.get("reuse_rule") or "-"),
+                ),
             )
         )
     fact = group.get("reference_fact")
     if fact:
-        lines.append(
-            t(
-                locale,
-                "group.show.fact",
-                label=fact["label"],
-                value=fact["value"],
-                unit=fact["unit"],
-                band=group.get("band") or "-",
-                side=group.get("band_side") or "-",
+        details.append(
+            (
+                t(locale, "group.detail.fact"),
+                t(
+                    locale,
+                    "group.show.fact",
+                    label=fact["label"],
+                    value=code(f"{fact['value']} {fact['unit']}"),
+                    band=code(group.get("band") or "-"),
+                    side=code(group.get("band_side") or "-"),
+                ),
             )
         )
+    lines = []
     for m in group["members"][:8]:
         links = " ".join(f"<{c['url']}>" for c in m["contents"] if c.get("url"))
         lines.append(
@@ -675,19 +830,47 @@ async def group_show(gate: GateClient, acting: int, locale: str, group_id: str) 
                 claim_id=m["claim_id"],
                 text=_clip(m["text_fr"] if locale == "fr" else m["text_original"], 120),
                 links=links,
-            )
+            ).strip()
         )
-    for e in group["journal"][:5]:
-        lines.append(
-            t(
-                locale,
-                "group.show.event",
-                kind=e["kind"],
-                actor=e["actor"],
-                when=_day(e.get("created_at")),
-            )
+    items, more = listing(locale, lines)
+    journal = [
+        t(
+            locale,
+            "group.show.event",
+            kind=e["kind"],
+            actor=e["actor"],
+            when=_day(e.get("created_at")),
         )
-    return ok(listing(locale, lines[0], lines[1:]))
+        for e in group["journal"][:3]
+    ]
+    merged = bool(group.get("merged_into"))
+    return Reply(
+        title=t(locale, "group.show.title"),
+        icon=emojis.GROUPS,
+        accent="neutral" if merged else "primary",
+        details=tuple(details),
+        items=items,
+        more=more,
+        footer=_footer_lines(journal),
+        buttons=(
+            Button(
+                t(locale, "group.button.refresh"),
+                group_custom_id("show", str(group["id"])),
+                icon=emojis.SYNC,
+            ),
+            Button(
+                t(locale, "group.button.merge"),
+                group_custom_id("merge", str(group["id"])),
+                icon=emojis.GROUPS,
+                disabled=merged,
+            ),
+            Button(
+                t(locale, "group.button.split"),
+                group_custom_id("split", str(group["id"])),
+                disabled=merged,
+            ),
+        ),
+    )
 
 
 def _day(value: object) -> str:
@@ -736,23 +919,66 @@ class _AmbiguousRef(Exception):
         self.ref = ref
 
 
+def _ambiguous(locale: str, ref: str) -> Reply:
+    return card(
+        t(locale, "fc.ambiguous.title"),
+        t(locale, "common.ambiguous", ref=ref),
+        icon=emojis.WARNING,
+        accent="warning",
+    )
+
+
+def _show_fact_button(locale: str, fact_id: object) -> Button:
+    return Button(
+        t(locale, "fact.button.show"), fact_custom_id("show", str(fact_id)), icon=emojis.BOOK
+    )
+
+
 @guarded
 async def fact_show(gate: GateClient, acting: int, locale: str, fact_id: str) -> Reply:
     try:
         f = await _find_fact(gate, acting, fact_id)
     except _AmbiguousRef as exc:
-        return ok(t(locale, "common.ambiguous", ref=exc.ref))
-    return ok(
-        _fact_line(locale, f)
-        + "\n"
-        + t(
-            locale,
-            "fact.show.source",
-            source=f["source_name"],
-            url=f["source_url"],
-            published=f["published_at"],
-            next=f.get("next_publication") or "-",
+        return _ambiguous(locale, exc.ref)
+    status = str(f["status"])
+    buttons = [
+        Button(
+            t(locale, "fact.button.refresh"),
+            fact_custom_id("show", str(f["id"])),
+            icon=emojis.SYNC,
         )
+    ]
+    if status == "pending":
+        buttons += [
+            Button(
+                t(locale, "fact.button.validate"),
+                fact_custom_id("validate", str(f["id"])),
+                icon=emojis.DONE,
+                style="success",
+            ),
+            Button(
+                t(locale, "fact.button.reject"),
+                fact_custom_id("reject", str(f["id"])),
+                icon=emojis.UNDONE,
+                style="danger",
+            ),
+        ]
+    return Reply(
+        title=t(locale, "fact.show.title"),
+        icon=emojis.BOOK,
+        accent="neutral" if status == "rejected" else "primary",
+        body=_clip(f["label"], 200),
+        details=(
+            (t(locale, "fact.detail.id"), code(f["id"])),
+            (t(locale, "fact.detail.status"), code(_label(locale, "fact.status", status))),
+            (t(locale, "fact.detail.value"), code(f"{f['value']} {f['unit']}")),
+            (t(locale, "fact.detail.period"), code(f"{f['period_start']} / {f['period_end']}")),
+            (t(locale, "fact.detail.territory"), code(f["territory"])),
+            (t(locale, "fact.detail.source"), f"{code(f['source_name'])} <{f['source_url']}>"),
+            (t(locale, "fact.detail.published"), code(f["published_at"])),
+            (t(locale, "fact.detail.next"), code(f.get("next_publication") or "-")),
+        ),
+        buttons=tuple(buttons),
     )
 
 
@@ -760,13 +986,32 @@ async def fact_show(gate: GateClient, acting: int, locale: str, fact_id: str) ->
 async def fact_list(gate: GateClient, acting: int, locale: str, status: str | None = None) -> Reply:
     rows = await gate.list_facts(acting, status=status or None, limit=50)
     if not rows:
-        return ok(t(locale, "fact.list.empty"))
-    return ok(
-        listing(
-            locale,
-            t(locale, "fact.list.header", count=len(rows)),
-            [_fact_line(locale, f) for f in rows],
+        return card(
+            t(locale, "fact.list.title"),
+            t(locale, "fact.list.empty"),
+            icon=emojis.BOOK,
+            accent="neutral",
         )
+    items, more = listing(locale, [_fact_line(locale, f) for f in rows])
+    shown = rows[: len(items)][:25]
+    picker = Select(
+        fact_custom_id("open"),
+        placeholder=t(locale, "fact.list.open"),
+        options=tuple(
+            Option(
+                value=str(f["id"]),
+                label=_clip(f"{f['label']} {f['value']} {f['unit']}", 100),
+                description=_label(locale, "fact.status", f["status"]),
+            )
+            for f in shown
+        ),
+    )
+    return Reply(
+        title=t(locale, "fact.list.title"),
+        icon=emojis.BOOK,
+        items=items,
+        more=more,
+        fields=(Field(t(locale, "fact.list.open.label"), picker),),
     )
 
 
@@ -775,9 +1020,13 @@ async def fact_validate(gate: GateClient, acting: int, locale: str, fact_id: str
     try:
         found = await _find_fact(gate, acting, fact_id)
     except _AmbiguousRef as exc:
-        return ok(t(locale, "common.ambiguous", ref=exc.ref))
+        return _ambiguous(locale, exc.ref)
     f = await gate.validate_fact(acting, str(found["id"]))
-    return ok(t(locale, "fact.validated", short_id=short(f["id"])))
+    return success(
+        t(locale, "fact.validated.title"),
+        t(locale, "fact.validated", short_id=short(f["id"])),
+        buttons=(_show_fact_button(locale, f["id"]),),
+    )
 
 
 @guarded
@@ -787,9 +1036,15 @@ async def fact_reject(
     try:
         found = await _find_fact(gate, acting, fact_id)
     except _AmbiguousRef as exc:
-        return ok(t(locale, "common.ambiguous", ref=exc.ref))
+        return _ambiguous(locale, exc.ref)
     f = await gate.reject_fact(acting, str(found["id"]), reason=reason)
-    return ok(t(locale, "fact.rejected", short_id=short(f["id"])))
+    return card(
+        t(locale, "fact.rejected.title"),
+        t(locale, "fact.rejected", short_id=short(f["id"])),
+        icon=emojis.UNDONE,
+        accent="neutral",
+        buttons=(_show_fact_button(locale, f["id"]),),
+    )
 
 
 @guarded
@@ -807,7 +1062,12 @@ async def fact_create(
     """ "Create fact" button: only once the verdict is validated (active)."""
     view = await gate.get_draft(acting, draft_id)
     if view.get("status") != "active":
-        return ok(t(locale, "fact.needs_validated"))
+        return card(
+            t(locale, "fact.needs_validated.title"),
+            t(locale, "fact.needs_validated"),
+            icon=emojis.WARNING,
+            accent="warning",
+        )
     dates = [d for d in re.split(r"[\s/]+|\.\.", period.strip()) if d]
     if len(dates) == 1:
         dates = [dates[0], dates[0]]
@@ -823,21 +1083,28 @@ async def fact_create(
         source_name=source_name.strip(),
         published_at=_date_arg(published_at, "Published date"),
     )
-    return ok(t(locale, "fact.created", short_id=short(created["id"]), label=created["label"]))
+    return success(
+        t(locale, "fact.created.title"),
+        t(locale, "fact.created", short_id=short(created["id"]), label=created["label"]),
+        buttons=(_show_fact_button(locale, created["id"]),),
+    )
 
 
 @guarded
 async def band_validate(gate: GateClient, acting: int, locale: str, verdict_id: str) -> Reply:
     """ "Validate band" button and ``/fact band``: the verdict's outcome becomes the band's."""
     band = await gate.validate_band_from_verdict(acting, _uuid_arg(verdict_id))
-    return ok(
-        t(
-            locale,
-            "band.validated",
-            label=_label(locale, "band.kind", band["band"]),
-            side=band["side"],
-            veracity=veracity_label(locale, str(band["veracity"])),
-        )
+    return success(
+        t(locale, "band.validated.title"),
+        t(locale, "band.validated.body"),
+        details=(
+            (t(locale, "band.detail.band"), code(_label(locale, "band.kind", band["band"]))),
+            (t(locale, "band.detail.side"), code(band["side"])),
+            (
+                t(locale, "band.detail.veracity"),
+                code(veracity_label(locale, str(band["veracity"]))),
+            ),
+        ),
     )
 
 
@@ -845,14 +1112,23 @@ async def band_validate(gate: GateClient, acting: int, locale: str, verdict_id: 
 async def request(gate: GateClient, acting: int, locale: str, url: str) -> Reply:
     """``/factcheck <url>``: queue a manual fact-check."""
     accepted = await gate.request_factcheck(acting, url=url.strip())
-    key = "factcheck.duplicate" if accepted.get("duplicate") else "factcheck.accepted"
-    return ok(
-        t(
-            locale,
-            key,
-            platform=accepted.get("platform", "?"),
-            external_id=accepted.get("external_id", "?"),
+    duplicate = bool(accepted.get("duplicate"))
+    details = (
+        (t(locale, "factcheck.detail.platform"), code(accepted.get("platform", "?"))),
+        (t(locale, "factcheck.detail.post"), code(accepted.get("external_id", "?"))),
+    )
+    if duplicate:
+        return card(
+            t(locale, "factcheck.duplicate.title"),
+            t(locale, "factcheck.duplicate"),
+            icon=emojis.INFO,
+            accent="primary",
+            details=details,
         )
+    return success(
+        t(locale, "factcheck.accepted.title"),
+        t(locale, "factcheck.accepted"),
+        details=details,
     )
 
 

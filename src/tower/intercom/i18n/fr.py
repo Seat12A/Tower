@@ -14,7 +14,9 @@ MESSAGES: dict[str, str] = {
     "error.title.TWR-BOT-001": "Tower injoignable",
     "error.title.TWR-GEN-002": "Introuvable",
     "error.bug.title": "Erreur inattendue",
-    "error.bug.body": "Quelque chose a cassé de notre côté. Réessayez dans un instant ; l'équipe est prévenue.",
+    "error.bug.body": (
+        "Quelque chose a cassé de notre côté. Réessayez dans un instant ; l'équipe est prévenue."
+    ),
     "error.generic": "{message} ({code})",
     "error.TWR-BOT-001": (
         "L'API Tower est injoignable pour le moment. Réessayez dans un instant. ({code})"

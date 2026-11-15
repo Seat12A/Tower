@@ -14,7 +14,9 @@ MESSAGES: dict[str, str] = {
     "error.title.TWR-BOT-001": "Tower unreachable",
     "error.title.TWR-GEN-002": "Not found",
     "error.bug.title": "Unexpected error",
-    "error.bug.body": "Something broke on our side. Try again in a moment; the team has been notified.",
+    "error.bug.body": (
+        "Something broke on our side. Try again in a moment; the team has been notified."
+    ),
     "error.generic": "{message} ({code})",
     "error.TWR-BOT-001": "The Tower API is unreachable right now. Try again in a moment. ({code})",
     "error.TWR-AUTH-001": "The bot's service token is invalid or revoked. ({code})",

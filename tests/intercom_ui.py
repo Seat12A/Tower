@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from functools import cache
+from typing import Any, cast
 
 from tower.intercom.handlers import Button, Reply, Select
 
@@ -14,7 +15,9 @@ def templates() -> tuple[re.Pattern[str], ...]:
     from tower.intercom.gate_client import GateClient
 
     ctx = commands.Context(gate=GateClient("http://gate.invalid", "t"), default_locale="en")
-    return tuple(cls.__discord_ui_compiled_template__ for cls in commands.dynamic_items(ctx))
+    return tuple(
+        cast(Any, cls).__discord_ui_compiled_template__ for cls in commands.dynamic_items(ctx)
+    )
 
 
 def custom_ids(reply: Reply) -> list[str]:

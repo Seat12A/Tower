@@ -1,4 +1,4 @@
-"""``/narrative`` commands and the wave notifications of the bot (gate client only)."""
+"""``/narrative`` cards and the wave notifications of the bot (gate client only)."""
 
 from __future__ import annotations
 
@@ -6,18 +6,41 @@ import re
 from typing import Any
 
 from tower.intercom.gate_client import GateClient, GateError
-from tower.intercom.handlers import Reply, fmt_usd, guarded, listing, ok, short
+from tower.intercom.handlers import (
+    Accent,
+    Button,
+    Field,
+    Option,
+    Reply,
+    Select,
+    card,
+    code,
+    fmt_usd,
+    guarded,
+    listing,
+    short,
+    success,
+)
 from tower.intercom.i18n import has, t
+from tower.intercom.ui import emojis
 
 __all__ = [
+    "NARRATIVE_ACTIONS",
     "format_surge_detected",
     "format_surge_ended",
+    "narrative_custom_id",
     "narrative_list",
     "narrative_merge",
     "narrative_show",
     "narrative_split",
     "narrative_title",
 ]
+
+NARRATIVE_ACTIONS = ("open", "show", "titleok", "title", "merge", "split")
+"""Button actions of a narrative card: ``open`` sends the card as a new private message
+(public notifications), ``show`` refreshes it in place (private panels)."""
+PICK_ACTION = "pick"
+"""Action of the select of ``/narrative list``."""
 
 _UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _TITLE_MAX = 80
@@ -65,6 +88,23 @@ def _duration(seconds: object) -> str:
     return f"{hours}h{rest // 60:02d}" if hours else f"{rest // 60} min"
 
 
+def narrative_custom_id(action: str, narrative_id: str = "") -> str:
+    return f"t12a:nar:{action}:{narrative_id}" if narrative_id else f"t12a:nar:{action}"
+
+
+def _footer_lines(lines: list[str]) -> str:
+    """Several grey lines: the renderer prefixes only the first one with ``-#``."""
+    return "\n-# ".join(lines)
+
+
+def _show_button(locale: str, narrative_id: object) -> Button:
+    return Button(
+        t(locale, "narrative.button.show"),
+        narrative_custom_id("show", str(narrative_id)),
+        icon=emojis.TRACK,
+    )
+
+
 # --- notifications ----------------------------------------------------------------------
 
 
@@ -73,39 +113,80 @@ def _platforms(value: object) -> str:
     return ", ".join(str(p) for p in items) or "-"
 
 
-def format_surge_detected(payload: dict[str, Any], locale: str) -> str:
-    """Text of ``narrative.surge_detected`` (tier ``surge`` or ``alert``)."""
+def format_surge_detected(payload: dict[str, Any], locale: str) -> Reply:
+    """Card of ``narrative.surge_detected`` (tier ``surge`` = warning, ``alert`` = error)."""
     nid = str(payload.get("narrative_id", "?"))
-    key = "notify.narrative.alert" if payload.get("tier") == "alert" else "notify.narrative.surge"
-    return t(
-        locale,
-        key,
-        narrative_id=nid,
-        short_id=short(nid),
-        title=_title(locale, payload.get("title")),
-        share=_pct(payload.get("share", 0)),
-        accounts=payload.get("accounts", "?"),
-        platforms=_platforms(payload.get("platforms")),
+    alert = payload.get("tier") == "alert"
+    return Reply(
+        title=t(
+            locale, "notify.narrative.alert.title" if alert else "notify.narrative.surge.title"
+        ),
+        icon=emojis.NOTIFICATIONS,
+        accent="error" if alert else "warning",
+        body=_title(locale, payload.get("title")),
+        details=(
+            (t(locale, "narrative.detail.id"), code(short(nid))),
+            (t(locale, "narrative.detail.share"), code(f"{_pct(payload.get('share', 0))}%")),
+            (t(locale, "narrative.detail.accounts"), code(payload.get("accounts", "?"))),
+            (t(locale, "narrative.detail.platforms"), code(_platforms(payload.get("platforms")))),
+        ),
+        footer=t(locale, "notify.narrative.alert.footer") if alert else "",
+        buttons=(
+            Button(
+                t(locale, "narrative.button.open"),
+                narrative_custom_id("open", nid),
+                icon=emojis.TRACK,
+            ),
+        )
+        if _UUID.fullmatch(nid)
+        else (),
+        ephemeral=False,
     )
 
 
-def format_surge_ended(payload: dict[str, Any], locale: str) -> str:
-    """Text of ``narrative.surge_ended`` (the end-of-wave report)."""
+def format_surge_ended(payload: dict[str, Any], locale: str) -> Reply:
+    """Card of ``narrative.surge_ended`` (the end-of-wave report)."""
     nid = str(payload.get("narrative_id", "?"))
     delay = payload.get("first_draft_delay_s")
-    return t(
-        locale,
-        "notify.narrative.ended",
-        short_id=short(nid),
-        duration=_duration(payload.get("duration_s", 0)),
-        posts=payload.get("posts", "?"),
-        platforms=_platforms(payload.get("platforms")),
-        cost=fmt_usd(payload.get("cost_usd_micros", 0)),
-        first_draft=_duration(delay) if delay is not None else "-",
+    return Reply(
+        title=t(locale, "notify.narrative.ended.title"),
+        icon=emojis.HISTORY,
+        accent="primary",
+        body=_title(locale, payload.get("title")) if payload.get("title") else "",
+        details=(
+            (t(locale, "narrative.detail.id"), code(short(nid))),
+            (t(locale, "narrative.detail.duration"), code(_duration(payload.get("duration_s", 0)))),
+            (t(locale, "narrative.detail.posts"), code(payload.get("posts", "?"))),
+            (t(locale, "narrative.detail.platforms"), code(_platforms(payload.get("platforms")))),
+            (
+                t(locale, "narrative.detail.cost"),
+                code(f"${fmt_usd(payload.get('cost_usd_micros', 0))}"),
+            ),
+            (
+                t(locale, "narrative.detail.first_draft"),
+                code(_duration(delay) if delay is not None else "-"),
+            ),
+        ),
+        buttons=(
+            Button(
+                t(locale, "narrative.button.open"),
+                narrative_custom_id("open", nid),
+                icon=emojis.TRACK,
+            ),
+        )
+        if _UUID.fullmatch(nid)
+        else (),
+        ephemeral=False,
     )
 
 
 # --- commands ---------------------------------------------------------------------------
+
+_STATE_ACCENT: dict[str, Accent] = {
+    "surge": "warning",
+    "alert": "error",
+    "closed": "neutral",
+}
 
 
 @guarded
@@ -113,8 +194,9 @@ async def narrative_list(
     gate: GateClient, acting: int, locale: str, state: str | None = None
 ) -> Reply:
     rows = await gate.list_narratives(acting, state=state or None)
+    title = t(locale, "narrative.list.title")
     if not rows:
-        return ok(t(locale, "narrative.list.empty"))
+        return card(title, t(locale, "narrative.list.empty"), icon=emojis.TRACK, accent="neutral")
     lines = []
     for row in rows:
         stats = row.get("stats_1h") or {}
@@ -130,40 +212,63 @@ async def narrative_list(
                 accounts=stats.get("accounts", 0),
             )
         )
-    return ok(listing(locale, t(locale, "narrative.list.header", count=len(rows)), lines))
+    items, more = listing(locale, lines)
+    picker = Select(
+        narrative_custom_id(PICK_ACTION),
+        placeholder=t(locale, "narrative.list.open"),
+        options=tuple(
+            Option(
+                value=str(row["id"]),
+                label=_title(locale, row.get("title")),
+                description=_state(locale, row["state"]),
+            )
+            for row in rows[: len(items)][:25]
+        ),
+    )
+    return Reply(
+        title=title,
+        icon=emojis.TRACK,
+        items=items,
+        more=more,
+        fields=(Field(t(locale, "narrative.list.open.label"), picker),),
+    )
 
 
 @guarded
 async def narrative_show(gate: GateClient, acting: int, locale: str, narrative_id: str) -> Reply:
     n = await gate.get_narrative(acting, _uuid_arg(narrative_id))
-    title_status = f"narrative.title_status.{n.get('title_status')}"
-    lines = [
-        t(
-            locale,
-            "narrative.show.header",
-            narrative_id=n["id"],
-            state=_state(locale, n["state"]),
-            title=_title(locale, n.get("title")),
-            title_status=t(locale, title_status),
-        )
+    nid = str(n["id"])
+    state = str(n["state"])
+    title_status = str(n.get("title_status"))
+    details: list[tuple[str, str]] = [
+        (t(locale, "narrative.detail.id"), code(nid)),
+        (t(locale, "narrative.detail.state"), code(_state(locale, state))),
+        (
+            t(locale, "narrative.detail.title_status"),
+            code(t(locale, f"narrative.title_status.{title_status}")),
+        ),
     ]
     stats = n.get("stats_1h")
     if stats:
-        lines.append(
-            t(
-                locale,
-                "narrative.show.stats",
-                share=_pct(stats["share"]),
-                accounts=stats["accounts"],
-                platforms=stats["platforms"],
+        details.append(
+            (
+                t(locale, "narrative.detail.last_hour"),
+                t(
+                    locale,
+                    "narrative.show.stats",
+                    share=code(f"{_pct(stats['share'])}%"),
+                    accounts=code(stats["accounts"]),
+                    platforms=code(stats["platforms"]),
+                ),
             )
         )
-    if n.get("split_suggested"):
-        lines.append(t(locale, "narrative.show.split_suggested"))
-    if n.get("previous_narrative"):
-        lines.append(t(locale, "narrative.show.previous", narrative_id=n["previous_narrative"]))
     if n.get("representative_group"):
-        lines.append(t(locale, "narrative.show.representative", group_id=n["representative_group"]))
+        details.append(
+            (t(locale, "narrative.detail.representative"), code(n["representative_group"]))
+        )
+    if n.get("previous_narrative"):
+        details.append((t(locale, "narrative.detail.previous"), code(n["previous_narrative"])))
+    lines = []
     for g in (n.get("groups") or [])[:8]:
         verdict = (g.get("verdict") or {}).get("veracity") or "-"
         lines.append(
@@ -188,17 +293,55 @@ async def narrative_show(gate: GateClient, acting: int, locale: str, narrative_i
                 accounts=item["accounts"],
             )
         )
-    for e in (n.get("journal") or [])[:5]:
-        lines.append(
-            t(
-                locale,
-                "narrative.show.event",
-                kind=e["kind"],
-                actor=e["actor"],
-                when=_day(e.get("created_at")),
-            )
+    items, more = listing(locale, lines)
+    journal = [
+        t(
+            locale,
+            "narrative.show.event",
+            kind=e["kind"],
+            actor=e["actor"],
+            when=_day(e.get("created_at")),
         )
-    return ok(listing(locale, lines[0], lines[1:]))
+        for e in (n.get("journal") or [])[:3]
+    ]
+    body = _title(locale, n.get("title"))
+    if n.get("split_suggested"):
+        body += "\n" + t(locale, "narrative.show.split_suggested")
+    return Reply(
+        title=t(locale, "narrative.show.title"),
+        icon=emojis.TRACK,
+        accent=_STATE_ACCENT.get(state, "primary"),
+        body=body,
+        details=tuple(details),
+        items=items,
+        more=more,
+        footer=_footer_lines(journal),
+        buttons=(
+            Button(
+                t(locale, "narrative.button.refresh"),
+                narrative_custom_id("show", nid),
+                icon=emojis.SYNC,
+            ),
+            Button(
+                t(locale, "narrative.button.titleok"),
+                narrative_custom_id("titleok", nid),
+                icon=emojis.DONE,
+                style="success",
+                disabled=not (title_status == "draft" and n.get("title")),
+            ),
+            Button(
+                t(locale, "narrative.button.title"),
+                narrative_custom_id("title", nid),
+                icon=emojis.EDIT,
+            ),
+            Button(
+                t(locale, "narrative.button.merge"),
+                narrative_custom_id("merge", nid),
+                icon=emojis.GROUPS,
+            ),
+            Button(t(locale, "narrative.button.split"), narrative_custom_id("split", nid)),
+        ),
+    )
 
 
 @guarded
@@ -208,13 +351,15 @@ async def narrative_merge(
     merged = await gate.merge_narratives(
         acting, _uuid_arg(target), source_id=_uuid_arg(source), reason=reason.strip()
     )
-    return ok(
-        t(
-            locale,
-            "narrative.merged",
-            narrative_id=merged["id"],
-            groups=merged.get("groups_count", len(merged.get("groups", []))),
-        )
+    groups = merged.get("groups_count", len(merged.get("groups", [])))
+    return success(
+        t(locale, "narrative.merged.title"),
+        t(locale, "narrative.merged"),
+        details=(
+            (t(locale, "narrative.detail.id"), code(merged["id"])),
+            (t(locale, "narrative.detail.groups"), code(groups)),
+        ),
+        buttons=(_show_button(locale, merged["id"]),),
     )
 
 
@@ -228,7 +373,12 @@ async def narrative_split(
     new = await gate.split_narrative(
         acting, _uuid_arg(narrative_id), group_ids=ids, reason=reason.strip()
     )
-    return ok(t(locale, "narrative.split", narrative_id=new["id"]))
+    return success(
+        t(locale, "narrative.split.title"),
+        t(locale, "narrative.split"),
+        details=((t(locale, "narrative.detail.id"), code(new["id"])),),
+        buttons=(_show_button(locale, new["id"]),),
+    )
 
 
 @guarded
@@ -238,11 +388,9 @@ async def narrative_title(
     done = await gate.set_narrative_title(
         acting, _uuid_arg(narrative_id), title=(title or "").strip() or None
     )
-    return ok(
-        t(
-            locale,
-            "narrative.title.done",
-            narrative_id=done["id"],
-            title=_title(locale, done["title"]),
-        )
+    return success(
+        t(locale, "narrative.title.title"),
+        _title(locale, done["title"]),
+        details=((t(locale, "narrative.detail.id"), code(done["id"])),),
+        buttons=(_show_button(locale, done["id"]),),
     )

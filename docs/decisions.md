@@ -354,3 +354,17 @@ Décisions tranchées en session, Jules absent.
 | Mots-clés en minuscules sans accents, singulier et pluriel pour les plus courants ; mots trop vagues écartés (« croissance », « industrie », « habitants ») | Le sélecteur exige tous les mots du mot-clé et garde deux séries : un mot vague ferait remonter une série hors sujet |
 | L'adaptateur lit 12 observations et ignore les valeurs `NaN` | Les séries annuelles annoncent l'année en cours en `NaN` : le juge recevait « NaN » comme valeur |
 | `TOWER_INSEE_API_KEY` déclarée inutilisée (gardée dans les réglages) | L'adresse publique ne demande pas de clé ; la supprimer casserait un déploiement qui l'a renseignée |
+
+## Refonte d'intercom et permissions de l'équipe (2026-11-15)
+
+| Décision | Raison |
+|---|---|
+| Interface du bot refaite avec le kit de design de Moddy (`docs/design/`) : Components V2 seulement, émojis d'application seulement, composants persistants seulement (`DynamicItem`, `custom_id` `t12a:…`), modals V2 pour les motifs et formulaires | Demande de Jules |
+| Les handlers restent purs et renvoient une carte décrite en données (`Reply`) ; seul `ui/render.py` construit les vues | Tests sans Discord ; une seule anatomie de carte |
+| Le français du bot vouvoie | Ton du catalogue existant |
+| Permissions individuelles par membre (`staff_members.permissions`) ; les rôles restent des préréglages pour la CLI ; au premier changement par le bot, les permissions des rôles sont recopiées et les rôles vidés | Une seule source de vérité sans casser `tower staff` (expand/contract) |
+| Admins codés en dur dans `TOWER_ADMIN_DISCORD_IDS`, lus par **gate** : toutes les permissions, rangés d'office, intouchables | Demande de Jules ; gate reste la seule autorité |
+| La hiérarchie des rôles Discord est vérifiée par le **bot** (gate ne connaît pas les rôles) ; gate vérifie les permissions et l'anti-escalade (un non-admin ne donne ou ne retire que ce qu'il a) | Règle propre à Discord ; la vérification par gate garde le bot sous contrôle |
+| Permissions non attribuables : `dossiers:read_public`, `content:ingest`, `events:read` | Réservées aux anonymes, à l'extension et au radar, et aux services |
+| Un brouillon validé garde ses boutons de groupe et de fiche ; un rejeté perd tout | « Créer une fiche » et « Valider la bande » exigent un verdict validé |
+| Les anciens boutons de brouillon `fc:…` restent acceptés | Messages déjà publiés |

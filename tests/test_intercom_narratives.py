@@ -13,7 +13,7 @@ from sqlalchemy import text
 
 from tower.core.db.database import Database
 from tower.intercom.gate_client import GateClient
-from tower.intercom.handlers import MAX_MESSAGE
+from tower.intercom.handlers import MAX_MESSAGE, Reply
 from tower.intercom.handlers import factcheck as fc
 from tower.intercom.handlers import narratives as nh
 from tower.intercom.notifier import TOPIC_CHANNELS, format_event
@@ -22,7 +22,7 @@ from .conftest import TokenFactory
 from .test_factcheck_matching import _reset  # noqa: F401  (autouse fixture)
 from .test_factcheck_narratives import build_narrative, narrative_public, public_id, seed
 from .test_factcheck_narratives import unit as axis
-from .test_intercom_factcheck import make_view
+from .test_intercom_factcheck import cards, joined, make_view
 from .test_intercom_notifier import FakeGate, ev, run_until
 
 REVIEWER = 1001
@@ -60,24 +60,37 @@ def test_wave_topics_go_to_the_dossiers_channel() -> None:
 
 
 @pytest.mark.parametrize("locale", LOCALES)
-def test_surge_alert_and_report_texts(locale: str) -> None:
+def test_surge_alert_and_report_cards(locale: str) -> None:
+    from tests.intercom_ui import assert_persistent
+
     surge = format_event(ev("1-1", "narrative.surge_detected", SURGE), locale)
     assert surge is not None and surge[0] == "dossiers"
-    for needle in ("aaaaaaaa", "Fausse hausse des prix", "3.4%", "41", "bluesky, x", NID):
-        assert needle in surge[1]
+    surge_card = surge[1]
+    for needle in ("aaaaaaaa", "Fausse hausse des prix", "3.4%", "41", "bluesky, x"):
+        assert needle in surge_card.text
+    assert surge_card.accent == "warning" and not surge_card.ephemeral
+    # the button opens the narrative as a private message
+    assert [b.custom_id for b in surge_card.buttons] == [f"t12a:nar:open:{NID}"]
+    assert_persistent(surge_card)
     alert = format_event(ev("1-2", "narrative.surge_detected", {**SURGE, "tier": "alert"}), locale)
-    assert alert is not None and alert[1] != surge[1]
-    assert ("ALERT" in alert[1]) if locale == "en" else ("ALERTE" in alert[1])
+    assert alert is not None and alert[1].accent == "error" and alert[1] != surge_card
+    assert ("Wave alert" if locale == "en" else "Alerte vague") in alert[1].title
     ended = format_event(ev("1-3", "narrative.surge_ended", ENDED), locale)
     assert ended is not None and ended[0] == "dossiers"
     for needle in ("2h05", "1234", "2.50", "25 min"):
-        assert needle in ended[1]
+        assert needle in ended[1].text
+    assert_persistent(ended[1])
 
 
 def test_untitled_narrative_and_missing_first_draft_are_rendered() -> None:
-    text_ = nh.format_surge_detected({**SURGE, "title": None, "platforms": None}, "en")
-    assert "(untitled)" in text_ and "platforms: -" in text_
-    assert "first draft: -" in nh.format_surge_ended({**ENDED, "first_draft_delay_s": None}, "en")
+    card = nh.format_surge_detected({**SURGE, "title": None, "platforms": None}, "en")
+    assert "(untitled)" in card.text and "Platforms: `-`" in card.text
+    assert (
+        "First draft: `-`"
+        in nh.format_surge_ended({**ENDED, "first_draft_delay_s": None}, "en").text
+    )
+    # a payload without a valid narrative id has no button
+    assert not nh.format_surge_detected({**SURGE, "narrative_id": "?"}, "en").buttons
 
 
 async def test_a_replayed_surge_or_alert_is_notified_once_per_tier() -> None:
@@ -95,13 +108,16 @@ async def test_a_replayed_surge_or_alert_is_notified_once_per_tier() -> None:
             ]
         ]
     )
-    sent: list[tuple[str, str]] = []
+    sent: list[tuple[str, Reply]] = []
 
-    async def send(channel: str, body: str) -> None:
-        sent.append((channel, body))
+    async def send(channel: str, reply: Reply) -> None:
+        sent.append((channel, reply))
 
     await run_until(gate, send, lambda: len(gate.stored) >= 6)
-    kinds = [("alert" if "ALERT" in b else "ended" if "over" in b else "surge") for _, b in sent]
+    kinds = [
+        "alert" if r.accent == "error" else "ended" if r.accent == "primary" else "surge"
+        for _, r in sent
+    ]
     assert kinds == ["surge", "alert", "ended", "surge"]
     assert {c for c, _ in sent} == {"dossiers"}
 
@@ -116,10 +132,10 @@ async def test_two_narratives_are_notified_separately() -> None:
             ]
         ]
     )
-    sent: list[tuple[str, str]] = []
+    sent: list[tuple[str, Reply]] = []
 
-    async def send(channel: str, body: str) -> None:
-        sent.append((channel, body))
+    async def send(channel: str, reply: Reply) -> None:
+        sent.append((channel, reply))
 
     await run_until(gate, send, lambda: len(gate.stored) >= 2)
     assert len(sent) == 2
@@ -150,9 +166,9 @@ def wave_view() -> dict[str, Any]:
 
 @pytest.mark.parametrize("locale", LOCALES)
 def test_render_shows_the_narrative_and_the_coordination_block(locale: str) -> None:
-    parts = fc.render_draft(wave_view(), locale)
-    body = "\n".join(parts)
-    assert all(len(p) <= MAX_MESSAGE for p in parts)
+    reply = fc.render_draft(wave_view(), locale)
+    body = joined(reply)
+    assert all(len(c.body) <= MAX_MESSAGE for c in cards(reply))
     assert f"`{NID}`" in body and "Fausse hausse des prix" in body
     assert "12 " in body and "25 " in body and "6 " in body and "future_kind" in body
     if locale == "en":
@@ -165,7 +181,7 @@ def test_render_shows_the_narrative_and_the_coordination_block(locale: str) -> N
 
 @pytest.mark.parametrize("locale", LOCALES)
 def test_render_without_narrative_or_signals_is_unchanged(locale: str) -> None:
-    body = "\n".join(fc.render_draft(make_view(), locale))
+    body = joined(fc.render_draft(make_view(), locale))
     for needle in ("Narrative", "Narratif", "oordination"):
         assert needle not in body
 
@@ -203,7 +219,7 @@ async def test_discord_client_registers_the_narrative_commands(gate: GateClient)
 @pytest.mark.parametrize("locale", LOCALES)
 async def test_list_and_show(gate: GateClient, db: Database, locale: str) -> None:
     empty = await nh.narrative_list(gate, REVIEWER, locale)
-    assert (empty.ephemeral and "No narrative" in empty.text) or "Aucun narratif" in empty.text
+    assert empty.ephemeral and ("No narrative" in empty.text or "Aucun narratif" in empty.text)
     nid, gids = await make_narrative(db, 100)
     async with db.transaction() as s:
         await s.execute(
@@ -223,12 +239,18 @@ async def test_list_and_show(gate: GateClient, db: Database, locale: str) -> Non
         )
     public = str(await narrative_public(db, nid))
     listing = await nh.narrative_list(gate, REVIEWER, locale)
-    assert public[:8] in listing.text and "Story" in listing.text and "5.0%" in listing.text
+    assert public[:8] in listing.text and "Story" in listing.text and "5.0" in listing.text
     filtered = await nh.narrative_list(gate, REVIEWER, locale, "surge")
     assert public[:8] not in filtered.text
     shown = await nh.narrative_show(gate, REVIEWER, locale, public)
     assert shown.ephemeral and len(shown.text) <= MAX_MESSAGE
     assert public in shown.text and "Story" in shown.text and "33" in shown.text
+    from tests.intercom_ui import assert_persistent
+
+    assert_persistent(shown)
+    assert_persistent(listing)
+    assert len(shown.buttons) == 5
+    assert listing.fields[0].control.options[0].value == public  # type: ignore[union-attr]
     assert str(await public_id(db, gids[2])) in shown.text
     assert ("split is suggested" if locale == "en" else "Scission suggérée") in shown.text
 
@@ -290,11 +312,11 @@ async def test_wave_alert_mentions_the_configured_role_only_at_tier_alert() -> N
             ]
         ]
     )
-    sent: list[str] = []
+    sent: list[Reply] = []
 
-    async def send(channel: str, body: str) -> None:
-        sent.append(body)
+    async def send(channel: str, reply: Reply) -> None:
+        sent.append(reply)
 
     await run_until(gate, send, lambda: len(gate.stored) >= 2, alert_role_id=123456789)
-    assert not sent[0].startswith("<@&")
-    assert sent[1].startswith("<@&123456789> ") and "ALERT" in sent[1]
+    assert "<@&" not in sent[0].body
+    assert sent[1].body.startswith("<@&123456789>\n") and sent[1].accent == "error"

@@ -100,8 +100,12 @@ def make_view(**overrides: Any) -> dict[str, Any]:
     return view
 
 
-def joined(parts: list[str]) -> str:
-    return "\n\n".join(parts)
+def cards(reply: Reply) -> list[Reply]:
+    return [reply, *reply.extra]
+
+
+def joined(reply: Reply) -> str:
+    return "\n\n".join(c.text for c in cards(reply))
 
 
 # --- rendering -----------------------------------------------------------------------
@@ -110,7 +114,13 @@ def joined(parts: list[str]) -> str:
 def test_render_draft_french_blocks_in_order() -> None:
     text = joined(fc.render_draft(make_view(), "fr"))
     assert "Brouillon de fact-check" in text
-    assert "**Faux** | Contexte nécessaire | Confiance 80% (élevée) | Niveau N3 | renforcée" in text
+    for detail in (
+        "Verdict: `Faux`",
+        "Contexte: `Contexte nécessaire`",
+        "Confiance: `80% (élevée)`",
+        "Niveau: `N3 · renforcée`",
+    ):
+        assert detail in text, detail
     assert "Le chômage a doublé en un an" in text and "(FR)" not in text
     assert "Post : <https://x.com/i/status/1850000000000000042>" in text
     assert "**Note proposée** (fr)\n> Le taux est stable.\n> Depuis 2023." in text
@@ -149,7 +159,8 @@ def test_render_draft_objection_is_highlighted_and_not_repeated() -> None:
 
 def test_render_draft_english_uses_english_texts_and_no_french_translation() -> None:
     text = joined(fc.render_draft(make_view(), "en"))
-    assert "**False** | Context necessary | Confidence 80% (high) | Level N3 | reinforced" in text
+    assert "Verdict: `False`" in text and "Confidence: `80% (high)`" in text
+    assert "Level: `N3 · reinforced`" in text
     assert "**Claim**\nUnemployment doubled in a year" in text
     assert "**Proposed note** (en)\n> The rate is stable." in text
     assert "Translation" not in text and "7,3" not in text
@@ -239,9 +250,13 @@ def test_render_draft_splits_without_cutting_urls() -> None:
         for i in range(30)
     ]
     view = make_view(rationale=[{"assertion": "A" * 300, "citations": citations}])
-    parts = fc.render_draft(view, "fr")
+    reply = fc.render_draft(view, "fr")
+    parts = [c.body for c in cards(reply)]
     assert 1 < len(parts) <= 10
     assert all(0 < len(p) <= MAX_MESSAGE for p in parts)
+    # the controls are on the last card only
+    assert [bool(c.buttons) for c in cards(reply)] == [False] * (len(parts) - 1) + [True]
+    assert cards(reply)[0].title.endswith(f"(1/{len(parts)})")
     found = {m for p in parts for m in URL_RE.findall(p)}
     expected = {c["source"]["url"] for c in citations} | {
         "https://x.com/i/status/1850000000000000042"
@@ -268,7 +283,7 @@ def test_split_text() -> None:
 
 def test_confidence_missing_is_shown_as_unknown() -> None:
     text = joined(fc.render_draft(make_view(confidence=None, confidence_band=None), "en"))
-    assert "Confidence ? (-)" in text
+    assert "Confidence: `?`" in text
 
 
 # --- vocabulary ----------------------------------------------------------------------
@@ -276,7 +291,10 @@ def test_confidence_missing_is_shown_as_unknown() -> None:
 
 def test_custom_ids_round_trip() -> None:
     for action in fc.ACTIONS:
+        assert fc.custom_id(action, DRAFT) == f"t12a:fc:{action}:{DRAFT}"
         assert fc.parse_custom_id(fc.custom_id(action, DRAFT)) == (action, DRAFT)
+        # messages posted before the redesign keep the legacy id
+        assert fc.parse_custom_id(f"fc:{action}:{DRAFT}") == (action, DRAFT)
     assert fc.parse_custom_id("fc:nuke:" + DRAFT) is None
     assert fc.parse_custom_id("fc:validate:short") is None
     assert len(fc.custom_id("correct", DRAFT)) <= 100
@@ -357,9 +375,9 @@ def gate_of(fake: ReviewGate) -> GateClient:
 async def test_review_accept_outcomes() -> None:
     validated = ReviewGate({"outcome": "validated", "draft": {"veracity": "false"}})
     reply = await fc.review_accept(gate_of(validated), 42, "fr", DRAFT)
-    assert reply == Reply(
-        "Brouillon `aaaaaaaa` validé : le verdict est maintenant Faux.", True, True
-    )
+    assert reply.final and reply.accent == "success" and reply.ephemeral
+    assert reply.title == "Brouillon validé"
+    assert "Brouillon `aaaaaaaa` validé : le verdict est maintenant Faux." in reply.body
     assert validated.calls == [("review", (42, DRAFT), {"decision": "accept"})]
     endorsed = ReviewGate({"outcome": "endorsed", "draft": {"veracity": "false"}})
     reply = await fc.review_accept(gate_of(endorsed), 42, "en", DRAFT)
@@ -489,16 +507,16 @@ async def test_reconcile_is_bounded_and_survives_a_failing_post() -> None:
 
 async def test_post_draft_marks_notified_only_when_posted() -> None:
     gate = ListGate([])
-    sent: list[tuple[str, list[str], str]] = []
+    sent: list[tuple[str, Reply, str]] = []
 
-    async def send(channel: str, parts: list[str], draft_id: str) -> bool:
-        sent.append((channel, parts, draft_id))
+    async def send(channel: str, reply: Reply, draft_id: str) -> bool:
+        sent.append((channel, reply, draft_id))
         return True
 
     assert await fc.post_draft(cast(GateClient, gate), send, make_view(), "fr")
     assert gate.notified == [DRAFT] and sent[0][0] == "dossiers" and sent[0][2] == DRAFT
 
-    async def not_posted(channel: str, parts: list[str], draft_id: str) -> bool:
+    async def not_posted(channel: str, reply: Reply, draft_id: str) -> bool:
         return False
 
     gate.notified.clear()
@@ -543,7 +561,7 @@ def draft_ready(event_id: str, draft_id: str) -> Any:
     return ev(event_id, "draft.ready", {"draft_id": draft_id, "level": "N3"})
 
 
-async def _noop(channel: str, text: str) -> None:
+async def _noop(channel: str, reply: Reply) -> None:
     return None
 
 
@@ -556,19 +574,19 @@ async def test_notifier_posts_draft_ready_with_buttons_then_marks_notified() -> 
     view = make_view()
     gate = DraftGate([[draft_ready("1-1", DRAFT)]], [], cursor="0-1")
     gate.drafts[DRAFT] = view
-    sent: list[tuple[str, list[str], str]] = []
+    sent: list[tuple[str, Reply, str]] = []
 
-    async def send_draft(channel: str, parts: list[str], draft_id: str) -> bool:
-        sent.append((channel, parts, draft_id))
+    async def send_draft(channel: str, reply: Reply, draft_id: str) -> bool:
+        sent.append((channel, reply, draft_id))
         return True
 
     await run_until(gate, _noop, lambda: bool(gate.notified), send_draft=send_draft)
     assert gate.notified == [DRAFT]
-    channel, parts, draft_id = sent[0]
+    channel, reply, draft_id = sent[0]
     assert channel == "dossiers" and draft_id == DRAFT
-    assert "Fact-check draft" in joined(parts) and "**False**" in joined(
-        parts
-    )  # notifier locale is "en"
+    # notifier locale is "en"; public cards are not ephemeral
+    assert "Fact-check draft" in joined(reply) and "`False`" in joined(reply)
+    assert not reply.ephemeral and reply.buttons
     assert gate.stored == ["1-1"]
 
 
@@ -590,7 +608,7 @@ async def test_notifier_skips_replayed_decided_and_missing_drafts_and_survives_e
     )
     sent: list[str] = []
 
-    async def send_draft(channel: str, parts: list[str], draft_id: str) -> bool:
+    async def send_draft(channel: str, reply: Reply, draft_id: str) -> bool:
         sent.append(draft_id)
         return True
 
@@ -606,7 +624,7 @@ async def test_notifier_skips_replayed_decided_and_missing_drafts_and_survives_e
 async def test_notifier_does_not_mark_a_draft_that_was_not_posted() -> None:
     gate = DraftGate([[draft_ready("1-1", DRAFT)]], [make_view()], cursor="0-1")
 
-    async def send_draft(channel: str, parts: list[str], draft_id: str) -> bool:
+    async def send_draft(channel: str, reply: Reply, draft_id: str) -> bool:
         return False  # channel not configured
 
     await run_until(gate, _noop, lambda: gate.stored[-1:] == ["1-1"], send_draft=send_draft)
@@ -618,7 +636,7 @@ async def test_notifier_reconciles_before_reading_events() -> None:
     gate = DraftGate([[]], drafts, cursor="0-1")
     sent: list[str] = []
 
-    async def send_draft(channel: str, parts: list[str], draft_id: str) -> bool:
+    async def send_draft(channel: str, reply: Reply, draft_id: str) -> bool:
         sent.append(draft_id)
         return True
 
@@ -643,7 +661,7 @@ async def test_notifier_retries_reconciliation_when_gate_is_down() -> None:
     gate.list_drafts = flaky  # type: ignore[method-assign]
     sent: list[str] = []
 
-    async def send_draft(channel: str, parts: list[str], draft_id: str) -> bool:
+    async def send_draft(channel: str, reply: Reply, draft_id: str) -> bool:
         sent.append(draft_id)
         return True
 
@@ -661,6 +679,7 @@ async def test_notifier_without_send_draft_ignores_drafts() -> None:
 
 
 async def test_discord_client_builds_with_draft_ui_and_factcheck_command() -> None:
+    from tower.intercom import commands
     from tower.intercom.app import _build_client
 
     settings = Settings(process="test")
@@ -668,10 +687,84 @@ async def test_discord_client_builds_with_draft_ui_and_factcheck_command() -> No
     try:
         client = _build_client(settings, gate, asyncio.Event(), {"dossiers": 1}, "fr", dry_run=True)
         names = {c.name for c in client.tree.get_commands()}
-        assert {"factcheck", "watchlist", "dossier", "usage"} <= names
-        button = client.draft_item("validate", DRAFT, "fr")
-        assert button.item.custom_id == f"fc:validate:{DRAFT}" and button.item.label == "Valider"
-        assert client.draft_item.__discord_ui_compiled_template__.fullmatch(button.item.custom_id)
-        assert not client.draft_item.__discord_ui_compiled_template__.fullmatch("fc:other:x")
+        assert {"factcheck", "group", "fact", "narrative"} <= names
+        items = commands.dynamic_items(commands.Context(gate=gate, default_locale="fr"))
+        patterns = [cast(Any, i).__discord_ui_compiled_template__ for i in items]
+        for custom_id in (f"t12a:fc:validate:{DRAFT}", f"fc:validate:{DRAFT}"):
+            assert sum(1 for p in patterns if p.fullmatch(custom_id)) == 1, custom_id
+        assert not any(p.fullmatch("fc:other:x") for p in patterns)
     finally:
         await gate.aclose()
+
+
+# --- cards and persistent components (pure) ------------------------------------------
+
+
+def test_draft_card_controls_are_persistent_and_on_the_last_card() -> None:
+    from tests.intercom_ui import assert_persistent
+
+    reply = fc.render_draft(make_view(), "en")
+    assert [b.label for b in reply.buttons] == ["Validate", "Correct", "Reject"]
+    assert [b.label for b in reply.fields[0].control] == [  # type: ignore[union-attr]
+        "Same group as...",
+        "Split",
+        "Create fact",
+        "Validate band",
+    ]
+    assert reply.footer == f"Draft `{DRAFT[:8]}`" and not reply.ephemeral
+    assert_persistent(reply)
+    assert not fc.render_draft(make_view(), "en", buttons=False).buttons
+
+
+def test_draft_cards_render_under_the_v2_limits() -> None:
+    from discord import ui
+
+    from tower.intercom.ui import render
+
+    long_note = {"fr": {"text": "mot " * 600, "fact_sheet": None, "origin": "machine"}}
+    reply = fc.render_draft(make_view(notes=long_note, not_in_sources=["x" * 390] * 12), "fr")
+    for card in cards(reply):
+        view = render.layout(card)
+        total = sum(len(i.content) for i in view.walk_children() if isinstance(i, ui.TextDisplay))
+        assert total <= 4000 and sum(1 for _ in view.walk_children()) <= 40
+
+
+def test_settle_view_removes_the_decision_buttons() -> None:
+    from discord import ui
+
+    from tower.intercom.commands.drafts import settle_view
+    from tower.intercom.ui import render
+
+    def custom_ids(view: ui.LayoutView) -> list[str]:
+        return [
+            i.custom_id for i in view.walk_children() if isinstance(i, ui.Button) and i.custom_id
+        ]
+
+    reply = fc.render_draft(make_view(), "en")
+    rejected = render.layout(reply)
+    assert len(custom_ids(rejected)) == 7
+    assert settle_view(rejected, status="rejected", locale="en")
+    assert custom_ids(rejected) == []
+    texts = [i.content for i in rejected.walk_children() if isinstance(i, ui.TextDisplay)]
+    assert "-# Draft rejected." in texts
+    assert not any("Group and reference fact" in x for x in texts)
+    validated = render.layout(reply)
+    settle_view(validated, status="active", locale="en")
+    # the group and reference-fact buttons stay: a fact needs a validated verdict
+    assert [c.split(":")[2] for c in custom_ids(validated)] == [
+        "samegroup",
+        "split",
+        "fact",
+        "band",
+    ]
+
+
+def test_group_fact_and_request_cards_are_persistent() -> None:
+    from tests.intercom_ui import assert_persistent
+
+    for reply in (
+        fc._group_done("en", "group.merged.title", "group.merged", {"id": DRAFT, "members": [1]}),
+        fc._ambiguous("en", "abcdef"),
+        fc.decided_reply("en", "active"),
+    ):
+        assert_persistent(reply)
