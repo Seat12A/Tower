@@ -1,4 +1,4 @@
-# 2026-11-15 — `/incidents show` : détail des erreurs sur Discord
+# 2026-11-15 — `/incidents show` et correctif de la clé d'embeddings
 
 ## Objectif
 Un fact-check manuel a échoué (`TWR-FCK-019` ×5, `TWR-JOB-006` ×4, `TWR-JOB-002`).
@@ -25,6 +25,18 @@ lire le détail d'une erreur depuis le bot.
   `/app/.venv/bin/tower …` (le `PATH` de l'image n'est pas repris) ;
   `docs/error-handling.md` disait encore `railway run`.
 
+- **Correctif** : `runtime.get_embedder` exigeait `TOWER_OPENAI_API_KEY`, alors que la
+  clé est facultative depuis le 2026-11-14 (toutes les routes passent par l'organisation
+  avec partage, voir `docs/configuration.md`). Les jobs `factcheck.extract` échouaient en
+  prod avec `ProviderNotConfigured` (`TWR-JOB-006` ×8 puis `TWR-JOB-002`). La fonction
+  passe maintenant par `adapters.factory.build_embedder` : clé sans partage d'abord, sinon
+  celle avec partage. Test `test_runtime_embedder_falls_back_to_the_shared_key`.
+
+## Diagnostic de prod (fait avec Jules dans la console SSH)
+- 1er échec : `X API 402 on tweets.get` (crédits X épuisés). Jules a acheté des crédits
+  et la lecture passe.
+- 2e échec : `OpenAI API key is not configured` dans `get_embedder` (correctif ci-dessus).
+
 ## Décisions
 - Le détail est réservé à `errors:read`, comme la liste. Le contexte est déjà nettoyé des
   secrets par le reporter (`_scrub`).
@@ -42,12 +54,17 @@ lire le détail d'une erreur depuis le bot.
   session. Ça concerne `test_incident_show_filters_and_resolved`, la nouvelle assertion de
   `tests/test_gate.py` et `test_incidents_list_and_resolve`. À lancer en CI ou sur un poste
   avec pgvector ≥ 0.8.
+- Suite complète (avant le correctif) : 1236 tests réussis, 0 échec, 796 en erreur à la
+  préparation (pgvector 0.6). Après le correctif : `test_adapters_llm` (29) et les tests
+  d'isolation des imports (37) passent.
 - Pas de migration, pas de nouveau code chargé au démarrage de gate ou de hangar (la RAM
   n'a pas été mesurée).
 
 ## Points ouverts / suite
-- Cause de l'incident d'origine : on attend le message de l'erreur (401/403 sur le token X
-  ou une autre réponse 4xx).
+- Propositions en attente de Jules : (A) demande manuelle sans lecture si le post est en
+  base, sinon oEmbed, et l'API X seulement en secours ; (B) promotion sur les métriques de
+  l'extension quand l'API X est indisponible ; carte de suivi en direct des commandes
+  longues (dans le salon plutôt qu'en message éphémère).
 - Le job `factcheck.request` relance 5 fois une erreur 401/403/4xx de X, ce qui ne sert à
   rien. Il faudrait en faire une `PermanentError` (correctif proposé, pas encore fait).
 - `docs/deployment-railway.md` montre encore `railway run --service gate tower …` pour

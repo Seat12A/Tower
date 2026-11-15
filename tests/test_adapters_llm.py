@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from types import SimpleNamespace as NS
-from typing import Any
+from typing import Any, cast
 
 import httpx2
 import pytest
@@ -417,6 +417,21 @@ def test_factory_embedder() -> None:
     shared_only = build_embedder(settings(openai_api_key_shared="b"))
     assert isinstance(shared_only, OpenAIEmbedder)
     assert shared_only._client.api_key == "b"
+
+
+def test_runtime_embedder_falls_back_to_the_shared_key() -> None:
+    from tower.core.db import Database
+    from tower.core.factcheck import runtime
+    from tower.core.llm.errors import ProviderNotConfigured
+
+    runtime.clear_overrides()
+    try:
+        with pytest.raises(ProviderNotConfigured):
+            runtime.get_embedder(settings(), cast(Database, None))
+        service = runtime.get_embedder(settings(openai_api_key_shared="b"), cast(Database, None))
+        assert service.model_name == "text-embedding-3-small"
+    finally:
+        runtime.clear_overrides()
 
 
 # ----------------------------------------------------------------------- schema
