@@ -248,3 +248,26 @@ async def test_sse_stream_and_resume(live_url: str, make_token: TokenFactory, db
         await task
     assert [e["event"] for e in rest] == ["test.two", "test.three"]
     assert orjson.loads(rest[1]["data"])["payload"] == {"n": 3}
+
+
+def test_bind_socket_accepts_ipv4_and_ipv6() -> None:
+    import socket
+
+    from tower.gate.server import bind_socket
+
+    assert bind_socket("127.0.0.1", 0) is None
+    sock = bind_socket("::", 0)
+    assert sock is not None
+    try:
+        sock.listen()
+        port = sock.getsockname()[1]
+        targets = [(socket.AF_INET, "127.0.0.1")]
+        if sock.family == socket.AF_INET6:  # dual stack; IPv4 fallback otherwise
+            assert sock.getsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY) == 0
+            targets.append((socket.AF_INET6, "::1"))
+        for family, addr in targets:
+            with socket.socket(family, socket.SOCK_STREAM) as client:
+                client.settimeout(2)
+                client.connect((addr, port))
+    finally:
+        sock.close()

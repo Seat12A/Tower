@@ -10,6 +10,21 @@ Un projet Railway, un repo, **une image** (`Dockerfile`), un service par process
 | `hangar` | `railway/hangar.json` | `tower hangar` | 1 → N |
 | `Postgres` | template Railway **avec pgvector** (voir [pgvector](#pgvector)) | — | 1 |
 | `intercom` | `railway/intercom.json` | `tower intercom` | 1 (un second réplica ne casse rien : notifications idempotentes, curseur en base) |
+| `atlas` | `railway/hangar.json` | `tower hangar` avec `TOWER_SERVICES=atlas`, `TOWER_QUEUES=atlas` | 1 |
+
+**Config-as-code déprécié** (constaté le 2026-11-15) : Railway refuse désormais
+d'associer un fichier `railway/*.json` à un service (l'API renvoie « Config as Code is
+deprecated »). Les fichiers restent la référence des réglages, appliqués directement sur
+chaque service (commande de démarrage, `preDeployCommand`, healthcheck, politique de
+redémarrage, `overlapSeconds`, `drainingSeconds`, chemin du Dockerfile, fichiers
+surveillés). Toute modification d'un fichier doit être reportée à la main (ou par l'API)
+sur le service.
+
+Projet en production (créé le 2026-11-15) : `Seat12A`, environnement `production`,
+région `europe-west4`. Base : image `pgvector/pgvector:pg17` avec un volume sur
+`/var/lib/postgresql/data` (`PGDATA=/var/lib/postgresql/data/pgdata`) ;
+`DATABASE_URL` est construite sur l'adresse privée du service. Domaine public de gate :
+`api.seat12a.org` (CNAME vers la cible donnée par Railway).
 
 Le radar n'est pas un service Railway : c'est le service hangar `radar`
 (`TOWER_SERVICES=ping,ingest,radar` et `TOWER_X_BEARER_TOKEN` sur le service
@@ -97,11 +112,16 @@ railway run --service gate tower staff <discord_id> --roles admin --name "Jules"
 
 ## Réseau
 
-- gate écoute sur `::` (IPv4 et IPv6), requis pour le réseau privé Railway.
+- gate écoute sur `::` en double pile (IPv4 et IPv6) : le réseau privé Railway passe par
+  IPv6, le healthcheck et le proxy public par IPv4. asyncio forçant `IPV6_V6ONLY` sur
+  `::`, `tower.gate.server.bind_socket` crée elle-même la socket (repli IPv4 si la
+  machine n'a pas d'IPv6). Sans elle, le healthcheck échoue (« service unavailable »).
 - Le futur bot appellera gate via le réseau privé (`http://gate.railway.internal:<port>`).
 
 ## Exploitation
 
 - Logs : voir [logging.md](logging.md) pour les filtres (`@level:error`, `@error_code:…`).
-- Erreurs : `railway run tower errors list`.
+- Erreurs : `tower errors list` dans un terminal du conteneur (`railway ssh --service
+  gate`). `railway run` exécute la commande sur le poste local, qui ne joint pas
+  l'adresse privée de la base.
 - File : requête de supervision dans [jobs.md](jobs.md).

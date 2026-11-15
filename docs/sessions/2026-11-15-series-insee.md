@@ -40,3 +40,17 @@ Voir `decisions.md`, section « Séries INSEE par défaut ».
   relire la liste à chaque changement de base.
 - Les séries d'outre-mer et régionales ne sont pas incluses (France entière ou
   métropole seulement).
+
+## Déploiement Railway (même session)
+
+- Jules a fourni un token Railway (proxy de la session, valeur jamais vue). Projet
+  `Seat12A` (vide) : services `Postgres` (image `pgvector/pgvector:pg17`, volume, mot de
+  passe aléatoire non affiché), `gate`, `hangar` (`ping,ingest,factcheck,investigate`),
+  `atlas` ; domaine Railway de gate et domaine `api.seat12a.org` (CNAME à créer).
+- **Config-as-code refusé par Railway** : réglages des fichiers `railway/*.json`
+  appliqués directement sur chaque service ; `deployment-railway.md` mis à jour.
+- **Correctif gate** : le healthcheck échouait (« service unavailable ») car asyncio
+  force `IPV6_V6ONLY` sur `::`. `tower.gate.server.bind_socket` ouvre une socket double
+  pile (repli IPv4). Test `test_bind_socket_accepts_ipv4_and_ipv6` ; vérifié en local
+  par un appel réel à `/health` en IPv4 (l'IPv6 manque dans le bac à sable).
+- Migrations 0001 à 0009 passées sur la base Railway (pgvector disponible).
