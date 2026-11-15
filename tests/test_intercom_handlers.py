@@ -17,9 +17,10 @@ from tower.core.domain.security import Permission
 from tower.core.errors import get_reporter
 from tower.core.events.outbox import publish
 from tower.intercom.gate_client import GateClient, GateError, GateUnavailable, SseEvent
-from tower.intercom.handlers import Reply, dossiers, incidents, usage, watchlist
+from tower.intercom.handlers import dossiers, incidents, usage, watchlist
 
 from .conftest import TokenFactory
+from .intercom_ui import assert_persistent
 
 REVIEWER = 1001
 EDITOR = 1002
@@ -54,25 +55,35 @@ async def open_dossier(gate: GateClient, acting: int = EDITOR) -> str:
 
 async def test_watchlist_add_list_edit_deactivate(bot: GateClient) -> None:
     r = await watchlist.add(bot, EDITOR, "en", "x", "@Some_Account", "journalist", 5, "note")
-    assert r.ephemeral and "pending" in r.text and "@Some_Account" in r.text
+    assert r.ephemeral and r.accent == "success" and "@Some_Account" in r.text
+    assert_persistent(r)
 
     listed = await watchlist.list_accounts(bot, REVIEWER, "en", None)
     assert "@Some_Account" in listed.text and "resolution pending" in listed.text
     assert "journalist" in listed.text and "priority 5" in listed.text
+    assert_persistent(listed)
     row = (await bot.list_watched(EDITOR))[0]
     assert row["public_id"][:8] in listed.text
 
     r = await watchlist.edit(bot, EDITOR, "en", row["public_id"][:8], priority=42)
-    assert "Updated" in r.text
+    assert r.title == "Account updated"
     assert (await bot.list_watched(EDITOR))[0]["priority"] == 42
 
     r = await watchlist.edit(bot, EDITOR, "en", row["public_id"][:8])
     assert "Nothing to change" in r.text
 
+    shown = await watchlist.show_account(bot, EDITOR, "en", row["public_id"][:8])
+    assert "@Some_Account" in shown.text and any(
+        b.custom_id.startswith("t12a:wl:off:") for b in shown.buttons
+    )
+    assert_persistent(shown)
+    confirm = await watchlist.confirm_deactivate(bot, EDITOR, "en", row["public_id"][:8])
+    assert confirm.accent == "warning" and "t12a:wl:offyes:" in confirm.buttons[1].custom_id
+    assert_persistent(confirm)
     r = await watchlist.deactivate(bot, EDITOR, "en", row["public_id"])
-    assert "Deactivated" in r.text
+    assert r.title == "Account deactivated"
     assert await bot.list_watched(EDITOR) == []
-    assert (await watchlist.list_accounts(bot, EDITOR, "en", None)).text == "No watched account."
+    assert "No watched account." in (await watchlist.list_accounts(bot, EDITOR, "en", None)).text
 
 
 async def test_watchlist_errors(bot: GateClient) -> None:
@@ -90,7 +101,7 @@ async def test_watchlist_errors(bot: GateClient) -> None:
 async def test_french_and_english_replies(bot: GateClient) -> None:
     en = await watchlist.add(bot, EDITOR, "en", "x", "alpha", "journalist")
     fr = await watchlist.add(bot, EDITOR, "fr", "x", "beta", "journalist")
-    assert "pending" in en.text and "en attente" in fr.text and "ajouté" in fr.text
+    assert "Account added" in en.text and "Compte ajouté" in fr.text and "résout" in fr.text
     denied = await watchlist.add(bot, REVIEWER, "fr", "x", "gamma", "journalist")
     assert "permission" in denied.text and "TWR-AUTH-005" in denied.text
 
@@ -101,14 +112,16 @@ async def test_french_and_english_replies(bot: GateClient) -> None:
 async def test_dossier_happy_path(bot: GateClient) -> None:
     pid = await open_dossier(bot)
     shown = await dossiers.show(bot, REVIEWER, "en", pid)
-    assert pid in shown.text and "received" in shown.text and POST in shown.text
+    assert pid[:8] in shown.text and "received" in shown.text and POST in shown.text
+    assert_persistent(shown)
+    assert [b.disabled for b in shown.buttons[:4]] == [False, True, False, True]
 
     r = await dossiers.take(bot, REVIEWER, "en", pid)
-    assert "taken into review" in r.text
+    assert "taken into review" in r.text and "in review" in r.text
     r = await dossiers.validate(bot, EDITOR, "en", pid)
-    assert "validated" in r.text
+    assert "validated" in r.text and r.accent == "primary"
     r = await dossiers.publish(bot, EDITOR, "fr", pid, f"https://x.com/seat12a/status/{POST}")
-    assert "manuellement" not in r.text and "publiez le post vous-même" in r.text
+    assert "publiez le post vous-même" in r.text and r.accent == "success"
     d = await bot.get_dossier(EDITOR, pid)
     assert d["status"] == "published" and d["published_url"].endswith(POST)
 
@@ -139,14 +152,17 @@ async def test_dossier_reject_and_errors(bot: GateClient) -> None:
 
 
 async def test_incidents_list_and_resolve(bot: GateClient) -> None:
-    assert (await incidents.list_incidents(bot, ADMIN, "en")).text == "No open incident."
+    assert "No open incident." in (await incidents.list_incidents(bot, ADMIN, "en")).text
     fp = get_reporter().capture(ec.MNT_TASK_FAILED, RuntimeError("x"))
     await get_reporter().flush()
     listed = await incidents.list_incidents(bot, ADMIN, "en")
     assert ec.MNT_TASK_FAILED.code in listed.text and fp[:12] in listed.text and "x1" in listed.text
+    assert_persistent(listed)
+    assert listed.fields[0].control.options[0].value == fp  # type: ignore[union-attr]
     r = await incidents.resolve(bot, ADMIN, "fr", fp[:8], "fixed")
     assert "résolu" in r.text and fp[:12] in r.text
-    assert (await incidents.list_incidents(bot, ADMIN, "fr")).text == "Aucun incident ouvert."
+    assert_persistent(r)
+    assert "Aucun incident ouvert." in (await incidents.list_incidents(bot, ADMIN, "fr")).text
     forbidden = await incidents.list_incidents(bot, EDITOR, "en")
     assert "TWR-AUTH-005" in forbidden.text
 
@@ -200,10 +216,12 @@ class FakeUsageGate:
 
 async def test_usage_formatting_with_fake_gate() -> None:
     r = await usage.show_usage(cast(GateClient, FakeUsageGate()), 1, "en")
-    assert "openai/big: 25% (250 / 1000 tokens)" in r.text
-    assert "openai/small: no allocation" in r.text
-    assert "global: $1.23 / $50.00" in r.text
-    assert "provider:x: $0.01 / $10.00" in r.text
+    assert "`openai/big` · 25% (250 / 1000 tokens)" in r.text
+    assert "`openai/small` · no allocation" in r.text
+    assert "`global` · $1.23 / $50.00" in r.text
+    assert "`provider:x` · $0.01 / $10.00" in r.text
+    assert len(r.items) == 2
+    assert_persistent(r)
     fr = await usage.show_usage(cast(GateClient, FakeUsageGate()), 1, "fr")
     assert "25 %" in fr.text and "1.23 $" in fr.text
 
@@ -217,9 +235,9 @@ async def test_unavailable_reply_with_fake_gate() -> None:
             raise GateError(418, "TWR-XXX-999", "teapot")
 
     r = await usage.show_usage(cast(GateClient, Down()), 1, "en")
-    assert r == Reply(r.text, ephemeral=True) and "TWR-BOT-001" in r.text
+    assert r.ephemeral and r.accent == "error" and "TWR-BOT-001" in r.text
     unknown = await incidents.list_incidents(cast(GateClient, Down()), 1, "en")
-    assert unknown.text == "teapot (TWR-XXX-999)"
+    assert "teapot" in unknown.text and "TWR-XXX-999" in unknown.footer
 
 
 # --- gate client -------------------------------------------------------------------
@@ -412,3 +430,164 @@ def test_discord_is_not_loaded_outside_the_bot() -> None:
         "tower.intercom.gate_client;" + probe
     )
     assert _loaded(bot) == "False False"
+
+
+# --- ops cards against a fake gate (no database) ----------------------------------------
+
+
+def _row(i: int, platform: str = "x") -> dict[str, Any]:
+    return {
+        "public_id": f"{i:08d}-0000-0000-0000-000000000000",
+        "platform": platform,
+        "handle": f"user{i}",
+        "external_id": None if i == 0 else str(i),
+        "category": "journalist",
+        "priority": i,
+        "active": True,
+        "version": 1,
+    }
+
+
+async def test_watchlist_paging_and_filter_with_fake_gate() -> None:
+    seen: list[dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(dict(request.url.params))
+        platform = request.url.params.get("platform")
+        return httpx.Response(200, json=[_row(i, platform or "x") for i in range(11)])
+
+    gate = mock_gate(handler)
+    first = await watchlist.list_accounts(gate, 1, "en", None, 0)
+    assert len(first.items) == watchlist.PAGE_SIZE and first.footer == "Page 1 / 2"
+    assert first.buttons[0].disabled and not first.buttons[1].disabled
+    assert first.buttons[1].custom_id == "t12a:wl:page:all:1"
+    assert "resolution pending" in first.items[0]
+    assert_persistent(first)
+    second = await watchlist.list_accounts(gate, 1, "fr", "bluesky", 5)  # page is clamped
+    assert len(second.items) == 3 and second.footer == "Page 2 / 2"
+    assert second.buttons[1].disabled and second.buttons[0].custom_id == "t12a:wl:page:bluesky:0"
+    assert seen[-1]["platform"] == "bluesky"
+    assert second.fields[0].control.options[2].default  # type: ignore[union-attr]
+    assert_persistent(second)
+
+
+async def test_watchlist_forms_validate_before_calling_gate() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("gate must not be called")
+
+    gate = mock_gate(handler)
+    bad = await watchlist.add_form(gate, 1, "en", "x", "someone", "journalist", "500")
+    assert bad.accent == "warning" and "between -100 and 100" in bad.text
+    bad = await watchlist.edit_form(gate, 1, "fr", "00000000", None, "abc")
+    assert bad.accent == "warning"
+    nothing = await watchlist.edit_form(gate, 1, "en", "00000000")
+    assert nothing.title == "Nothing to change"
+    assert watchlist.parse_priority("") == 0 and watchlist.parse_priority("-100") == -100
+
+
+async def test_dossier_card_buttons_follow_the_status() -> None:
+    pid = "11111111-2222-3333-4444-555555555555"
+    states = {
+        "received": [False, True, False, True],
+        "in_review": [True, False, False, True],
+        "validated": [True, True, True, False],
+        "published": [True, True, True, True],
+        "rejected": [True, True, True, True],
+    }
+    for status, disabled in states.items():
+
+        def handler(request: httpx.Request, status: str = status) -> httpx.Response:
+            body = {"public_id": pid, "status": status, "version": 2, "x_post_id": "42"}
+            return httpx.Response(200, json=body)
+
+        card = await dossiers.show(mock_gate(handler), 1, "en", pid)
+        assert [b.disabled for b in card.buttons[:4]] == disabled, status
+        assert card.buttons[4].url == "https://x.com/i/status/42"
+        assert_persistent(card)
+    assert card.accent == "neutral"
+
+
+async def test_dossier_take_refreshes_the_card_with_the_new_status() -> None:
+    pid = "11111111-2222-3333-4444-555555555555"
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(f"{request.method} {request.url.path}")
+        if request.method == "GET":
+            return httpx.Response(200, json={"public_id": pid, "status": "received", "version": 1})
+        return httpx.Response(200, json={"public_id": pid, "status": "in_review", "version": 2})
+
+    r = await dossiers.take(mock_gate(handler), 1, "en", pid)
+    assert calls == [f"GET /v1/dossiers/{pid}", f"POST /v1/dossiers/{pid}/transitions"]
+    assert "in review" in r.text and r.buttons[1].disabled is False and "taken" in r.footer
+
+
+async def test_incident_list_offers_a_resolve_select() -> None:
+    rows = [
+        {"code": "TWR-MNT-001", "title": "T", "fingerprint": "a" * 64, "occurrences": 3},
+        {"code": "TWR-MNT-002", "title": "U", "fingerprint": "b" * 64, "occurrences": 1},
+    ]
+    gate = mock_gate(lambda request: httpx.Response(200, json=rows))
+    r = await incidents.list_incidents(gate, 1, "en")
+    assert len(r.items) == 2 and "x3" in r.items[0] and "a" * 12 in r.items[0]
+    select = r.fields[0].control
+    assert select.custom_id == "t12a:inc:pick" and select.options[1].value == "b" * 64  # type: ignore[union-attr]
+    assert r.buttons[0].custom_id == "t12a:inc:list"
+    assert_persistent(r)
+
+
+async def test_registry_buttons_and_long_domains() -> None:
+    from tower.intercom.handlers import registry as rh
+
+    entry = {
+        "id": "i1",
+        "domain": "example.org",
+        "publisher": "Example",
+        "tier": "primary",
+        "kind": "press",
+        "version": 3,
+        "active": True,
+    }
+    gate = mock_gate(lambda request: httpx.Response(200, json=entry))
+    r = await rh.registry_show(gate, 1, "en", "https://www.Example.org/x")
+    assert [b.custom_id.split(":")[2] for b in r.buttons] == ["tier", "control", "history", "seed"]
+    assert_persistent(r)
+    assert rh.cid("tier", "a" * 90) == "" and rh.cid("tier", "bad_domain.org") == ""
+    long_entry = {**entry, "domain": "a" * 95 + ".org"}
+    gate = mock_gate(lambda request: httpx.Response(200, json=long_entry))
+    assert (await rh.registry_show(gate, 1, "en", "x")).buttons == ()
+
+
+async def test_level_form_rejects_a_bad_duration() -> None:
+    from tower.intercom.handlers import profiles as ph
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("gate must not be called")
+
+    r = await ph.level_set_form(mock_gate(handler), 1, "en", "content", "x:1", "N2", "soon", "r")
+    assert r.accent == "warning" and "hours" in r.text
+
+
+def test_modals_build_with_their_components() -> None:
+    import asyncio
+
+    from tower.intercom import commands
+    from tower.intercom.commands import dossiers as cd
+    from tower.intercom.commands import profiles as cp
+    from tower.intercom.commands import registry as cr
+    from tower.intercom.commands import watchlist as cw
+
+    async def build() -> list[int]:
+        ctx = commands.Context(gate=mock_gate(lambda r: httpx.Response(200)), default_locale="en")
+        modals = [
+            cw._kit(ctx)[2]("fr"),
+            cw._kit(ctx)[3]("00000000", "en"),
+            cd._kit(ctx)[1]("p", "en"),
+            cd._kit(ctx)[2]("p", "fr"),
+            cp._kit(ctx)[5]("fr"),
+            cr._kit(ctx)[1]("example.org", "en"),
+        ]
+        return [len(m.children) for m in modals]
+
+    counts = asyncio.run(build())
+    assert counts == [5, 5, 1, 2, 5, 3]
