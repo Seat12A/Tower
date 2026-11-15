@@ -35,6 +35,10 @@ pas d'usage.
 - Docs : `intercom.md`, `api.md`, `auth.md`, `database.md`, `events.md`,
   `configuration.md`, `.env.example`, `errors.md`, `decisions.md`, `roadmap.md`, et tout
   le vocabulaire des docs (hors résumés de session).
+- Fil allégé (demande de Jules) : preuves condensées (affirmations + `[S1]`), le long et
+  le facultatif derrière des boutons sous leur section, affichés à la seule personne qui
+  clique (« Show quotes », « Show details ») ; la note dans les autres langues et les
+  actions secondaires rangées dans le menu « More actions ».
 - Aucun sous-agent.
 
 ## Décisions
@@ -60,7 +64,8 @@ Voir `decisions.md`, sections « Forum des dossiers et messages publics en angla
 - Sur Railway : créer le forum, renseigner `TOWER_DISCORD_FORUM_CASES` et
   `TOWER_DISCORD_CHANNEL_NARRATIVES`, retirer `TOWER_DISCORD_LOCALE` ; droits du bot sur
   le forum (Gérer le salon, Gérer les fils, Envoyer des messages dans les fils).
-- ✅ Les 10 icônes du forum sont fournies (émojis du serveur) et branchées. Reste : les émojis des 18 tags (proposition faite à Jules), puis leur pose par le bot.
+- ✅ Les 10 icônes du forum sont fournies (émojis du serveur) et branchées. Reste : les émojis des 18 tags (proposition faite à Jules) et l'icône `format_quote`
+  des boutons d'information du fil.
 - Passer le site et l'extension à `/v1/cases` et `cases:*`, puis faire le **contract**
   du renommage (voir `roadmap.md`).
 - Texte des modèles toujours en français : traduction à décider (coût).

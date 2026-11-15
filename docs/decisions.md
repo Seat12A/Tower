@@ -382,6 +382,7 @@ Décisions tranchées en session, Jules absent.
 | Archivage (pas de verrouillage) des posts `published`, `rejected`, `superseded` | Limite de fils actifs du serveur ; on peut encore écrire dans le fil |
 | Alertes de vague dans un salon texte séparé (`TOWER_DISCORD_CHANNEL_NARRATIVES`) | Une vague n'est pas un case |
 | Icônes : tout ou rien par type d'élément ; icônes manquantes déclarées vides en attendant leur ajout | Règle de Jules : jamais une icône sur un bouton et pas sur ses voisins |
+| Le long et le facultatif (citations, détail du contexte, note dans les autres langues) derrière des boutons sous leur section ou dans le menu, affichés à la seule personne qui clique ; actions secondaires dans le menu | Un fil lisible à des milliers de cases ; le détail reste accessible, relu dans gate à chaque clic |
 
 ## Renommage « dossier » → « case » (2026-11-15)
 

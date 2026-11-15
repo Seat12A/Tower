@@ -67,7 +67,9 @@ def test_post_of_a_pending_draft() -> None:
     # One action bar (decision + post link) and one menu, nowhere else.
     assert [b.label for b in s.buttons] == ["Validate", "Correct", "Reject", "Open post"]
     assert s.buttons[-1].url == "https://x.com/i/status/1850000000000000042"
-    assert s.menu is not None and {o.value for o in s.menu.options} == set(fr.MORE_ACTIONS)
+    # Secondary actions and the note translations are tucked in the menu.
+    assert s.menu is not None
+    assert [o.value for o in s.menu.options] == [*fr.MORE_ACTIONS, "notes"]
     assert not s.fields and not s.extra
     assert_persistent(s)
     assert f"t12a:fc:more:{DRAFT}" in custom_ids(s)
@@ -102,12 +104,7 @@ def test_post_follows_the_case(
     if status == "validated":
         assert "Mark as published" in labels
         assert post.starter.menu is not None
-        assert {o.value for o in post.starter.menu.options} == {
-            "fact",
-            "band",
-            "group",
-            "narrative",
-        }
+        assert [o.value for o in post.starter.menu.options] == ["fact", "band", "notes"]
     if archived:
         assert "signal.attention" not in post.tags
     assert_persistent(post.starter)
@@ -134,9 +131,17 @@ def test_sections_are_ordered_and_sources_listed_once() -> None:
     assert titles == ["Evidence", "Gaps & checks", "Quality warnings", "Context"]
     evidence = cards[0].body
     assert evidence.count("https://factually.example/a") == 1
-    assert evidence.count("[S1]") == 4  # three citations + the source list
-    assert "dropped quote" not in evidence  # invalid citation hidden
-    assert all(not c.ephemeral and not c.buttons for c in cards)
+    assert evidence.count("[S1]") == 3  # once per assertion + the source list
+    assert "no evidence" not in evidence  # quotes are behind the button
+    assert "dropped quote" not in evidence
+    assert [b.label for b in cards[0].buttons] == ["Show quotes"]
+    assert not cards[1].buttons and not cards[2].buttons
+    context = cards[3]
+    assert "8ab7ea0e" in context.body and "**Narrative**" in context.body
+    assert [b.label for b in context.buttons] == ["Show details"]
+    assert all(not c.ephemeral for c in cards)
+    for card in cards:
+        assert_persistent(card)
 
 
 def test_empty_sections_are_omitted_and_long_ones_split() -> None:
@@ -348,3 +353,33 @@ async def test_notifier_routes_case_events_to_the_forum() -> None:
     await notifier._handle(SseEvent("1-2", "draft.ready", {"payload": {"draft_id": DRAFT}}))
     assert list(sink.posts) == [100] and sent == []  # nothing in the text channel
     assert cursors == ["1-1", "1-2"]
+
+
+def test_info_replies_are_private_and_in_the_member_language() -> None:
+    view = full_view(coordination=[{"kind": "same_media", "count": 4, "detail": {}}])
+    quotes = fr.info_reply(view, "quotes", "fr")
+    assert quotes.ephemeral and quotes.title == "Citations" and "no evidence" in quotes.text
+    details = fr.info_reply(view, "context", "en")
+    assert details.ephemeral and "8ab7ea0e" in details.text
+    notes = fr.info_reply(view, "notes", "en")
+    assert "The rate is stable." in notes.text and "Le taux est stable." in notes.text
+    empty = fr.info_reply(full_view(rationale=[]), "quotes", "en")
+    assert empty.body == "Nothing to show."
+
+
+def test_info_and_menu_icons_are_all_or_nothing() -> None:
+    cards = fr.draft_sections(full_view())
+    info = [b.icon for c in cards for b in c.buttons]
+    assert all(info) or not any(info)
+    if not emojis.QUOTE:  # "format_quote" not uploaded yet: no info button has an icon
+        assert not any(info)
+    menu = fr.draft_post(full_view()).starter.menu
+    assert menu is not None and all(o.icon for o in menu.options)
+
+
+def test_single_note_language_has_no_translations_option() -> None:
+    view = full_view(notes={"en": {"text": "Only English."}})
+    menu = fr.draft_post(view).starter.menu
+    assert menu is not None and "notes" not in [o.value for o in menu.options]
+    final = fr.draft_post(dict(view, status="rejected"), "rejected")
+    assert final.starter.menu is None

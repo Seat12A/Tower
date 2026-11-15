@@ -20,7 +20,7 @@ from typing import Any
 
 from tower.intercom.handlers import MAX_MESSAGE, Button, Option, Reply, Select, short
 from tower.intercom.handlers import factcheck as fc
-from tower.intercom.i18n import t
+from tower.intercom.i18n import has, t
 from tower.intercom.ui import emojis
 
 __all__ = [
@@ -79,8 +79,7 @@ _MENU_ICONS = {
     "split": emojis.SPLIT,
     "fact": emojis.BOOK,
     "band": emojis.BAND,
-    "group": emojis.GROUPS,
-    "narrative": emojis.NARRATIVE,
+    "notes": emojis.TRANSLATE,
 }
 _SECTION_ICONS = {
     "evidence": emojis.EVIDENCE,
@@ -97,16 +96,26 @@ _ACTIVITY_ICONS = {
     "transitioned": emojis.HISTORY,
 }
 
-MORE_ACTIONS = ("samegroup", "split", "fact", "band", "group", "narrative")
+MORE_ACTIONS = ("samegroup", "split", "fact", "band")
 """Options of the "More actions" menu (``t12a:fc:more:<draft id>``)."""
-_DECIDED_ACTIONS = ("fact", "band", "group", "narrative")
+_DECIDED_ACTIONS = ("fact", "band")
 """Menu options kept once the draft is validated (fact and band need a verdict)."""
-_INFO_ACTIONS = ("group", "narrative")
+LEGACY_MENU_VALUES = ("group", "narrative")
+"""Options of menus posted before the info buttons existed: still answered."""
+
+INFO_KINDS = ("quotes", "context", "notes")
+"""Read-only details shown on demand, to the clicker only (``t12a:fc:info:<kind>:<id>``)."""
+_INFO_ICONS = {"quotes": emojis.QUOTE, "context": emojis.CONTEXT}
+"""Icons of the info buttons of the thread (all or none)."""
 
 
 def all_or_none(icons: dict[str, str]) -> dict[str, str]:
     """The icons of one element type, or none of them when one is missing."""
     return icons if all(icons.values()) else dict.fromkeys(icons, "")
+
+
+def info_custom_id(kind: str, draft_id: str) -> str:
+    return f"t12a:fc:info:{kind}:{draft_id}"
 
 
 def _t(key: str, **kwargs: object) -> str:
@@ -168,7 +177,7 @@ def _status_title(status: str, suffix: str = "") -> tuple[str, str]:
 
 
 def _more_menu(draft_id: str, actions: tuple[str, ...]) -> Select:
-    icons = all_or_none(_MENU_ICONS)
+    icons = all_or_none({a: _MENU_ICONS[a] for a in actions})
     return Select(
         custom_id=fc.custom_id("more", draft_id),
         placeholder=_t("forum.more.placeholder"),
@@ -200,7 +209,7 @@ def _bar(specs: list[tuple[str, str, str, str]], url: str | None) -> tuple[Butto
                 icon=emojis.LINK if show else "",
                 style="link",
                 url=url,
-            )
+            ),
         )
     return tuple(buttons[:5])
 
@@ -277,6 +286,7 @@ def draft_post(view: dict[str, Any], case_status: object = None) -> Post:
         ids.append(_t("forum.footer.group", id=short(group["id"])))
     if narrative.get("id"):
         ids.append(_t("forum.footer.narrative", id=short(narrative["id"])))
+    notes = ("notes",) if len(view.get("notes") or {}) > 1 else ()
     menu: Select | None
     if view.get("status") == "draft" and status not in _FINAL_STATUSES:
         bar = _bar(
@@ -292,7 +302,7 @@ def draft_post(view: dict[str, Any], case_status: object = None) -> Post:
             ],
             url,
         )
-        menu = _more_menu(draft_id, MORE_ACTIONS)
+        menu = _more_menu(draft_id, (*MORE_ACTIONS, *notes))
     elif status == "validated":
         bar = _bar(
             [
@@ -301,14 +311,14 @@ def draft_post(view: dict[str, Any], case_status: object = None) -> Post:
                     fc.custom_id("publish", draft_id),
                     emojis.PUBLISH,
                     "success",
-                )
+                ),
             ],
             url,
         )
-        menu = _more_menu(draft_id, _DECIDED_ACTIONS)
+        menu = _more_menu(draft_id, (*_DECIDED_ACTIONS, *notes))
     else:
         bar = _bar([], url)
-        menu = _more_menu(draft_id, _INFO_ACTIONS)
+        menu = _more_menu(draft_id, notes) if notes else None
     signals: list[str] = []
     if _needs_attention(view) and status not in _FINAL_STATUSES:
         signals.append("attention")
@@ -365,40 +375,49 @@ def case_post(case: dict[str, Any]) -> Post:
 # --- thread sections -------------------------------------------------------------------
 
 
-def _evidence(view: dict[str, Any]) -> str | None:
-    """Rationale with its citations; sources are listed once at the end (``[S1]``)."""
-    sources: dict[str, int] = {}
-    names: dict[str, str] = {}
-    lines: list[str] = []
+def _sources(view: dict[str, Any]) -> dict[str, tuple[int, str]]:
+    """Cited sources, numbered once in order of first citation: ``url -> (n, name)``."""
+    out: dict[str, tuple[int, str]] = {}
     for item in view.get("rationale") or []:
-        lines.append(f"- {fc._clip(item.get('assertion', ''), fc._ASSERTION_MAX)}")
         for cite in item.get("citations") or []:
-            if not cite.get("valid", True):
-                continue
             src = cite.get("source") or {}
             url = str(src.get("url") or "")
-            ref = ""
-            if url:
-                if url not in sources:
-                    sources[url] = len(sources) + 1
-                    names[url] = str(src.get("publisher") or src.get("title") or url)
-                ref = f" [S{sources[url]}]"
-            lines.append(
-                _t(
-                    "forum.evidence.citation",
-                    label=cite.get("label") or "?",
-                    quote=fc._clip(cite.get("quote", ""), fc._QUOTE_MAX),
-                    ref=ref,
-                )
-            )
+            if cite.get("valid", True) and url and url not in out:
+                out[url] = (len(out) + 1, str(src.get("publisher") or src.get("title") or url))
+    return out
+
+
+def _has_quotes(view: dict[str, Any]) -> bool:
+    return any(
+        cite.get("valid", True) and cite.get("quote")
+        for item in view.get("rationale") or []
+        for cite in item.get("citations") or []
+    )
+
+
+def _evidence(view: dict[str, Any]) -> str | None:
+    """Condensed rationale: each assertion with its source references (``[S1]``), then
+    the sources listed once. The quotes are behind the "Show quotes" button."""
+    sources = _sources(view)
+    lines: list[str] = []
+    for item in view.get("rationale") or []:
+        refs: list[str] = []
+        for cite in item.get("citations") or []:
+            url = str((cite.get("source") or {}).get("url") or "")
+            if cite.get("valid", True) and url in sources:
+                ref = f"[S{sources[url][0]}]"
+                if ref not in refs:
+                    refs.append(ref)
+        assertion = fc._clip(item.get("assertion", ""), fc._ASSERTION_MAX)
+        lines.append(f"- {assertion}" + (f" {''.join(refs)}" if refs else ""))
     if not lines:
         return None
     if sources:
         lines.append("")
         lines.append(_t("forum.evidence.sources"))
         lines += [
-            _t("forum.evidence.source", n=n, name=fc._clip(names[url], 80), url=url)
-            for url, n in sources.items()
+            _t("forum.evidence.source", n=n, name=fc._clip(name, 80), url=url)
+            for url, (n, name) in sources.items()
         ]
     return "\n".join(lines)
 
@@ -417,29 +436,85 @@ def _warnings(view: dict[str, Any]) -> str | None:
     return "\n".join(lines) if lines else None
 
 
-def _context(view: dict[str, Any]) -> str | None:
-    blocks = [
-        fc._group_block(view, PUBLIC_LOCALE),
-        fc._narrative_block(view, PUBLIC_LOCALE),
-        fc._coordination_block(view, PUBLIC_LOCALE),
-        fc._fact_block(view, PUBLIC_LOCALE),
-        fc._external_block(view, PUBLIC_LOCALE),
-    ]
-    joined = "\n\n".join(b for b in blocks if b)
-    return joined or None
+def _context(view: dict[str, Any]) -> tuple[str, tuple[str, ...]] | None:
+    """Context card: one short line per available item and the info buttons to open
+    the details (``(body, info kinds)``). External fact-checks are short: shown here."""
+    lines: list[str] = []
+    details = bool(
+        view.get("group")
+        or view.get("narrative")
+        or view.get("coordination")
+        or view.get("reference_fact")
+        or view.get("band")
+    )
+    group = view.get("group")
+    if group:
+        lines.append(
+            _t(
+                "forum.context.group",
+                id=short(group.get("id", "?")),
+                members=group.get("members", "?"),
+                platforms=", ".join(view.get("platforms") or []) or "-",
+                others=len(view.get("other_posts") or []),
+            )
+        )
+    narrative = view.get("narrative")
+    signals = len(view.get("coordination") or [])
+    if narrative or signals:
+        if narrative:
+            state_key = f"narrative.state.{narrative.get('state')}"
+            lines.append(
+                _t(
+                    "forum.context.narrative",
+                    title=fc._clip(narrative.get("title") or _t("narrative.untitled"), 80),
+                    state=_t(state_key)
+                    if has(PUBLIC_LOCALE, state_key)
+                    else narrative.get("state", "?"),
+                )
+            )
+        if signals:
+            lines.append(_t("forum.context.signals", count=signals))
+    if view.get("reference_fact") or view.get("band"):
+        key = "forum.context.fact_outdated" if view.get("outdated") else "forum.context.fact"
+        lines.append(_t(key))
+    external = fc._external_block(view, PUBLIC_LOCALE)
+    if external:
+        lines.append(external)
+    if not lines:
+        return None
+    return "\n".join(lines), ("context",) if details else ()
+
+
+def _info_buttons(draft_id: str, kinds: tuple[str, ...]) -> tuple[Button, ...]:
+    icons = all_or_none(_INFO_ICONS)
+    return tuple(
+        Button(_t(f"forum.info.button.{k}"), info_custom_id(k, draft_id), icon=icons[k])
+        for k in kinds
+    )
 
 
 def draft_sections(view: dict[str, Any]) -> list[Reply]:
     """The thread sections, in order; an empty section is omitted, a long one is split
-    into "(cont.)" cards."""
+    into "(cont.)" cards. Info buttons sit under the section they complete."""
+    draft_id = str(view.get("draft_id", ""))
     icons = all_or_none(_SECTION_ICONS)
+    context = _context(view)
+    sections: list[tuple[str, str | None, tuple[Button, ...]]] = [
+        (
+            "evidence",
+            _evidence(view),
+            _info_buttons(draft_id, ("quotes",)) if _has_quotes(view) else (),
+        ),
+        ("checks", _checks(view), ()),
+        ("warnings", _warnings(view), ()),
+        (
+            "context",
+            context[0] if context else None,
+            _info_buttons(draft_id, context[1]) if context else (),
+        ),
+    ]
     cards: list[Reply] = []
-    for key, body in (
-        ("evidence", _evidence(view)),
-        ("checks", _checks(view)),
-        ("warnings", _warnings(view)),
-        ("context", _context(view)),
-    ):
+    for key, body, buttons in sections:
         if not body:
             continue
         accent = "warning" if key == "warnings" else "neutral"
@@ -448,10 +523,56 @@ def draft_sections(view: dict[str, Any]) -> list[Reply]:
             title = _t(f"forum.section.{key}")
             if index:
                 title = _t("forum.section.cont", title=title)
+            last = index == len(parts) - 1
             cards.append(
-                Reply(title=title, icon=icons[key], accent=accent, body=part, ephemeral=False)  # type: ignore[arg-type]
+                Reply(
+                    title=title,
+                    icon=icons[key],
+                    accent=accent,  # type: ignore[arg-type]
+                    body=part,
+                    buttons=buttons if last else (),
+                    ephemeral=False,
+                )
             )
     return cards
+
+
+def info_reply(view: dict[str, Any], kind: str, locale: str) -> Reply:
+    """Details behind an info button, for the clicker only, in their language."""
+    blocks: list[str | None]
+    if kind == "quotes":
+        blocks = [fc._rationale_block(view, locale)]
+    elif kind == "context":
+        blocks = [
+            fc._group_block(view, locale),
+            fc._narrative_block(view, locale),
+            fc._coordination_block(view, locale),
+            fc._fact_block(view, locale),
+        ]
+    else:
+        notes: dict[str, dict[str, Any]] = view.get("notes") or {}
+        blocks = [
+            t(locale, "forum.post.note", lang=lang, length=len(str(n.get("text", ""))))
+            + "\n"
+            + fc._quote_block(str(n.get("text", "")))
+            for lang, n in notes.items()
+        ]
+    clean = [b for b in blocks if b]
+    title = t(locale, f"forum.info.title.{kind}")
+    icon = _MENU_ICONS["notes"] if kind == "notes" else all_or_none(_INFO_ICONS).get(kind, "")
+    if not clean:
+        return Reply(title=title, icon=icon, body=t(locale, "forum.info.empty"), accent="neutral")
+    parts = fc._pack(clean, MAX_MESSAGE - fc._CARD_OVERHEAD)[: fc._MAX_PARTS]
+    cards = [
+        Reply(
+            title=title if not index else t(locale, "forum.section.cont", title=title),
+            icon=icon,
+            accent="neutral",
+            body=part,
+        )
+        for index, part in enumerate(parts)
+    ]
+    return dataclasses.replace(cards[0], extra=tuple(cards[1:]))
 
 
 # --- activity --------------------------------------------------------------------------

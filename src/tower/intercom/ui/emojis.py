@@ -155,3 +155,4 @@ CONTEXT = "<:layers:1571659943294148629>"  # "layers": Context section
 ENDORSED = "<:thumb_up:1571659942161686658>"  # "thumb_up": endorsed by a reviewer
 PUBLISH = "<:publish:1571659940865511494>"  # "publish": published / mark as published
 WAVE = "<:wave:1571659939431059617>"  # "waves": narrative wave
+QUOTE = ""  # "format_quote": show the quotes (to upload: empty = info buttons without icons)

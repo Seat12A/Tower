@@ -186,22 +186,27 @@ retrouve le post d'un case par `discord_thread_id`.
 titre = statut et niveau ; l'affirmation ; verdict proposé, besoin de contexte,
 confiance ; la note proposée avec sa longueur (`n/280`) ; le **nombre**
 d'avertissements et l'objection éventuelle (le détail est dans le fil) ; une barre
-d'actions (Validate, Correct, Reject, Open post) ; un seul menu **More actions**
-(`t12a:fc:more:<id>` : Same group as…, Split, Create a reference fact, Validate the band,
-Show the group, Show the narrative). Une fois validé : Mark as published (modal du lien X)
-+ menu réduit (fiche, bande, groupe, récit) ; rejeté ou publié : lien du post + menu
-d'information. Le bot n'édite jamais un post au clic : il le met à jour d'après les
-événements de la décision (`draft.reviewed`, `case.transitioned`).
+(Validate, Correct, Reject, Open post) ; un seul menu **More actions**
+(`t12a:fc:more:<id>`) qui range tout le secondaire : Same group as…, Split, Create a
+reference fact, Validate the band, Note in every language (si la note existe en plusieurs
+langues). Une fois validé : Mark as published + Open post, menu réduit (fiche, bande,
+traductions) ; rejeté ou publié : lien du post (+ traductions). Le bot n'édite jamais un
+post au clic : il le met à jour d'après les événements de la décision (`draft.reviewed`,
+`case.transitioned`).
 
-**Le fil**, toujours dans cet ordre, chaque section omise si vide et découpée en
-« (cont.) » si elle dépasse la limite V2 : *Evidence* (affirmations de la justification,
-citations `[P1]` et renvoi `[S1]` ; les sources sont listées **une seule fois** en fin de
-carte), *Gaps & checks* (ce que les sources ne disent pas, points à vérifier, objection en
-tête), *Quality warnings* (contrôles puis critique), *Context* (groupe, récit, signaux de
-coordination, fiche et bande, fact-checks externes). Puis une ligne par action (avis,
-validation, correction, rejet avec motif, publication ; transitions des cases sans
-brouillon), avec la mention de la personne sans notification. Le fil sert aussi à la
-discussion.
+**Le fil** ne garde que l'essentiel, toujours dans cet ordre, chaque section omise si
+vide et découpée en « (cont.) » si elle dépasse la limite V2 : *Evidence* condensée
+(chaque affirmation avec ses renvois `[S1]`, puis les sources listées **une seule fois**),
+*Gaps & checks*, *Quality warnings*, *Context* (une ligne courte par élément : groupe,
+récit, signaux de coordination, fiche ; fact-checks externes). Le long et le facultatif
+est **derrière des boutons placés sous leur section**, qui l'affichent à la seule personne
+qui clique, dans sa langue, relu dans gate à chaque clic (`t12a:fc:info:<kind>:<id>`) :
+« Show quotes » (citations complètes, avec la traduction française en français) sous
+Evidence, « Show details » (groupe, autres posts, récit, signaux, fiche et bande) sous
+Context. Puis une ligne par action (avis, validation, correction, rejet avec motif,
+publication ; transitions des cases sans brouillon), avec la mention de la personne sans
+notification. Le fil sert aussi à la discussion. Les anciens menus (options « Show the
+group » et « Show the narrative ») restent pris en charge.
 
 **Tags** (18, `moderated` : seul le bot les pose ; créés au démarrage s'ils manquent, par
 nom, jamais supprimés) : un statut (*To review*, *Endorsed*, *Validated*, *Published*,
@@ -222,7 +227,8 @@ brouillons jamais affichés.
 titres de statut, lignes du journal). Les icônes propres au forum sont des émojis du
 serveur (`MERGE`, `SPLIT`, `BAND`, `NARRATIVE`, `EVIDENCE`, `CHECKLIST`, `CONTEXT`,
 `ENDORSED`, `PUBLISH`, `WAVE` dans `ui/emojis.py`) ; si une icône d'un type venait à
-manquer (chaîne vide), tout ce type s'afficherait sans icône. Les tags n'ont pas encore
+manquer (chaîne vide), tout ce type s'afficherait sans icône. C'est le cas des boutons
+d'information du fil tant que `QUOTE` (« format_quote ») n'est pas fourni. Les tags n'ont pas encore
 d'icône (émojis du serveur à fournir).
 
 Permissions du bot sur le forum : Gérer le salon (tags, réglages), Gérer les fils (tags

@@ -37,12 +37,15 @@ _UUID = "[0-9a-fA-F-]{36}"
 _TEMPLATE = rf"t12a:fc:(?P<action>{_ACTIONS}):(?P<draft>{_UUID})"
 _LEGACY_TEMPLATE = rf"fc:(?P<action>{_ACTIONS}):(?P<draft>{_UUID})"
 _MORE_TEMPLATE = rf"t12a:fc:more:(?P<draft>{_UUID})"
+_INFO_TEMPLATE = rf"t12a:fc:info:(?P<kind>{'|'.join(forum.INFO_KINDS)}):(?P<draft>{_UUID})"
+_MENU_VALUES = (*forum.MORE_ACTIONS, "notes", *forum.LEGACY_MENU_VALUES)
 
 _SAMPLE_UUID = "00000000-0000-0000-0000-000000000000"
 SAMPLE_CUSTOM_IDS = (
     fc.custom_id("validate", _SAMPLE_UUID),
     f"fc:validate:{_SAMPLE_UUID}",
     fc.custom_id("more", _SAMPLE_UUID),
+    forum.info_custom_id("quotes", _SAMPLE_UUID),
 )
 
 _NOTE_PREFILL_MAX = 1000
@@ -281,6 +284,8 @@ def _kit(ctx: Context) -> Any:
             await run_handler(
                 interaction, lambda loc, uid: nar.narrative_show(gate, uid, loc, narrative_id)
             )
+        elif action == "notes":
+            await render.send(interaction, forum.info_reply(draft, "notes", locale))
         elif action == "publish":
             case_id = str((draft.get("case") or {}).get("id") or "")
             await interaction.response.send_modal(PublishModal(case_id, locale))
@@ -302,7 +307,7 @@ def _kit(ctx: Context) -> Any:
             super().__init__(
                 ui.Select(
                     custom_id=fc.custom_id("more", draft_id),
-                    options=[discord.SelectOption(label=a, value=a) for a in forum.MORE_ACTIONS],
+                    options=[discord.SelectOption(label=a, value=a) for a in _MENU_VALUES],
                 )
             )
             self.draft_id = draft_id
@@ -317,7 +322,7 @@ def _kit(ctx: Context) -> Any:
         async def callback(self, interaction: discord.Interaction) -> None:  # type: ignore[override]
             values = self.item.values
             action = values[0] if values else ""
-            if action not in forum.MORE_ACTIONS:
+            if action not in _MENU_VALUES:
                 return
             draft = await fetch(interaction, self.draft_id)
             if draft is not None:
@@ -370,7 +375,28 @@ def _kit(ctx: Context) -> Any:
 
         prefix = fc.LEGACY_DRAFT_PREFIX
 
-    return DraftButton, LegacyDraftButton, MoreSelect
+    class InfoButton(ui.DynamicItem[ui.Button[Any]], template=_INFO_TEMPLATE):
+        """Read-only details of a forum post, shown to the clicker only."""
+
+        def __init__(self, kind: str, draft_id: str) -> None:
+            super().__init__(ui.Button(custom_id=forum.info_custom_id(kind, draft_id)))
+            self.kind = kind
+            self.draft_id = draft_id
+
+        @classmethod
+        async def from_custom_id(
+            cls, interaction: discord.Interaction, item: ui.Item[Any], match: re.Match[str], /
+        ) -> Self:
+            return cls(match["kind"], match["draft"])
+
+        @guarded_callback
+        async def callback(self, interaction: discord.Interaction) -> None:  # type: ignore[override]
+            draft = await fetch(interaction, self.draft_id)
+            if draft is not None:
+                locale = interaction_locale(interaction)
+                await render.send(interaction, forum.info_reply(draft, self.kind, locale))
+
+    return DraftButton, LegacyDraftButton, MoreSelect, InfoButton
 
 
 def dynamic_items(ctx: Context) -> list[type]:

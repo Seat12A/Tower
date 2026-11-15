@@ -197,10 +197,6 @@ MESSAGES: dict[str, str] = {
     "forum.more.fact.help": "Exige un verdict validé",
     "forum.more.band": "Valider la bande",
     "forum.more.band.help": "Éditeurs seulement, exige un verdict validé",
-    "forum.more.group": "Voir le groupe",
-    "forum.more.group.help": "Affirmations, posts et plateformes du groupe",
-    "forum.more.narrative": "Voir le récit",
-    "forum.more.narrative.help": "Groupes et activité du récit",
     "forum.footer.case": "Case `{id}`",
     "forum.footer.draft": "Brouillon `{id}`",
     "forum.footer.group": "Groupe `{id}`",
@@ -210,7 +206,6 @@ MESSAGES: dict[str, str] = {
     "forum.section.warnings": "Avertissements de qualité",
     "forum.section.context": "Contexte",
     "forum.section.cont": "{title} (suite)",
-    "forum.evidence.citation": '  - [{label}] "{quote}"{ref}',
     "forum.evidence.sources": "**Sources**",
     "forum.evidence.source": "[S{n}] {name} <{url}>",
     "forum.activity.endorsed": "{who} a donné un avis favorable ({verdict})",
@@ -224,13 +219,13 @@ MESSAGES: dict[str, str] = {
     "forum.no_narrative": "Ce brouillon n'a pas de récit.",
     "forum.guide.title": "Comment relire",
     "forum.guide.body": (
-        "Un post = un case. Le premier message d'un post est son seul panneau de "
-        "contrôle : statut, affirmation, verdict et note proposés, et toutes les actions "
-        "(boutons de décision, puis le menu **Autres actions**). Le fil contient, "
-        "toujours dans cet ordre : **Preuves** (justification, citations, sources listées"
-        " une fois), **Lacunes et vérifications**, **Avertissements de qualité**, "
-        "**Contexte** (groupe, récit, signaux de coordination, fiche), puis une ligne par"
-        " action. Discutez du case dans le fil."
+        "Un post = un case. Le premier message d'un post est son seul panneau de contrôle"
+        " : statut, affirmation, verdict et note proposés, les boutons de décision et le "
+        "menu **Autres actions** pour tout le reste. Le fil garde l'essentiel, toujours "
+        "dans cet ordre : **Preuves** (affirmations et leurs sources), **Lacunes et "
+        "vérifications**, **Avertissements de qualité**, **Contexte**, puis une ligne par"
+        " action. Le détail long (citations, groupe, récit, signaux) est derrière les "
+        "boutons sous chaque section : vous seul le voyez. Discutez du case dans le fil."
     ),
     "forum.guide.tags": (
         "**Tags** (posés par le bot, à utiliser comme filtres) : un statut, le verdict "
@@ -255,4 +250,24 @@ MESSAGES: dict[str, str] = {
     "forum.tag.signal.attention": "Needs attention",
     "forum.tag.signal.wave": "Wave",
     "forum.tag.signal.post_deleted": "Post deleted",
+    "forum.context.group": (
+        "**Groupe** `{id}` · {members} affirmation(s) · {others} autre(s) post(s) · {platforms}"
+    ),
+    "forum.context.narrative": "**Récit** {title} · {state}",
+    "forum.context.signals": (
+        "{count} signal(aux) de coordination, informatif(s) seulement (jamais une entrée "
+        "du verdict)"
+    ),
+    "forum.context.fact": "**Fiche de référence** disponible",
+    "forum.context.fact_outdated": (
+        "**Fiche de référence** disponible · la valeur avancée est périmée"
+    ),
+    "forum.info.button.quotes": "Voir les citations",
+    "forum.info.title.quotes": "Citations",
+    "forum.info.title.notes": "Note dans toutes les langues",
+    "forum.info.empty": "Rien à afficher.",
+    "forum.info.button.context": "Voir le détail",
+    "forum.info.title.context": "Détail du contexte",
+    "forum.more.notes": "Note dans toutes les langues",
+    "forum.more.notes.help": "Lire la note proposée dans chaque langue",
 }

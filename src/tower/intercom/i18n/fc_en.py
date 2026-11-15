@@ -197,10 +197,6 @@ MESSAGES: dict[str, str] = {
     "forum.more.fact.help": "Needs a validated verdict",
     "forum.more.band": "Validate the band",
     "forum.more.band.help": "Editors only, needs a validated verdict",
-    "forum.more.group": "Show the group",
-    "forum.more.group.help": "Claims, posts and platforms of the group",
-    "forum.more.narrative": "Show the narrative",
-    "forum.more.narrative.help": "Groups and activity of the narrative",
     "forum.footer.case": "Case `{id}`",
     "forum.footer.draft": "Draft `{id}`",
     "forum.footer.group": "Group `{id}`",
@@ -210,7 +206,6 @@ MESSAGES: dict[str, str] = {
     "forum.section.warnings": "Quality warnings",
     "forum.section.context": "Context",
     "forum.section.cont": "{title} (cont.)",
-    "forum.evidence.citation": '  - [{label}] "{quote}"{ref}',
     "forum.evidence.sources": "**Sources**",
     "forum.evidence.source": "[S{n}] {name} <{url}>",
     "forum.activity.endorsed": "{who} endorsed the draft ({verdict})",
@@ -225,12 +220,12 @@ MESSAGES: dict[str, str] = {
     "forum.guide.title": "How to review",
     "forum.guide.body": (
         "One post = one case. The first message of a post is its only control panel: "
-        "status, claim, proposed verdict and note, and every action (decision buttons, "
-        "then the **More actions** menu). The thread holds, always in this order: "
-        "**Evidence** (rationale, quotes, sources listed once), **Gaps & checks**, "
-        "**Quality warnings**, **Context** (group, narrative, coordination signals, "
-        "reference fact), then one line per action taken. Discuss the case in the "
-        "thread."
+        "status, claim, proposed verdict and note, the decision buttons and the **More "
+        "actions** menu for everything else. The thread keeps the essentials, always in "
+        "this order: **Evidence** (assertions with their sources), **Gaps & checks**, "
+        "**Quality warnings**, **Context**, then one line per action taken. Long details "
+        "(quotes, group, narrative, signals) are behind the buttons under each section: "
+        "only you see them. Discuss the case in the thread."
     ),
     "forum.guide.tags": (
         "**Tags** (set by the bot, use them as filters): one status, the proposed "
@@ -255,4 +250,21 @@ MESSAGES: dict[str, str] = {
     "forum.tag.signal.attention": "Needs attention",
     "forum.tag.signal.wave": "Wave",
     "forum.tag.signal.post_deleted": "Post deleted",
+    "forum.context.group": (
+        "**Group** `{id}` · {members} claim(s) · {others} other post(s) · {platforms}"
+    ),
+    "forum.context.narrative": "**Narrative** {title} · {state}",
+    "forum.context.signals": (
+        "{count} coordination signal(s), informative only (never a verdict input)"
+    ),
+    "forum.context.fact": "**Reference fact** available",
+    "forum.context.fact_outdated": "**Reference fact** available · the claimed value is outdated",
+    "forum.info.button.quotes": "Show quotes",
+    "forum.info.title.quotes": "Quotes",
+    "forum.info.title.notes": "Note in every language",
+    "forum.info.empty": "Nothing to show.",
+    "forum.info.button.context": "Show details",
+    "forum.info.title.context": "Context details",
+    "forum.more.notes": "Note in every language",
+    "forum.more.notes.help": "Read the proposed note in each language",
 }
