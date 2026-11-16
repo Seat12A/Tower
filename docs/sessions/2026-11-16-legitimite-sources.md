@@ -52,9 +52,9 @@ collectivités non importés dans ce lot.
 ## Vérifications
 
 - `ruff format --check`, `ruff check`, `mypy` strict : verts.
-- Tests sans base : **1 302 verts** (32 nouveaux dans `test_source_standing.py`) ; un test
+- Tests sans base : **1 303 verts**, aucun échec (32 nouveaux dans `test_source_standing.py`) ; un test
   existant adapté (`test_tier_of_suffix_most_specific_wins` : inconnu → `unrated`).
-- **Non exécutés** : les ~800 tests avec base, dont les 5 nouveaux de
+- **Non exécutés** : les 805 tests avec base (erreur de mise en place : pgvector), dont les 5 nouveaux de
   `test_source_standing_db.py` (job d'identités, purge, règle `first_party` à travers les
   vrais jobs, panne de Wikidata). pgvector 0.6 (dépôt Ubuntu) a pu être installé, mais le
   projet exige ≥ 0.8 et l'ajout du dépôt apt.postgresql.org a été refusé par le mode
