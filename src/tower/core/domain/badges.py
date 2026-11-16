@@ -369,6 +369,20 @@ def commons_file_url(file_name: str) -> str | None:
 
 # --- X ---------------------------------------------------------------------------------
 
+
+def parse_x_handle(raw: str) -> str:
+    """``@Name`` or ``Name`` → ``Name`` (1 to 15 letters, digits or ``_``).
+
+    A handle is only an input: it is converted once into the native id, which alone
+    identifies the account afterwards."""
+    handle = raw.strip().removeprefix("@")
+    if not (
+        1 <= len(handle) <= 15 and all(c.isascii() and (c.isalnum() or c == "_") for c in handle)
+    ):
+        raise InvalidInput("Invalid X handle", code=ec.ING_BAD_EXTERNAL_ID, handle=raw[:64])
+    return handle
+
+
 X_GOVERNMENT_VERIFIED_TYPE = "government"
 """X API v2 ``verified_type`` of accounts verified as government or multilateral
 organisations (grey check mark)."""

@@ -12,9 +12,9 @@ MESSAGES: dict[str, str] = {
     "badge.granted": "Badge enregistré : {category} (v{version}).",
     "badge.category.value": "{name} {value} · {color}",
     "badge.bad_id.title": "Identifiant natif requis",
-    "badge.bad_id.body": (
-        "Donne l'ID numérique X du compte, jamais son pseudo : un "
-        "pseudo peut changer de propriétaire."
+    "badge.bad_id.body": "Donne l'ID numérique X ou le @pseudo du compte.",
+    "badge.resolved": (
+        "Trouvé avec l'API X : {handle} → ID {id} ({name}). Vérifie que c'est le bon compte."
     ),
     "badge.cat.institutional": "Institutionnel",
     "badge.cat.organization": "Organisation",

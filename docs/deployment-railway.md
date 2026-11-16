@@ -89,6 +89,7 @@ railway run --service gate tower staff <discord_id> --roles admin --name "Jules"
    budget provider:x 20` (créé à 20 $ par défaut sinon).
 7. **Badges** : ajouter `badges` à `TOWER_SERVICES` du service `hangar`
    (`ping,ingest,radar,badges`) ; les vérifications X partagent le budget `provider:x`.
+   Pour que le bot accepte les `@pseudos`, mettre aussi `TOWER_X_BEARER_TOKEN` sur `gate`.
    Voir [badges.md](badges.md).
 
 ## Pendant un déploiement

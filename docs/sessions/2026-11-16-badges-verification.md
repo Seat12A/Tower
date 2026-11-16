@@ -49,6 +49,11 @@ Historique (attribution, retrait, qui a validé).
   `configuration.md`, `.env.example`, `auth.md`, `services.md`, `intercom.md`,
   `deployment-railway.md`, `README.md`, `decisions.md`, `errors.md` (régénéré).
 
+- **Troisième phase** : conversion `@pseudo` X → ID (`GET /v1/badges/resolve/x/{handle}`,
+  cas d'usage `resolve_x_handle`, client X paresseux de gate, codes `TWR-BDG-024` à `026`) ;
+  `/badge` accepte un pseudo partout où il demande un compte et affiche le compte trouvé.
+  Fusion de `main` (migration badges renumérotée `0014`).
+
 ## Décisions
 
 Voir `decisions.md`, section « Badges de vérification Seat 12A ». En bref : valeurs
@@ -84,6 +89,9 @@ en direct) ; indices X jamais crus sans l'API X ; lookup en `GET` avec `ETag`.
 - **Appels réels** : seulement des requêtes SPARQL de lecture à `query.wikidata.org`
   pendant la conception (comptages, vérification des QID, essai de l'adaptateur). Aucun
   appel à l'API X (doublure `FakeX` dans les tests ; pas de jeton), aucun appel de modèle.
+- Phase pseudo → ID : 3 tests de plus (gate avec client X factice, absence de jeton,
+  bot) : 37/37 verts avec `test_intercom_badges.py` ; 1042 tests sans base verts.
+  Aucun appel réel à l'API X.
 - Phase `/badge` : `tests/test_intercom_badges.py` (10 tests fr/en contre un vrai gate
   ASGI, schéma partiel) et `test_badges.py` : 34/34 verts ; tests statiques du bot
   (`test_intercom_ui`, `i18n`, `team`, isolation des imports) : 80 verts ; `tower
@@ -101,7 +109,8 @@ en direct) ; indices X jamais crus sans l'API X ; lookup en `GET` avec `ETag`.
 
 - **Lancer la suite complète avec pgvector** (`alembic check`, migrations aller-retour,
   tous les tests) avant la fusion.
-- Ajouter `badges:read badges:manage` au token du bot, `badges` à `TOWER_SERVICES` du
+- Mettre `TOWER_X_BEARER_TOKEN` sur le service gate (conversion des pseudos).
+- Ajouter `badges:read badges:manage` au token du bot (fait par Jules le 2026-11-16), `badges` à `TOWER_SERVICES` du
   hangar sur Railway.
 - Extension : appeler `/v1/badges/lookup` par lots triés, respecter `ETag`, envoyer les
   indices `x-government-hints` ; site : formulaires de demande et de signalement.

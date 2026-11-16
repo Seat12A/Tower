@@ -994,6 +994,28 @@ BDG_X_CHECK_FAILED = _define(
 BDG_ORG_KEY_NOT_FOUND = _define(
     "TWR-BDG-023", "Organisation key not found", http_status=404, severity=_INFO
 )
+BDG_X_BUDGET = _define(
+    "TWR-BDG-024",
+    "X budget exhausted: the handle cannot be looked up now",
+    http_status=409,
+    severity=_WARN,
+    hint="Raise the provider:x cap or wait for the next month",
+)
+BDG_X_NOT_FOUND = _define(
+    "TWR-BDG-025",
+    "No X account with this handle (or suspended, or protected and hidden)",
+    http_status=404,
+    severity=_INFO,
+)
+BDG_X_UNAVAILABLE = _define(
+    "TWR-BDG-026",
+    "X API not configured on gate or unavailable",
+    http_status=503,
+    severity=_WARN,
+    store=True,
+    retryable=True,
+    hint="Set TOWER_X_BEARER_TOKEN on the gate service",
+)
 
 
 def get(code: str) -> ErrorCode:
