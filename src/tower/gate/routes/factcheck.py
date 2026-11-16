@@ -7,12 +7,16 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response
 
+from tower.core.domain.factcheck.manual import validate_manual_note
 from tower.core.usecases import drafts as uc
+from tower.core.usecases import manual_notes as manual_uc
 from tower.gate.deps import ActorDep, ReadSession, WriteSession
 from tower.gate.schemas import (
     DraftOut,
     FactcheckRequestIn,
     FactcheckRequestOut,
+    ManualNoteIn,
+    ManualNoteOut,
     PublicVerdictOut,
     ReviewIn,
     ReviewOut,
@@ -39,6 +43,37 @@ async def request_factcheck(
         platform=result.platform,
         external_id=result.external_id,
         accepted=True,
+        duplicate=result.duplicate,
+    )
+
+
+@router.post(
+    "/v1/factcheck/manual",
+    response_model=ManualNoteOut,
+    status_code=202,
+    tags=["factcheck"],
+)
+async def manual_note(body: ManualNoteIn, actor: ActorDep, session: WriteSession) -> ManualNoteOut:
+    """Manual note: a draft written by the team, reviewed like the others (no model)."""
+    note = validate_manual_note(
+        claim_text=body.claim_text,
+        claim_type=body.claim_type,
+        veracity=body.veracity,
+        context_need=body.context_need,
+        context_types=body.context_types,
+        note_text=body.note_text,
+        note_lang=body.note_lang,
+        links=body.links,
+        fact_sheet=body.fact_sheet,
+    )
+    result = await manual_uc.submit_manual_note(
+        session, actor, note, url=body.url, platform=body.platform, external_id=body.external_id
+    )
+    return ManualNoteOut(
+        platform=result.platform,
+        external_id=result.external_id,
+        status="drafted" if result.status == "drafted" else "queued",
+        draft_id=result.draft_id,
         duplicate=result.duplicate,
     )
 

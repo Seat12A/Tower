@@ -627,6 +627,10 @@ async def review_draft(
                 row.updated_at = func.now()
                 retranslate_from = lang
             for tr_lang, tr in translations.items():
+                if tr.origin == TranslationOrigin.HUMAN.value:
+                    # Written by the team (manual note, edit): stays human.
+                    tr.validated_by = tr.validated_by or reviewer
+                    continue
                 if tr_lang in REFERENCE_LANGS and tr_lang != retranslate_from:
                     tr.origin = TranslationOrigin.ORIGINAL.value
                     tr.validated_by = reviewer

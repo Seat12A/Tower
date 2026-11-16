@@ -69,6 +69,7 @@ unique d'au moins 6 caractères**.
 | `/incidents resolve empreinte` | Modal : note facultative | `errors:manage` |
 | `/usage` | Allocation gratuite du jour, dépense du mois par portée ; actualisation | `usage:read` |
 | `/factcheck url` | Demande de fact-check manuelle (N4) : « demandée » ou « déjà demandée » | `factcheck:request` |
+| `/note url veracity claim_type [context_need] [context_types] [note_lang]` | Note manuelle sans IA : les options choisissent le verdict, puis un formulaire demande l'affirmation (fr), la note, les sources (une URL par ligne) et la fiche ; le brouillon arrive dans le salon des cases | `cases:review` |
 | `/group show id` | Carte du groupe : actualiser, fusionner ici (modal), scinder (modal) | `cases:read`, `claim_groups:manage` |
 | `/group merge` / `split` | Fusion et scission (réversibles) | `claim_groups:manage` |
 | `/fact show id` / `list [statut]` | Fiche (valider, rejeter avec modal) / liste avec menu d'ouverture | `cases:read`, `reference_facts:validate` |

@@ -850,6 +850,13 @@ FCK_CALIBRATION_NOT_BETTER = _define(
     http_status=409,
     severity=_INFO,
 )
+FCK_MANUAL_INVALID = _define(
+    "TWR-FCK-049",
+    "Invalid manual note",
+    http_status=422,
+    severity=_INFO,
+    hint="details.field names the field; see docs/fact-check.md (Notes manuelles).",
+)
 
 # --- STF: team ranks and individual permissions -------------------------------
 STF_NOT_RANKED = _define("TWR-STF-001", "Member not ranked", http_status=404, severity=_INFO)

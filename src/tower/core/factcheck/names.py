@@ -26,6 +26,7 @@ def job_priority(level: str | None, flags: Mapping[str, Any] | None = None) -> i
 JOB_EXTRACT = "factcheck.extract"
 JOB_ASSEMBLE = "factcheck.assemble"
 JOB_REQUEST = "factcheck.request"
+JOB_MANUAL = "factcheck.manual"
 JOB_TRANSLATE = "factcheck.translate"
 
 # Lot 4 jobs of the service ``factcheck`` (queue fc-bulk)
@@ -138,6 +139,10 @@ def assemble_key(investigation_id: int) -> str:
 
 def request_key(platform: str, external_id: str) -> str:
     return f"req:{platform}:{external_id}"
+
+
+def manual_key(note_key: str) -> str:
+    return f"manual:{note_key}"
 
 
 def translate_key(verdict_id: int, version: int) -> str:

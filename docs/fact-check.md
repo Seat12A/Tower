@@ -45,11 +45,14 @@ Demande manuelle : `/factcheck <url>` ou `POST /v1/factcheck/requests` → job
 `provider:x`, ingestion avec la source d'observation `manual`) → `factcheck.extract` en
 N4.
 
+Note manuelle (sans modèle) : `/note` ou `POST /v1/factcheck/manual` → brouillon écrit
+par l'équipe, relu comme les autres (voir [Notes manuelles](#notes-manuelles-sans-ia)).
+
 ## Services, files et jobs
 
 | Service | File | Jobs | Abonnements | Tâches périodiques |
 |---|---|---|---|---|
-| `factcheck` | `fc-fast` | `factcheck.extract`, `factcheck.assemble`, `factcheck.request`, `factcheck.translate` | `content.ingested`, `content.verified`, `investigation.completed`, `verdict.published` | `factcheck:drain_quota` (60 s), `factcheck:purge_source_cache` (1 h) |
+| `factcheck` | `fc-fast` | `factcheck.extract`, `factcheck.assemble`, `factcheck.request`, `factcheck.manual`, `factcheck.translate` | `content.ingested`, `content.verified`, `investigation.completed`, `verdict.published` | `factcheck:drain_quota` (60 s), `factcheck:purge_source_cache` (1 h) |
 | `investigate` | `fc-deep` | `investigate.frame`, `.collect`, `.judge`, `.second_opinion`, `.objection`, `.escalate`, `.draft` | `investigation.requested` | — |
 
 `investigate` peut tourner sur un réplica dédié (`TOWER_SERVICES=investigate`,
@@ -64,6 +67,7 @@ Idempotence (`dedupe_key`) :
 | `investigate.<étape>` | `<étape>:<groupe>:<enquête>:<tour>` |
 | `factcheck.assemble` | `asm:<enquête>` |
 | `factcheck.request` | `req:<plateforme>:<id externe>` |
+| `factcheck.manual` | `manual:<clé de la note>` |
 | `factcheck.translate` | `tr:<verdict>:<version>` |
 
 Chaque étape de l'enquête est un job : l'appel de modèle se fait **hors transaction**
@@ -208,6 +212,57 @@ Endpoint `POST /v1/drafts/{id}/review` (voir [api.md](api.md)), boutons du bot (
 Chaque décision est une ligne `reviews` (issue finale, diff, étiquettes
 d'apprentissage, temps de relecture). « Marquer comme publié » sur X reste manuel
 (`POST /v1/cases/{id}/publish`).
+
+## Notes manuelles (sans IA)
+
+L'équipe peut écrire elle-même l'affirmation, le verdict et la note de contexte d'un
+post, sans aucun appel de modèle. Domaine : `core/domain/factcheck/manual.py` ; cas
+d'usage : `core/usecases/manual_notes.py`.
+
+Entrées (`POST /v1/factcheck/manual`, commande `/note`) :
+
+| Champ | Règle |
+|---|---|
+| `url` ou `platform` + `external_id` | Le post |
+| `claim_text` | Affirmation vérifiée, **en français**, 300 caractères au plus |
+| `claim_type` | Valeur de `ClaimType` (`statistic`, `quote`, `historical_fact`…) ; sert à la péremption |
+| `veracity` | `true`, `mostly_true`, `misleading`, `false`, `unverifiable` |
+| `context_need` | Facultatif ; par défaut `necessary` (trompeur, faux), `useful` (plutôt vrai, non vérifiable), `none` (vrai) |
+| `context_types` | Facultatif, parmi les 15 types de contexte |
+| `note_text` | Note publique, 280 caractères hors liens ; **obligatoire** dès que `context_need` n'est pas `none` (sauf `unverifiable`) |
+| `note_lang` | `fr` (défaut) ou `en` |
+| `links` | Sources, 10 URL http(s) au plus (exigent une note) |
+| `fact_sheet` | Fiche détaillée facultative, 4 000 caractères au plus (exige une note) |
+
+Erreur de saisie : `422 TWR-FCK-049`, `details.field` nomme le champ.
+
+Traitement :
+
+- **Post déjà en base** : dans la transaction de la requête, une affirmation
+  (`prompt_version = manual`, langue `fr`), un groupe N4 (`investigating`), un verdict
+  `draft` (`confidence` nulle, `flags = {manual, author, manual_key}`), la note
+  (`regime = formulation`, statut `draft`) et sa version `human`, la ligne
+  `content_extractions` (`extracted`), puis la case et `draft.ready` (comme E10). Réponse
+  `status: drafted` avec `draft_id`.
+- **Post absent** : job `factcheck.manual` (file `fc-fast`) : lecture du post par
+  `PlatformClient.get_item` (budget `provider:x`, aucun modèle), ingestion source
+  `manual`, puis le même brouillon, dans une seule transaction. Réponse `status: queued`.
+  Post introuvable ou plateforme non configurée : échec définitif (erreur capturée).
+- **Relecture inchangée** : le brouillon apparaît dans le salon des cases et suit E11.
+  Un relecteur peut écrire une note ; seul un éditeur la publie (`accept`), ce qui
+  publie `verdict.published`. Écrire une note ne publie jamais rien à soi seul.
+- **Idempotence** : la clé `manual_key` (empreinte de l'auteur, du post et du contenu de
+  la note) rend un double envoi sans effet (`duplicate: true`) ; le job a la même clé
+  de déduplication.
+- **Pas d'IA ensuite** : le contenu a des affirmations, donc l'extraction automatique
+  l'ignore ; aucune enquête n'est créée. Seule exception : à la validation,
+  `factcheck.translate` produit les versions **manquantes** de la note (fr/en/langue du
+  post), marquées `machine` et signalées comme traduction automatique ; la version
+  écrite par l'équipe reste `human`.
+- **Limites** : le groupe n'a pas d'embedding, donc le verdict n'est pas réutilisé pour
+  des variantes reformulées (les copies exactes du post héritent de ses affirmations).
+  Le brouillon compte dans le quota quotidien de brouillons comme les autres.
+- Permissions : `cases:review` et `cases:create` (relecteur ou éditeur).
 
 ## Langues
 

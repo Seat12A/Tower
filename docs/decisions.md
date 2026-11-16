@@ -438,3 +438,14 @@ Claude, site de maths sérieux) était présentée comme peu fiable. Détails :
 | Commande `/badge` : carte de compte avec actions, file de travail unique (demandes, signalements, affiliations en attente) avec onglets et menu d'ouverture, clés d'organisation affichées une seule fois en carte privée ; comptes saisis par ID natif seulement | Demande de Jules ; mêmes conventions que `/registry` et la liste de suivi (cartes V2 persistantes, modals pour tout texte) ; la file absorbe le volume du premier import Wikidata |
 | `/badge` accepte un `@pseudo` X, converti une fois en ID par gate via l'API X (`badges:manage`, sans cache, compte trouvé affiché) | Demande de Jules : l'ID X n'apparaît nulle part dans l'interface ; l'identification reste par ID, le pseudo n'est qu'une saisie ; pas de cache car un pseudo peut changer de propriétaire |
 | Identifiants courts étendus aux affiliations, demandes, signalements et clés (`/v1/ids/{kind}`, permission `badges:read`) | Le bot n'affiche que 8 caractères |
+
+## Notes manuelles sans IA (2026-11-16)
+
+| Décision | Raison |
+|---|---|
+| Une note manuelle crée un **brouillon** relu comme les autres (salon des cases, E11), jamais une publication directe | Garde la relecture à quatre yeux et un seul circuit de publication ; un éditeur peut valider sa propre note d'un clic |
+| Relecteurs et éditeurs peuvent écrire une note (`cases:review` + `cases:create`) | Le relecteur rédige, l'éditeur publie : même partage que pour les brouillons du pipeline |
+| Post absent de la base : lecture par la plateforme dans un job `factcheck.manual` (aucun modèle), pas de texte saisi à la main | Un texte saisi par l'équipe n'est pas une lecture de la plateforme : le marquer `platform` serait faux |
+| L'affirmation est saisie en français ; groupe N4 sans embedding ni enquête | Simplicité ; N4 interdit toute réutilisation directe sans relecture. Les variantes reformulées ne profitent pas du verdict (limite assumée) |
+| La traduction automatique des versions manquantes reste active à la validation | Utile pour l'anglais et la langue du post ; signalée au lecteur (`machine_translated`) ; le texte de l'équipe reste `human` |
+| Idempotence par empreinte (auteur, post, contenu) cherchée parmi les verdicts du post, sans index ni migration | Protège du double envoi sans coût de schéma ; la recherche reste bornée au post |

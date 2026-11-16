@@ -157,6 +157,7 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-FCK-046` | Not enough reviewed data to fit a model (threshold not reached): nothing produced | 422 | info | non | non | Confidence: 200 reviews for the reduced model, 100 refusals for the full one; E1 distillation: 200 labelled cases. |
 | `TWR-FCK-047` | Calibration model not found | 404 | info | non | non |  |
 | `TWR-FCK-048` | Candidate model not activated: its measurement does not beat the current one | 409 | info | non | non |  |
+| `TWR-FCK-049` | Invalid manual note | 422 | info | non | non | details.field names the field; see docs/fact-check.md (Notes manuelles). |
 
 ## GEN : Général
 

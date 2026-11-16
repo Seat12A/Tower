@@ -419,6 +419,7 @@ def test_service_is_declared_and_valid(settings: Settings) -> None:
     assert {s.kind for s in service.services[0].jobs} == {
         names.JOB_EXTRACT,
         names.JOB_REQUEST,
+        names.JOB_MANUAL,
         names.JOB_ASSEMBLE,
         names.JOB_TRANSLATE,
         names.JOB_EMBED_BATCH,
