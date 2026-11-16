@@ -280,6 +280,7 @@ def _judge(data: Mapping[str, Any]) -> dict[str, Any]:
                     str(source.get("publisher") or source.get("domain") or "unknown"), 300
                 ),
                 "primary": source.get("tier") == "primary",
+                "standing": "unclear" if source.get("tier") == "unrated" else None,
             }
         )
     return out

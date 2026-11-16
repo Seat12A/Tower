@@ -112,6 +112,9 @@ _RETAIN = text(
 )
 _SET_ORIGIN = text("UPDATE evidence_passages SET origin = :origin WHERE id = :id")
 _SET_TRANSLATION = text("UPDATE evidence_passages SET translation_fr = :text WHERE id = :id")
+_SET_STANDING = text(
+    "UPDATE evidence_passages SET standing = :standing WHERE id = :id AND standing IS NULL"
+)
 
 
 async def _lock(session: AsyncSession, investigation: Investigation) -> Investigation:
@@ -169,6 +172,7 @@ async def complete_investigation(
     note: NoteFields | None = None,
     passage_translations: Mapping[int, str] | None = None,
     passage_origins: Mapping[int, str] | None = None,
+    passage_standings: Mapping[int, str] | None = None,
     cost_usd_micros: int = 0,
     updates: Mapping[str, Any] | None = None,
     flags: Mapping[str, Any] | None = None,
@@ -178,7 +182,8 @@ async def complete_investigation(
     ``outcome``: ``drafted`` or ``unverifiable_at_framing``. Writes the draft verdict (status
     ``draft``, not yet in the review queue), its citation rows, the context note with one
     ``machine`` translation per writer language, the origins and translations of passages,
-    then keeps the text of cited passages only (sources and links are always kept).
+    the judge's standing of unrated sources (never over a ``first_party`` passage), then
+    keeps the text of cited passages only (sources and links are always kept).
     ``updates``: extra investigation columns (``framing``…); ``flags``: replaces the
     investigation flags. Returns ``None`` when the investigation already reached a final
     stage (replay)."""
@@ -232,6 +237,8 @@ async def complete_investigation(
 
     for passage_id, origin in (passage_origins or {}).items():
         await session.execute(_SET_ORIGIN, {"id": passage_id, "origin": origin})
+    for passage_id, standing in (passage_standings or {}).items():
+        await session.execute(_SET_STANDING, {"id": passage_id, "standing": standing})
     for passage_id, translated in (passage_translations or {}).items():
         await session.execute(_SET_TRANSLATION, {"id": passage_id, "text": translated})
     cited = sorted({c.passage_id for c in citations})

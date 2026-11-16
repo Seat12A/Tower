@@ -22,6 +22,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from tower.core.adapters.knowledge.html_text import extract_text
 from tower.core.domain import error_codes as ec
+from tower.core.domain.factcheck.standing import TierBasis, registry_standing, suffix_standing
 from tower.core.errors import capture
 from tower.core.logging import get_logger
 from tower.core.ports.knowledge import (
@@ -42,9 +43,21 @@ __all__ = [
     "AtlasRequest",
     "AtlasResult",
     "RegistryInfo",
+    "SourceRating",
     "canonical_url",
     "registrable_domain",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class SourceRating:
+    """Domain-level rating of a source (domain/factcheck/standing.py, steps 1, 4, 5; the
+    identity table and the subject's official site are applied by the investigation)."""
+
+    tier: str
+    standing: str | None
+    basis: str
+    publisher: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +123,10 @@ class AtlasDocument:
     license: str | None = None
     side: str | None = None
     """Query side that found it (``confirm``, ``refute``) or ``None`` (structured lookup)."""
+    standing: str | None = None
+    """Who publishes it (``official``, ``press``…), ``None`` when unknown."""
+    tier_basis: str | None = None
+    """``registry``, ``adapter``, ``identity``, ``suffix`` or ``default``."""
 
 
 @dataclass(slots=True)
@@ -306,15 +323,30 @@ class Atlas:
 
     # --- registry --------------------------------------------------------------------
 
-    def tier_of(self, url_or_domain: str) -> tuple[str, str | None]:
-        """``(tier, publisher)`` from the registry (suffix match on the host labels, the
-        most specific entry wins); ``("tertiary", None)`` when unknown."""
-        labels = _host(url_or_domain).split(".")
+    def rate(self, url_or_domain: str) -> SourceRating:
+        """Registry (suffix match on the host labels, the most specific entry wins), then
+        the closed suffix rules, else ``unrated`` (unknown is not unreliable)."""
+        host = _host(url_or_domain)
+        labels = host.split(".")
         for i in range(len(labels)):
             info = self._registry.get(".".join(labels[i:]))
             if info is not None:
-                return info.tier, info.publisher
-        return "tertiary", None
+                standing = registry_standing(info.kind)
+                return SourceRating(
+                    info.tier,
+                    standing.value if standing else None,
+                    TierBasis.REGISTRY.value,
+                    info.publisher,
+                )
+        by_suffix = suffix_standing(host)
+        if by_suffix is not None:
+            return SourceRating(by_suffix[0], by_suffix[1].value, TierBasis.SUFFIX.value)
+        return SourceRating("unrated", None, TierBasis.DEFAULT.value)
+
+    def tier_of(self, url_or_domain: str) -> tuple[str, str | None]:
+        """``(tier, publisher)`` of :meth:`rate`."""
+        rating = self.rate(url_or_domain)
+        return rating.tier, rating.publisher
 
     def primary_domains(self, jurisdictions: Sequence[str]) -> list[str]:
         """Primary registry domains of the jurisdictions (plus ``EU`` and ``INT``), the
@@ -403,17 +435,20 @@ class Atlas:
         )
 
     def _evidence_document(self, evidence: Evidence, side: str | None = None) -> AtlasDocument:
-        tier, publisher = self.tier_of(evidence.url)
+        rating = self.rate(evidence.url)
+        declared = evidence.tier is not None
         return AtlasDocument(
             adapter=evidence.source,
             canonical_url=canonical_url(evidence.url, keep_fragment=True),
             original_url=evidence.url,
             domain=registrable_domain(evidence.url),
-            tier=(evidence.tier.value if evidence.tier is not None else tier),
+            tier=(evidence.tier.value if evidence.tier is not None else rating.tier),
+            standing=rating.standing,
+            tier_basis=TierBasis.ADAPTER.value if declared else rating.basis,
             lang=evidence.lang,
             text=evidence.text,
             title=evidence.title,
-            publisher=evidence.publisher or publisher,
+            publisher=evidence.publisher or rating.publisher,
             published_at=evidence.published_at,
             stable_id=evidence.stable_id,
             sha256=evidence.sha256,
@@ -582,17 +617,19 @@ class Atlas:
         if not text:
             return None
         final = page.final_url or url
-        tier, publisher = self.tier_of(final)
+        rating = self.rate(final)
         return AtlasDocument(
             adapter=adapter,
             canonical_url=canonical_url(final),
             original_url=url,
             domain=registrable_domain(final),
-            tier=tier,
+            tier=rating.tier,
+            standing=rating.standing,
+            tier_basis=rating.basis,
             lang=lang or run.request.claim_lang,
             text=text,
             title=title or (fallback.title if fallback else None),
-            publisher=publisher,
+            publisher=rating.publisher,
             published_at=published or (fallback.published_at if fallback else None),
             sha256=page.sha256,
             side=side,
