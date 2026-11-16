@@ -42,7 +42,8 @@ POST_FIELDS = (
 )
 POST_EXPANSIONS = "attachments.media_keys"
 MEDIA_FIELDS = "type,url,preview_image_url"
-USER_FIELDS = "username,name,description,verified,public_metrics"
+USER_FIELDS = "username,name,description,verified,verified_type,public_metrics"
+MAX_USERS_PER_LOOKUP = 100
 
 
 USER_AGENT = "Seat12A-Tower/0.1"
@@ -181,17 +182,25 @@ class XPlatformClient:
         data = body.get("data")
         if not isinstance(data, dict) or data.get("id") is None:
             raise PlatformBadResponse("X API malformed user", status=200)
-        metrics = data.get("public_metrics")
-        followers = metrics.get("followers_count") if isinstance(metrics, dict) else None
-        return PublicAccount(
-            platform="x",
-            external_id=str(data["id"]),
-            handle=data.get("username"),
-            display_name=data.get("name"),
-            description=data.get("description"),
-            verified=data.get("verified"),
-            followers=followers if isinstance(followers, int) else None,
+        return _parse_user(data)
+
+    async def get_accounts(self, external_ids: Sequence[str]) -> Sequence[PublicAccount]:
+        """``GET /2/users?ids=`` (at most 100 numeric ids). Unknown, suspended or
+        protected-and-hidden accounts are simply absent from the result."""
+        ids = [i for i in external_ids if _NUMERIC_ID.fullmatch(i)]
+        if not ids:
+            return []
+        if len(ids) > MAX_USERS_PER_LOOKUP:
+            raise ValueError(f"at most {MAX_USERS_PER_LOOKUP} ids per lookup")
+        body = await self._get(
+            "users.lookup", "/2/users", {"ids": ",".join(ids), "user.fields": USER_FIELDS}
         )
+        if body is None:
+            return []
+        data = body.get("data") or []
+        if not isinstance(data, list):
+            raise PlatformBadResponse("X API malformed user list", status=200)
+        return [_parse_user(u) for u in data if isinstance(u, dict) and u.get("id") is not None]
 
     async def poll_page(
         self,
@@ -299,6 +308,22 @@ class XPlatformClient:
             parent=by_id.get(item.parent_external_id) if item.parent_external_id else None,
             quoted=by_id.get(item.quoted_external_id) if item.quoted_external_id else None,
         )
+
+
+def _parse_user(data: dict[str, Any]) -> PublicAccount:
+    metrics = data.get("public_metrics")
+    followers = metrics.get("followers_count") if isinstance(metrics, dict) else None
+    verified_type = data.get("verified_type")
+    return PublicAccount(
+        platform="x",
+        external_id=str(data["id"]),
+        handle=data.get("username"),
+        display_name=data.get("name"),
+        description=data.get("description"),
+        verified=data.get("verified"),
+        followers=followers if isinstance(followers, int) else None,
+        verified_type=verified_type if isinstance(verified_type, str) else None,
+    )
 
 
 def _includes(body: dict[str, Any]) -> dict[str, Any]:

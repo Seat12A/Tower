@@ -102,7 +102,9 @@ def test_staff_permissions_are_capped_by_service_scopes() -> None:
 
 def test_anonymous_is_read_public_only() -> None:
     anon = Actor.anonymous()
-    assert anon.permissions == frozenset({Permission.CASE_READ_PUBLIC})
+    assert anon.permissions == frozenset(
+        {Permission.CASE_READ_PUBLIC, Permission.BADGES_READ_PUBLIC, Permission.BADGES_SUBMIT}
+    )
 
 
 def test_error_codes_format_and_uniqueness() -> None:

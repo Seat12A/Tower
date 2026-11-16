@@ -400,3 +400,40 @@ Décisions tranchées en session, Jules absent.
 | Décision | Raison |
 |---|---|
 | Le bot accepte l'identifiant court (6 caractères ou plus) partout où il demande un identifiant ; gate le complète (`GET /v1/ids/{kind}/{ref}`, plage sur l'index unique, `TWR-GEN-005` si ambigu) | Demande de Jules : le bot n'affiche que 8 caractères ; une recherche par plage reste rapide quelle que soit la taille des tables |
+
+## Légitimité des sources inconnues (2026-11-16)
+
+Demande de Jules : une source absente du registre (site d'Anthropic pour un fait sur
+Claude, site de maths sérieux) était présentée comme peu fiable. Détails :
+[factcheck/sources.md](factcheck/sources.md).
+
+| Décision | Raison |
+|---|---|
+| Nouveau niveau `unrated` (non évalué) pour tout domaine inconnu, au lieu de `tertiary` ; le registre humain ne connaît pas `unrated` | Inconnu ne veut pas dire peu fiable |
+| Ordre : registre > site officiel du sujet > table d'identité Wikidata > suffixes officiels fermés > `unrated` ; un `avoid` du registre n'est jamais remonté | Le jugement humain garde le dernier mot ; le reste est déterministe et gratuit |
+| Site officiel du sujet résolu par le QID du sujet (P856 du sujet, de son développeur, fabricant, éditeur, opérateur, organisation mère, propriétaire), jamais par une recherche par nom ni par le modèle ; primaire, mais partie prenante pour `record`, `conduct`, `accusation` | Un homonyme ou un modèle pourraient donner un faux domaine (domaine piège) ; règle fermée et symétrique comme `controlled_by` |
+| Table `domain_identities` depuis Wikidata (classes listées), hebdomadaire, lue en flux et interrogée en base par lot ; presse identifiée = `unrated` (statut `press`), pas `secondary` | Wikidata dit qui publie, pas si c'est fiable (des sites de désinformation y figurent) ; RAM : jamais chargée en mémoire |
+| Statut donné par le juge dans sa réponse existante, plafonné à `secondary`, affichage seulement, jamais renvoyé aux modèles suivants | Aucun appel supplémentaire ; le modèle ne peut pas fabriquer la source primaire exigée par la règle d'indépendance |
+| Plateformes d'hébergement et catalogues exclus (identité, suffixes, site du sujet) | Un site officiel hébergé sur Facebook ne rend pas Facebook officiel |
+| ROR, DOAJ, liste `.gov` et collectivités non importés dans ce lot | Wikidata et les suffixes couvrent l'essentiel ; ROR/DOAJ demandent un analyseur JSON en flux |
+| Niveau, statut et origine d'une `sources` recalculés à chaque collecte de l'URL (upsert) | Une source jugée `tertiary` par défaut avant ce lot se corrige d'elle-même |
+
+## Badges de vérification Seat 12A (2026-11-16)
+
+| Décision | Raison |
+|---|---|
+| Valeurs d'API des catégories en anglais : `institutional`, `organization`, `media`, `expert`, `personality` (noms français dans la doc) | Règle de langue du dépôt (tout sauf la doc en anglais) ; correspondance un pour un avec les noms donnés par Jules |
+| Un badge = une ligne `badges` par compte de `platform_accounts` (plateforme + ID natif), avec `status` `active`/`revoked`/`blocked` | Un seul badge par compte, identification jamais par pseudo, multi-plateforme sans changement de schéma ; le blocage existe même sans badge |
+| Une décision de l'équipe l'emporte toujours : retrait manuel collant, blocage, catégorie modifiée → `manual` ; seule une révocation par le système peut être annulée par une source | Point 3 de la demande (« on peut quand même bloquer ») ; dans le doute, ne pas redonner un badge |
+| Organisations authentifiées par une **clé d'organisation** délivrée par l'équipe (`X-Organization-Token`, acteur `organization`), et non par le site agissant pour elles | Pas encore d'authentification des organisations côté site ; une clé révocable, liée à un badge actif, se vérifie dans gate sans faire confiance à un tiers |
+| Affiliations ajoutées par l'organisation : actives tout de suite ; par l'équipe : actives par défaut, `pending` sur demande ; par Wikidata : toujours `pending` | « Validation obligatoire par l'organisation ou par l'équipe » ; Wikidata n'est pas une validation |
+| Wikidata : P6552 lu comme **qualificatif** de P2002 ; portées par pays (P27 personnes, P17 organisations) + `intl` ; détails par lots de 200 en `VALUES` | Constaté en direct : P6552 en déclaration principale n'existe presque pas ; la requête groupée tout-en-un expirait |
+| Classification Wikidata par tables restreintes de QID vérifiés, sans sous-classes P279 | Sûreté (pas de badge en cas de doute) et coût SPARQL ; liste à enrichir au besoin |
+| Éléments Wikidata sans P6552 ignorés (pas de résolution du pseudo par l'API X) | Jamais d'identification par pseudo ; éviter des appels payants |
+| Retrait automatique des badges Wikidata non revus depuis 30 jours, seulement si l'import tourne | Suivre Wikidata sans qu'une panne de Wikidata retire tous les badges |
+| X « government » : l'extension n'envoie que des **indices** ; vérification par `GET /2/users` (`verified_type`), plafond quotidien et budget `provider:x` | Un indice client est falsifiable ; l'API X fait foi ; coût borné |
+| Lookup public en `GET` avec `ETag` fort et `Cache-Control` ; un ID absent = pas de badge | Demande « pensé pour être mis en cache » : un GET se met en cache (navigateur, CDN), une seule requête SQL par lot |
+| Signalements : rien sur l'auteur ; seuls les comptes qui affichent un badge ou une affiliation peuvent être signalés | Règle 9 (rien sur l'utilisateur) ; pas de lignes créées pour des IDs arbitraires |
+| Pas de commande Discord de badges dans le premier lot (permissions ajoutées à `/permissions` seulement) | Lot déjà large ; l'API couvre tout. Remplacé le jour même par `/badge` (voir ci-dessous) |
+| Commande `/badge` : carte de compte avec actions, file de travail unique (demandes, signalements, affiliations en attente) avec onglets et menu d'ouverture, clés d'organisation affichées une seule fois en carte privée ; comptes saisis par ID natif seulement | Demande de Jules ; mêmes conventions que `/registry` et la liste de suivi (cartes V2 persistantes, modals pour tout texte) ; la file absorbe le volume du premier import Wikidata |
+| Identifiants courts étendus aux affiliations, demandes, signalements et clés (`/v1/ids/{kind}`, permission `badges:read`) | Le bot n'affiche que 8 caractères |

@@ -25,6 +25,8 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-ATL-013` | Invalid registry entry | 422 | info | non | non |  |
 | `TWR-ATL-014` | Registry entry changed meanwhile (stale version) | 409 | info | non | non | Re-read the entry and resend with its current version. |
 | `TWR-ATL-015` | Wikidata seeding of controlled_by failed | 500 | warning | oui | oui |  |
+| `TWR-ATL-016` | Wikidata refresh of the domain identities failed | 500 | warning | oui | oui | query.wikidata.org unreachable or slow: the job is retried, the existing identities stay in use (stale rows are purged only after 21 days). |
+| `TWR-ATL-017` | Official sites of the claim's subject could not be read from Wikidata | 500 | info | oui | oui | The investigation goes on without the first-party rule for this claim. |
 
 ## AUTH : Authentification et autorisations
 
@@ -35,6 +37,34 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-AUTH-003` | X-Acting-Discord-Id invalid | 401 | warning | non | non |  |
 | `TWR-AUTH-004` | Staff member unknown or inactive | 403 | warning | non | non | Add the member: tower staff <discord_id> --roles reviewer |
 | `TWR-AUTH-005` | Missing permission | 403 | info | non | non |  |
+
+## BDG : BDG
+
+| Code | Titre | HTTP | Sévérité | Stocké | Relançable | Piste |
+|---|---|---|---|---|---|---|
+| `TWR-BDG-001` | Badge or account not found | 404 | info | non | non |  |
+| `TWR-BDG-002` | Unknown badge category | 422 | info | non | non |  |
+| `TWR-BDG-003` | Invalid badge lookup (platform, ids or batch size) | 422 | info | non | non | 1 to 100 native ids per lookup, never handles |
+| `TWR-BDG-004` | Account is blocked from badges | 409 | info | non | non | Unblock the account first |
+| `TWR-BDG-005` | Badge was modified in the meantime | 409 | info | non | non |  |
+| `TWR-BDG-006` | Organisation has no active organisation, media or institutional badge | 409 | info | non | non |  |
+| `TWR-BDG-007` | Affiliation not found | 404 | info | non | non |  |
+| `TWR-BDG-008` | Affiliation cannot change to this status from its current one | 409 | info | non | non |  |
+| `TWR-BDG-009` | Affiliation already pending or active | 409 | info | non | non |  |
+| `TWR-BDG-010` | Invalid text or URL field | 422 | info | non | non |  |
+| `TWR-BDG-011` | Badge request not found | 404 | info | non | non |  |
+| `TWR-BDG-012` | Badge request already decided | 409 | info | non | non |  |
+| `TWR-BDG-013` | A pending request already exists for this account | 409 | info | non | non |  |
+| `TWR-BDG-014` | Badge report not found | 404 | info | non | non |  |
+| `TWR-BDG-015` | Badge report already handled | 409 | info | non | non |  |
+| `TWR-BDG-016` | Organisation token is invalid or revoked | 401 | info | non | non |  |
+| `TWR-BDG-017` | X-Organization-Token cannot be combined with another credential | 401 | info | non | non |  |
+| `TWR-BDG-018` | Affiliation belongs to another organisation | 403 | info | non | non |  |
+| `TWR-BDG-019` | Too many badge submissions | 429 | info | non | non |  |
+| `TWR-BDG-020` | An account cannot be affiliated with itself | 422 | info | non | non |  |
+| `TWR-BDG-021` | Wikidata import failed (SPARQL endpoint error or unexpected payload) | 500 | warning | oui | oui | The job retries with backoff; check query.wikidata.org status |
+| `TWR-BDG-022` | X government verification check failed | 500 | warning | oui | oui |  |
+| `TWR-BDG-023` | Organisation key not found | 404 | info | non | non |  |
 
 ## BOT : BOT
 

@@ -5,17 +5,32 @@ from __future__ import annotations
 from collections import ChainMap
 from collections.abc import Mapping
 
-from tower.intercom.i18n import en, fc_en, fc_fr, fr, ops_en, ops_fr, team_en, team_fr
+from tower.intercom.i18n import (
+    badge_en,
+    badge_fr,
+    en,
+    fc_en,
+    fc_fr,
+    fr,
+    ops_en,
+    ops_fr,
+    team_en,
+    team_fr,
+)
 
 __all__ = ["CATALOGS", "DEFAULT_LOCALE", "has", "locale_of", "t"]
 
 DEFAULT_LOCALE = "en"
-# One base catalogue plus one module per area (ops, fc, team); an area key overrides
+# One base catalogue plus one module per area (ops, fc, team, badge); an area key overrides
 # the base one.
 # Live views (ChainMap): the first mapping holding a key wins.
 CATALOGS: dict[str, Mapping[str, str]] = {
-    "en": ChainMap(team_en.MESSAGES, fc_en.MESSAGES, ops_en.MESSAGES, en.MESSAGES),
-    "fr": ChainMap(team_fr.MESSAGES, fc_fr.MESSAGES, ops_fr.MESSAGES, fr.MESSAGES),
+    "en": ChainMap(
+        badge_en.MESSAGES, team_en.MESSAGES, fc_en.MESSAGES, ops_en.MESSAGES, en.MESSAGES
+    ),
+    "fr": ChainMap(
+        badge_fr.MESSAGES, team_fr.MESSAGES, fc_fr.MESSAGES, ops_fr.MESSAGES, fr.MESSAGES
+    ),
 }
 _CATALOGS = CATALOGS
 

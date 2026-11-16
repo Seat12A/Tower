@@ -556,6 +556,233 @@ class GateClient:
         )
         return revoked
 
+    # --- verification badges -----------------------------------------------------------
+    @staticmethod
+    def _acct(platform: str, external_id: str) -> str:
+        return f"/v1/badges/accounts/{quote(platform, safe='')}/{quote(external_id, safe='')}"
+
+    async def get_badge(self, acting: int, platform: str, external_id: str) -> dict[str, Any]:
+        """Team view of the badge row (any status); 404 ``TWR-BDG-001`` without a row."""
+        row: dict[str, Any] = await self._request(
+            "GET", self._acct(platform, external_id) + "/badge", acting
+        )
+        return row
+
+    async def get_badge_details(
+        self, acting: int, platform: str, external_id: str
+    ) -> dict[str, Any]:
+        """Public details: badge and active affiliations (404 when nothing is shown)."""
+        row: dict[str, Any] = await self._request("GET", self._acct(platform, external_id), acting)
+        return row
+
+    async def grant_badge(
+        self,
+        acting: int,
+        platform: str,
+        external_id: str,
+        *,
+        category: str,
+        label: str | None = None,
+        logo_url: str | None = None,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"category": category}
+        for key, value in (("label", label), ("logo_url", logo_url), ("note", note)):
+            if value is not None:
+                body[key] = value
+        row: dict[str, Any] = await self._request(
+            "PUT", self._acct(platform, external_id), acting, body=body
+        )
+        return row
+
+    async def badge_action(
+        self,
+        acting: int,
+        platform: str,
+        external_id: str,
+        action: str,
+        *,
+        reason: str | None = None,
+    ) -> dict[str, Any]:
+        """``revoke``, ``block`` or ``unblock``."""
+        body = None if action == "unblock" else {"reason": reason or None}
+        row: dict[str, Any] = await self._request(
+            "POST", f"{self._acct(platform, external_id)}/{action}", acting, body=body
+        )
+        return row
+
+    async def badge_history(
+        self, acting: int, platform: str, external_id: str, *, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request(
+            "GET",
+            self._acct(platform, external_id) + "/history",
+            acting,
+            params={"limit": limit},
+        )
+        return rows
+
+    async def list_affiliations(
+        self,
+        acting: int,
+        *,
+        status: str | None = None,
+        member: tuple[str, str] | None = None,
+        org: tuple[str, str] | None = None,
+        limit: int = 25,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if status is not None:
+            params["status"] = status
+        if member is not None:
+            params["member_platform"], params["member_id"] = member
+        if org is not None:
+            params["org_platform"], params["org_id"] = org
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/badges/affiliations", acting, params=params
+        )
+        return rows
+
+    async def get_affiliation(self, acting: int, public_id: str) -> dict[str, Any]:
+        row: dict[str, Any] = await self._request(
+            "GET", f"/v1/badges/affiliations/{quote(public_id, safe='')}", acting
+        )
+        return row
+
+    async def create_affiliation(
+        self,
+        acting: int,
+        *,
+        member: tuple[str, str],
+        org: tuple[str, str],
+        title: str | None = None,
+        validate_now: bool = True,
+    ) -> dict[str, Any]:
+        row: dict[str, Any] = await self._request(
+            "POST",
+            "/v1/badges/affiliations",
+            acting,
+            body={
+                "member": {"platform": member[0], "external_id": member[1]},
+                "org": {"platform": org[0], "external_id": org[1]},
+                "title": title or None,
+                "validate_now": validate_now,
+            },
+        )
+        return row
+
+    async def affiliation_action(
+        self, acting: int, public_id: str, action: str, *, reason: str | None = None
+    ) -> dict[str, Any]:
+        """``validate``, ``reconfirm``, ``reject``, ``revoke`` or ``primary``."""
+        body = {"reason": reason or None} if action in ("reject", "revoke") else None
+        row: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/badges/affiliations/{quote(public_id, safe='')}/{action}",
+            acting,
+            body=body,
+        )
+        return row
+
+    async def list_badge_requests(
+        self, acting: int, *, status: str = "pending", limit: int = 25
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/badges/requests", acting, params={"status": status, "limit": limit}
+        )
+        return rows
+
+    async def get_badge_request(self, acting: int, public_id: str) -> dict[str, Any]:
+        row: dict[str, Any] = await self._request(
+            "GET", f"/v1/badges/requests/{quote(public_id, safe='')}", acting
+        )
+        return row
+
+    async def decide_badge_request(
+        self,
+        acting: int,
+        public_id: str,
+        *,
+        approve: bool,
+        category: str | None = None,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"note": note or None}
+        if approve and category:
+            body["category"] = category
+        row: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/badges/requests/{quote(public_id, safe='')}/"
+            + ("approve" if approve else "reject"),
+            acting,
+            body=body,
+        )
+        return row
+
+    async def list_badge_reports(
+        self, acting: int, *, status: str = "open", limit: int = 25
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", "/v1/badges/reports", acting, params={"status": status, "limit": limit}
+        )
+        return rows
+
+    async def get_badge_report(self, acting: int, public_id: str) -> dict[str, Any]:
+        row: dict[str, Any] = await self._request(
+            "GET", f"/v1/badges/reports/{quote(public_id, safe='')}", acting
+        )
+        return row
+
+    async def resolve_badge_report(
+        self, acting: int, public_id: str, *, status: str, note: str | None = None
+    ) -> dict[str, Any]:
+        row: dict[str, Any] = await self._request(
+            "POST",
+            f"/v1/badges/reports/{quote(public_id, safe='')}/resolve",
+            acting,
+            body={"status": status, "note": note or None},
+        )
+        return row
+
+    async def create_org_key(
+        self, acting: int, platform: str, external_id: str, *, label: str | None = None
+    ) -> dict[str, Any]:
+        row: dict[str, Any] = await self._request(
+            "POST",
+            self._acct(platform, external_id) + "/org-keys",
+            acting,
+            body={"label": label or None},
+        )
+        return row
+
+    async def list_org_keys(
+        self, acting: int, platform: str, external_id: str
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request(
+            "GET", self._acct(platform, external_id) + "/org-keys", acting
+        )
+        return rows
+
+    async def revoke_org_key(self, acting: int, public_id: str) -> None:
+        await self._request(
+            "POST", f"/v1/badges/org-keys/{quote(public_id, safe='')}/revoke", acting
+        )
+
+    async def start_badge_import(
+        self, acting: int, scopes: Sequence[str] | None = None
+    ) -> dict[str, Any]:
+        row: dict[str, Any] = await self._request(
+            "POST",
+            "/v1/badges/imports/wikidata",
+            acting,
+            body={"scopes": list(scopes) if scopes else None},
+        )
+        return row
+
+    async def list_badge_imports(self, acting: int) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = await self._request("GET", "/v1/badges/imports", acting)
+        return rows
+
     # --- as the service itself --------------------------------------------------------
     async def get_cursor(self, name: str) -> str | None:
         body = await self._request("GET", f"/v1/events/cursors/{quote(name, safe='')}", None)

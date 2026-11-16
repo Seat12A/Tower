@@ -93,8 +93,8 @@ seules les tables utilisées par le lot 3 sont créées (pas d'embedding). Voir
 | `claim_groups` | `public_id`, affirmation représentative, `level` (N0-N4), `state` (`dormant`, `queued`, `investigating`, `verified`, `to_revalidate`, `passive`), `reach`, `active_verdict_id` (FK ajoutée après `verdicts`). Lot 3 : un groupe par affirmation |
 | `claim_group_members` | PK `(group_id, claim_id)`, `added_at`, `removed_at`, `reason` : historique des fusions et scissions (lot 4) ; une seule appartenance active par affirmation (index unique partiel) |
 | `investigations` | Enquête d'un groupe : `level`, `depth` (`standard`, `reinforced`), `stage` (`framing`, `collecting`, `judging`, `second_opinion`, `objection`, `escalating`, `drafting`, `completed`, `assembled`, `failed`), `round` (1, 2 après escalade), `cost_usd_micros`, sorties intermédiaires en JSONB (`framing`, `queries`, `judgement`, `second_opinion`, `objection`, `second_pass`), `agreement`, `flags`, `error`, `requested_by`, `content_id` (contenu représentatif) |
-| `sources` | Source récupérée, conservée même non citée : `canonical_url` (unique), `original_url`, `adapter`, `stable_id` (révision Wikipédia, QID, identifiant LEGI, série INSEE), `publisher`, `domain` (indexé), `tier` (`primary`, `secondary`, `tertiary`, `avoid`), `title`, `lang`, `published_at`, `retrieved_at`, `sha256`, `license` |
-| `evidence_passages` | Passage d'une enquête : `label` (`P1`…, unique par enquête), `position`, `text` (effacé en fin d'enquête s'il n'est pas cité), `lang`, `translation_fr`, `origin` (entité à qui l'information est attribuée), `simhash`, `score`, `round`, `kept` |
+| `sources` | Source récupérée, conservée même non citée : `canonical_url` (unique), `original_url`, `adapter`, `stable_id` (révision Wikipédia, QID, identifiant LEGI, série INSEE), `publisher`, `domain` (indexé), `tier` (`primary`, `secondary`, `tertiary`, `avoid`, `unrated` = non évalué), `standing` (qui publie : `official`, `academic`, `journal`, `press`, `fact_checker`, `reference`, `organization`, `user_generated`, `commercial`, `first_party`, `unclear` ; NULL = inconnu), `tier_basis` (`registry`, `adapter`, `identity`, `suffix`, `default` ; niveau et statut recalculés à chaque collecte de l'URL, voir [factcheck/sources.md](factcheck/sources.md)), `title`, `lang`, `published_at`, `retrieved_at`, `sha256`, `license` |
+| `evidence_passages` | Passage d'une enquête : `label` (`P1`…, unique par enquête), `position`, `text` (effacé en fin d'enquête s'il n'est pas cité), `lang`, `translation_fr`, `origin` (entité à qui l'information est attribuée), `standing` (`first_party` = site officiel du sujet de l'affirmation, posé à la collecte ; sinon statut donné par le juge à une source sans statut, posé à la rédaction), `simhash`, `score`, `round`, `kept` |
 | `verdicts` | `public_id` (= identifiant du brouillon), groupe, enquête (unique), `veracity`, `context_need`, `context_types text[]`, `confidence`, `status` (`draft`, `active`, `superseded`, `expired`, `rejected` ; un seul `active` par groupe, index unique partiel), `rationale` JSONB (assertions et citations), `not_in_sources`, `review_points`, `flags` JSONB, `prompt_versions`, `route_versions`, `expires_at`, `drafted_at` (entrée en relecture), `notified_at` (affiché par le bot), `validated_at`, `validated_by`, `version` (verrou optimiste) |
 | `citations` | Verdict ↔ passage : citation exacte, assertion appuyée, `valid` (trouvée mot pour mot dans l'original), `position` |
 | `context_notes` | Note d'un verdict : `context_type` (15 types), `regime` (`object`, `formulation`, `provisional`), `object_type`, `object_id`, texte et langue du rédacteur dans la langue du post, `links`, `status` (`draft`, `validated`, `rejected`, `expired`), `expires_at` (6 h au plus pour une note provisoire), `checks` (contrôles d'E9), `critic` (critique de pontage) |
@@ -171,6 +171,7 @@ changement sur ce schéma.
 | `news_feeds` | Flux de référence : `country`, `lang`, `publisher`, `kind` (`public_service`, `national`, `regional`, `agency`, `international`), `url` (unique), `domain`, `active`, `etag`, `last_modified`, `last_polled_at`, `last_status`, `failures` (échecs consécutifs) |
 | `news_index` | Titres récents (90 jours) : `feed_id`, `origin` (`rss`, `gdelt`), `url`, `canonical_url` (unique), `publisher`, `domain`, `country`, `lang`, `title`, `summary` (chapeau ≤ 600 caractères), `published_at`, `simhash` + 4 bandes indexées, `cluster_id` (premier article de la grappe de reprises), `tsv` (`simple`, GIN). Jamais l'article complet |
 | `source_registry_versions` | Instantané de chaque version d'une entrée du registre : `snapshot`, `change`, `reason`, `changed_by` |
+| `domain_identities` | Identité d'un hôte d'après Wikidata (site officiel P856) : `domain` (clé, hôte sans `www.`, recherche par suffixe), `qid`, `kind` (`official`, `academic`, `journal`, `press`), `country` (ISO alpha-2), `origin` (`wikidata`), `refreshed_at` (indexé ; purge après 21 jours). Rempli par `atlas.identity_refresh` ; ce n'est pas une décision de fiabilité, le registre l'emporte |
 | `atlas_sync_state` | Avancement des synchronisations (`legi` : dernière archive appliquée, compteurs) |
 | `confidence_models` | Modèles de confiance recalibrés : `kind` (`reduced`, `full`), `coefficients`, `metrics` (ECE et Brier hors échantillon, du candidat et des coefficients courants), `reviews`, `refusals`, `active` (un seul, index unique partiel), `activated_at`, `activated_by` |
 
@@ -179,6 +180,24 @@ Colonnes ajoutées à `source_registry` : `aliases`, `qid`, `controlled_by`,
 `official`), `statutory_independence` (CHECK : exige `independence_basis` parmi
 `imf_sdds`, `imf_sdds_plus`, `ess_peer_review`, `statute`), `active`, `updated_by`,
 `reviewed_at`.
+
+## Badges de vérification (migration 0014)
+
+Migration `0014`, **expand** uniquement : tables nouvelles. Règles : [badges.md](badges.md).
+Les comptes sont ceux de `platform_accounts` (plateforme + ID natif, `BIGINT`-compatible
+pour X) : aucune table ne stocke un compte par pseudo.
+
+| Table | Rôle |
+|---|---|
+| `badges` | Une ligne par compte (`account_id` unique) : `status` (`active`, `revoked`, `blocked`), `category` (obligatoire si actif ; `institutional`, `organization`, `media`, `expert`, `personality`), `source` (`manual`, `request`, `wikidata`, `x_government`), `label`, `logo_url`, `wikidata_qid` (index), `wikidata_seen_at`, `note` (interne), `granted_by/at`, `ended_by/at`, `end_reason`, `version` |
+| `badge_affiliations` | Membre (`member_account_id`) → badge d'organisation (`org_badge_id`), unique par paire : `status` (`pending`, `active`, `rejected`, `revoked`, `expired`), `is_primary` (index unique partiel par membre ; seulement si actif), `title`, `source` (`manual`, `organization`, `wikidata`, `request`), `wikidata_property`, `requested_by`, `validated_by/at`, `expires_at` (obligatoire si actif ; index partiel), `ended_by/at`, `end_reason`, `version` |
+| `badge_events` | Historique en ajout seul : `account_id`, `badge_id`, `affiliation_id`, `action` (CHECK), `actor`, `source`, `reason`, `changes` |
+| `badge_requests` | Demandes : `kind` (`badge`, `affiliation` → `org_badge_id` obligatoire), `account_id`, `requested_category`, `title`, `justification`, `contact` (équipe seulement), `evidence_urls` (JSONB), `status` (`pending`, `approved`, `rejected`), `submitted_by`, `decided_by/at`, `decision_note` ; une seule en attente par (type, compte, organisation) (index unique partiel) |
+| `badge_reports` | Signalements : `account_id`, `reason` (CHECK), `comment`, `status` (`open`, `resolved`, `dismissed`), `resolved_by/at`, `resolution_note` ; rien sur l'auteur |
+| `badge_org_keys` | Clés d'organisation : `org_badge_id`, `token_hash` (SHA-256, unique), `label`, `created_by`, `revoked_at` |
+| `badge_wikidata_links` | Liens d'affiliation lus sur Wikidata : clé (`member_account_id`, `org_qid`, `property`), `seen_at` ; index `org_qid` |
+| `badge_import_runs` | Dernier import par portée : `scope`, `started_at`, `listed_at`, `accounts`, `batches` |
+| `badge_x_checks` | Vérifications X par compte : `hinted_at`, `checked_at` (nul = à vérifier ; index partiel), `verified_type` |
 
 ## Index notables
 

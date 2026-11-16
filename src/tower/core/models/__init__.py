@@ -3,6 +3,7 @@
 from tower.core.models.atlas import (
     AtlasSyncState,
     ConfidenceModel,
+    DomainIdentity,
     ElectionEntry,
     JurisdictionSource,
     LegalArticle,
@@ -12,6 +13,17 @@ from tower.core.models.atlas import (
     SourceRegistryVersion,
 )
 from tower.core.models.auth import ServiceClient, StaffMember
+from tower.core.models.badges import (
+    Badge,
+    BadgeAffiliation,
+    BadgeEvent,
+    BadgeImportRun,
+    BadgeOrgKey,
+    BadgeReport,
+    BadgeRequest,
+    BadgeWikidataLink,
+    BadgeXCheck,
+)
 from tower.core.models.cases import Case, CaseEvent
 from tower.core.models.errors import ErrorReport
 from tower.core.models.events import Event, EventCursor
@@ -80,6 +92,15 @@ from tower.core.models.llm import (
 
 __all__ = [
     "AtlasSyncState",
+    "Badge",
+    "BadgeAffiliation",
+    "BadgeEvent",
+    "BadgeImportRun",
+    "BadgeOrgKey",
+    "BadgeReport",
+    "BadgeRequest",
+    "BadgeWikidataLink",
+    "BadgeXCheck",
     "BudgetCounter",
     "BudgetReservation",
     "Case",
@@ -99,6 +120,7 @@ __all__ = [
     "ContentSnapshot",
     "ContextNote",
     "ContextNoteTranslation",
+    "DomainIdentity",
     "ElectionEntry",
     "Entity",
     "EntityRarity",

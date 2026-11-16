@@ -46,6 +46,7 @@ JOB_LEGI_SYNC = "atlas.legi_sync"
 JOB_NEWS_POLL = "atlas.news_poll"
 JOB_STAT_REFRESH = "atlas.stat_refresh"
 JOB_CONTROL_SEED = "atlas.control_seed"
+JOB_IDENTITY_REFRESH = "atlas.identity_refresh"
 
 # Jobs of the service ``investigate`` (queue fc-deep), one per stage
 JOB_FRAME = "investigate.frame"
@@ -195,3 +196,7 @@ def stat_key(indicator: str, day: str) -> str:
 
 def control_seed_key(registry_id: int) -> str:
     return f"atlas:control:{registry_id}"
+
+
+def identity_refresh_key(class_qid: str) -> str:
+    return f"atlas:identity:{class_qid}"

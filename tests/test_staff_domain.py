@@ -9,6 +9,7 @@ from tower.core.domain import error_codes as ec
 from tower.core.domain.errors import InvalidInput, PermissionDenied
 from tower.core.domain.security import (
     GRANTABLE_PERMISSIONS,
+    PUBLIC_PERMISSIONS,
     ROLE_PERMISSIONS,
     Actor,
     Permission,
@@ -44,12 +45,12 @@ def test_hard_coded_admin_has_everything_but_stays_bound_to_service_scopes() -> 
     assert all(admin.can(p) for p in Permission)
     narrow = Actor.service("narrow", frozenset({P.STAFF_READ}))
     scoped = Actor.staff(1, frozenset(), narrow, is_admin=True)
-    assert scoped.permissions == frozenset({P.STAFF_READ, P.CASE_READ_PUBLIC})
+    assert scoped.permissions == frozenset({P.STAFF_READ}) | PUBLIC_PERMISSIONS
 
 
 def test_member_without_anything_only_gets_public_permissions() -> None:
     actor = Actor.staff(2, frozenset(), BOT)
-    assert actor.permissions == frozenset({P.CASE_READ_PUBLIC})
+    assert actor.permissions == PUBLIC_PERMISSIONS
 
 
 def test_member_permissions_presets_individual_and_admin() -> None:

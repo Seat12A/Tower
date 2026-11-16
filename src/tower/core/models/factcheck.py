@@ -35,6 +35,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from tower.core.db.base import Base
 from tower.core.db.vector import HalfVec
+from tower.core.domain.factcheck.standing import SOURCE_TIERS, STANDINGS, TIER_BASES
 from tower.core.domain.factcheck.values import (
     Agreement,
     Band,
@@ -284,7 +285,15 @@ class Source(Base):
 
     __tablename__ = "sources"
     __table_args__ = (
-        check_in("tier", TIERS, "tier"),
+        check_in("tier", SOURCE_TIERS, "tier"),
+        CheckConstraint(
+            "standing IS NULL OR standing IN (" + ", ".join(f"'{v}'" for v in STANDINGS) + ")",
+            name="standing",
+        ),
+        CheckConstraint(
+            "tier_basis IS NULL OR tier_basis IN (" + ", ".join(f"'{v}'" for v in TIER_BASES) + ")",
+            name="tier_basis",
+        ),
         Index("ix_sources_domain", "domain"),
     )
 
@@ -298,6 +307,11 @@ class Source(Base):
     publisher: Mapped[str | None] = mapped_column(Text)
     domain: Mapped[str] = mapped_column(Text)
     tier: Mapped[str] = mapped_column(Text)
+    """``primary``, ``secondary``, ``tertiary``, ``avoid`` or ``unrated`` (not assessed)."""
+    standing: Mapped[str | None] = mapped_column(Text)
+    """Who publishes it (domain/factcheck/standing.py); NULL = unknown or legacy row."""
+    tier_basis: Mapped[str | None] = mapped_column(Text)
+    """How the tier was decided: registry, adapter, identity, suffix, default."""
     title: Mapped[str | None] = mapped_column(Text)
     lang: Mapped[str | None] = mapped_column(Text)
     published_at: Mapped[datetime | None] = mapped_column()
@@ -308,7 +322,13 @@ class Source(Base):
 
 class EvidencePassage(Base):
     __tablename__ = "evidence_passages"
-    __table_args__ = (UniqueConstraint("investigation_id", "label"),)
+    __table_args__ = (
+        UniqueConstraint("investigation_id", "label"),
+        CheckConstraint(
+            "standing IS NULL OR standing IN (" + ", ".join(f"'{v}'" for v in STANDINGS) + ")",
+            name="standing",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     investigation_id: Mapped[int] = mapped_column(
@@ -327,6 +347,9 @@ class EvidencePassage(Base):
     translation_fr: Mapped[str | None] = mapped_column(Text)
     origin: Mapped[str | None] = mapped_column(Text)
     """Entity the information is attributed to (from the judge)."""
+    standing: Mapped[str | None] = mapped_column(Text)
+    """Per-claim standing: ``first_party`` (official site of the claim's subject, set at
+    collection) or the judge's standing of an unrated source (set at drafting)."""
     simhash: Mapped[int] = mapped_column(BigInteger)
     score: Mapped[float] = mapped_column(Float, server_default=sa_text("0"))
     round: Mapped[int] = mapped_column(SmallInteger, server_default=sa_text("1"))
@@ -498,7 +521,7 @@ class CaseClaimGroup(Base):
 
 
 class SourceRegistryEntry(Base):
-    """Reliability registry (domain → tier, kind, country). Everything absent is tertiary.
+    """Reliability registry (domain → tier, kind, country). Everything absent is unrated.
     Lot 6: edited through ``usecases.registry`` (versioned in ``source_registry_versions``),
     with ``controlled_by`` and ``statutory_independence``. The tier rests on the editorial
     process, never on political orientation."""

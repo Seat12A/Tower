@@ -24,6 +24,19 @@ MESSAGES: dict[str, str] = {
     "error.TWR-AUTH-001": "Le jeton de service du bot est invalide ou révoqué. ({code})",
     "error.TWR-AUTH-002": "Le bot n'a pas pu vous identifier. ({code})",
     "error.TWR-AUTH-003": "Le bot n'a pas pu vous identifier. ({code})",
+    "error.title.TWR-BDG-001": "Pas de badge",
+    "error.TWR-BDG-001": "Ce compte n'a pas encore de fiche de badge. ({code})",
+    "error.TWR-BDG-004": "Ce compte est bloqué : débloque-le d'abord. ({code})",
+    "error.TWR-BDG-006": (
+        "L'organisation doit avoir un badge organisation, média ou institutionnel actif. ({code})"
+    ),
+    "error.TWR-BDG-008": (
+        "Cette affiliation ne peut pas faire ça depuis son statut actuel. ({code})"
+    ),
+    "error.TWR-BDG-009": "Cette affiliation est déjà en attente ou active. ({code})",
+    "error.TWR-BDG-012": "Cette demande a déjà été tranchée. ({code})",
+    "error.TWR-BDG-015": "Ce signalement a déjà été traité. ({code})",
+    "error.TWR-BDG-020": "Un compte ne peut pas être affilié à lui-même. ({code})",
     "error.TWR-AUTH-004": "Vous n'êtes pas un membre actif de l'équipe. ({code})",
     "error.TWR-AUTH-005": "Vous n'avez pas la permission d'effectuer cette action. ({code})",
     "error.TWR-GEN-001": "Saisie invalide : {message} ({code})",

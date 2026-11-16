@@ -198,3 +198,34 @@ def test_gate_loads_no_lot5_service_logic() -> None:
         "tower.core.domain.factcheck.scheduling",
         "tower.core.usecases.scheduling",
     } & set(loaded)
+
+
+BADGE_CODE = (
+    "tower.services.badges",
+    "tower.services.badges.clients",
+    "tower.core.adapters.wikidata_badges",
+    "tower.core.adapters.x_client",
+)
+
+
+def test_gate_does_not_load_badge_service_nor_adapters() -> None:
+    code = "import tower.gate.app\ntower.gate.app.create_app"
+    assert _loaded_after(code, (*BADGE_CODE, "tower.core.adapters.knowledge.http")) == []
+
+
+def test_hangar_without_badges_loads_nothing_of_it() -> None:
+    code = (
+        "import tower.hangar.main\n"
+        "from tower.core.services.registry import load_services\n"
+        "load_services(['ping', 'ingest']).validate(lease_seconds=300)\n"
+    )
+    assert _loaded_after(code, (*BADGE_CODE, "tower.core.usecases.badge_sources")) == []
+
+
+def test_badges_service_loads_adapters_lazily() -> None:
+    code = (
+        "from tower.core.services.registry import load_services\n"
+        "load_services(['badges']).validate(lease_seconds=300)\n"
+    )
+    loaded = _loaded_after(code, (*HEAVY_SDKS, "fastapi", "httpx", *BADGE_CODE[2:]))
+    assert loaded == []

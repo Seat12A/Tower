@@ -12,7 +12,17 @@ from tower.gate.deps import ActorDep, ReadSession
 
 router = APIRouter(prefix="/v1/ids", tags=["ids"])
 
-Kind = Literal["case", "group", "claim", "narrative", "draft"]
+Kind = Literal[
+    "case",
+    "group",
+    "claim",
+    "narrative",
+    "draft",
+    "affiliation",
+    "badge_request",
+    "badge_report",
+    "org_key",
+]
 
 
 class ResolvedId(BaseModel):

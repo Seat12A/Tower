@@ -221,7 +221,8 @@ comptent pour une seule source.
 |---|---|---|
 | Primaire | INSEE, Eurostat, Légifrance, Journal officiel, data.gouv, EUR-Lex, Fedlex, sites des ministères et juridictions, publications scientifiques évaluées | Producteur officiel de la donnée ou du texte |
 | Secondaire | Agences de presse, presse de référence, fact-checkers signataires de l'IFCN ou membres de l'EFCSN | Processus éditorial, politique de correction publique |
-| Tertiaire | Wikipédia, agrégateurs, blogs, réseaux sociaux | Le reste |
+| Tertiaire | Wikipédia, agrégateurs, blogs, réseaux sociaux | Décision éditoriale ou adaptateur |
+| Non évalué (`unrated`) | Tout domaine absent du registre et des règles | Ni registre, ni identité Wikidata, ni suffixe officiel : **pas un signe de non-fiabilité** ([sources.md](sources.md)) |
 | À éviter | Sites de désinformation documentés | Décision éditoriale motivée |
 
 Règles de neutralité :

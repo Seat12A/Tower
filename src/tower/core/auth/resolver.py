@@ -18,6 +18,7 @@ from tower.core.domain import error_codes as ec
 from tower.core.domain.errors import PermissionDenied, Unauthenticated
 from tower.core.domain.security import Actor, Permission, Role, to_permission
 from tower.core.models.auth import ServiceClient, StaffMember
+from tower.core.models.badges import Badge, BadgeOrgKey
 
 _MAX_ENTRIES = 1024
 
@@ -50,6 +51,7 @@ class ActorResolver:
         self.admin_ids = frozenset(admin_ids)
         self._services = _TTLCache(cache_ttl)
         self._staff_cache = _TTLCache(cache_ttl)
+        self._orgs = _TTLCache(cache_ttl)
 
     async def resolve(self, token: str | None, acting_discord_id: str | None) -> Actor:
         if not token:
@@ -78,6 +80,31 @@ class ActorResolver:
             )
         roles, permissions = member or (frozenset(), frozenset())
         return Actor.staff(discord_id, roles, service, permissions, is_admin=is_admin)
+
+    async def resolve_organization(self, token: str) -> Actor:
+        """Organisation key (``X-Organization-Token``): valid while the key is not revoked
+        and the organisation badge is active. Never combined with another credential."""
+        digest = hash_token(token)
+        cached = self._orgs.get(digest)
+        if cached is not None:
+            return cached  # type: ignore[no-any-return]
+        async with self.db.session() as session:
+            public_id = await session.scalar(
+                select(Badge.public_id)
+                .join(BadgeOrgKey, BadgeOrgKey.org_badge_id == Badge.id)
+                .where(
+                    BadgeOrgKey.token_hash == digest,
+                    BadgeOrgKey.revoked_at.is_(None),
+                    Badge.status == "active",
+                )
+            )
+        if public_id is None:
+            raise Unauthenticated(
+                "Organisation token is invalid or revoked", code=ec.BDG_ORG_TOKEN_INVALID
+            )
+        actor = Actor.organization(str(public_id))
+        self._orgs.put(digest, actor)
+        return actor
 
     def forget(self, discord_id: int) -> None:
         """Drop the cached entry of a member (after a rank or permission change)."""

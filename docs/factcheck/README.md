@@ -101,6 +101,7 @@ par des critères fermés et un registre publié. Voir [objectivite.md](objectiv
 | [vagues.md](vagues.md) | Récits, détection des vagues de rumeurs, mode vague, tenue en charge |
 | [modeles.md](modeles.md) | Routage OpenAI et Anthropic par rôle, tokens gratuits, repli, contrats de sortie |
 | [connaissances.md](connaissances.md) | Atlas : sources intégrées (encyclopédie, droit, statistiques, actualité, fact-checks), registre de fiabilité |
+| [sources.md](sources.md) | Légitimité des sources inconnues : niveau `unrated`, statut, site officiel du sujet, table d'identité Wikidata, règles de suffixe |
 | [objectivite.md](objectivite.md) | Objectivité plutôt que faux équilibre : égalité de traitement, faits établis (registre à critères fermés), garde-fous |
 | [international.md](international.md) | Couverture mondiale : langues, juridictions, registres de sources par pays, relecture multilingue |
 | [contexte.md](contexte.md) | Issues, notes de contexte, étage de cadrage (prendre du recul), format des brouillons |
