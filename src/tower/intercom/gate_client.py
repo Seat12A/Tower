@@ -561,6 +561,13 @@ class GateClient:
     def _acct(platform: str, external_id: str) -> str:
         return f"/v1/badges/accounts/{quote(platform, safe='')}/{quote(external_id, safe='')}"
 
+    async def resolve_x_handle(self, acting: int, handle: str) -> dict[str, Any]:
+        """Native id of an X handle (gate reads the X API: one billable user read)."""
+        row: dict[str, Any] = await self._request(
+            "GET", f"/v1/badges/resolve/x/{quote(handle.removeprefix('@'), safe='')}", acting
+        )
+        return row
+
     async def get_badge(self, acting: int, platform: str, external_id: str) -> dict[str, Any]:
         """Team view of the badge row (any status); 404 ``TWR-BDG-001`` without a row."""
         row: dict[str, Any] = await self._request(

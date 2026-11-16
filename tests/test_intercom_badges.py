@@ -60,9 +60,12 @@ async def test_account_lifecycle(gate: GateClient, locale: str) -> None:
 
 
 @pytest.mark.parametrize("locale", ["en", "fr"])
-async def test_handle_is_refused_and_reviewer_cannot_grant(gate: GateClient, locale: str) -> None:
-    reply = await h.badge_show(gate, REVIEWER, locale, "x", "@jules")
+async def test_bad_input_and_reviewer_limits(gate: GateClient, locale: str) -> None:
+    reply = await h.badge_show(gate, REVIEWER, locale, "x", "not a handle!")
     assert reply.accent == "warning" and "TWR-ING-006" in reply.footer
+    # Converting a handle reads the X API: badges:manage only
+    reply = await h.badge_show(gate, REVIEWER, locale, "x", "@jules")
+    assert "TWR-AUTH-005" in reply.footer
     reply = await h.badge_grant(gate, REVIEWER, locale, "x", "1", "expert")
     assert "TWR-AUTH-005" in reply.footer
 

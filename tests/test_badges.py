@@ -730,3 +730,78 @@ async def test_gate_import_request(api: httpx.AsyncClient, make_token: TokenFact
     assert r.status_code == 422
     r = await api.get("/v1/badges/imports", headers=h(token, 1))
     assert {x["scope"] for x in r.json()} == {"Q142", "intl"}
+
+
+class FakeXLookup:
+    cost_per_account_read_usd_micros = 10_000
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def get_account(self, account_ref: str) -> PublicAccount | None:
+        self.calls.append(account_ref)
+        if account_ref.lower() == "emmanuelmacron":
+            return PublicAccount(
+                "x", "1976143068", handle="EmmanuelMacron", display_name="Emmanuel Macron"
+            )
+        return None
+
+
+@pytest.fixture
+async def api_x(db: Database) -> AsyncIterator[tuple[httpx.AsyncClient, FakeXLookup]]:
+    from tower.gate.app import create_app
+
+    app = create_app(make_settings(admin_discord_ids=[1]))
+    fake = FakeXLookup()
+    async with app.router.lifespan_context(app):
+        app.state.x_lookup = fake
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://gate") as c:
+            yield c, fake
+
+
+async def test_gate_resolves_x_handle(
+    api_x: tuple[httpx.AsyncClient, FakeXLookup], make_token: TokenFactory, db: Database
+) -> None:
+    api, fake = api_x
+    token = await make_token("intercom")
+    r = await api.get("/v1/badges/resolve/x/@EmmanuelMacron", headers=h(token, 1))
+    assert r.status_code == 200, r.text
+    assert r.json()["external_id"] == "1976143068" and fake.calls == ["EmmanuelMacron"]
+    async with db.session() as s:
+        account = await uc.find_account(s, ref("1976143068"))
+    assert account is not None and account.handle == "EmmanuelMacron"
+    r = await api.get("/v1/badges/resolve/x/nobody_here", headers=h(token, 1))
+    assert r.status_code == 404 and r.json()["error"]["code"] == "TWR-BDG-025"
+    r = await api.get("/v1/badges/resolve/x/bad-handle!", headers=h(token, 1))
+    assert r.status_code == 422
+    r = await api.get("/v1/badges/resolve/x/EmmanuelMacron")
+    assert r.status_code == 403  # anonymous: badges:manage required
+    assert len(fake.calls) == 2
+
+
+async def test_gate_resolve_without_x_token(
+    api: httpx.AsyncClient, make_token: TokenFactory
+) -> None:
+    token = await make_token("intercom")
+    r = await api.get("/v1/badges/resolve/x/EmmanuelMacron", headers=h(token, 1))
+    assert r.status_code == 503 and r.json()["error"]["code"] == "TWR-BDG-026"
+
+
+async def test_bot_accepts_a_handle(
+    api_x: tuple[httpx.AsyncClient, FakeXLookup], make_token: TokenFactory, add_staff: Any
+) -> None:
+    from tower.intercom.gate_client import GateClient
+    from tower.intercom.handlers import badges as bh
+
+    api, _ = api_x
+    token = await make_token("intercom")
+    await add_staff(3001, ["editor"])
+    gate = GateClient(base_url="http://gate", token=token, http=api)
+    reply = await bh.badge_grant(
+        gate, 3001, "fr", "x", "@EmmanuelMacron", "institutional", "Emmanuel Macron"
+    )
+    assert "1976143068" in reply.footer and "@EmmanuelMacron" in reply.footer
+    assert all("1976143068" in b.custom_id for b in reply.buttons)
+    reply = await bh.badge_show(gate, 3001, "en", "x", "not a handle!")
+    assert "TWR-ING-006" in reply.footer

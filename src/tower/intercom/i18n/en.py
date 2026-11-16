@@ -23,6 +23,13 @@ MESSAGES: dict[str, str] = {
     "error.TWR-AUTH-002": "The bot could not identify you. ({code})",
     "error.TWR-AUTH-003": "The bot could not identify you. ({code})",
     "error.title.TWR-BDG-001": "No badge",
+    "error.TWR-BDG-024": (
+        "The X budget is exhausted: give the numeric id instead of the handle. ({code})"
+    ),
+    "error.TWR-BDG-025": "No X account with this handle (or it is suspended). ({code})",
+    "error.TWR-BDG-026": (
+        "Handles cannot be looked up on X right now: give the numeric id. ({code})"
+    ),
     "error.TWR-BDG-001": "This account has no badge record yet. ({code})",
     "error.TWR-BDG-004": "This account is blocked from badges: unblock it first. ({code})",
     "error.TWR-BDG-006": (

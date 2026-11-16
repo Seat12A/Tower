@@ -31,6 +31,17 @@ et affiche les nôtres, obtenus par le lookup en lot (`GET /v1/badges/lookup`).
 - **Égalité de traitement** : aucune règle ne dépend du bord politique. La catégorie
   vient de la fonction (profession, type d'organisation), jamais d'une opinion.
 
+## Trouver l'ID d'un compte X
+
+L'équipe peut saisir un `@pseudo` : gate le convertit **une fois** en ID natif avec l'API
+officielle de X (`GET /v1/badges/resolve/x/{handle}`, `badges:manage`), puis seul l'ID
+sert. Le bot affiche le pseudo, l'ID et le nom trouvés pour vérifier le compte avant
+d'agir. Coût : une lecture d'utilisateur X (`TOWER_X_PRICE_USER_READ_USD`) sur le budget
+`provider:x`, à chaque conversion (pas de cache : un pseudo peut changer de
+propriétaire). Il faut `TOWER_X_BEARER_TOKEN` **sur le service gate** (sinon
+`TWR-BDG-026`). Sans l'API : outils de développement du navigateur sur la page du profil,
+requête `UserByScreenName`, champ `rest_id`.
+
 ## Catégories
 
 | Valeur API | Nom | Couleur | Pour |

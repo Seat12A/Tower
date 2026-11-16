@@ -229,6 +229,41 @@ async def x_government_hints(
     return HintsOut(queued=queued)
 
 
+# --- Team: X handle → native id ----------------------------------------------------------
+
+
+def x_lookup_client(request: Request) -> Any:
+    """Process-level X client of gate, built on first use (httpx loaded lazily); None
+    without ``TOWER_X_BEARER_TOKEN``. Tests set ``app.state.x_lookup``."""
+    state = request.app.state
+    if getattr(state, "x_lookup", None) is None:
+        settings = state.settings
+        if settings.x_bearer_token is None:
+            return None
+        from tower.core.adapters.x_client import XPlatformClient
+
+        state.x_lookup = XPlatformClient(
+            settings.x_bearer_token.get_secret_value(),
+            api_base=settings.x_api_base,
+            post_read_usd_micros=round(settings.x_price_post_read_usd * 1e6),
+            user_read_usd_micros=round(settings.x_price_user_read_usd * 1e6),
+        )
+    return state.x_lookup
+
+
+@router.get("/resolve/x/{handle}")
+async def resolve_x_handle(request: Request, handle: str, actor: ActorDep) -> dict[str, Any]:
+    """Native id of an X handle, read with the official X API (``badges:manage``; one
+    billable user read on ``provider:x``). The account is then known by its id only."""
+    return await sources.resolve_x_handle(
+        request.app.state.db,
+        actor,
+        x_lookup_client(request),
+        handle,
+        ttl_s=request.app.state.settings.budget_reservation_ttl_s,
+    )
+
+
 # --- Team: badges ------------------------------------------------------------------------
 
 

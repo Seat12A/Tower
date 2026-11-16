@@ -13,6 +13,7 @@ Custom ids (persistent, see ``commands/badges.py``):
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from tower.intercom.gate_client import GateClient, GateError
@@ -60,6 +61,7 @@ __all__ = [
     "report_show",
     "request_decide",
     "request_show",
+    "resolve_account",
 ]
 
 CATEGORIES = ("institutional", "media", "expert", "organization", "personality")
@@ -103,14 +105,17 @@ def _account_label(acc: dict[str, Any]) -> str:
     return f"{base} (@{handle})" if handle else base
 
 
+_X_HANDLE = re.compile(r"@?[A-Za-z0-9_]{1,15}")
+
+
 def check_account(locale: str, platform: str, raw: str) -> tuple[str, str] | Reply:
-    """Normalise a typed account; an X handle is refused with a calm card (the native id
-    is required: a handle can change hands)."""
+    """Normalise a typed account without calling gate: an X numeric id, or an X handle
+    (``@name``) to be converted by ``resolve_account``; anything else is refused."""
     plat = (platform or "x").strip().lower()
     value = raw.strip()
     if plat == "x":
         value = value.removeprefix("x:")
-        if not value.isdigit():
+        if not value.isdigit() and not _X_HANDLE.fullmatch(value):
             return error_card(
                 t(locale, "badge.bad_id.title"),
                 t(locale, "badge.bad_id.body"),
@@ -118,6 +123,33 @@ def check_account(locale: str, platform: str, raw: str) -> tuple[str, str] | Rep
                 severity="warning",
             )
     return plat, value
+
+
+async def resolve_account(
+    gate: GateClient, acting: int, locale: str, platform: str, raw: str
+) -> tuple[str, str, str] | Reply:
+    """``(platform, native id, found)``. An X handle is converted once by gate with the X
+    API (one billable read); ``found`` then says which account it is, so the member can
+    check it before acting. Afterwards only the id is used."""
+    checked = check_account(locale, platform, raw)
+    if isinstance(checked, Reply):
+        return checked
+    plat, value = checked
+    if plat != "x" or value.isdigit():
+        return plat, value, ""
+    hit = await gate.resolve_x_handle(acting, value)
+    found = t(
+        locale,
+        "badge.resolved",
+        handle=code("@" + str(hit.get("handle") or value.removeprefix("@"))),
+        id=code(hit["external_id"]),
+        name=hit.get("display_name") or "-",
+    )
+    return plat, str(hit["external_id"]), found
+
+
+def _join(*parts: str) -> str:
+    return "\n".join(p for p in parts if p)
 
 
 def _category(locale: str, category: str | None) -> str:
@@ -255,10 +287,11 @@ def _back(locale: str, platform: str, external_id: str) -> tuple[Button, ...]:
 async def badge_show(
     gate: GateClient, acting: int, locale: str, platform: str, external_id: str
 ) -> Reply:
-    checked = check_account(locale, platform, external_id)
-    if isinstance(checked, Reply):
-        return checked
-    return await _account_card(gate, acting, locale, *checked)
+    resolved = await resolve_account(gate, acting, locale, platform, external_id)
+    if isinstance(resolved, Reply):
+        return resolved
+    checked, found = (resolved[0], resolved[1]), resolved[2]
+    return await _account_card(gate, acting, locale, *checked, footer=found)
 
 
 @guarded
@@ -273,14 +306,15 @@ async def badge_grant(
     logo_url: str | None = None,
     note: str | None = None,
 ) -> Reply:
-    checked = check_account(locale, platform, external_id)
-    if isinstance(checked, Reply):
-        return checked
+    resolved = await resolve_account(gate, acting, locale, platform, external_id)
+    if isinstance(resolved, Reply):
+        return resolved
+    checked, found = (resolved[0], resolved[1]), resolved[2]
     done = await gate.grant_badge(
         acting, *checked, category=category, label=label, logo_url=logo_url, note=note
     )
     footer = t(locale, "badge.granted", category=done["category"], version=done["version"])
-    return await _account_card(gate, acting, locale, *checked, footer=footer)
+    return await _account_card(gate, acting, locale, *checked, footer=_join(footer, found))
 
 
 @guarded
@@ -294,12 +328,13 @@ async def badge_end(
     reason: str | None = None,
 ) -> Reply:
     """``revoke``, ``block`` or ``unblock``."""
-    checked = check_account(locale, platform, external_id)
-    if isinstance(checked, Reply):
-        return checked
+    resolved = await resolve_account(gate, acting, locale, platform, external_id)
+    if isinstance(resolved, Reply):
+        return resolved
+    checked, found = (resolved[0], resolved[1]), resolved[2]
     await gate.badge_action(acting, *checked, action, reason=reason)
     return await _account_card(
-        gate, acting, locale, *checked, footer=t(locale, f"badge.done.{action}")
+        gate, acting, locale, *checked, footer=_join(t(locale, f"badge.done.{action}"), found)
     )
 
 
@@ -307,9 +342,10 @@ async def badge_end(
 async def badge_history(
     gate: GateClient, acting: int, locale: str, platform: str, external_id: str
 ) -> Reply:
-    checked = check_account(locale, platform, external_id)
-    if isinstance(checked, Reply):
-        return checked
+    resolved = await resolve_account(gate, acting, locale, platform, external_id)
+    if isinstance(resolved, Reply):
+        return resolved
+    checked = (resolved[0], resolved[1])
     rows = await gate.badge_history(acting, *checked)
     name = f"{checked[0]}:{checked[1]}"
     if not rows:
@@ -422,17 +458,17 @@ async def affiliate(
     title: str | None = None,
     pending: bool = False,
 ) -> Reply:
-    m = check_account(locale, platform, member)
+    m = await resolve_account(gate, acting, locale, platform, member)
     if isinstance(m, Reply):
         return m
-    o = check_account(locale, platform, org)
+    o = await resolve_account(gate, acting, locale, platform, org)
     if isinstance(o, Reply):
         return o
     a = await gate.create_affiliation(
-        acting, member=m, org=o, title=title, validate_now=not pending
+        acting, member=(m[0], m[1]), org=(o[0], o[1]), title=title, validate_now=not pending
     )
     key = "badge.aff.created_pending" if a["status"] == "pending" else "badge.aff.created"
-    return _affiliation_card(locale, a, t(locale, key))
+    return _affiliation_card(locale, a, _join(t(locale, key), m[2], o[2]))
 
 
 @guarded
@@ -773,10 +809,11 @@ async def _keys_card(
 async def org_keys(
     gate: GateClient, acting: int, locale: str, platform: str, external_id: str
 ) -> Reply:
-    checked = check_account(locale, platform, external_id)
-    if isinstance(checked, Reply):
-        return checked
-    return await _keys_card(gate, acting, locale, *checked)
+    resolved = await resolve_account(gate, acting, locale, platform, external_id)
+    if isinstance(resolved, Reply):
+        return resolved
+    checked, found = (resolved[0], resolved[1]), resolved[2]
+    return await _keys_card(gate, acting, locale, *checked, footer=found)
 
 
 @guarded
@@ -789,9 +826,10 @@ async def org_key_create(
     label: str | None = None,
 ) -> Reply:
     """New key: the token is shown once, in this private card only."""
-    checked = check_account(locale, platform, external_id)
-    if isinstance(checked, Reply):
-        return checked
+    resolved = await resolve_account(gate, acting, locale, platform, external_id)
+    if isinstance(resolved, Reply):
+        return resolved
+    checked = (resolved[0], resolved[1])
     key = await gate.create_org_key(acting, *checked, label=label)
     return success(
         t(locale, "badge.keys.created.title"),
@@ -807,9 +845,10 @@ async def org_key_create(
 async def org_key_revoke(
     gate: GateClient, acting: int, locale: str, platform: str, external_id: str, key_ref: str
 ) -> Reply:
-    checked = check_account(locale, platform, external_id)
-    if isinstance(checked, Reply):
-        return checked
+    resolved = await resolve_account(gate, acting, locale, platform, external_id)
+    if isinstance(resolved, Reply):
+        return resolved
+    checked = (resolved[0], resolved[1])
     pid = await resolve_ref(gate, acting, "org_key", key_ref)
     await gate.revoke_org_key(acting, pid)
     return await _keys_card(

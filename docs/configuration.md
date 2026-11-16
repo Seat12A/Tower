@@ -233,7 +233,8 @@ Voir [radar.md](radar.md). Le jeton est un secret (`SecretStr`), jamais journali
 
 ## Badges (service hangar `badges`, lookup de gate)
 
-Voir [badges.md](badges.md). Les vérifications X réutilisent `TOWER_X_BEARER_TOKEN`,
+Voir [badges.md](badges.md). Les vérifications X (hangar) et la conversion d'un pseudo X
+en ID (gate : mettre aussi `TOWER_X_BEARER_TOKEN` sur le service gate) réutilisent `TOWER_X_BEARER_TOKEN`,
 `TOWER_X_API_BASE`, `TOWER_X_PRICE_USER_READ_USD` et le budget `provider:x`.
 
 | Variable | Défaut | Description |
