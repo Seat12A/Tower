@@ -25,6 +25,8 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-ATL-013` | Invalid registry entry | 422 | info | non | non |  |
 | `TWR-ATL-014` | Registry entry changed meanwhile (stale version) | 409 | info | non | non | Re-read the entry and resend with its current version. |
 | `TWR-ATL-015` | Wikidata seeding of controlled_by failed | 500 | warning | oui | oui |  |
+| `TWR-ATL-016` | Wikidata refresh of the domain identities failed | 500 | warning | oui | oui | query.wikidata.org unreachable or slow: the job is retried, the existing identities stay in use (stale rows are purged only after 21 days). |
+| `TWR-ATL-017` | Official sites of the claim's subject could not be read from Wikidata | 500 | info | oui | oui | The investigation goes on without the first-party rule for this claim. |
 
 ## AUTH : Authentification et autorisations
 

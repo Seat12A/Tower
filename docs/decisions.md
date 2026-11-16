@@ -400,3 +400,20 @@ Décisions tranchées en session, Jules absent.
 | Décision | Raison |
 |---|---|
 | Le bot accepte l'identifiant court (6 caractères ou plus) partout où il demande un identifiant ; gate le complète (`GET /v1/ids/{kind}/{ref}`, plage sur l'index unique, `TWR-GEN-005` si ambigu) | Demande de Jules : le bot n'affiche que 8 caractères ; une recherche par plage reste rapide quelle que soit la taille des tables |
+
+## Légitimité des sources inconnues (2026-11-16)
+
+Demande de Jules : une source absente du registre (site d'Anthropic pour un fait sur
+Claude, site de maths sérieux) était présentée comme peu fiable. Détails :
+[factcheck/sources.md](factcheck/sources.md).
+
+| Décision | Raison |
+|---|---|
+| Nouveau niveau `unrated` (non évalué) pour tout domaine inconnu, au lieu de `tertiary` ; le registre humain ne connaît pas `unrated` | Inconnu ne veut pas dire peu fiable |
+| Ordre : registre > site officiel du sujet > table d'identité Wikidata > suffixes officiels fermés > `unrated` ; un `avoid` du registre n'est jamais remonté | Le jugement humain garde le dernier mot ; le reste est déterministe et gratuit |
+| Site officiel du sujet résolu par le QID du sujet (P856 du sujet, de son développeur, fabricant, éditeur, opérateur, organisation mère, propriétaire), jamais par une recherche par nom ni par le modèle ; primaire, mais partie prenante pour `record`, `conduct`, `accusation` | Un homonyme ou un modèle pourraient donner un faux domaine (domaine piège) ; règle fermée et symétrique comme `controlled_by` |
+| Table `domain_identities` depuis Wikidata (classes listées), hebdomadaire, lue en flux et interrogée en base par lot ; presse identifiée = `unrated` (statut `press`), pas `secondary` | Wikidata dit qui publie, pas si c'est fiable (des sites de désinformation y figurent) ; RAM : jamais chargée en mémoire |
+| Statut donné par le juge dans sa réponse existante, plafonné à `secondary`, affichage seulement, jamais renvoyé aux modèles suivants | Aucun appel supplémentaire ; le modèle ne peut pas fabriquer la source primaire exigée par la règle d'indépendance |
+| Plateformes d'hébergement et catalogues exclus (identité, suffixes, site du sujet) | Un site officiel hébergé sur Facebook ne rend pas Facebook officiel |
+| ROR, DOAJ, liste `.gov` et collectivités non importés dans ce lot | Wikidata et les suffixes couvrent l'essentiel ; ROR/DOAJ demandent un analyseur JSON en flux |
+| Niveau, statut et origine d'une `sources` recalculés à chaque collecte de l'URL (upsert) | Une source jugée `tertiary` par défaut avant ce lot se corrige d'elle-même |

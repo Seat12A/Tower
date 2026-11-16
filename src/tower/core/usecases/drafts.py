@@ -22,6 +22,7 @@ from tower.core.domain.errors import Conflict, InvalidInput, NotFound
 from tower.core.domain.factcheck.checks import NOTE_MAX_CHARS, note_length
 from tower.core.domain.factcheck.expiry import parse_ttl_overrides, verdict_expiry
 from tower.core.domain.factcheck.reuse import ReuseContext, inheritable_note
+from tower.core.domain.factcheck.standing import Standing, effective_tier
 from tower.core.domain.factcheck.urls import content_url, parse_content_url
 from tower.core.domain.factcheck.values import (
     ClaimGroupState,
@@ -260,12 +261,7 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
             found = passages.get(int(c["passage_id"])) if c.get("passage_id") is not None else None
             passage, source = found if found is not None else (None, None)
             src: dict[str, Any] | None = (
-                {
-                    "url": source.canonical_url,
-                    "publisher": source.publisher,
-                    "title": source.title,
-                    "tier": source.tier,
-                }
+                _source_view(source, passage.standing if passage is not None else None)
                 if source is not None
                 else None
             )
@@ -953,3 +949,17 @@ async def _public_note(
                 links=list(note.links or []),
             )
     return None
+
+
+def _source_view(source: Source, passage_standing: str | None) -> dict[str, Any]:
+    """Cited source as shown to reviewers: tier after the first-party rule and the judge's
+    capped standing (domain/factcheck/standing.py), who publishes it and why."""
+    first_party = passage_standing == Standing.FIRST_PARTY
+    return {
+        "url": source.canonical_url,
+        "publisher": source.publisher,
+        "title": source.title,
+        "tier": effective_tier(source.tier, passage_standing),
+        "standing": passage_standing if first_party else (source.standing or passage_standing),
+        "tier_basis": "first_party" if first_party else source.tier_basis,
+    }

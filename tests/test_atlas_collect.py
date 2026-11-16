@@ -200,8 +200,8 @@ def test_tier_of_suffix_most_specific_wins() -> None:
     assert a.tier_of("https://insee.fr")[0] == "primary"
     assert a.tier_of("https://legifrance.gouv.fr/a") == ("primary", "legifrance.gouv.fr")
     assert a.tier_of("eur-lex.europa.eu")[0] == "primary"
-    assert a.tier_of("https://evil-gouv.fr/")[0] == "tertiary"
-    assert a.tier_of("https://example.org") == ("tertiary", None)
+    assert a.tier_of("https://evil-gouv.fr/")[0] == "unrated"  # not a gouv.fr subdomain
+    assert a.tier_of("https://example.org") == ("unrated", None)  # unknown is not unreliable
     assert a.tier_of("https://x.fakenews.example/a")[0] == "avoid"
     custom = atlas(
         registry={

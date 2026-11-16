@@ -14,6 +14,7 @@ from tower.core.domain.factcheck.confidence import Coefficients, Thresholds
 
 if TYPE_CHECKING:
     from tower.core.adapters.knowledge.atlas import Atlas
+    from tower.core.adapters.knowledge.wikidata_sites import SubjectSitesFetch
     from tower.core.config import Settings
     from tower.core.db.database import Database
     from tower.core.llm.embeddings import EmbeddingService
@@ -27,6 +28,7 @@ __all__ = [
     "get_embedder",
     "get_llm",
     "get_platform_client",
+    "get_subject_sites",
     "loaded_terms",
     "set_override",
 ]
@@ -36,8 +38,8 @@ _overrides: dict[str, Any] = {}
 
 
 def set_override(name: str, value: Any) -> None:
-    """Replace ``llm``, ``embedder``, ``atlas`` or ``platform:<name>`` (tests); ``None``
-    removes it."""
+    """Replace ``llm``, ``embedder``, ``atlas``, ``subject_sites`` or ``platform:<name>``
+    (tests); ``None`` removes it."""
     if value is None:
         _overrides.pop(name, None)
     else:
@@ -124,6 +126,15 @@ async def get_atlas(settings: Settings, db: Database) -> Atlas:
     from tower.core.adapters.knowledge.factory import build_atlas
 
     return await build_atlas(settings, db)
+
+
+def get_subject_sites(settings: Settings, db: Database) -> SubjectSitesFetch:
+    """Resolver of the official sites of a claim's subject (Wikidata, cached)."""
+    if "subject_sites" in _overrides:
+        return _overrides["subject_sites"]  # type: ignore[no-any-return]
+    from tower.core.adapters.knowledge.factory import build_subject_sites
+
+    return build_subject_sites(settings, db)
 
 
 def get_platform_client(settings: Settings, platform: str) -> PlatformClient:

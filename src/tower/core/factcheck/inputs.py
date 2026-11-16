@@ -131,6 +131,8 @@ class SourceView:
     tier: str
     title: str | None
     published_at: datetime | None
+    standing: str | None = None
+    """Who publishes it (``official``, ``press``, ``first_party``…); ``None`` = unknown."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +152,7 @@ def _passage(p: PassageView, *, with_url: bool = False) -> dict[str, Any]:
         "publisher": p.source.publisher,
         "domain": p.source.domain,
         "tier": p.source.tier,
+        "standing": p.source.standing,
         "title": p.source.title,
         "published_at": _iso(p.source.published_at),
     }

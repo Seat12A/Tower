@@ -62,6 +62,11 @@ from tower.core.domain.factcheck.passages import (
     select_passages,
 )
 from tower.core.domain.factcheck.profiles import Profile
+from tower.core.domain.factcheck.standing import (
+    Standing,
+    effective_tier,
+    first_party_is_stakeholder,
+)
 from tower.core.domain.factcheck.values import (
     CONTEXT_REGIME,
     UNVERIFIABLE_CLAIM_TYPES,
@@ -127,6 +132,7 @@ __all__ = [
     "confidence_of",
     "decide_route",
     "judge_views",
+    "judged_standings",
     "passage_views",
     "run_in_memory",
     "synthetic_judgement",
@@ -491,6 +497,23 @@ class PassageData:
     db_id: int | None = None
     document: AtlasDocument | None = None
     """Set on freshly collected passages (the job persists the source from it)."""
+    standing: str | None = None
+    """Passage standing: ``first_party`` or the judge's standing (``evidence_passages``)."""
+    source_standing: str | None = None
+    """Domain-level standing of the source (``sources.standing``)."""
+
+    @property
+    def first_party(self) -> bool:
+        return self.standing == Standing.FIRST_PARTY
+
+    @property
+    def effective_tier(self) -> str:
+        """Tier after the first-party rule and the judge's (capped) standing."""
+        return effective_tier(self.tier, self.standing)
+
+    @property
+    def shown_standing(self) -> str | None:
+        return self.standing if self.first_party else (self.source_standing or self.standing)
 
 
 def passage_views(passages: Sequence[PassageData]) -> dict[str, PassageView]:
@@ -507,9 +530,10 @@ def passage_views(passages: Sequence[PassageData]) -> dict[str, PassageView]:
                 url=p.source_url,
                 publisher=p.publisher,
                 domain=p.domain,
-                tier=p.tier,
+                tier=effective_tier(p.tier, Standing.FIRST_PARTY.value if p.first_party else None),
                 title=p.title,
                 published_at=p.published_at,
+                standing=p.standing if p.first_party else p.source_standing,
             )
             source_ids[p.source_url] = source
         views[p.label] = PassageView(
@@ -644,6 +668,7 @@ def select_new_passages(
                 source_url=doc.canonical_url,
                 domain=doc.domain,
                 tier=tier,
+                source_standing=doc.standing,
                 publisher=publisher,
                 title=doc.title,
                 published_at=doc.published_at,
@@ -765,6 +790,19 @@ class Assessment:
         return [c for c in self.citations if not c.valid]
 
 
+def judged_standings(judge: JudgeOutput, passages: Sequence[PassageData]) -> dict[str, str]:
+    """Label → standing given by the judge, only for passages whose source has no known
+    standing and which are not first-party (display; capped by ``effective_tier``)."""
+    by_label = {p.label: p for p in passages}
+    out: dict[str, str] = {}
+    for o in judge.origins:
+        p = by_label.get(o.passage_id)
+        if o.standing is None or p is None or p.first_party or p.source_standing:
+            continue
+        out[o.passage_id] = o.standing.value
+    return out
+
+
 def assess_judgement(
     judge: JudgeOutput,
     passages: Sequence[PassageData],
@@ -783,7 +821,11 @@ def assess_judgement(
     )
 
     def stakeholder(p: PassageData) -> bool:
-        if claim is None or publishers is None:
+        if claim is None:
+            return False
+        if p.first_party and first_party_is_stakeholder(claim.claim_type):
+            return True
+        if publishers is None:
             return False
         return is_stakeholder(claim.claim_type, parties, publishers(p.source_url))
 
@@ -809,13 +851,17 @@ def assess_judgement(
             )
             position += 1
     origin_of = {o.passage_id: o.origin for o in judge.origins}
+    judged = judged_standings(judge, passages)
     valid_labels = _dedupe(c.label for c in citations if c.valid)
     refs = [
         SourceRef(
             passage_id=label,
             origin=origin_of.get(label),
             domain=by_label[label].domain,
-            tier=by_label[label].tier,
+            tier=effective_tier(
+                by_label[label].tier,
+                by_label[label].standing if by_label[label].first_party else judged.get(label),
+            ),
             simhash=by_label[label].simhash,
             stakeholder=stakeholder(by_label[label]),
         )
@@ -939,6 +985,8 @@ class DraftOutcome:
     origins: dict[str, str]
     """Passage label → origin text, for every passage the judge listed."""
     assessment: Assessment
+    standings: dict[str, str] = field(default_factory=dict)
+    """Passage label → judge's standing of an unrated source (see ``judged_standings``)."""
     versions: dict[str, dict[str, Any]] = field(default_factory=lambda: {"prompt": {}, "route": {}})
     cost_usd_micros: int = 0
     refused: list[str] = field(default_factory=list)
@@ -1204,6 +1252,7 @@ async def compose_draft(
         passage_translations=translations,
         origins=origins,
         assessment=assessment,
+        standings=judged_standings(judge, passages),
         versions=vers,
         cost_usd_micros=spent,
         refused=refused,

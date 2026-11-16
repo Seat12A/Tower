@@ -72,7 +72,7 @@ déterministe d'E3 soit une requête SQL indexable.
 | Table | Contenu |
 |---|---|
 | `investigations` | Groupe, niveau, version de profil, étape courante (`framing`, `collecting`, `judging`, `drafting`, `assembled`, `failed`), coût cumulé, cadrage (JSON) |
-| `sources` | URL canonique, domaine, niveau, titre, date de publication, empreinte SHA-256 de la page, licence, date de récupération |
+| `sources` | URL canonique, domaine, niveau (dont `unrated`), statut et origine du niveau ([sources.md](sources.md)), titre, date de publication, empreinte SHA-256 de la page, licence, date de récupération |
 | `evidence_passages` | Source, texte du passage dans sa langue (`lang`), traduction française pour le relecteur (`translation_fr`), position, SimHash, embedding (si calculé), conservé (`bool`) : seuls les passages cités sont conservés au-delà de l'enquête |
 | `verdicts` | Groupe, issue de véracité, besoin de contexte, types de contexte, confiance, date d'expiration, versions (profil, routes, prompts), statut (`draft`, `active`, `superseded`, `expired`) ; un seul actif par groupe (index partiel unique) |
 | `citations` | Verdict ↔ passage, citation exacte, assertion appuyée |

@@ -385,6 +385,23 @@ def case_post(case: dict[str, Any]) -> Post:
 # --- thread sections -------------------------------------------------------------------
 
 
+_STANDINGS_SHOWN = frozenset(
+    {
+        "official",
+        "academic",
+        "journal",
+        "press",
+        "fact_checker",
+        "reference",
+        "organization",
+        "user_generated",
+        "commercial",
+        "first_party",
+    }
+)
+"""Source standings labelled in the evidence list (``unclear`` and unknown are not)."""
+
+
 def _sources(view: dict[str, Any]) -> dict[str, tuple[int, str]]:
     """Cited sources, numbered once in order of first citation: ``url -> (n, name)``."""
     out: dict[str, tuple[int, str]] = {}
@@ -393,7 +410,11 @@ def _sources(view: dict[str, Any]) -> dict[str, tuple[int, str]]:
             src = cite.get("source") or {}
             url = str(src.get("url") or "")
             if cite.get("valid", True) and url and url not in out:
-                out[url] = (len(out) + 1, str(src.get("publisher") or src.get("title") or url))
+                name = str(src.get("publisher") or src.get("title") or url)
+                standing = src.get("standing")
+                if standing in _STANDINGS_SHOWN:
+                    name = f"{fc._clip(name, 80)} · {_t(f'forum.standing.{standing}')}"
+                out[url] = (len(out) + 1, name)
     return out
 
 
@@ -426,7 +447,7 @@ def _evidence(view: dict[str, Any]) -> str | None:
         lines.append("")
         lines.append(_t("forum.evidence.sources"))
         lines += [
-            _t("forum.evidence.source", n=n, name=fc._clip(name, 80), url=url)
+            _t("forum.evidence.source", n=n, name=fc._clip(name, 120), url=url)
             for url, (n, name) in sources.items()
         ]
     return "\n".join(lines)
