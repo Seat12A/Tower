@@ -16,6 +16,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from tower.core.domain import error_codes as ec
+from tower.core.domain.factcheck.values import ClaimType, ContextNeed, Veracity
 from tower.core.errors import capture
 from tower.core.logging import get_logger
 from tower.intercom.gate_client import GateClient, GateError
@@ -1104,6 +1105,69 @@ async def band_validate(gate: GateClient, acting: int, locale: str, verdict_id: 
             ),
         ),
     )
+
+
+MANUAL_VERACITIES = tuple(v.value for v in Veracity)
+MANUAL_CLAIM_TYPES = tuple(v.value for v in ClaimType)
+MANUAL_CONTEXT_NEEDS = tuple(v.value for v in ContextNeed)
+
+
+def _split_list(raw: str | None, *, lines: bool = False) -> list[str]:
+    if not raw:
+        return []
+    parts = raw.splitlines() if lines else re.split(r"[,\s]+", raw)
+    return [p.strip() for p in parts if p.strip()]
+
+
+@guarded
+async def manual_note(
+    gate: GateClient,
+    acting: int,
+    locale: str,
+    *,
+    url: str,
+    claim_type: str,
+    veracity: str,
+    claim_text: str,
+    context_need: str | None = None,
+    context_types: str | None = None,
+    note_text: str | None = None,
+    note_lang: str = "fr",
+    links: str | None = None,
+    fact_sheet: str | None = None,
+) -> Reply:
+    """``/note``: a claim, a verdict and a context note written by the team (no model).
+    The draft is reviewed in the cases channel like the others."""
+    body: dict[str, Any] = {
+        "url": url.strip(),
+        "claim_type": claim_type,
+        "veracity": veracity,
+        "claim_text": claim_text,
+        "context_need": context_need or None,
+        "context_types": _split_list(context_types),
+        "note_text": note_text or None,
+        "note_lang": note_lang,
+        "links": _split_list(links, lines=True),
+        "fact_sheet": fact_sheet or None,
+    }
+    result = await gate.submit_manual_note(acting, body)
+    details = [
+        (t(locale, "factcheck.detail.platform"), code(str(result.get("platform", "?")))),
+        (t(locale, "factcheck.detail.post"), code(str(result.get("external_id", "?")))),
+        (t(locale, "draft.detail.verdict"), code(veracity_label(locale, veracity))),
+    ]
+    if result.get("draft_id"):
+        details.append((t(locale, "note.detail.draft"), code(str(result["draft_id"])[:8])))
+    if result.get("duplicate"):
+        return card(
+            t(locale, "note.duplicate.title"),
+            t(locale, "note.duplicate"),
+            icon=emojis.INFO,
+            accent="primary",
+            details=tuple(details),
+        )
+    key = "note.drafted" if result.get("status") == "drafted" else "note.queued"
+    return success(t(locale, f"{key}.title"), t(locale, key), details=tuple(details))
 
 
 @guarded

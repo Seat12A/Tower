@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import asdict
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -123,6 +123,37 @@ class FactcheckRequestOut(BaseModel):
     platform: str
     external_id: str
     accepted: bool
+    duplicate: bool
+
+
+class ManualNoteIn(BaseModel):
+    """A claim, a verdict and a context note written by the team (no model).
+    Give a content URL, or a platform and an external id."""
+
+    model_config = ConfigDict(extra="forbid")
+    url: str | None = Field(default=None, max_length=2048)
+    platform: str | None = Field(default=None, max_length=32)
+    external_id: str | None = Field(default=None, max_length=256)
+    claim_text: str = Field(max_length=1000)
+    """In French, 300 characters at most."""
+    claim_type: str = Field(max_length=40)
+    veracity: str = Field(max_length=40)
+    context_need: str | None = Field(default=None, max_length=40)
+    context_types: list[Annotated[str, Field(max_length=40)]] = Field(
+        default_factory=list, max_length=15
+    )
+    note_text: str | None = Field(default=None, max_length=4000)
+    note_lang: str = Field(default="fr", max_length=8)
+    links: list[Annotated[str, Field(max_length=2048)]] = Field(default_factory=list, max_length=20)
+    fact_sheet: str | None = Field(default=None, max_length=8000)
+
+
+class ManualNoteOut(BaseModel):
+    platform: str
+    external_id: str
+    status: Literal["drafted", "queued"]
+    """``drafted``: the draft is open (``draft_id``); ``queued``: the post is read first."""
+    draft_id: str | None
     duplicate: bool
 
 

@@ -16,11 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tower.core.budget import BudgetRefused
 from tower.core.config import get_settings
 from tower.core.domain import error_codes as ec
+from tower.core.domain.errors import DomainError
 from tower.core.domain.factcheck.fidelity import (
     check_claim_fidelity,
     check_omission,
     extract_numbers,
 )
+from tower.core.domain.factcheck.manual import validate_manual_note
 from tower.core.domain.factcheck.values import (
     AbsenceReason,
     ExtractionStatus,
@@ -70,6 +72,7 @@ from tower.core.ports.platforms import (
 from tower.core.services.base import JobContext
 from tower.core.usecases import assembly as assembly_uc
 from tower.core.usecases import claims as claims_uc
+from tower.core.usecases import manual_notes as manual_uc
 from tower.core.usecases import narratives as narratives_uc
 from tower.core.usecases.ingestion import ingest_items
 from tower.services.factcheck import assembly as asm
@@ -454,34 +457,9 @@ async def request(ctx: JobContext) -> None:
     except KeyError as exc:
         raise PermanentError("bad request payload") from exc
     requested_by = str(payload.get("requested_by") or names.FACTCHECK_ACTOR)
-    try:
-        item = await asm.read_item(
-            ctx.db,
-            ctx.settings,
-            platform,
-            external_id,
-            ref=f"factcheck:request:{platform}:{external_id}",
-        )
-    except PlatformNotConfigured as exc:
-        capture(ec.RAD_NOT_CONFIGURED, exc, platform=platform)
-        raise PermanentError("platform not configured") from exc
-    except BudgetRefused as exc:
-        raise RetryLater(_retry_delay(exc.retry_at), "platform budget exhausted") from exc
-    except PlatformRateLimited as exc:
-        raise RetryLater(max(_MIN_RETRY_S, exc.retry_after), "platform rate limited") from exc
-    except PlatformUnavailable as exc:
-        raise RetryLater(_MIN_RETRY_S, "platform unavailable") from exc
-    except (PlatformError, UnsupportedOperation) as exc:
-        capture(ec.FCK_PLATFORM_UNAVAILABLE, exc, platform=platform)
-        raise
-    if item is None:
-        capture(
-            ec.FCK_CONTENT_NOT_FOUND,
-            message="Requested post not found",
-            platform=platform,
-            external_id=external_id,
-        )
-        raise PermanentError("content not found on the platform")
+    item = await _read_for(
+        ctx, platform, external_id, f"factcheck:request:{platform}:{external_id}"
+    )
 
     async with ctx.db.transaction() as session:
         result = await ingest_items(
@@ -512,6 +490,85 @@ async def request(ctx: JobContext) -> None:
             dedupe_key=names.extract_key(content_id, "N4"),
         )
     log.info("factcheck.requested", content=content_id, platform=platform)
+
+
+async def _read_for(ctx: JobContext, platform: str, external_id: str, ref: str) -> PlatformItem:
+    """One platform read (no model): retry on budget, rate limit or outage; permanent
+    when the platform is not configured or the post does not exist."""
+    try:
+        item = await asm.read_item(ctx.db, ctx.settings, platform, external_id, ref=ref)
+    except PlatformNotConfigured as exc:
+        capture(ec.RAD_NOT_CONFIGURED, exc, platform=platform)
+        raise PermanentError("platform not configured") from exc
+    except BudgetRefused as exc:
+        raise RetryLater(_retry_delay(exc.retry_at), "platform budget exhausted") from exc
+    except PlatformRateLimited as exc:
+        raise RetryLater(max(_MIN_RETRY_S, exc.retry_after), "platform rate limited") from exc
+    except PlatformUnavailable as exc:
+        raise RetryLater(_MIN_RETRY_S, "platform unavailable") from exc
+    except (PlatformError, UnsupportedOperation) as exc:
+        capture(ec.FCK_PLATFORM_UNAVAILABLE, exc, platform=platform)
+        raise
+    if item is None:
+        capture(
+            ec.FCK_CONTENT_NOT_FOUND,
+            message="Requested post not found",
+            platform=platform,
+            external_id=external_id,
+        )
+        raise PermanentError("content not found on the platform")
+    return item
+
+
+async def _content_by_ref(
+    session: AsyncSession, platform: str, external_id: str
+) -> ContentItem | None:
+    content: ContentItem | None = await session.scalar(
+        select(ContentItem).where(
+            ContentItem.platform == platform, ContentItem.external_id == external_id
+        )
+    )
+    return content
+
+
+async def manual(ctx: JobContext) -> None:
+    """``factcheck.manual``: a manual note on a post not yet in the database. Reads the
+    post (no model), ingests it as ``manual`` and opens the draft in one transaction."""
+    payload = ctx.job.payload
+    try:
+        platform = str(payload["platform"])
+        external_id = str(payload["external_id"])
+        author = str(payload["author"])
+        key = str(payload["key"])
+        note = validate_manual_note(**payload["note"])
+    except (KeyError, TypeError, DomainError) as exc:
+        raise PermanentError("bad manual note payload") from exc
+    async with ctx.db.transaction() as session:
+        known = await _content_by_ref(session, platform, external_id)
+    item = None
+    if known is None:
+        item = await _read_for(ctx, platform, external_id, f"factcheck:manual:{key}")
+    async with ctx.db.transaction() as session:
+        if item is not None:
+            result = await ingest_items(
+                session,
+                _actor(),
+                [_to_item_input(item)],
+                source="manual",
+                filter_version=None,
+                installation_token=None,
+                max_items=1,
+                daily_quota=ctx.settings.ingest_daily_quota,
+            )
+            if result.accepted == 0:
+                raise PermanentError("the post was rejected by ingestion")
+        content = await _content_by_ref(session, platform, external_id)
+        if content is None:  # pragma: no cover (just upserted)
+            raise PermanentError("content missing after ingestion")
+        verdict = await manual_uc.create_manual_draft(
+            session, _actor(), content=content, note=note, author=author, key=key
+        )
+    log.info("factcheck.manual_drafted", content=content.id, draft=str(verdict.public_id))
 
 
 # ------------------------------------------------------------------- E10: assembly

@@ -206,6 +206,90 @@ def register(tree: Any, ctx: Context) -> None:
     async def fc_request(interaction: discord.Interaction, url: str) -> None:
         await run_handler(interaction, lambda loc, uid: fc.request(gate, uid, loc, url))
 
+    class NoteModal(BaseModal):
+        """Free texts of ``/note``; the choices come from the slash command options."""
+
+        def __init__(self, locale: str, options: dict[str, str | None]) -> None:
+            super().__init__(title=t(locale, "note.modal.title")[:45])
+            self.options = options
+            self.claim, label = text_input(
+                locale, "note.modal.claim", paragraph=True, max_length=300
+            )
+            self.add_item(label)
+            self.note, label = text_input(
+                locale, "note.modal.note", paragraph=True, required=False, max_length=1000
+            )
+            self.add_item(label)
+            self.links, label = text_input(
+                locale, "note.modal.links", paragraph=True, required=False, max_length=2000
+            )
+            self.add_item(label)
+            self.sheet, label = text_input(
+                locale, "note.modal.sheet", paragraph=True, required=False, max_length=4000
+            )
+            self.add_item(label)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            o = self.options
+            claim, note = self.claim.value, self.note.value
+            links, sheet = self.links.value, self.sheet.value
+            await run_handler(
+                interaction,
+                lambda loc, uid: fc.manual_note(
+                    gate,
+                    uid,
+                    loc,
+                    url=o["url"] or "",
+                    claim_type=o["claim_type"] or "",
+                    veracity=o["veracity"] or "",
+                    claim_text=claim,
+                    context_need=o["context_need"],
+                    context_types=o["context_types"],
+                    note_text=note,
+                    note_lang=o["note_lang"] or "fr",
+                    links=links,
+                    fact_sheet=sheet,
+                ),
+            )
+
+    def _choices(values: tuple[str, ...]) -> list[app_commands.Choice[str]]:
+        return [app_commands.Choice(name=v, value=v) for v in values]
+
+    @app_commands.command(name="note", description="Write a fact-check note by hand (no AI)")
+    @app_commands.guild_only()
+    @app_commands.describe(
+        url="https://x.com/<account>/status/<id>",
+        veracity="Outcome of the claim",
+        claim_type="Kind of claim",
+        context_need="Default: from the outcome",
+        context_types="Context types, comma separated (e.g. cherry_picking,outdated)",
+        note_lang="Language of the note",
+    )
+    @app_commands.choices(
+        veracity=_choices(fc.MANUAL_VERACITIES),
+        claim_type=_choices(fc.MANUAL_CLAIM_TYPES),
+        context_need=_choices(fc.MANUAL_CONTEXT_NEEDS),
+        note_lang=_choices(("fr", "en")),
+    )
+    async def note_cmd(
+        interaction: discord.Interaction,
+        url: str,
+        veracity: app_commands.Choice[str],
+        claim_type: app_commands.Choice[str],
+        context_need: app_commands.Choice[str] | None = None,
+        context_types: str | None = None,
+        note_lang: app_commands.Choice[str] | None = None,
+    ) -> None:
+        options: dict[str, str | None] = {
+            "url": url,
+            "veracity": veracity.value,
+            "claim_type": claim_type.value,
+            "context_need": context_need.value if context_need else None,
+            "context_types": context_types,
+            "note_lang": note_lang.value if note_lang else "fr",
+        }
+        await interaction.response.send_modal(NoteModal(interaction_locale(interaction), options))
+
     grp = app_commands.Group(name="group", description="Claim groups", guild_only=True)
 
     @grp.command(name="show", description="Show a claim group")
@@ -269,6 +353,6 @@ def register(tree: Any, ctx: Context) -> None:
             interaction, lambda loc, uid: fc.band_validate(gate, uid, loc, verdict_id)
         )
 
-    commands: tuple[Any, ...] = (fc_request, grp, fct)
+    commands: tuple[Any, ...] = (fc_request, note_cmd, grp, fct)
     for command in commands:
         tree.add_command(command)

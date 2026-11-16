@@ -235,6 +235,13 @@ class GateClient:
         return usage
 
     # --- fact-check drafts (acting=None: the service itself, e.g. notifier) -------------
+    async def submit_manual_note(self, acting: int, body: dict[str, Any]) -> dict[str, Any]:
+        """``POST /v1/factcheck/manual``: a draft written by the team (no model)."""
+        result: dict[str, Any] = await self._request(
+            "POST", "/v1/factcheck/manual", acting, body=body
+        )
+        return result
+
     async def request_factcheck(
         self,
         acting: int | None,

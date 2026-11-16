@@ -13,6 +13,28 @@ MESSAGES: dict[str, str] = {
     "factcheck.duplicate": "Un fact-check de ce post est déjà en file d'attente.",
     "factcheck.detail.platform": "Plateforme",
     "factcheck.detail.post": "Post",
+    # --- /note (manual note, no model) ----------------------------------------------------
+    "note.modal.title": "Note manuelle",
+    "note.modal.claim": "Affirmation vérifiée",
+    "note.modal.claim.hint": "En français, 300 caractères au plus.",
+    "note.modal.note": "Note de contexte",
+    "note.modal.note.hint": "280 caractères hors liens. En général obligatoire.",
+    "note.modal.links": "Sources",
+    "note.modal.links.hint": "Une URL par ligne (10 au plus).",
+    "note.modal.sheet": "Fiche détaillée",
+    "note.modal.sheet.hint": "Facultative, 4000 caractères au plus.",
+    "note.drafted.title": "Note enregistrée",
+    "note.drafted": (
+        "Le brouillon est dans le salon des cases : un éditeur le valide pour le publier."
+    ),
+    "note.queued.title": "Note enregistrée",
+    "note.queued": (
+        "Le post est d'abord lu sur la plateforme, puis le brouillon apparaîtra dans le "
+        "salon des cases."
+    ),
+    "note.duplicate.title": "Note déjà enregistrée",
+    "note.duplicate": "Vous avez déjà envoyé exactement cette note pour ce post.",
+    "note.detail.draft": "Brouillon",
     # --- draft cards -------------------------------------------------------------------
     "draft.title.part": "{title} ({index}/{total})",
     "draft.depth.reinforced": "renforcée",

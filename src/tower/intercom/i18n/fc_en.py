@@ -13,6 +13,25 @@ MESSAGES: dict[str, str] = {
     "factcheck.duplicate": "A fact-check of this post is already queued.",
     "factcheck.detail.platform": "Platform",
     "factcheck.detail.post": "Post",
+    # --- /note (manual note, no model) ----------------------------------------------------
+    "note.modal.title": "Manual note",
+    "note.modal.claim": "Checked claim",
+    "note.modal.claim.hint": "In French, 300 characters at most.",
+    "note.modal.note": "Context note",
+    "note.modal.note.hint": "280 characters, links excluded. Usually required.",
+    "note.modal.links": "Sources",
+    "note.modal.links.hint": "One URL per line (10 at most).",
+    "note.modal.sheet": "Detailed fact sheet",
+    "note.modal.sheet.hint": "Optional, 4000 characters at most.",
+    "note.drafted.title": "Note saved",
+    "note.drafted": "The draft is in the cases channel: an editor validates it to publish it.",
+    "note.queued.title": "Note saved",
+    "note.queued": (
+        "The post is read from the platform first, then the draft will appear in the cases channel."
+    ),
+    "note.duplicate.title": "Note already saved",
+    "note.duplicate": "You already sent exactly this note for this post.",
+    "note.detail.draft": "Draft",
     # --- draft cards -------------------------------------------------------------------
     "draft.title.part": "{title} ({index}/{total})",
     "draft.depth.reinforced": "reinforced",

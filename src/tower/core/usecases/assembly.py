@@ -29,7 +29,7 @@ from tower.core.models.factcheck import (
 from tower.core.models.ingestion import ContentItem
 from tower.core.usecases import cases as case_uc
 
-__all__ = ["N4_PRIORITY", "open_draft", "store_machine_translations"]
+__all__ = ["N4_PRIORITY", "open_draft", "open_draft_for_content", "store_machine_translations"]
 
 N4_PRIORITY = 50
 _TITLE_MAX = 200
@@ -41,6 +41,18 @@ async def open_draft(
     """Open the ``fact_check`` case of a draft verdict, link it to the claim group and
     the content, mark the verdict as drafted (it now counts in the daily quota) and publish
     ``draft.ready``. The caller holds the quota lock when the quota matters."""
+    content = (
+        await session.get(ContentItem, investigation.content_id)
+        if investigation.content_id is not None
+        else None
+    )
+    return await open_draft_for_content(session, actor, verdict, content)
+
+
+async def open_draft_for_content(
+    session: AsyncSession, actor: Actor, verdict: Verdict, content: ContentItem | None
+) -> Case:
+    """``open_draft`` without an investigation (manual notes)."""
     actor.require(Permission.CASE_CREATE)
     if verdict.drafted_at is not None:
         raise Conflict("The draft already has a case", draft_id=str(verdict.public_id))
@@ -50,11 +62,6 @@ async def open_draft(
     claim = await session.get(Claim, group.representative_claim_id)
     if claim is None:  # pragma: no cover (foreign key)
         raise Conflict("Representative claim missing", group_id=group.id)
-    content = (
-        await session.get(ContentItem, investigation.content_id)
-        if investigation.content_id is not None
-        else None
-    )
     x_post_id = (
         int(content.external_id)
         if content is not None and content.platform == Platform.X.value

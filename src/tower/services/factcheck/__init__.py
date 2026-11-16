@@ -14,6 +14,7 @@ from tower.services.factcheck.jobs import (
     QUEUE,
     assemble,
     extract,
+    manual,
     on_content_ingested,
     on_investigation_completed,
     on_verdict_published,
@@ -39,6 +40,7 @@ service = Service(
     jobs=(
         JobSpec(kind=names.JOB_EXTRACT, handler=extract, queue=QUEUE, timeout=120),
         JobSpec(kind=names.JOB_REQUEST, handler=request, queue=QUEUE, timeout=60),
+        JobSpec(kind=names.JOB_MANUAL, handler=manual, queue=QUEUE, timeout=60),
         JobSpec(kind=names.JOB_ASSEMBLE, handler=assemble, queue=QUEUE, timeout=90),
         JobSpec(kind=names.JOB_TRANSLATE, handler=translate, queue=QUEUE, timeout=120),
         JobSpec(kind=names.JOB_EMBED_BATCH, handler=embed_batch, queue=names.FC_BULK, timeout=240),
