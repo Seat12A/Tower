@@ -65,6 +65,9 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-BDG-021` | Wikidata import failed (SPARQL endpoint error or unexpected payload) | 500 | warning | oui | oui | The job retries with backoff; check query.wikidata.org status |
 | `TWR-BDG-022` | X government verification check failed | 500 | warning | oui | oui |  |
 | `TWR-BDG-023` | Organisation key not found | 404 | info | non | non |  |
+| `TWR-BDG-024` | X budget exhausted: the handle cannot be looked up now | 409 | warning | non | non | Raise the provider:x cap or wait for the next month |
+| `TWR-BDG-025` | No X account with this handle (or suspended, or protected and hidden) | 404 | info | non | non |  |
+| `TWR-BDG-026` | X API not configured on gate or unavailable | 503 | warning | oui | oui | Set TOWER_X_BEARER_TOKEN on the gate service |
 
 ## BOT : BOT
 

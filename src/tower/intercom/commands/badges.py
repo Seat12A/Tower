@@ -422,7 +422,7 @@ def register(tree: Any, ctx: Context) -> None:
     group = app_commands.Group(
         name="badge", description="Seat 12A verification badges", guild_only=True
     )
-    account_help = "Native account id (X numeric id, never a handle)"
+    account_help = "X numeric id, or @handle (converted once to the id with the X API)"
 
     @group.command(name="show", description="Badge, status and affiliations of an account")
     @app_commands.describe(account=account_help, platform="Platform (default: x)")
@@ -502,8 +502,8 @@ def register(tree: Any, ctx: Context) -> None:
 
     @group.command(name="affiliate", description="Affiliate an account to a badged organisation")
     @app_commands.describe(
-        member="Native id of the individual account",
-        org="Native id of the organisation account (organisation, media or institutional)",
+        member="Individual account: X numeric id or @handle",
+        org="Organisation account (badged): X numeric id or @handle",
         title="Role shown (e.g. Journalist)",
         pending="Leave it pending instead of validating it now",
         platform="Platform of both accounts",
@@ -542,7 +542,9 @@ def register(tree: Any, ctx: Context) -> None:
         await run_handler(interaction, lambda loc, uid: bh.report_show(gate, uid, loc, id))
 
     @group.command(name="org-keys", description="Organisation keys of a badged organisation")
-    @app_commands.describe(account="Native id of the organisation account", platform="Platform")
+    @app_commands.describe(
+        account="Organisation account: X numeric id or @handle", platform="Platform"
+    )
     async def b_keys(
         interaction: discord.Interaction, account: str, platform: Platform = "x"
     ) -> None:

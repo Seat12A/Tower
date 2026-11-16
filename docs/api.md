@@ -235,6 +235,7 @@ Règles : [badges.md](badges.md). IDs natifs en **chaînes**, jamais de pseudo.
 | POST | `/v1/badges/requests` | public (`badges:submit`), limité par IP ; `201 {public_id, status}` ; corps `kind`, `account`, `category` ou `org`, `title`, `justification`, `contact`, `evidence_urls` (https, ≤ 10) |
 | POST | `/v1/badges/reports` | public, limité par IP ; `201` ; corps `account`, `reason`, `comment` |
 | POST | `/v1/badges/x-government-hints` | public, limité par IP ; `202 {queued}` ; corps `{"ids": [...]}` (≤ 50 IDs X) |
+| GET | `/v1/badges/resolve/x/{handle}` | `badges:manage` ; ID natif d'un pseudo X lu par l'API officielle (une lecture d'utilisateur facturée sur `provider:x`, sans cache) ; `{platform, external_id, handle, display_name, verified_type}` ; `404 TWR-BDG-025`, `409 TWR-BDG-024` (budget), `503 TWR-BDG-026` (pas de `TOWER_X_BEARER_TOKEN` sur gate) |
 | GET | `/v1/badges?status=active&category=&source=&platform=&limit=&offset=` | `badges:read` |
 | GET | `/v1/badges/accounts/{p}/{id}/badge` | `badges:read` ; ligne complète (tout état, note interne) |
 | PUT | `/v1/badges/accounts/{p}/{id}` | `badges:manage` ; corps `category`, `label`, `logo_url` (https), `note`, `handle`, `version` (verrou optimiste) ; `409 TWR-BDG-004` si bloqué |

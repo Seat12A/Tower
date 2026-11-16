@@ -25,6 +25,13 @@ MESSAGES: dict[str, str] = {
     "error.TWR-AUTH-002": "Le bot n'a pas pu vous identifier. ({code})",
     "error.TWR-AUTH-003": "Le bot n'a pas pu vous identifier. ({code})",
     "error.title.TWR-BDG-001": "Pas de badge",
+    "error.TWR-BDG-024": (
+        "Le budget X est épuisé : donne l'ID numérique au lieu du pseudo. ({code})"
+    ),
+    "error.TWR-BDG-025": "Aucun compte X avec ce pseudo (ou il est suspendu). ({code})",
+    "error.TWR-BDG-026": (
+        "Impossible de chercher un pseudo sur X pour l'instant : donne l'ID numérique. ({code})"
+    ),
     "error.TWR-BDG-001": "Ce compte n'a pas encore de fiche de badge. ({code})",
     "error.TWR-BDG-004": "Ce compte est bloqué : débloque-le d'abord. ({code})",
     "error.TWR-BDG-006": (

@@ -98,8 +98,9 @@ levels:override registry:read registry:write staff:read staff:manage
 permissions:manage_others permissions:manage_self badges:read badges:manage` (les six
 derniers : à ajouter au token existant). Les permissions `badges:read` et
 `badges:manage` apparaissent dans `/permissions` (catégorie « Badges »). Les comptes des
-commandes `/badge` sont des **IDs natifs** (ID numérique X), jamais des pseudos : un
-pseudo X est refusé par une carte calme (`TWR-ING-006`). Règles : [badges.md](badges.md).
+commandes `/badge` sont un ID numérique X ou un `@pseudo` : le pseudo est converti une
+fois en ID par gate avec l'API X (`badges:manage`, une lecture facturée), la carte affiche
+le compte trouvé, puis seul l'ID sert (boutons, historique). Règles : [badges.md](badges.md).
 
 ### Équipe et permissions
 

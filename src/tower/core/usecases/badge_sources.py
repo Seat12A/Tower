@@ -459,3 +459,63 @@ async def apply_x_results(
         ):
             stats["revoked"] += 1
     return stats
+
+
+# --- X handle → native id (team input helper) -------------------------------------------
+
+
+async def resolve_x_handle(
+    db: Any,
+    actor: Actor,
+    client: Any,
+    raw_handle: str,
+    *,
+    ttl_s: int,
+) -> dict[str, Any]:
+    """Native id of an X account from its handle, read with the official X API.
+
+    Team input only (``badges:manage``): the handle is converted once and the account is
+    stored by its id. One billable user read on the ``provider:x`` budget per call (no
+    cache: a handle can change hands). ``client`` is an ``XPlatformClient`` (or a fake).
+    """
+    from tower.core.budget import BudgetRefused, reserve_budget, settle_budget
+    from tower.core.domain import error_codes as ec
+    from tower.core.domain.badges import parse_x_handle
+    from tower.core.domain.errors import Conflict, NotFound
+    from tower.core.errors import capture
+    from tower.core.ports.platforms import PlatformError
+
+    actor.require(Permission.BADGES_MANAGE)
+    handle = parse_x_handle(raw_handle)
+    if client is None:
+        raise Conflict("X API not configured on gate", code=ec.BDG_X_UNAVAILABLE)
+    cost = int(client.cost_per_account_read_usd_micros)
+    now = utcnow()
+    try:
+        holds = await reserve_budget(
+            db, ("provider:x",), cost, ref=f"badges:resolve:{handle.lower()}", now=now, ttl_s=ttl_s
+        )
+    except BudgetRefused:
+        raise Conflict("X budget exhausted", code=ec.BDG_X_BUDGET) from None
+    try:
+        account = await client.get_account(handle)
+    except PlatformError as exc:
+        async with db.transaction() as session:
+            await settle_budget(session, holds, 0, actor=actor.label)
+        capture(ec.BDG_X_UNAVAILABLE, exc, status=exc.status)
+        raise Conflict("X API unavailable", code=ec.BDG_X_UNAVAILABLE) from None
+    async with db.transaction() as session:
+        await settle_budget(session, holds, cost if account else 0, actor=actor.label)
+        if account is not None:
+            await ensure_account(
+                session, AccountRef(Platform.X, account.external_id), handle=account.handle
+            )
+    if account is None:
+        raise NotFound("No X account with this handle", code=ec.BDG_X_NOT_FOUND, handle=handle)
+    return {
+        "platform": "x",
+        "external_id": account.external_id,
+        "handle": account.handle,
+        "display_name": account.display_name,
+        "verified_type": account.verified_type,
+    }

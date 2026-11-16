@@ -68,6 +68,9 @@ def create_app(settings: Settings) -> FastAPI:
             await reporter_task
             await listener.stop()
             await db.dispose()
+            x_lookup = getattr(app.state, "x_lookup", None)
+            if x_lookup is not None and hasattr(x_lookup, "aclose"):
+                await x_lookup.aclose()
             log.info("gate.stopped")
 
     app = FastAPI(

@@ -12,8 +12,9 @@ MESSAGES: dict[str, str] = {
     "badge.granted": "Badge saved: {category} (v{version}).",
     "badge.category.value": "{name} {value} · {color}",
     "badge.bad_id.title": "Native id required",
-    "badge.bad_id.body": (
-        "Give the numeric X id of the account, never its handle: a handle can change hands."
+    "badge.bad_id.body": "Give the numeric X id or the @handle of the account.",
+    "badge.resolved": (
+        "Found with the X API: {handle} → id {id} ({name}). Check it is the right account."
     ),
     "badge.cat.institutional": "Institutional",
     "badge.cat.organization": "Organisation",
