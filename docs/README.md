@@ -22,6 +22,7 @@ modération.
 | [logging.md](logging.md) | Logs structurés et affichage dans Railway |
 | [api.md](api.md) | Référence de l'API HTTP (gate) |
 | [llm.md](llm.md) | Routeur de modèles : routes, cache de contenu, budgets, allocation gratuite, prompts, adaptateurs |
+| [extension-api.md](extension-api.md) | API de l'extension Chromium : ce qu'elle envoie et reçoit, route par route |
 | [ingestion.md](ingestion.md) | Ingestion multi-plateforme : API de l'extension, quotas, vie privée, partitions, copies, liste de suivi |
 | [fact-check.md](fact-check.md) | Fact-check implémenté (lot 3) : flux, services et jobs, enquête, Atlas, confiance, quota, revue, langues, budgets, fournisseur factice, évaluation, réglages |
 | [badges.md](badges.md) | Badges de vérification Seat 12A : catégories, affiliations, clés d'organisation, demandes, signalements, import Wikidata, vérification X, lookup de l'extension |
