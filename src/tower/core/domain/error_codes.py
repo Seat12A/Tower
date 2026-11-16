@@ -866,6 +866,111 @@ STF_BAD_PERMISSION = _define(
     "TWR-STF-007", "Unknown or non-grantable permission", http_status=422, severity=_INFO
 )
 
+# --- BDG: verification badges and affiliations ----------------------------------
+BDG_NOT_FOUND = _define(
+    "TWR-BDG-001", "Badge or account not found", http_status=404, severity=_INFO
+)
+BDG_BAD_CATEGORY = _define("TWR-BDG-002", "Unknown badge category", http_status=422, severity=_INFO)
+BDG_BAD_LOOKUP = _define(
+    "TWR-BDG-003",
+    "Invalid badge lookup (platform, ids or batch size)",
+    http_status=422,
+    severity=_INFO,
+    hint="1 to 100 native ids per lookup, never handles",
+)
+BDG_ACCOUNT_BLOCKED = _define(
+    "TWR-BDG-004",
+    "Account is blocked from badges",
+    http_status=409,
+    severity=_INFO,
+    hint="Unblock the account first",
+)
+BDG_VERSION_CONFLICT = _define(
+    "TWR-BDG-005", "Badge was modified in the meantime", http_status=409, severity=_INFO
+)
+BDG_NOT_AFFILIABLE = _define(
+    "TWR-BDG-006",
+    "Organisation has no active organisation, media or institutional badge",
+    http_status=409,
+    severity=_INFO,
+)
+BDG_AFFILIATION_NOT_FOUND = _define(
+    "TWR-BDG-007", "Affiliation not found", http_status=404, severity=_INFO
+)
+BDG_AFFILIATION_TRANSITION = _define(
+    "TWR-BDG-008",
+    "Affiliation cannot change to this status from its current one",
+    http_status=409,
+    severity=_INFO,
+)
+BDG_AFFILIATION_EXISTS = _define(
+    "TWR-BDG-009", "Affiliation already pending or active", http_status=409, severity=_INFO
+)
+BDG_BAD_TEXT = _define("TWR-BDG-010", "Invalid text or URL field", http_status=422, severity=_INFO)
+BDG_REQUEST_NOT_FOUND = _define(
+    "TWR-BDG-011", "Badge request not found", http_status=404, severity=_INFO
+)
+BDG_REQUEST_DECIDED = _define(
+    "TWR-BDG-012", "Badge request already decided", http_status=409, severity=_INFO
+)
+BDG_REQUEST_DUPLICATE = _define(
+    "TWR-BDG-013",
+    "A pending request already exists for this account",
+    http_status=409,
+    severity=_INFO,
+)
+BDG_REPORT_NOT_FOUND = _define(
+    "TWR-BDG-014", "Badge report not found", http_status=404, severity=_INFO
+)
+BDG_REPORT_HANDLED = _define(
+    "TWR-BDG-015", "Badge report already handled", http_status=409, severity=_INFO
+)
+BDG_ORG_TOKEN_INVALID = _define(
+    "TWR-BDG-016",
+    "Organisation token is invalid or revoked",
+    http_status=401,
+    severity=_INFO,
+)
+BDG_ORG_TOKEN_MIXED = _define(
+    "TWR-BDG-017",
+    "X-Organization-Token cannot be combined with another credential",
+    http_status=401,
+    severity=_INFO,
+)
+BDG_NOT_YOUR_AFFILIATION = _define(
+    "TWR-BDG-018",
+    "Affiliation belongs to another organisation",
+    http_status=403,
+    severity=_INFO,
+)
+BDG_RATE_LIMITED = _define(
+    "TWR-BDG-019", "Too many badge submissions", http_status=429, severity=_INFO
+)
+BDG_SELF_AFFILIATION = _define(
+    "TWR-BDG-020",
+    "An account cannot be affiliated with itself",
+    http_status=422,
+    severity=_INFO,
+)
+BDG_WIKIDATA_FAILED = _define(
+    "TWR-BDG-021",
+    "Wikidata import failed (SPARQL endpoint error or unexpected payload)",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+    hint="The job retries with backoff; check query.wikidata.org status",
+)
+BDG_X_CHECK_FAILED = _define(
+    "TWR-BDG-022",
+    "X government verification check failed",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+)
+BDG_ORG_KEY_NOT_FOUND = _define(
+    "TWR-BDG-023", "Organisation key not found", http_status=404, severity=_INFO
+)
+
 
 def get(code: str) -> ErrorCode:
     return CATALOG[code]

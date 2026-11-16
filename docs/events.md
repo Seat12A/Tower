@@ -86,6 +86,13 @@ identifiant d'événement.
 | `staff.ranked` | cas d'usage `rank` | `discord_id` (chaîne), `display_name`, `reactivated` |
 | `staff.unranked` | cas d'usage `unrank` | `discord_id`, `removed` (permissions perdues) |
 | `staff.permissions_changed` | cas d'usage `set_permissions` (seulement si la liste change) | `discord_id`, `added`, `removed` ; agrégat `staff_member` |
+| `badge.changed` | cas d'usage des badges (attribution, modification, retrait, blocage, déblocage ; manuel ou source automatique) | `action` (`granted`, `updated`, `revoked`, `blocked`, `unblocked`), `badge` (`public_id`, `account` {`platform`, `external_id`}, `status`, `category`, `color`, `label`, `logo_url`, `source`, `wikidata_qid`, `note`, `granted_by`, `ended_by`, `end_reason`, `version`…) ; agrégat `badge` |
+| `badge.affiliation_changed` | cas d'usage des affiliations | `action` (`affiliation_created`, `affiliation_validated`, `affiliation_reconfirmed`, `affiliation_rejected`, `affiliation_revoked`, `affiliation_expired`, `affiliation_primary`) et `affiliation` (membre, organisation, statut, principale, titre, source, validation, expiration) ; ou résumé `org_ended` (`org_badge`, `count`, `reason`) quand une organisation perd son badge ; ou `wikidata_proposed` (`count`) après un lot Wikidata |
+| `badge.request_submitted` | `submit_request` | `request`, `kind`, `account`, `requested_category` (jamais le contact) |
+| `badge.request_decided` | `approve_request`, `reject_request` | `request`, `kind`, `status` |
+| `badge.report_submitted` | `submit_report` | `report`, `account`, `reason` |
+| `badge.report_resolved` | `resolve_report` | `report`, `status` |
+| `badge.import_requested` | `request_wikidata_import` | `scopes` |
 | `extension_filters.published` | `publish_filters` | `version` |
 | `budget.threshold_reached` | registre des budgets (`core/budget.py` : routeur de modèles et radar), au premier franchissement de 50, 80 ou 100 % d'une portée sur la période | `scope`, `period_start`, `threshold_pct`, `spent_usd_micros`, `cap_usd_micros` |
 | `claim.extracted` | cas d'usage `record_extraction` (service `factcheck`, E2), un par contenu | `content_id` (clé interne en chaîne), `content_public_id`, `platform`, `external_id`, `level`, `claim_ids`, `group_ids` |

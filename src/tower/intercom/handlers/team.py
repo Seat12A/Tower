@@ -112,6 +112,7 @@ CATEGORIES: tuple[Category, ...] = (
     ),
     Category("watchlist", emojis.EYE, ("watchlist:read", "watchlist:write")),
     Category("registry", emojis.BOOK, ("registry:read", "registry:write")),
+    Category("badges", emojis.VERIFIED, ("badges:read", "badges:manage")),
     Category("profiles", emojis.SETTINGS, ("profiles:read", "profiles:manage")),
     Category("supervision", emojis.MONITOR_HEART, ("usage:read", "errors:read", "errors:manage")),
     Category(

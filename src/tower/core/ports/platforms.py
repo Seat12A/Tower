@@ -108,6 +108,8 @@ class PublicAccount:
     description: str | None = None
     verified: bool | None = None
     followers: int | None = None
+    verified_type: str | None = None
+    """X ``verified_type`` (``blue``, ``business``, ``government``, ``none``)."""
 
 
 @dataclass(frozen=True, slots=True)

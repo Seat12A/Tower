@@ -87,6 +87,9 @@ railway run --service gate tower staff <discord_id> --roles admin --name "Jules"
 6. **Radar** : sur le service `hangar`, `TOWER_SERVICES=ping,ingest,radar` et
    `TOWER_X_BEARER_TOKEN`. Plafond mensuel : `railway run --service gate tower llm
    budget provider:x 20` (créé à 20 $ par défaut sinon).
+7. **Badges** : ajouter `badges` à `TOWER_SERVICES` du service `hangar`
+   (`ping,ingest,radar,badges`) ; les vérifications X partagent le budget `provider:x`.
+   Voir [badges.md](badges.md).
 
 ## Pendant un déploiement
 

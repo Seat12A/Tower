@@ -87,8 +87,10 @@ cases:review cases:decide cases:publish events:read errors:read errors:manage
 watchlist:read watchlist:write usage:read factcheck:request claim_groups:manage
 reference_facts:write reference_facts:validate profiles:read profiles:manage
 levels:override registry:read registry:write staff:read staff:manage
-permissions:manage_others permissions:manage_self` (les quatre derniers : à ajouter au
-token existant).
+permissions:manage_others permissions:manage_self badges:read badges:manage` (les six
+derniers : à ajouter au token existant). Les permissions `badges:read` et
+`badges:manage` apparaissent dans `/permissions` (catégorie « Badges ») ; le bot n'a pas
+encore de commande de badges : la gestion passe par l'API ([badges.md](badges.md)).
 
 ### Équipe et permissions
 

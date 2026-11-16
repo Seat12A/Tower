@@ -64,6 +64,7 @@ MESSAGES: dict[str, str] = {
     "team.cat.factcheck": "Fact-check",
     "team.cat.watchlist": "Liste de suivi",
     "team.cat.registry": "Registre",
+    "team.cat.badges": "Badges",
     "team.cat.profiles": "Profils",
     "team.cat.supervision": "Supervision",
     "team.cat.team": "Équipe",
@@ -101,6 +102,14 @@ MESSAGES: dict[str, str] = {
     "team.perm.registry:read.desc": "Consulter la fiabilité des sources.",
     "team.perm.registry:write.label": "Modifier le registre",
     "team.perm.registry:write.desc": "Changer les niveaux et les entités de contrôle.",
+    "team.perm.badges:read.label": "Voir les badges",
+    "team.perm.badges:read.desc": (
+        "Consulter les badges, l’historique, les demandes, les signalements et les affiliations."
+    ),
+    "team.perm.badges:manage.label": "Gérer les badges",
+    "team.perm.badges:manage.desc": (
+        "Attribuer, retirer et bloquer des badges, affilier des comptes, trancher les demandes."
+    ),
     "team.perm.profiles:read.label": "Lire les profils",
     "team.perm.profiles:read.desc": "Voir les profils de traitement.",
     "team.perm.profiles:manage.label": "Gérer les profils",

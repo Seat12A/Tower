@@ -61,6 +61,7 @@ MESSAGES: dict[str, str] = {
     "team.cat.factcheck": "Fact-check",
     "team.cat.watchlist": "Watchlist",
     "team.cat.registry": "Registry",
+    "team.cat.badges": "Badges",
     "team.cat.profiles": "Profiles",
     "team.cat.supervision": "Supervision",
     "team.cat.team": "Team",
@@ -98,6 +99,12 @@ MESSAGES: dict[str, str] = {
     "team.perm.registry:read.desc": "Look up source reliability.",
     "team.perm.registry:write.label": "Edit the registry",
     "team.perm.registry:write.desc": "Change tiers and controlling entities.",
+    "team.perm.badges:read.label": "Read badges",
+    "team.perm.badges:read.desc": "See badges, history, requests, reports and affiliations.",
+    "team.perm.badges:manage.label": "Manage badges",
+    "team.perm.badges:manage.desc": (
+        "Grant, revoke and block badges, affiliate accounts, decide requests."
+    ),
     "team.perm.profiles:read.label": "Read profiles",
     "team.perm.profiles:read.desc": "See the processing profiles.",
     "team.perm.profiles:manage.label": "Manage profiles",

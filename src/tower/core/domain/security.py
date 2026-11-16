@@ -42,6 +42,11 @@ class Permission(StrEnum):
     LEVELS_OVERRIDE = "levels:override"
     REGISTRY_READ = "registry:read"  # reliability and country registries (lot 6)
     REGISTRY_WRITE = "registry:write"  # edit them (editors)
+    BADGES_READ_PUBLIC = "badges:read_public"  # badge lookup (extension, website)
+    BADGES_SUBMIT = "badges:submit"  # submit a badge request or a report
+    BADGES_READ = "badges:read"  # history, requests, reports, affiliations (team)
+    BADGES_MANAGE = "badges:manage"  # grant, revoke, block, affiliate, decide (team)
+    BADGES_ORG_MANAGE = "badges:org_manage"  # an organisation manages its affiliates
 
 
 class Role(StrEnum):
@@ -55,6 +60,7 @@ class ActorKind(StrEnum):
     SERVICE = "service"  # client authenticated by service token (bot…)
     STAFF = "staff"  # team member, acting via a service (Discord ID)
     INSTALLATION = "installation"  # Chromium extension (anonymous token)
+    ORGANIZATION = "organization"  # badged organisation (organisation key)
     ANONYMOUS = "anonymous"  # public website
 
 
@@ -69,6 +75,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.FACTS_WRITE,
             Permission.PROFILES_READ,
             Permission.REGISTRY_READ,
+            Permission.BADGES_READ,
         }
     ),
     Role.EDITOR: frozenset(
@@ -90,16 +97,30 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.LEVELS_OVERRIDE,
             Permission.REGISTRY_READ,
             Permission.REGISTRY_WRITE,
+            Permission.BADGES_READ,
+            Permission.BADGES_MANAGE,
         }
     ),
     Role.ADMIN: frozenset(Permission),
 }
 
-PUBLIC_PERMISSIONS = frozenset({Permission.CASE_READ_PUBLIC})
-INSTALLATION_PERMISSIONS = frozenset({Permission.CONTENT_INGEST})
+PUBLIC_PERMISSIONS = frozenset(
+    {Permission.CASE_READ_PUBLIC, Permission.BADGES_READ_PUBLIC, Permission.BADGES_SUBMIT}
+)
+INSTALLATION_PERMISSIONS = frozenset(
+    {Permission.CONTENT_INGEST, Permission.BADGES_READ_PUBLIC, Permission.BADGES_SUBMIT}
+)
+ORGANIZATION_PERMISSIONS = PUBLIC_PERMISSIONS | {Permission.BADGES_ORG_MANAGE}
 
 NOT_GRANTABLE = frozenset(
-    {Permission.CASE_READ_PUBLIC, Permission.CONTENT_INGEST, Permission.EVENTS_READ}
+    {
+        Permission.CASE_READ_PUBLIC,
+        Permission.CONTENT_INGEST,
+        Permission.EVENTS_READ,
+        Permission.BADGES_READ_PUBLIC,
+        Permission.BADGES_SUBMIT,
+        Permission.BADGES_ORG_MANAGE,
+    }
 )
 """Permissions that belong to the service or the public, never to a member."""
 GRANTABLE_PERMISSIONS: frozenset[Permission] = frozenset(Permission) - NOT_GRANTABLE
@@ -219,6 +240,11 @@ class Actor:
     def installation(cls) -> Actor:
         """Chromium extension. Anonymous: the token is never part of the actor."""
         return cls(ActorKind.INSTALLATION, None, INSTALLATION_PERMISSIONS)
+
+    @classmethod
+    def organization(cls, org_badge_public_id: str) -> Actor:
+        """Badged organisation authenticated by its organisation key."""
+        return cls(ActorKind.ORGANIZATION, org_badge_public_id, ORGANIZATION_PERMISSIONS)
 
     @classmethod
     def service(cls, name: str, scopes: frozenset[Permission]) -> Actor:

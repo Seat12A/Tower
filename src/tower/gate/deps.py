@@ -7,6 +7,8 @@ from fastapi import Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.db.database import Database
+from tower.core.domain import error_codes as ec
+from tower.core.domain.errors import Unauthenticated
 from tower.core.domain.security import Actor
 
 
@@ -29,7 +31,18 @@ async def current_actor(
     request: Request,
     authorization: Annotated[str | None, Header()] = None,
     x_acting_discord_id: Annotated[str | None, Header()] = None,
+    x_organization_token: Annotated[str | None, Header()] = None,
 ) -> Actor:
+    if x_organization_token is not None:
+        if authorization or x_acting_discord_id:
+            raise Unauthenticated(
+                "X-Organization-Token cannot be combined with another credential",
+                code=ec.BDG_ORG_TOKEN_MIXED,
+            )
+        org: Actor = await request.app.state.resolver.resolve_organization(
+            x_organization_token.strip()
+        )
+        return org
     token = None
     if authorization:
         scheme, _, value = authorization.partition(" ")

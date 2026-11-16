@@ -180,6 +180,24 @@ Colonnes ajoutées à `source_registry` : `aliases`, `qid`, `controlled_by`,
 `imf_sdds`, `imf_sdds_plus`, `ess_peer_review`, `statute`), `active`, `updated_by`,
 `reviewed_at`.
 
+## Badges de vérification (migration 0013)
+
+Migration `0013`, **expand** uniquement : tables nouvelles. Règles : [badges.md](badges.md).
+Les comptes sont ceux de `platform_accounts` (plateforme + ID natif, `BIGINT`-compatible
+pour X) : aucune table ne stocke un compte par pseudo.
+
+| Table | Rôle |
+|---|---|
+| `badges` | Une ligne par compte (`account_id` unique) : `status` (`active`, `revoked`, `blocked`), `category` (obligatoire si actif ; `institutional`, `organization`, `media`, `expert`, `personality`), `source` (`manual`, `request`, `wikidata`, `x_government`), `label`, `logo_url`, `wikidata_qid` (index), `wikidata_seen_at`, `note` (interne), `granted_by/at`, `ended_by/at`, `end_reason`, `version` |
+| `badge_affiliations` | Membre (`member_account_id`) → badge d'organisation (`org_badge_id`), unique par paire : `status` (`pending`, `active`, `rejected`, `revoked`, `expired`), `is_primary` (index unique partiel par membre ; seulement si actif), `title`, `source` (`manual`, `organization`, `wikidata`, `request`), `wikidata_property`, `requested_by`, `validated_by/at`, `expires_at` (obligatoire si actif ; index partiel), `ended_by/at`, `end_reason`, `version` |
+| `badge_events` | Historique en ajout seul : `account_id`, `badge_id`, `affiliation_id`, `action` (CHECK), `actor`, `source`, `reason`, `changes` |
+| `badge_requests` | Demandes : `kind` (`badge`, `affiliation` → `org_badge_id` obligatoire), `account_id`, `requested_category`, `title`, `justification`, `contact` (équipe seulement), `evidence_urls` (JSONB), `status` (`pending`, `approved`, `rejected`), `submitted_by`, `decided_by/at`, `decision_note` ; une seule en attente par (type, compte, organisation) (index unique partiel) |
+| `badge_reports` | Signalements : `account_id`, `reason` (CHECK), `comment`, `status` (`open`, `resolved`, `dismissed`), `resolved_by/at`, `resolution_note` ; rien sur l'auteur |
+| `badge_org_keys` | Clés d'organisation : `org_badge_id`, `token_hash` (SHA-256, unique), `label`, `created_by`, `revoked_at` |
+| `badge_wikidata_links` | Liens d'affiliation lus sur Wikidata : clé (`member_account_id`, `org_qid`, `property`), `seen_at` ; index `org_qid` |
+| `badge_import_runs` | Dernier import par portée : `scope`, `started_at`, `listed_at`, `accounts`, `batches` |
+| `badge_x_checks` | Vérifications X par compte : `hinted_at`, `checked_at` (nul = à vérifier ; index partiel), `verified_type` |
+
 ## Index notables
 
 - `jobs` : index partiel `(queue, priority DESC, run_at, id) WHERE status = 'queued'`
