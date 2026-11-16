@@ -3,6 +3,7 @@
 from tower.core.models.atlas import (
     AtlasSyncState,
     ConfidenceModel,
+    DomainIdentity,
     ElectionEntry,
     JurisdictionSource,
     LegalArticle,
@@ -119,6 +120,7 @@ __all__ = [
     "ContentSnapshot",
     "ContextNote",
     "ContextNoteTranslation",
+    "DomainIdentity",
     "ElectionEntry",
     "Entity",
     "EntityRarity",

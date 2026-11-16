@@ -7,7 +7,7 @@ httpx is imported lazily (in :class:`SourceHttp`'s constructor).
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
 from tower.core.domain import error_codes as ec
@@ -110,6 +110,36 @@ class SourceHttp:
                 raise self.fail(f"{self.source}: HTTP {status}", ec.ATL_BAD_RESPONSE)
             return response
         raise self.fail(f"{self.source}: HTTP 429", ec.ATL_RATE_LIMITED)  # pragma: no cover
+
+    async def lines(
+        self,
+        url: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> AsyncIterator[str]:
+        """``GET`` streamed line by line (large exports in constant memory). No retry on
+        429; the same error mapping as :meth:`request`."""
+        httpx = self._httpx
+        try:
+            async with self._client.stream("GET", url, params=params, headers=headers) as response:
+                status = response.status_code
+                if status == 429:
+                    raise self.fail(f"{self.source}: HTTP 429", ec.ATL_RATE_LIMITED)
+                if status in (401, 403):
+                    raise self.fail(f"{self.source}: HTTP {status}", ec.ATL_AUTH_FAILED)
+                if status >= 500:
+                    raise self.fail(f"{self.source}: HTTP {status}", ec.ATL_SOURCE_UNAVAILABLE)
+                if status >= 400:
+                    raise self.fail(f"{self.source}: HTTP {status}", ec.ATL_BAD_RESPONSE)
+                async for line in response.aiter_lines():
+                    yield line
+        except httpx.TimeoutException as exc:
+            raise self.fail(f"{self.source}: timeout", ec.ATL_SOURCE_UNAVAILABLE) from exc
+        except httpx.HTTPError as exc:
+            raise self.fail(
+                f"{self.source}: network error ({type(exc).__name__})", ec.ATL_SOURCE_UNAVAILABLE
+            ) from exc
 
     async def json(self, method: str, url: str, **kwargs: Any) -> Any:
         response = await self.request(method, url, **kwargs)

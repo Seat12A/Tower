@@ -41,6 +41,7 @@ TABLES = [
     "election_calendar",
     "source_registry_versions",
     "atlas_sync_state",
+    "domain_identities",
     "confidence_models",
     "narrative_novelty",
     "narrative_stats",

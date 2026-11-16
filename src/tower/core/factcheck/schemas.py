@@ -12,6 +12,7 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict
 
+from tower.core.domain.factcheck.standing import JudgedStanding
 from tower.core.domain.factcheck.values import (
     AbsenceReason,
     ArbiterReason,
@@ -240,6 +241,9 @@ class PassageOrigin(_Out):
     """Entity the information is attributed to (ministry, agency, study, court…)."""
     primary: bool
     """The passage is the producer of the data or text itself (not a report of it)."""
+    standing: JudgedStanding | None = None
+    """Who publishes the source, for a source whose standing is ``unrated``/unknown (null
+    otherwise). Display only: capped at ``secondary`` (domain/factcheck/standing.py)."""
 
 
 class ContextPoint(_Out):

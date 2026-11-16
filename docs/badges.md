@@ -256,4 +256,4 @@ File `badges`. Activation : `TOWER_SERVICES=…,badges` (léger : peut cohabiter
 
 Erreurs techniques : `TWR-BDG-021` (Wikidata indisponible, relance dans 10 min),
 `TWR-BDG-022` (X indisponible). Endpoints : [api.md](api.md#badges-de-vérification).
-Tables : [database.md](database.md#badges-de-vérification-migration-0013).
+Tables : [database.md](database.md#badges-de-vérification-migration-0014).

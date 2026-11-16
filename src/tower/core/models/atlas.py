@@ -36,6 +36,7 @@ from tower.core.domain.factcheck.atlas import (
     NewsFeedKind,
     NewsOrigin,
 )
+from tower.core.domain.factcheck.standing import IDENTITY_KINDS
 from tower.core.models._helpers import check_in
 from tower.core.models.factcheck import TIERS
 
@@ -289,6 +290,29 @@ class AtlasSyncState(Base):
     key: Mapped[str] = mapped_column(Text, primary_key=True)
     state: Mapped[dict[str, Any]] = mapped_column(server_default=_EMPTY_JSON)
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class DomainIdentity(Base):
+    """Who a host belongs to, from Wikidata "official website" (P856) of entities of a
+    known class (job ``atlas.identity_refresh``). Not a reliability decision: the human
+    registry always wins; see domain/factcheck/standing.py."""
+
+    __tablename__ = "domain_identities"
+    __table_args__ = (
+        check_in("kind", IDENTITY_KINDS, "kind"),
+        check_in("origin", ("wikidata",), "origin"),
+        Index("ix_domain_identities_refreshed_at", "refreshed_at"),
+    )
+
+    domain: Mapped[str] = mapped_column(Text, primary_key=True)
+    """Host without ``www.`` (``insee.fr``, ``cs.stanford.edu``); suffix-matched."""
+    qid: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(Text)
+    """``official``, ``academic``, ``journal`` or ``press``."""
+    country: Mapped[str | None] = mapped_column(Text)
+    """ISO 3166-1 alpha-2 of the entity's country, when Wikidata has one."""
+    origin: Mapped[str] = mapped_column(Text, server_default=sa_text("'wikidata'"))
+    refreshed_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
 class ConfidenceModel(Base):

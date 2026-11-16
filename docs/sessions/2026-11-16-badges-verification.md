@@ -18,7 +18,7 @@ Historique (attribution, retrait, qui a validé).
 - Domaine pur `core/domain/badges.py` : catégories, couleurs, priorité, statuts, tables
   de classification Wikidata (QID vérifiés en direct), validations ; codes
   `TWR-BDG-001` à `023`.
-- Migration `0013` (expand) et modèles `core/models/badges.py` : `badges`,
+- Migration `0014` (expand ; numérotée `0013` puis renumérotée à la fusion de `main`, qui avait sa propre `0013`) et modèles `core/models/badges.py` : `badges`,
   `badge_affiliations`, `badge_events`, `badge_requests`, `badge_reports`,
   `badge_org_keys`, `badge_wikidata_links`, `badge_import_runs`, `badge_x_checks`.
 - Cas d'usage : `badges.py` (attribution, retrait, blocage, lookup en une requête,
@@ -72,7 +72,7 @@ en direct) ; indices X jamais crus sans l'API X ; lookup en `GET` avec `ETag`.
     (tables du socle nécessaires + tables des badges, créées depuis les modèles) :
     24/24 badges verts ; staff 31/32, le seul échec vient de `watched_accounts` absente
     du schéma partiel (artefact du banc, pas une régression).
-  - Migration `0013` appliquée sur une base contenant `entities` et
+  - Migration `0014` (alors `0013`) appliquée sur une base contenant `entities` et
     `platform_accounts` : **aucune différence** entre migration et modèles
     (`compare_metadata`), puis descente (tables supprimées) et remontée OK.
   - `alembic check` sur la chaîne complète : non exécuté (même cause).

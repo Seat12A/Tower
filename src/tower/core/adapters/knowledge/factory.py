@@ -10,10 +10,11 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from tower.core.adapters.knowledge.atlas import Atlas
+    from tower.core.adapters.knowledge.wikidata_sites import SubjectSitesFetch
     from tower.core.config import Settings
     from tower.core.db.database import Database
 
-__all__ = ["build_atlas", "close_atlas_adapters"]
+__all__ = ["build_atlas", "build_subject_sites", "close_atlas_adapters"]
 
 _SINGLETONS: dict[str, Any] = {}
 
@@ -32,6 +33,22 @@ async def close_atlas_adapters() -> None:
         closer = getattr(adapter, "aclose", None)
         if closer is not None:
             await closer()
+
+
+def build_subject_sites(settings: Settings, db: Database) -> SubjectSitesFetch:
+    """Official-site resolver of a claim's subject (shared Wikidata client, DB cache)."""
+    from tower.core.adapters.knowledge.cache import DbSourceCache
+    from tower.core.adapters.knowledge.http import SourceHttp
+    from tower.core.adapters.knowledge.wikidata_sites import make_subject_sites
+
+    cache = _singleton("cache", lambda: DbSourceCache(db))
+    http = _singleton(
+        "wikidata_sites",
+        lambda: SourceHttp(
+            "wikidata", timeout=settings.atlas_http_timeout_s, user_agent=settings.http_user_agent
+        ),
+    )
+    return make_subject_sites(http, cache, settings.atlas_cache_ttl_s)
 
 
 async def build_atlas(settings: Settings, db: Database) -> Atlas:

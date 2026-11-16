@@ -3,8 +3,8 @@ organisation keys, Wikidata links and import runs, X verification checks.
 
 Expand only: new tables, no change to existing ones. The deployed code ignores them.
 
-Revision : 0013
-Parents : 0012
+Revision : 0014
+Parents : 0013
 Created : 2026-11-16
 """
 
@@ -14,8 +14,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0013"
-down_revision: str | None = "0012"
+revision: str = "0014"
+down_revision: str | None = "0013"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

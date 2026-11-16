@@ -20,9 +20,11 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tower.core.adapters.knowledge.atlas import AtlasDocument
 from tower.core.db.database import Database
 from tower.core.domain import error_codes as ec
 from tower.core.domain.factcheck.opinion import compare_opinions
+from tower.core.domain.factcheck.standing import Standing
 from tower.core.domain.factcheck.values import (
     UNVERIFIABLE_CLAIM_TYPES,
     Agreement,
@@ -41,6 +43,7 @@ from tower.core.factcheck.schemas import (
     ObjectionOutput,
     SecondOpinionOutput,
 )
+from tower.core.factcheck.standings import apply_identities, first_party_urls
 from tower.core.jobs.queue import PermanentError, RetryLater, enqueue
 from tower.core.llm.errors import (
     AllRefused,
@@ -58,6 +61,7 @@ from tower.core.models.factcheck import (
     Source,
 )
 from tower.core.models.ingestion import ContentItem
+from tower.core.ports.knowledge import SourceUnavailable
 from tower.core.services.base import JobContext
 from tower.core.usecases import investigations as uc
 from tower.services.investigate import pipeline as pl
@@ -199,6 +203,8 @@ async def _load_passages(db: Database, investigation_id: int) -> list[pl.Passage
             source_url=s.canonical_url,
             domain=s.domain,
             tier=s.tier,
+            standing=p.standing,
+            source_standing=s.standing,
             publisher=s.publisher,
             title=s.title,
             published_at=s.published_at,
@@ -549,11 +555,17 @@ async def _collect(ctx: JobContext, st: _State) -> None:
         post_date=_date(st),
     )
     no_evidence = not existing and not outcome.passages
+    subject_hosts = await _subject_hosts(ctx, st.view, inv.id) if outcome.passages else ()
+    first_party = first_party_urls((p.source_url for p in outcome.passages), subject_hosts)
+    record = dict(outcome.record)
+    if subject_hosts:
+        record["subject_sites"] = list(subject_hosts)
     async with ctx.db.transaction() as session:
         locked = await _locked(session, inv.id, _STAGES.COLLECTING)
         if locked is None:
             return
-        sources = await _upsert_sources(session, outcome)
+        documents = await apply_identities(session, outcome.atlas.documents)
+        sources = await _upsert_sources(session, documents)
         for p in outcome.passages:
             source = sources[p.source_url]
             session.add(
@@ -564,12 +576,13 @@ async def _collect(ctx: JobContext, st: _State) -> None:
                     position=p.position,
                     text=p.text,
                     lang=p.lang,
+                    standing=Standing.FIRST_PARTY.value if p.source_url in first_party else None,
                     simhash=p.simhash,
                     score=p.score,
                     round=p.round,
                 )
             )
-        sets: dict[str, Any] = {"queries": {"rounds": [*rounds, outcome.record]}}
+        sets: dict[str, Any] = {"queries": {"rounds": [*rounds, record]}}
         flags: dict[str, Any] = {}
         if outcome.asymmetric:
             flags["asymmetric_queries"] = True
@@ -593,27 +606,54 @@ async def _collect(ctx: JobContext, st: _State) -> None:
         )
 
 
-async def _upsert_sources(session: AsyncSession, outcome: pl.CollectOutcome) -> dict[str, Source]:
-    """Insert the retrieved sources (the first row of a URL keeps its data)."""
-    by_url = {d.canonical_url: d for d in outcome.atlas.documents}
+async def _subject_hosts(
+    ctx: JobContext, view: ClaimView, investigation_id: int
+) -> tuple[str, ...]:
+    """Official hosts of the claim's subject (Wikidata, cached); empty without a QID or
+    when Wikidata fails (the investigation goes on without the first-party rule)."""
+    qid = view.signature.get("subject_qid")
+    if not isinstance(qid, str) or not qid:
+        return ()
+    try:
+        sites = await runtime.get_subject_sites(ctx.settings, ctx.db)(qid.upper())
+    except SourceUnavailable as exc:
+        capture(ec.ATL_SUBJECT_SITES_FAILED, exc, qid=qid, investigation_id=investigation_id)
+        return ()
+    return sites.hosts
+
+
+async def _upsert_sources(
+    session: AsyncSession, documents: Sequence[AtlasDocument]
+) -> dict[str, Source]:
+    """Insert the retrieved sources (the first row of a URL keeps its data, except its
+    rating, refreshed from the current registry, identities and rules)."""
+    by_url = {d.canonical_url: d for d in documents}
     for url, doc in by_url.items():
+        stmt = pg_insert(Source).values(
+            canonical_url=url,
+            original_url=doc.original_url,
+            adapter=doc.adapter,
+            stable_id=doc.stable_id,
+            publisher=doc.publisher,
+            domain=doc.domain,
+            tier=doc.tier,
+            standing=doc.standing,
+            tier_basis=doc.tier_basis,
+            title=doc.title,
+            lang=doc.lang,
+            published_at=doc.published_at,
+            sha256=_bytes_or_none(doc.sha256),
+            license=doc.license,
+        )
         await session.execute(
-            pg_insert(Source)
-            .values(
-                canonical_url=url,
-                original_url=doc.original_url,
-                adapter=doc.adapter,
-                stable_id=doc.stable_id,
-                publisher=doc.publisher,
-                domain=doc.domain,
-                tier=doc.tier,
-                title=doc.title,
-                lang=doc.lang,
-                published_at=doc.published_at,
-                sha256=_bytes_or_none(doc.sha256),
-                license=doc.license,
+            stmt.on_conflict_do_update(
+                index_elements=["canonical_url"],
+                set_={
+                    "tier": stmt.excluded.tier,
+                    "standing": stmt.excluded.standing,
+                    "tier_basis": stmt.excluded.tier_basis,
+                },
             )
-            .on_conflict_do_nothing(index_elements=["canonical_url"])
         )
     if not by_url:
         return {}
@@ -989,6 +1029,7 @@ async def _draft(ctx: JobContext, st: _State) -> None:
             note=note,
             passage_translations=_by_db_id(by_label, outcome.passage_translations),
             passage_origins=_by_db_id(by_label, outcome.origins),
+            passage_standings=_by_db_id(by_label, outcome.standings),
             cost_usd_micros=outcome.cost_usd_micros,
             flags=inv_flags,
         )

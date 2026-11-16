@@ -209,7 +209,9 @@ post au clic : il le met à jour d'après les événements de la décision (`dra
 
 **Le fil** ne garde que l'essentiel, toujours dans cet ordre, chaque section omise si
 vide et découpée en « (cont.) » si elle dépasse la limite V2 : *Evidence* condensée
-(chaque affirmation avec ses renvois `[S1]`, puis les sources listées **une seule fois**),
+(chaque affirmation avec ses renvois `[S1]`, puis les sources listées **une seule fois**,
+avec leur statut : « official body », « subject's official site »… voir
+[factcheck/sources.md](factcheck/sources.md)),
 *Gaps & checks*, *Quality warnings*, *Context* (une ligne courte par élément : groupe,
 récit, signaux de coordination, fiche ; fact-checks externes). Le long et le facultatif
 est **derrière des boutons placés sous leur section**, qui l'affichent à la seule personne

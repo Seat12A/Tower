@@ -816,6 +816,23 @@ ATL_CONTROL_SEED_FAILED = _define(
     store=True,
     retryable=True,
 )
+ATL_IDENTITY_REFRESH_FAILED = _define(
+    "TWR-ATL-016",
+    "Wikidata refresh of the domain identities failed",
+    severity=_WARN,
+    store=True,
+    retryable=True,
+    hint="query.wikidata.org unreachable or slow: the job is retried, the existing "
+    "identities stay in use (stale rows are purged only after 21 days).",
+)
+ATL_SUBJECT_SITES_FAILED = _define(
+    "TWR-ATL-017",
+    "Official sites of the claim's subject could not be read from Wikidata",
+    severity=_INFO,
+    store=True,
+    retryable=True,
+    hint="The investigation goes on without the first-party rule for this claim.",
+)
 FCK_CALIBRATION_REFUSED = _define(
     "TWR-FCK-046",
     "Not enough reviewed data to fit a model (threshold not reached): nothing produced",
