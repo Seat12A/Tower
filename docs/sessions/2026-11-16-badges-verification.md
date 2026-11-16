@@ -36,7 +36,15 @@ Historique (attribution, retrait, qui a validé).
   `badges.x_verify` ; tâches `badges:schedule` et `badges:expire`. Adaptateur
   `core/adapters/wikidata_badges.py` ; `XPlatformClient.get_accounts` (lot de 100,
   `verified_type`) ; ports `core/ports/badges.py`.
-- intercom : catégorie « Badges » dans `/permissions` (fr, en). Pas de commande dédiée.
+- intercom : catégorie « Badges » dans `/permissions` (fr, en).
+- **Deuxième phase (même jour, demande de Jules)** : commande Discord `/badge`
+  (`intercom/commands/badges.py`, `handlers/badges.py`, catalogues `i18n/badge_en.py` et
+  `badge_fr.py`, méthodes de `gate_client.py`) : `show`, `grant`, `revoke`, `block`,
+  `unblock`, `history`, `affiliate`, `affiliation`, `queue`, `request`, `report`,
+  `org-keys`, `import`. Cartes V2 persistantes (7 `DynamicItem`), modals pour tout texte,
+  file de travail à onglets. gate : `GET /v1/badges/requests/{id}` et
+  `/reports/{id}` ; identifiants courts pour `affiliation`, `badge_request`,
+  `badge_report`, `org_key`. Table `/help` et messages d'erreur `TWR-BDG-*` du bot.
 - Documentation : nouvelle page `badges.md` ; `api.md`, `database.md`, `events.md`,
   `configuration.md`, `.env.example`, `auth.md`, `services.md`, `intercom.md`,
   `deployment-railway.md`, `README.md`, `decisions.md`, `errors.md` (régénéré).
@@ -76,6 +84,13 @@ en direct) ; indices X jamais crus sans l'API X ; lookup en `GET` avec `ETag`.
 - **Appels réels** : seulement des requêtes SPARQL de lecture à `query.wikidata.org`
   pendant la conception (comptages, vérification des QID, essai de l'adaptateur). Aucun
   appel à l'API X (doublure `FakeX` dans les tests ; pas de jeton), aucun appel de modèle.
+- Phase `/badge` : `tests/test_intercom_badges.py` (10 tests fr/en contre un vrai gate
+  ASGI, schéma partiel) et `test_badges.py` : 34/34 verts ; tests statiques du bot
+  (`test_intercom_ui`, `i18n`, `team`, isolation des imports) : 80 verts ; `tower
+  intercom --dry-run` contre un vrai gate : **17 commandes** enregistrées (16 avant). RAM
+  intercom (dry-run, 8 s, « avant » = `1c26be4`) : 79 à 90 Mo avant, 80 Mo après.
+  **Non vérifié** : rien n'a tourné contre un vrai Discord (rendu des cartes, modals,
+  clics après redémarrage).
 - RAM (processus lancé directement, mesure à 8 s, « avant » = worktree de `ce7f1dd`) :
   gate 94 à 99 Mo avant, 98 à 99 Mo après (bruit, cible +5 Mo) ; hangar `ping` 69 Mo
   avant et après ; hangar `ping,badges` au repos 81 Mo (+12 Mo, cible +20 Mo) ; hangar
@@ -90,8 +105,7 @@ en direct) ; indices X jamais crus sans l'API X ; lookup en `GET` avec `ETag`.
   hangar sur Railway.
 - Extension : appeler `/v1/badges/lookup` par lots triés, respecter `ETag`, envoyer les
   indices `x-government-hints` ; site : formulaires de demande et de signalement.
-- Commandes Discord de badges (attribution, blocage, file des demandes et signalements,
-  affiliations en attente Wikidata) : à faire.
+- Tester `/badge` sur le serveur (rendu des cartes, modals, menu de révocation des clés).
 - Enrichir au besoin les tables de QID (`WIKIDATA_OCCUPATIONS`, `WIKIDATA_TYPES`) ; les
   sous-classes ne sont pas suivies.
 - Volume : le premier import Wikidata proposera beaucoup d'affiliations `pending`

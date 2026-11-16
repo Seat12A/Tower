@@ -25,6 +25,7 @@ MODULES = (
     "usage",
     "profiles",
     "registry",
+    "badges",
     "factcheck",
     "narratives",
     "drafts",

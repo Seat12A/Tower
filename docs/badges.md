@@ -5,6 +5,8 @@ Sources : `core/domain/badges.py` (règles pures), `core/usecases/badges.py`,
 `core/models/badges.py`, `gate/routes/badges.py`, `gate/routes/org.py`,
 `services/badges/` (service hangar), `core/adapters/wikidata_badges.py`.
 
+Gestion par l'équipe dans Discord : commande `/badge` ([intercom.md](intercom.md#commandes)).
+
 Les badges Seat 12A remplacent les vérifications de X : l'extension masque les badges X
 et affiche les nôtres, obtenus par le lookup en lot (`GET /v1/badges/lookup`).
 

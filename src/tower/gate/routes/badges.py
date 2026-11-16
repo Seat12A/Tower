@@ -506,6 +506,11 @@ async def list_requests(
     )
 
 
+@router.get("/requests/{public_id}")
+async def get_request(public_id: str, actor: ActorDep, session: ReadSession) -> dict[str, Any]:
+    return await sub.get_request(session, actor, public_id)
+
+
 @router.post("/requests/{public_id}/approve")
 async def approve_request(
     public_id: str, body: DecisionIn, actor: ActorDep, session: WriteSession
@@ -546,6 +551,11 @@ async def list_reports(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[dict[str, Any]]:
     return await sub.list_reports(session, actor, status=status, limit=limit, offset=offset)
+
+
+@router.get("/reports/{public_id}")
+async def get_report(public_id: str, actor: ActorDep, session: ReadSession) -> dict[str, Any]:
+    return await sub.get_report(session, actor, public_id)
 
 
 @router.post("/reports/{public_id}/resolve")

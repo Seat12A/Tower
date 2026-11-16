@@ -251,8 +251,10 @@ Règles : [badges.md](badges.md). IDs natifs en **chaînes**, jamais de pseudo.
 | POST | `/v1/badges/affiliations/{id}/validate` \| `reconfirm` \| `reject` \| `revoke` | `badges:manage`, ou l'organisation concernée (`403 TWR-BDG-018` sinon) ; `reject`/`revoke` : corps `{"reason"}` |
 | POST | `/v1/badges/affiliations/{id}/primary` | `badges:manage` |
 | GET | `/v1/badges/requests?status=pending&kind=` | `badges:read` (contact inclus) |
+| GET | `/v1/badges/requests/{id}` | `badges:read` (contact inclus) |
 | POST | `/v1/badges/requests/{id}/approve` \| `reject` | `badges:manage` ; corps `category` (approbation d'un badge), `label`, `note` |
 | GET | `/v1/badges/reports?status=open` | `badges:read` |
+| GET | `/v1/badges/reports/{id}` | `badges:read` |
 | POST | `/v1/badges/reports/{id}/resolve` | `badges:manage` ; corps `status` (`resolved`, `dismissed`), `note` |
 | POST | `/v1/badges/imports/wikidata` | `badges:manage` ; `202` ; corps `{"scopes": [...]}` (défaut : `TOWER_BADGES_WIKIDATA_SCOPES`) |
 | GET | `/v1/badges/imports` | `badges:read` ; dernier import par portée |
@@ -273,4 +275,4 @@ Espace organisation (en-tête `X-Organization-Token`, voir
 
 | Méthode | Chemin | Permission | Description |
 |---|---|---|---|
-| GET | `/v1/ids/{kind}/{ref}` | `cases:read` | Identifiant complet de l'élément dont l'identifiant commence par `ref` (6 caractères hexadécimaux ou plus, tirets ignorés). `kind` : `case`, `group`, `claim`, `narrative`, `draft`. Répond `{kind, id}`. Recherche par plage sur l'index unique. Erreurs : `TWR-GEN-001` (préfixe invalide), `TWR-GEN-002` (aucun), `TWR-GEN-005` (plusieurs : taper plus de caractères) |
+| GET | `/v1/ids/{kind}/{ref}` | `cases:read` | Identifiant complet de l'élément dont l'identifiant commence par `ref` (6 caractères hexadécimaux ou plus, tirets ignorés). `kind` : `case`, `group`, `claim`, `narrative`, `draft` ; badges (`badges:read` au lieu de `cases:read`) : `affiliation`, `badge_request`, `badge_report`, `org_key`. Répond `{kind, id}`. Recherche par plage sur l'index unique. Erreurs : `TWR-GEN-001` (préfixe invalide), `TWR-GEN-002` (aucun), `TWR-GEN-005` (plusieurs : taper plus de caractères) |

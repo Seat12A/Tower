@@ -22,6 +22,17 @@ MESSAGES: dict[str, str] = {
     "error.TWR-AUTH-001": "The bot's service token is invalid or revoked. ({code})",
     "error.TWR-AUTH-002": "The bot could not identify you. ({code})",
     "error.TWR-AUTH-003": "The bot could not identify you. ({code})",
+    "error.title.TWR-BDG-001": "No badge",
+    "error.TWR-BDG-001": "This account has no badge record yet. ({code})",
+    "error.TWR-BDG-004": "This account is blocked from badges: unblock it first. ({code})",
+    "error.TWR-BDG-006": (
+        "The organisation needs an active organisation, media or institutional badge. ({code})"
+    ),
+    "error.TWR-BDG-008": "This affiliation cannot do that from its current status. ({code})",
+    "error.TWR-BDG-009": "This affiliation is already pending or active. ({code})",
+    "error.TWR-BDG-012": "This request was already decided. ({code})",
+    "error.TWR-BDG-015": "This report was already handled. ({code})",
+    "error.TWR-BDG-020": "An account cannot be affiliated with itself. ({code})",
     "error.TWR-AUTH-004": "You are not an active member of the team. ({code})",
     "error.TWR-AUTH-005": "You do not have the permission for this action. ({code})",
     "error.TWR-GEN-001": "Invalid input: {message} ({code})",

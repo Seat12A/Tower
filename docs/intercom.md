@@ -80,6 +80,14 @@ unique d'au moins 6 caractères**.
 | `/narrative merge` / `split` / `title` | Fusion, scission, titre | `claim_groups:manage` / `cases:review` |
 | `/registry show domaine` | Carte : niveau, contrôle (modals, motif obligatoire), historique, amorçage Wikidata | `registry:read` / `registry:write` |
 | `/registry history` / `set-tier` / `set-control` / `seed-control domaine` | Versions / changement de niveau / relation de contrôle (`control_origin = team`) / amorçage | `registry:read` / `registry:write` |
+| `/badge show compte [platform]` | Carte du compte : statut, catégorie et couleur, source, qui a attribué ou retiré, affiliations ; boutons Attribuer/Modifier (modal : catégorie, nom public, logo, note), Retirer et Bloquer (modal : motif), Débloquer, Historique, Clés d'organisation | `badges:read` / `badges:manage` |
+| `/badge grant compte catégorie` / `revoke` / `block` / `unblock` / `history` | Attribution (modal), retrait et blocage (motif), déblocage, historique (qui, quand, motif) | `badges:manage` / `badges:read` |
+| `/badge affiliate membre org [title] [pending]` | Affiliation validée par l'équipe (ou en attente) ; carte avec Valider, Rejeter, Reconfirmer, Afficher celle-ci, Terminer, liens vers les deux comptes | `badges:manage` |
+| `/badge affiliation id` | Carte d'une affiliation (identifiant court accepté) | `badges:read` |
+| `/badge queue [requests\|reports\|affiliations]` | File de travail : demandes en attente, signalements ouverts, affiliations en attente (Wikidata) ; onglets et menu « Ouvrir un élément » ; demande : Approuver (modal : catégorie, note) ou Rejeter ; signalement : Traité ou Classer | `badges:read` / `badges:manage` |
+| `/badge request id` / `report id` | Carte d'une demande (contact inclus) ou d'un signalement | `badges:read` |
+| `/badge org-keys compte` | Clés d'une organisation badgée ; Nouvelle clé (token affiché une seule fois, carte privée) ; menu de révocation | `badges:read` / `badges:manage` |
+| `/badge import [scopes] [start]` | État des derniers imports Wikidata ; `start: true` lance un import | `badges:read` / `badges:manage` |
 
 Les droits effectifs sont l'intersection des permissions de la personne et des scopes
 du token du bot ([auth.md](auth.md)). Token du bot : `cases:read cases:create
@@ -89,8 +97,9 @@ reference_facts:write reference_facts:validate profiles:read profiles:manage
 levels:override registry:read registry:write staff:read staff:manage
 permissions:manage_others permissions:manage_self badges:read badges:manage` (les six
 derniers : à ajouter au token existant). Les permissions `badges:read` et
-`badges:manage` apparaissent dans `/permissions` (catégorie « Badges ») ; le bot n'a pas
-encore de commande de badges : la gestion passe par l'API ([badges.md](badges.md)).
+`badges:manage` apparaissent dans `/permissions` (catégorie « Badges »). Les comptes des
+commandes `/badge` sont des **IDs natifs** (ID numérique X), jamais des pseudos : un
+pseudo X est refusé par une carte calme (`TWR-ING-006`). Règles : [badges.md](badges.md).
 
 ### Équipe et permissions
 

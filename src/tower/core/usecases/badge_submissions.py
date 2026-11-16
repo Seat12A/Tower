@@ -442,3 +442,30 @@ async def request_parts(
 async def report_with_account(session: AsyncSession, r: BadgeReport) -> dict[str, Any]:
     account = required(await session.get(PlatformAccount, r.account_id), "account")
     return report_payload(r, account)
+
+
+def _uuid(value: str, code: Any, what: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        raise NotFound(f"{what} not found", code=code) from None
+
+
+async def get_request(session: AsyncSession, actor: Actor, public_id: str) -> dict[str, Any]:
+    """One request with its contact (team)."""
+    actor.require(Permission.BADGES_READ)
+    pid = _uuid(public_id, ec.BDG_REQUEST_NOT_FOUND, "Badge request")
+    r = await session.scalar(select(BadgeRequest).where(BadgeRequest.public_id == pid))
+    if r is None:
+        raise NotFound("Badge request not found", code=ec.BDG_REQUEST_NOT_FOUND)
+    account, org = await request_parts(session, r)
+    return request_payload(r, account, org, with_contact=True)
+
+
+async def get_report(session: AsyncSession, actor: Actor, public_id: str) -> dict[str, Any]:
+    actor.require(Permission.BADGES_READ)
+    pid = _uuid(public_id, ec.BDG_REPORT_NOT_FOUND, "Badge report")
+    r = await session.scalar(select(BadgeReport).where(BadgeReport.public_id == pid))
+    if r is None:
+        raise NotFound("Badge report not found", code=ec.BDG_REPORT_NOT_FOUND)
+    return await report_with_account(session, r)
