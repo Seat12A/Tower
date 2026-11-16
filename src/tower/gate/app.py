@@ -19,6 +19,7 @@ from tower.gate.errors import install_error_handlers
 from tower.gate.middleware import ObservabilityMiddleware
 from tower.gate.ratelimit import TokenBucketLimiter
 from tower.gate.routes import (
+    badges,
     cases,
     errors,
     events,
@@ -29,6 +30,7 @@ from tower.gate.routes import (
     ingest,
     levels,
     narratives,
+    org,
     profiles,
     references,
     registry,
@@ -77,6 +79,8 @@ def create_app(settings: Settings) -> FastAPI:
         openapi_url="/openapi.json" if settings.env != "prod" else None,
     )
     app.state.limiter = TokenBucketLimiter()
+    # Public badge submissions (requests, reports, X hints): burst of 10, then 1/min.
+    app.state.badge_limiter = TokenBucketLimiter(capacity=10, refill_per_second=1 / 60)
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(cases.router)
@@ -97,12 +101,21 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(registry.router)
     app.include_router(staff.router)
     app.include_router(ids.router)
+    app.include_router(badges.router)
+    app.include_router(org.router)
     if settings.cors_origin_list:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.cors_origin_list,
             allow_methods=["GET", "POST"],
-            allow_headers=["Authorization", "Content-Type", "X-Installation-Token"],
+            allow_headers=[
+                "Authorization",
+                "Content-Type",
+                "X-Installation-Token",
+                "X-Organization-Token",
+                "If-None-Match",
+            ],
+            expose_headers=["ETag"],
         )
     app.add_middleware(ObservabilityMiddleware)
     return app

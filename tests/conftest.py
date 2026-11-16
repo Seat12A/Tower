@@ -24,6 +24,15 @@ from tower.core.migrations import downgrade, upgrade
 from tower.core.models.auth import ServiceClient, StaffMember
 
 TABLES = [
+    "badge_import_runs",
+    "badge_x_checks",
+    "badge_wikidata_links",
+    "badge_org_keys",
+    "badge_reports",
+    "badge_requests",
+    "badge_events",
+    "badge_affiliations",
+    "badges",
     "news_index",
     "news_feeds",
     "legal_articles",

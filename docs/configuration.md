@@ -231,6 +231,21 @@ Voir [radar.md](radar.md). Le jeton est un secret (`SecretStr`), jamais journali
 | `TOWER_RADAR_EXPECTED_POSTS_PER_POLL` | `2` | Posts renvoyés en moyenne par lecture (une lecture vide ne coûte rien) : sert au plafond quotidien de lectures |
 | `TOWER_RADAR_SCHEDULE_BATCH` | `100` | Lectures enfilées au plus par passage de la planification |
 
+## Badges (service hangar `badges`, lookup de gate)
+
+Voir [badges.md](badges.md). Les vérifications X réutilisent `TOWER_X_BEARER_TOKEN`,
+`TOWER_X_API_BASE`, `TOWER_X_PRICE_USER_READ_USD` et le budget `provider:x`.
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `TOWER_BADGES_WIKIDATA_SCOPES` | `Q142,Q31,Q39,Q16,Q32,Q235,intl` | Portées de l'import Wikidata : QID de pays (France, Belgique, Suisse, Canada, Luxembourg, Monaco ; nationalité P27 pour les personnes, pays P17 pour les organisations) et `intl` (organisations internationales). Vide : pas d'import automatique |
+| `TOWER_BADGES_WIKIDATA_INTERVAL_S` | `604800` | Délai entre deux imports d'une portée (hebdomadaire) ; ≥ 3600 |
+| `TOWER_BADGES_WIKIDATA_STALE_DAYS` | `30` | Un badge Wikidata absent des imports depuis ce délai est retiré (si l'import tourne) ; ≥ 7 |
+| `TOWER_BADGES_WIKIDATA_ENDPOINT` | `https://query.wikidata.org/sparql` | Point SPARQL (faux serveur pour les essais) |
+| `TOWER_BADGES_X_DAILY_CHECKS` | `500` | Comptes X vérifiés par jour UTC au plus (`verified_type`) ; `0` désactive |
+| `TOWER_BADGES_X_RECHECK_DAYS` | `30` | Délai avant de revérifier un compte sur X (indices et badges `x_government`) |
+| `TOWER_BADGES_LOOKUP_MAX_AGE_S` | `300` | `Cache-Control: max-age` du lookup public |
+
 ## intercom (bot Discord)
 
 Voir [intercom.md](intercom.md). Le token Discord et le token de gate sont des secrets.

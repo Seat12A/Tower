@@ -222,8 +222,57 @@ Le niveau d'une source repose sur le **processus éditorial**, jamais sur l'orie
 politique : tout changement de niveau exige un motif, et l'indépendance statutaire exige
 un critère externe (`imf_sdds`, `imf_sdds_plus`, `ess_peer_review`, `statute`).
 
+## Badges de vérification
+
+Règles : [badges.md](badges.md). IDs natifs en **chaînes**, jamais de pseudo.
+`{p}/{id}` = plateforme et identifiant natif (`x/12345`).
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| GET | `/v1/badges/categories` | public ; catégories, couleurs, rang (cache 24 h) |
+| GET | `/v1/badges/lookup?platform=x&ids=1,2` | public ; ≤ 100 IDs ; `Cache-Control`, `ETag`, `304` |
+| GET | `/v1/badges/accounts/{p}/{id}` | public ; badge et affiliations actives ; `404 TWR-BDG-001` |
+| POST | `/v1/badges/requests` | public (`badges:submit`), limité par IP ; `201 {public_id, status}` ; corps `kind`, `account`, `category` ou `org`, `title`, `justification`, `contact`, `evidence_urls` (https, ≤ 10) |
+| POST | `/v1/badges/reports` | public, limité par IP ; `201` ; corps `account`, `reason`, `comment` |
+| POST | `/v1/badges/x-government-hints` | public, limité par IP ; `202 {queued}` ; corps `{"ids": [...]}` (≤ 50 IDs X) |
+| GET | `/v1/badges?status=active&category=&source=&platform=&limit=&offset=` | `badges:read` |
+| GET | `/v1/badges/accounts/{p}/{id}/badge` | `badges:read` ; ligne complète (tout état, note interne) |
+| PUT | `/v1/badges/accounts/{p}/{id}` | `badges:manage` ; corps `category`, `label`, `logo_url` (https), `note`, `handle`, `version` (verrou optimiste) ; `409 TWR-BDG-004` si bloqué |
+| POST | `/v1/badges/accounts/{p}/{id}/revoke` | `badges:manage` ; corps `{"reason"}` |
+| POST | `/v1/badges/accounts/{p}/{id}/block` | `badges:manage` ; corps `{"reason"}` |
+| POST | `/v1/badges/accounts/{p}/{id}/unblock` | `badges:manage` |
+| GET | `/v1/badges/accounts/{p}/{id}/history?limit=` | `badges:read` ; actions, acteur, source, motif, changements |
+| POST | `/v1/badges/accounts/{p}/{id}/org-keys` | `badges:manage` ; `201 {public_id, label, token}` (token affiché une fois) |
+| GET | `/v1/badges/accounts/{p}/{id}/org-keys` | `badges:read` |
+| POST | `/v1/badges/org-keys/{public_id}/revoke` | `badges:manage` ; `204` |
+| GET | `/v1/badges/affiliations?status=&org_id=&member_id=&limit=&offset=` | `badges:read`, ou organisation (les siennes) |
+| POST | `/v1/badges/affiliations` | `badges:manage` ; corps `member`, `org`, `title`, `validate_now` (défaut `true`) |
+| GET | `/v1/badges/affiliations/{id}` | `badges:read`, ou l'organisation concernée |
+| POST | `/v1/badges/affiliations/{id}/validate` \| `reconfirm` \| `reject` \| `revoke` | `badges:manage`, ou l'organisation concernée (`403 TWR-BDG-018` sinon) ; `reject`/`revoke` : corps `{"reason"}` |
+| POST | `/v1/badges/affiliations/{id}/primary` | `badges:manage` |
+| GET | `/v1/badges/requests?status=pending&kind=` | `badges:read` (contact inclus) |
+| GET | `/v1/badges/requests/{id}` | `badges:read` (contact inclus) |
+| POST | `/v1/badges/requests/{id}/approve` \| `reject` | `badges:manage` ; corps `category` (approbation d'un badge), `label`, `note` |
+| GET | `/v1/badges/reports?status=open` | `badges:read` |
+| GET | `/v1/badges/reports/{id}` | `badges:read` |
+| POST | `/v1/badges/reports/{id}/resolve` | `badges:manage` ; corps `status` (`resolved`, `dismissed`), `note` |
+| POST | `/v1/badges/imports/wikidata` | `badges:manage` ; `202` ; corps `{"scopes": [...]}` (défaut : `TOWER_BADGES_WIKIDATA_SCOPES`) |
+| GET | `/v1/badges/imports` | `badges:read` ; dernier import par portée |
+
+Espace organisation (en-tête `X-Organization-Token`, voir
+[badges.md](badges.md#organisations--clés-dorganisation)) :
+
+| Méthode | Chemin | Effet |
+|---|---|---|
+| GET | `/v1/org/me` | l'organisation et son badge |
+| GET | `/v1/org/affiliations?status=` | ses affiliations |
+| POST | `/v1/org/affiliations` | affilie un compte (`member`, `title`) : actif tout de suite, un an |
+
+`account`, `member`, `org` : `{"platform": "x", "external_id": "…", "handle": "…"}`
+(`handle` informatif).
+
 ## Identifiants courts
 
 | Méthode | Chemin | Permission | Description |
 |---|---|---|---|
-| GET | `/v1/ids/{kind}/{ref}` | `cases:read` | Identifiant complet de l'élément dont l'identifiant commence par `ref` (6 caractères hexadécimaux ou plus, tirets ignorés). `kind` : `case`, `group`, `claim`, `narrative`, `draft`. Répond `{kind, id}`. Recherche par plage sur l'index unique. Erreurs : `TWR-GEN-001` (préfixe invalide), `TWR-GEN-002` (aucun), `TWR-GEN-005` (plusieurs : taper plus de caractères) |
+| GET | `/v1/ids/{kind}/{ref}` | `cases:read` | Identifiant complet de l'élément dont l'identifiant commence par `ref` (6 caractères hexadécimaux ou plus, tirets ignorés). `kind` : `case`, `group`, `claim`, `narrative`, `draft` ; badges (`badges:read` au lieu de `cases:read`) : `affiliation`, `badge_request`, `badge_report`, `org_key`. Répond `{kind, id}`. Recherche par plage sur l'index unique. Erreurs : `TWR-GEN-001` (préfixe invalide), `TWR-GEN-002` (aucun), `TWR-GEN-005` (plusieurs : taper plus de caractères) |

@@ -6,11 +6,12 @@ Sources : `core/domain/security.py`, `core/auth/`, `gate/deps.py`.
 
 | Type | Comment | Droits |
 |---|---|---|
-| `anonymous` | aucune en-tête | `cases:read_public` (site public, lecture seule) |
+| `anonymous` | aucune en-tête | `cases:read_public`, `badges:read_public`, `badges:submit` (site public : lecture, demandes et signalements de badges) |
 | `service` | `Authorization: Bearer <token>` | scopes du client de service |
 | `staff` | token de service + `X-Acting-Discord-Id: <id>` | **(permissions du membre, ou toutes pour un administrateur) ∩ scopes du service** |
 | `system` | processus internes (hangar, CLI) | tout |
-| `installation` | extension Chromium : en-tête `X-Installation-Token` (aléatoire, jamais stocké) | `content:ingest` seulement ; quota quotidien et limite par IP (voir [ingestion.md](ingestion.md)) |
+| `installation` | extension Chromium : en-tête `X-Installation-Token` (aléatoire, jamais stocké) | `content:ingest`, `badges:read_public`, `badges:submit` ; quota quotidien et limite par IP (voir [ingestion.md](ingestion.md)) |
+| `organization` | organisation badgée : en-tête `X-Organization-Token: t12o_…` (empreinte stockée dans `badge_org_keys`), jamais combiné à un autre identifiant | permissions publiques + `badges:org_manage` (ses affiliations), tant que la clé n'est pas révoquée et que son badge est actif (voir [badges.md](badges.md)) |
 
 Le bot (intercom) s'authentifie avec son token et transmet l'ID Discord de la
 personne qui agit. L'ID est contrôlé contre `staff_members` (actif, rôles et permissions
@@ -22,8 +23,8 @@ membre ne peut pas dépasser ses rôles.
 
 | Rôle | Permissions |
 |---|---|
-| `reviewer` | lire, créer, prendre en revue ; lire la liste de suivi |
-| `editor` | + valider, rejeter, marquer comme publié ; modifier la liste de suivi ; consulter l'usage et les budgets ; demander un fact-check manuel |
+| `reviewer` | lire, créer, prendre en revue ; lire la liste de suivi ; lire les badges |
+| `editor` | + valider, rejeter, marquer comme publié ; modifier la liste de suivi ; consulter l'usage et les budgets ; demander un fact-check manuel ; gérer les badges |
 | `admin` | tout (gestion de l'équipe, erreurs) |
 
 ## Permissions
@@ -41,6 +42,9 @@ commande `/factcheck`). Lot 4 : `claim_groups:manage` (fusion et scission, édit
 `reference_facts:validate` (validation des fiches et des bandes, éditeur),
 `profiles:read` (relecteur et éditeur), `profiles:manage` (activation et retour arrière
 des profils : **admin** seulement), `levels:override` (forçage de niveau, éditeur).
+Badges ([badges.md](badges.md)) : `badges:read_public` et `badges:submit` (public,
+non attribuables), `badges:read` (relecteur et éditeur), `badges:manage` (éditeur),
+`badges:org_manage` (acteur `organization` seulement, non attribuable).
 
 Brouillons de fact-check (voir [fact-check.md](fact-check.md#revue-e11-et-publication)) :
 lecture avec `cases:read` ; `accept` et `edit` avec `cases:review` enregistrent un
@@ -65,8 +69,9 @@ Sources : `core/usecases/staff.py`, `core/domain/security.py`, `gate/routes/staf
   permissions des `roles` (préréglages de la CLI `tower staff`) ∪ `permissions`. À la
   première modification, les permissions des rôles sont **matérialisées** dans
   `permissions` et `roles` est vidé : la liste explicite devient la seule source.
-- **Permissions attribuables** : toutes sauf `cases:read_public`, `content:ingest` et
-  `events:read` (propres au public et aux services).
+- **Permissions attribuables** : toutes sauf `cases:read_public`, `content:ingest`,
+  `events:read`, `badges:read_public`, `badges:submit` et `badges:org_manage` (propres
+  au public, aux services et aux organisations).
 - **Qui peut quoi** : `staff:read` (lister, lire un membre ; soi-même sans permission),
   `staff:manage` (classer, déclasser ; jamais soi-même, `TWR-STF-004`),
   `permissions:manage_others` (modifier les permissions d'un autre membre),
@@ -104,4 +109,6 @@ railway run tower staff 123456789012345678 --roles editor --name "Prénom"
 
 `TWR-AUTH-001` token invalide ou révoqué (401), `TWR-AUTH-002` ID Discord sans token
 (401), `TWR-AUTH-003` ID Discord invalide (401), `TWR-AUTH-004` membre inconnu ou
-inactif (403), `TWR-AUTH-005` permission manquante (403).
+inactif (403), `TWR-AUTH-005` permission manquante (403). Clés d'organisation :
+`TWR-BDG-016` clé invalide ou révoquée (401), `TWR-BDG-017` combinée à un autre
+identifiant (401).

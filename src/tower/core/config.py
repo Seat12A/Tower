@@ -311,6 +311,23 @@ class Settings(BaseSettings):
     radar_schedule_batch: int = Field(default=100, ge=1, le=1000)
     """Poll jobs enqueued per scheduling round at most."""
 
+    # --- Badges (hangar service ``badges``, gate lookup) -------------------------
+    badges_wikidata_scopes: str = "Q142,Q31,Q39,Q16,Q32,Q235,intl"
+    """Wikidata import scopes: country QIDs (citizenship P27 for people, country P17 for
+    organisations) and ``intl`` (international organisations). Empty: no automatic import."""
+    badges_wikidata_interval_s: int = Field(default=604_800, ge=3600)
+    """Delay between two imports of a scope (weekly by default)."""
+    badges_wikidata_stale_days: int = Field(default=30, ge=7)
+    """A Wikidata badge no longer seen for this many days is revoked (while imports run)."""
+    badges_wikidata_endpoint: str = "https://query.wikidata.org/sparql"
+    """SPARQL endpoint (a local fake server in smoke tests)."""
+    badges_x_daily_checks: int = Field(default=500, ge=0)
+    """X accounts checked per UTC day at most (government verification); 0 disables."""
+    badges_x_recheck_days: int = Field(default=30, ge=1)
+    """An account is checked again on X after this many days (hints and badges)."""
+    badges_lookup_max_age_s: int = Field(default=300, ge=0, le=86_400)
+    """``Cache-Control: max-age`` of the public badge lookup."""
+
     # --- intercom (Discord bot) -------------------------------------------------
     discord_token: SecretStr | None = None
     discord_guild_id: int | None = None
@@ -412,6 +429,10 @@ class Settings(BaseSettings):
         if mode is None:
             return None
         return mode not in {"disable", "allow"}
+
+    @property
+    def badges_wikidata_scope_list(self) -> list[str]:
+        return _split(self.badges_wikidata_scopes)
 
     @property
     def radar_exclude_list(self) -> list[str]:
