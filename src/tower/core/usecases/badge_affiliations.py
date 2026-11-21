@@ -32,6 +32,7 @@ from tower.core.domain.badges import (
     BadgeStatus,
     affiliation_expiry,
     check_text,
+    normalize_category,
 )
 from tower.core.domain.errors import Conflict, InvalidInput, NotFound, PermissionDenied
 from tower.core.domain.security import Actor, ActorKind, Permission
@@ -63,7 +64,7 @@ def affiliation_payload(
             **account_ref_payload(org_account),
             "badge": str(org.public_id),
             "label": org.label,
-            "category": org.category,
+            "category": normalize_category(org.category),
         },
         "status": a.status,
         "primary": a.is_primary,

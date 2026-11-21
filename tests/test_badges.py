@@ -15,7 +15,7 @@ from tower.core.config import Settings
 from tower.core.db.database import Database
 from tower.core.domain import error_codes as ec
 from tower.core.domain.badges import AccountRef, BadgeCategory, BadgeSource
-from tower.core.domain.errors import Conflict, DomainError, PermissionDenied
+from tower.core.domain.errors import Conflict, DomainError, InvalidInput, PermissionDenied
 from tower.core.domain.platforms import Platform
 from tower.core.domain.security import Actor, Permission
 from tower.core.jobs.queue import JobRecord
@@ -80,8 +80,14 @@ async def test_grant_lookup_and_history(db: Database) -> None:
         "1": {
             "category": "expert",
             "color": "#22D3EE",
-            "badge": {"category": "expert", "color": "#22D3EE", "label": "Dr A"},
+            "badge": {
+                "category": "expert",
+                "color": "#22D3EE",
+                "label": "Dr A",
+                "expertise": None,
+            },
             "affiliation": None,
+            "affiliations": [],
         }
     }
     assert await actions(db, "1") == ["granted"]
@@ -95,6 +101,53 @@ async def test_grant_lookup_and_history(db: Database) -> None:
         with pytest.raises(Conflict) as exc:
             await uc.grant_badge(s, STAFF, ref("1"), category="media", version=1)
         assert exc.value.error_code is ec.BDG_VERSION_CONFLICT
+
+
+async def test_expert_field_of_expertise(db: Database) -> None:
+    async with db.transaction() as s:
+        badge, _ = await uc.grant_badge(
+            s, STAFF, ref("3"), category="expert", expertise=" épidémiologie "
+        )
+        assert badge.expertise == "épidémiologie"
+        # None keeps it
+        badge, _ = await uc.grant_badge(s, STAFF, ref("3"), category="expert", label="Dr B")
+        assert badge.expertise == "épidémiologie"
+    async with db.session() as s:
+        found = await uc.lookup_badges(s, ANON, "x", ["3"])
+    assert found["3"]["badge"]["expertise"] == "épidémiologie"
+    # Only an expert badge carries one
+    async with db.transaction() as s:
+        with pytest.raises(InvalidInput) as exc:
+            await uc.grant_badge(s, STAFF, ref("4"), category="media", expertise="santé")
+        assert exc.value.error_code is ec.BDG_EXPERTISE_NOT_EXPERT
+    # Leaving the expert category clears it
+    async with db.transaction() as s:
+        badge, _ = await uc.grant_badge(s, STAFF, ref("3"), category="verified")
+        assert badge.expertise is None and badge.category == "verified"
+        badge, _ = await uc.grant_badge(s, STAFF, ref("3"), category="expert", expertise="x")
+        badge, _ = await uc.grant_badge(s, STAFF, ref("3"), category="expert", expertise="")
+        assert badge.expertise is None
+
+
+async def test_legacy_personality_rows_read_as_verified(db: Database) -> None:
+    async with db.transaction() as s:
+        await uc.grant_badge(s, STAFF, ref("6"), category="personality")  # legacy input
+        badge, _ = await uc.grant_badge(s, STAFF, ref("7"), category="verified")
+        assert badge.category == "verified"
+        # A row written by the previous code still holds the legacy value
+        await s.execute(
+            text("UPDATE badges SET category = 'personality' WHERE id = :i"), {"i": badge.id}
+        )
+    async with db.session() as s:
+        found = await uc.lookup_badges(s, ANON, "x", ["6", "7"])
+        listed = await uc.list_badges(s, STAFF, category="verified")
+    assert {k: v["category"] for k, v in found.items()} == {"6": "verified", "7": "verified"}
+    assert {a.external_id for _, a in listed} == {"6", "7"}
+    assert all(uc.badge_payload(b, a)["category"] == "verified" for b, a in listed)
+    # Re-granting the same category rewrites the spelling silently (no new version)
+    async with db.transaction() as s:
+        badge, _ = await uc.grant_badge(s, STAFF, ref("7"), category="verified")
+        assert badge.category == "verified" and badge.version == 2
 
 
 async def test_permissions_are_checked_in_use_cases(db: Database) -> None:
@@ -111,7 +164,7 @@ async def test_revoke_is_sticky_against_automatic_sources(db: Database) -> None:
         await uc.revoke_badge(s, STAFF, ref("5"), reason="error")
         account = await uc.find_account(s, ref("5"))
         assert account is not None
-        grant = uc.AutoGrant(category=BadgeCategory.PERSONALITY, source=BadgeSource.WIKIDATA)
+        grant = uc.AutoGrant(category=BadgeCategory.VERIFIED, source=BadgeSource.WIKIDATA)
         assert await uc.apply_automatic(s, SYSTEM, account, grant) is None
     async with db.session() as s:
         assert await uc.lookup_badges(s, ANON, "x", ["5"]) == {}
@@ -163,7 +216,7 @@ async def test_automatic_source_rules(db: Database) -> None:
         assert await uc.apply_automatic(s, SYSTEM, account, wd) is None
         # Another QID claiming the same account is ignored (safety)
         other = uc.AutoGrant(
-            category=BadgeCategory.PERSONALITY, source=BadgeSource.WIKIDATA, wikidata_qid="Q8"
+            category=BadgeCategory.VERIFIED, source=BadgeSource.WIKIDATA, wikidata_qid="Q8"
         )
         assert await uc.apply_automatic(s, SYSTEM, account, other) is None
         badge = await s.scalar(select(Badge).where(Badge.account_id == account.id))
@@ -187,25 +240,30 @@ async def test_affiliation_display_and_primary(db: Database) -> None:
     first = await org_with_member(db)
     async with db.session() as s:
         found = await uc.lookup_badges(s, ANON, "x", ["200", "100"])
-    assert found["200"]["category"] == "media" and found["200"]["badge"] is None
+    # Affiliation without a badge: logo only, no check mark (no inherited colour)
+    assert found["200"]["category"] is None and found["200"]["color"] is None
+    assert found["200"]["badge"] is None
     assert found["200"]["affiliation"]["org"]["label"] == "Le Journal"
     assert found["200"]["affiliation"]["title"] == "Reporter"
-    # Own badge wins over the organisation colour, affiliation still shown
+    assert found["200"]["affiliations"] == [found["200"]["affiliation"]]
+    # Own badge is independent; several affiliations listed, primary first
     async with db.transaction() as s:
-        await uc.grant_badge(s, STAFF, ref("200"), category="personality")
+        await uc.grant_badge(s, STAFF, ref("200"), category="verified")
         await uc.grant_badge(s, STAFF, ref("101"), category="institutional", label="Ville")
         second = await aff.create_affiliation(s, STAFF, ref("200"), org_ref=ref("101"))
         assert second.is_primary is False
     async with db.session() as s:
         found = await uc.lookup_badges(s, ANON, "x", ["200"])
-    assert found["200"]["color"] == "#3B5BFF"
+    assert found["200"]["color"] == "#3B5BFF" and found["200"]["category"] == "verified"
     assert found["200"]["affiliation"]["org"]["external_id"] == "100"
+    assert [a["org"]["external_id"] for a in found["200"]["affiliations"]] == ["100", "101"]
     async with db.transaction() as s:
         await aff.set_primary_affiliation(s, STAFF, str(second.public_id))
     async with db.session() as s:
         found = await uc.lookup_badges(s, ANON, "x", ["200"])
         details = await uc.account_badge_details(s, ANON, ref("200"))
     assert found["200"]["affiliation"]["org"]["external_id"] == "101"
+    assert [a["org"]["external_id"] for a in found["200"]["affiliations"]] == ["101", "100"]
     assert [a["primary"] for a in details["affiliations"]] == [True, False]
     # Revoking the primary promotes the remaining one
     async with db.transaction() as s:
@@ -266,7 +324,7 @@ async def test_org_losing_badge_ends_all_affiliations(db: Database) -> None:
 async def test_org_category_change_ends_affiliations(db: Database) -> None:
     first = await org_with_member(db)
     async with db.transaction() as s:
-        await uc.grant_badge(s, STAFF, ref("100"), category="personality")
+        await uc.grant_badge(s, STAFF, ref("100"), category="verified")
     async with db.session() as s:
         a = await aff.get_affiliation(s, STAFF, first)
     assert a["status"] == "revoked" and a["end_reason"] == "org_category_changed"
@@ -354,7 +412,7 @@ async def test_reports(db: Database) -> None:
         with pytest.raises(DomainError) as exc:
             await sub.submit_report(s, ANON, account=ref("600"), reason="impersonation")
         assert exc.value.error_code is ec.BDG_NOT_FOUND
-        await uc.grant_badge(s, STAFF, ref("600"), category="personality")
+        await uc.grant_badge(s, STAFF, ref("600"), category="verified")
         r = await sub.submit_report(s, ANON, account=ref("600"), reason="wrong_category")
     async with db.transaction() as s:
         done = await sub.resolve_report(s, STAFF, str(r.public_id), status="dismissed")
@@ -597,6 +655,23 @@ async def test_gate_lookup_is_public_and_cacheable(
     )
     assert r.status_code == 200, r.text
     assert r.json()["granted_by"] == "staff:1@intercom"
+    # Legacy "personality" input is accepted and answered as "verified"
+    r = await api.put(
+        "/v1/badges/accounts/x/45", json={"category": "personality"}, headers=h(token, 1)
+    )
+    assert r.status_code == 200 and r.json()["category"] == "verified", r.text
+    r = await api.put(
+        "/v1/badges/accounts/x/46",
+        json={"category": "expert", "expertise": "climatologie"},
+        headers=h(token, 1),
+    )
+    assert r.json()["expertise"] == "climatologie"
+    r = await api.put(
+        "/v1/badges/accounts/x/47",
+        json={"category": "media", "expertise": "climatologie"},
+        headers=h(token, 1),
+    )
+    assert r.status_code == 422 and r.json()["error"]["code"] == "TWR-BDG-027"
     r = await api.get("/v1/badges/lookup", params={"ids": "42,43"})
     assert r.status_code == 200
     assert r.json() == {
@@ -605,8 +680,14 @@ async def test_gate_lookup_is_public_and_cacheable(
             "42": {
                 "category": "media",
                 "color": "#D946EF",
-                "badge": {"category": "media", "color": "#D946EF", "label": "AFP"},
+                "badge": {
+                    "category": "media",
+                    "color": "#D946EF",
+                    "label": "AFP",
+                    "expertise": None,
+                },
                 "affiliation": None,
+                "affiliations": [],
             }
         },
     }
@@ -626,7 +707,7 @@ async def test_gate_lookup_is_public_and_cacheable(
         "media",
         "expert",
         "organization",
-        "personality",
+        "verified",
     ]
     r = await api.get("/v1/badges/accounts/x/42")
     assert r.status_code == 200 and r.json()["badge"]["category"] == "media"

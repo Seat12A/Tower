@@ -31,11 +31,14 @@ from tower.core.domain.badges import (
     BadgeCategory,
     BadgeSource,
     BadgeStatus,
+    check_expertise,
     check_text,
     check_url,
     color_of,
+    normalize_category,
     parse_category,
     parse_lookup_ids,
+    stored_values,
 )
 from tower.core.domain.errors import Conflict, NotFound
 from tower.core.domain.security import Actor, Permission
@@ -46,6 +49,10 @@ from tower.core.models.ingestion import PlatformAccount
 AGGREGATE = "badge"
 AUTO_PREFIX = "system:"
 """Actor label prefix of automatic revocations: those may be undone by a source."""
+
+
+MAX_LOOKUP_AFFILIATIONS = 5
+"""Affiliations returned per account by the lookup (primary first)."""
 
 
 def utcnow() -> datetime:
@@ -104,10 +111,11 @@ def badge_payload(
         "public_id": str(badge.public_id),
         "account": account_ref_payload(account),
         "status": badge.status,
-        "category": badge.category,
+        "category": normalize_category(badge.category),
         "color": color_of(badge.category) if badge.category else None,
         "label": badge.label,
         "logo_url": badge.logo_url,
+        "expertise": badge.expertise,
     }
     if internal:
         out.update(
@@ -220,6 +228,15 @@ async def active_org_badge(
     return row[0], row[1]
 
 
+def set_category(badge: Badge, category: BadgeCategory, change: Any) -> None:
+    """Set the category through ``change`` (recorded), unless only the stored spelling
+    differs (legacy value): then rewrite it silently, without history or source change."""
+    if normalize_category(badge.category) != category.value:
+        change("category", category.value)
+    else:
+        badge.category = category.value
+
+
 def is_affiliable(badge: Badge) -> bool:
     return (
         badge.status == BadgeStatus.ACTIVE.value
@@ -239,6 +256,7 @@ async def grant_badge(
     category: str,
     label: str | None = None,
     logo_url: str | None = None,
+    expertise: str | None = None,
     note: str | None = None,
     handle: str | None = None,
     version: int | None = None,
@@ -247,10 +265,13 @@ async def grant_badge(
     """Grant (or update) the badge of an account. Refused on a blocked account.
 
     ``version``: optimistic lock on an existing row (``TWR-BDG-005``). Passing ``""`` for
-    ``label``, ``logo_url`` or ``note`` clears the field; ``None`` keeps it.
+    ``label``, ``logo_url``, ``expertise`` or ``note`` clears the field; ``None`` keeps
+    it. ``expertise`` is only allowed on an expert badge (``TWR-BDG-027``) and is
+    cleared when the category is no longer expert.
     """
     actor.require(Permission.BADGES_MANAGE)
     cat = parse_category(category)
+    new_expertise = check_expertise(cat, expertise)
     new_label = check_text(label, field="label", max_chars=MAX_LABEL)
     new_logo = check_url(logo_url, field="logo_url")
     new_note = check_text(note, field="note", max_chars=MAX_NOTE)
@@ -285,11 +306,15 @@ async def grant_badge(
             changes[field] = {"from": old, "to": new}
             setattr(badge, field, new)
 
-    change("category", cat.value)
+    set_category(badge, cat, change)
     if label is not None:
         change("label", new_label)
     if logo_url is not None:
         change("logo_url", new_logo)
+    if cat is not BadgeCategory.EXPERT:
+        change("expertise", None)
+    elif expertise is not None:
+        change("expertise", new_expertise)
     if note is not None:
         change("note", new_note)
     if not was_active:
@@ -441,6 +466,8 @@ class AutoGrant:
     source: BadgeSource
     label: str | None = None
     logo_url: str | None = None
+    expertise: str | None = None
+    """Field of expertise (expert category only; ignored otherwise)."""
     wikidata_qid: str | None = None
 
 
@@ -508,6 +535,11 @@ async def apply_automatic(
             change("label", grant.label)
         if grant.logo_url is not None:
             change("logo_url", grant.logo_url)
+        if grant.category is BadgeCategory.EXPERT:
+            if grant.expertise is not None:
+                change("expertise", grant.expertise)
+        else:
+            change("expertise", None)
         badge.granted_by = actor.label
         badge.granted_at = now
         badge.ended_by = badge.ended_at = badge.end_reason = None
@@ -516,14 +548,18 @@ async def apply_automatic(
         action = BadgeAction.UPDATED
         current = BadgeSource(badge.source) if badge.source else BadgeSource.MANUAL
         if current is grant.source:
-            change("category", grant.category.value)
+            set_category(badge, grant.category, change)
         elif current is BadgeSource.WIKIDATA and grant.source is BadgeSource.X_GOVERNMENT:
-            change("category", grant.category.value)
+            set_category(badge, grant.category, change)
             change("source", grant.source.value)
         if badge.label is None and grant.label is not None:
             change("label", grant.label)
         if badge.logo_url is None and grant.logo_url is not None:
             change("logo_url", grant.logo_url)
+        if normalize_category(badge.category) != BadgeCategory.EXPERT.value:
+            change("expertise", None)
+        elif badge.expertise is None and grant.expertise is not None:
+            change("expertise", grant.expertise)
     if not changes:
         await session.flush()
         return None
@@ -589,7 +625,7 @@ async def list_badges(
     if status is not None:
         stmt = stmt.where(Badge.status == BadgeStatus(status).value)
     if category is not None:
-        stmt = stmt.where(Badge.category == parse_category(category).value)
+        stmt = stmt.where(Badge.category.in_(stored_values(parse_category(category))))
     if source is not None:
         stmt = stmt.where(Badge.source == BadgeSource(source).value)
     if platform is not None:
@@ -638,87 +674,97 @@ async def badge_history(
 async def lookup_badges(
     session: AsyncSession, actor: Actor, platform: str, ids: Sequence[str]
 ) -> dict[str, dict[str, Any]]:
-    """Public batch lookup for the extension: native id → displayed badge.
+    """Public batch lookup for the extension: native id → what to display.
 
     Only accounts with something to show are returned (absent = no Seat 12A badge).
-    ``color`` and ``category`` are what to display: the account's own badge, else the
-    colour of the organisation of its primary affiliation (logo in ``affiliation``).
-    One SQL query whatever the batch size (≤ 100 ids).
+    Badge and affiliations are independent: ``category`` and ``color`` (the check mark)
+    come from the account's own badge only (None without one); ``affiliation`` is the
+    primary affiliation, whose organisation logo goes next to the handle; ``affiliations``
+    lists the active ones, primary first (at most ``MAX_LOOKUP_AFFILIATIONS``).
+    Two SQL queries whatever the batch size (≤ 100 ids).
     """
     actor.require(Permission.BADGES_READ_PUBLIC)
     plat, clean = parse_lookup_ids(platform, ids)
-    member = aliased(PlatformAccount)
-    own = aliased(Badge)
-    aff = aliased(BadgeAffiliation)
+    accounts = (
+        await session.execute(
+            select(PlatformAccount.id, PlatformAccount.external_id, Badge)
+            .outerjoin(
+                Badge,
+                and_(
+                    Badge.account_id == PlatformAccount.id,
+                    Badge.status == BadgeStatus.ACTIVE.value,
+                ),
+            )
+            .where(PlatformAccount.platform == plat.value, PlatformAccount.external_id.in_(clean))
+        )
+    ).all()
+    if not accounts:
+        return {}
     org = aliased(Badge)
     org_account = aliased(PlatformAccount)
-    now = utcnow()
-    stmt = (
-        select(
-            member.external_id,
-            own.category,
-            own.label,
-            org.category,
-            org.label,
-            org.logo_url,
-            org_account.platform,
-            org_account.external_id,
-            aff.title,
+    affs: dict[int, list[dict[str, Any]]] = {}
+    rows = (
+        await session.execute(
+            select(BadgeAffiliation.member_account_id, BadgeAffiliation.title, org, org_account)
+            .join(
+                org,
+                and_(
+                    org.id == BadgeAffiliation.org_badge_id,
+                    org.status == BadgeStatus.ACTIVE.value,
+                    org.category.in_([v for c in AFFILIABLE_CATEGORIES for v in stored_values(c)]),
+                ),
+            )
+            .join(org_account, org_account.id == org.account_id)
+            .where(
+                BadgeAffiliation.member_account_id.in_([a[0] for a in accounts]),
+                BadgeAffiliation.status == AffiliationStatus.ACTIVE.value,
+                BadgeAffiliation.expires_at > utcnow(),
+            )
+            .order_by(
+                BadgeAffiliation.member_account_id,
+                BadgeAffiliation.is_primary.desc(),
+                BadgeAffiliation.validated_at,
+                BadgeAffiliation.id,
+            )
         )
-        .select_from(member)
-        .outerjoin(own, and_(own.account_id == member.id, own.status == "active"))
-        .outerjoin(
-            aff,
-            and_(
-                aff.member_account_id == member.id,
-                aff.is_primary,
-                aff.status == AffiliationStatus.ACTIVE.value,
-                aff.expires_at > now,
-            ),
-        )
-        .outerjoin(
-            org,
-            and_(
-                org.id == aff.org_badge_id,
-                org.status == "active",
-                org.category.in_([c.value for c in AFFILIABLE_CATEGORIES]),
-            ),
-        )
-        .outerjoin(org_account, org_account.id == org.account_id)
-        .where(member.platform == plat.value, member.external_id.in_(clean))
-        .where((own.id.is_not(None)) | (org.id.is_not(None)))
-    )
+    ).all()
+    for member_id, title, o, oa in rows:
+        listed = affs.setdefault(member_id, [])
+        if len(listed) < MAX_LOOKUP_AFFILIATIONS:
+            listed.append(
+                {
+                    "org": {
+                        "platform": oa.platform,
+                        "external_id": oa.external_id,
+                        "category": normalize_category(o.category),
+                        "color": color_of(o.category or ""),
+                        "label": o.label,
+                        "logo_url": o.logo_url,
+                    },
+                    "title": title,
+                }
+            )
     out: dict[str, dict[str, Any]] = {}
-    for row in (await session.execute(stmt)).all():
-        (xid, own_cat, own_label, org_cat, org_label, org_logo, org_plat, org_xid, title) = row
-        badge = (
-            {"category": own_cat, "color": color_of(own_cat), "label": own_label}
-            if own_cat
-            else None
-        )
-        affiliation = (
-            {
-                "org": {
-                    "platform": org_plat,
-                    "external_id": org_xid,
-                    "category": org_cat,
-                    "color": color_of(org_cat),
-                    "label": org_label,
-                    "logo_url": org_logo,
-                },
-                "title": title,
-            }
-            if org_cat
-            else None
-        )
-        display = own_cat or org_cat
-        if display is None or xid is None:  # excluded by the WHERE clause
+    for account_id, xid, own in accounts:
+        listed = affs.get(account_id, [])
+        if xid is None or (own is None and not listed):
             continue
+        badge = (
+            {
+                "category": normalize_category(own.category),
+                "color": color_of(own.category),
+                "label": own.label,
+                "expertise": own.expertise,
+            }
+            if own is not None and own.category
+            else None
+        )
         out[xid] = {
-            "category": display,
-            "color": color_of(display),
+            "category": badge["category"] if badge else None,
+            "color": badge["color"] if badge else None,
             "badge": badge,
-            "affiliation": affiliation,
+            "affiliation": listed[0] if listed else None,
+            "affiliations": listed,
         }
     return out
 

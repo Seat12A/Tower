@@ -62,7 +62,7 @@ extension modifiée peut mentir), d'où les vérifications côté serveur.
 
 En parallèle, les **badges Seat 12A** ([badges.md](badges.md)) remplacent les coches de
 X par des badges attribués selon la fonction du compte (institution, média, expert,
-organisation, personnalité), vérifiés par l'équipe, Wikidata ou l'API X.
+organisation, vérifié), vérifiés par l'équipe, Wikidata ou l'API X.
 
 ## 2. Rôle et limites (non négociables)
 
@@ -410,7 +410,9 @@ Règles complètes : [badges.md](badges.md). Ce qui concerne l'extension :
 ```
 
 Cinq catégories aujourd'hui (`institutional`, `media`, `expert`, `organization`,
-`personality`). Les couleurs viennent de l'API (ne pas les coder en dur) ; les
+`verified`, ex-`personality`). Une coche vient du badge propre du compte ; une
+affiliation n'affiche que le logo de l'organisation à côté du pseudo (sans coche si le
+compte n'a pas de badge). Les couleurs viennent de l'API (ne pas les coder en dur) ; les
 libellés viennent des fichiers de traduction (section 4).
 
 **Lookup en lot.** Pour les auteurs affichés à l'écran :

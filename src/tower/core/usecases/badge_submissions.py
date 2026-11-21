@@ -35,6 +35,7 @@ from tower.core.domain.badges import (
     RequestStatus,
     check_text,
     check_url,
+    normalize_category,
     parse_category,
 )
 from tower.core.domain.errors import Conflict, InvalidInput, NotFound
@@ -64,7 +65,7 @@ def request_payload(
         "public_id": str(r.public_id),
         "kind": r.kind,
         "account": {**account_ref_payload(account), "handle": account.handle},
-        "requested_category": r.requested_category,
+        "requested_category": normalize_category(r.requested_category),
         "org": account_ref_payload(org_account) if org_account is not None else None,
         "title": r.title,
         "justification": r.justification,
@@ -171,7 +172,7 @@ async def submit_request(
             "request": str(request.public_id),
             "kind": request.kind,
             "account": account_ref_payload(acc),
-            "requested_category": request.requested_category,
+            "requested_category": normalize_category(request.requested_category),
         },
         aggregate_type="badge_request",
         aggregate_id=str(request.public_id),
@@ -240,10 +241,12 @@ async def approve_request(
     *,
     category: str | None = None,
     label: str | None = None,
+    expertise: str | None = None,
     note: str | None = None,
 ) -> BadgeRequest:
-    """Approve: grants the badge (``category`` may override the requested one) or creates
-    the affiliation, active and validated by the team."""
+    """Approve: grants the badge (``category`` may override the requested one;
+    ``expertise`` for an expert badge) or creates the affiliation, active and validated
+    by the team."""
     actor.require(Permission.BADGES_MANAGE)
     r = await _pending_request(session, public_id)
     ref = await _ref_of(session, r.account_id)
@@ -254,6 +257,7 @@ async def approve_request(
             ref,
             category=category or r.requested_category or "",
             label=check_text(label, field="label", max_chars=MAX_LABEL),
+            expertise=expertise,
             source=BadgeSource.REQUEST,
         )
     else:

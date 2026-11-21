@@ -599,9 +599,15 @@ class GateClient:
         label: str | None = None,
         logo_url: str | None = None,
         note: str | None = None,
+        expertise: str | None = None,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"category": category}
-        for key, value in (("label", label), ("logo_url", logo_url), ("note", note)):
+        for key, value in (
+            ("label", label),
+            ("logo_url", logo_url),
+            ("expertise", expertise),
+            ("note", note),
+        ):
             if value is not None:
                 body[key] = value
         row: dict[str, Any] = await self._request(
@@ -720,10 +726,13 @@ class GateClient:
         approve: bool,
         category: str | None = None,
         note: str | None = None,
+        expertise: str | None = None,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"note": note or None}
         if approve and category:
             body["category"] = category
+        if approve and expertise:
+            body["expertise"] = expertise
         row: dict[str, Any] = await self._request(
             "POST",
             f"/v1/badges/requests/{quote(public_id, safe='')}/"

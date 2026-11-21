@@ -239,7 +239,7 @@ Règles : [badges.md](badges.md). IDs natifs en **chaînes**, jamais de pseudo.
 | GET | `/v1/badges/resolve/x/{handle}` | `badges:manage` ; ID natif d'un pseudo X lu par l'API officielle (une lecture d'utilisateur facturée sur `provider:x`, sans cache) ; `{platform, external_id, handle, display_name, verified_type}` ; `404 TWR-BDG-025`, `409 TWR-BDG-024` (budget), `503 TWR-BDG-026` (pas de `TOWER_X_BEARER_TOKEN` sur gate) |
 | GET | `/v1/badges?status=active&category=&source=&platform=&limit=&offset=` | `badges:read` |
 | GET | `/v1/badges/accounts/{p}/{id}/badge` | `badges:read` ; ligne complète (tout état, note interne) |
-| PUT | `/v1/badges/accounts/{p}/{id}` | `badges:manage` ; corps `category`, `label`, `logo_url` (https), `note`, `handle`, `version` (verrou optimiste) ; `409 TWR-BDG-004` si bloqué |
+| PUT | `/v1/badges/accounts/{p}/{id}` | `badges:manage` ; corps `category`, `label`, `logo_url` (https ; pour une organisation, logo affiché à côté du pseudo de ses affiliés), `expertise` (badge `expert` seulement, sinon `422 TWR-BDG-027` ; `""` l'efface), `note`, `handle`, `version` (verrou optimiste) ; `409 TWR-BDG-004` si bloqué |
 | POST | `/v1/badges/accounts/{p}/{id}/revoke` | `badges:manage` ; corps `{"reason"}` |
 | POST | `/v1/badges/accounts/{p}/{id}/block` | `badges:manage` ; corps `{"reason"}` |
 | POST | `/v1/badges/accounts/{p}/{id}/unblock` | `badges:manage` |
@@ -254,7 +254,7 @@ Règles : [badges.md](badges.md). IDs natifs en **chaînes**, jamais de pseudo.
 | POST | `/v1/badges/affiliations/{id}/primary` | `badges:manage` |
 | GET | `/v1/badges/requests?status=pending&kind=` | `badges:read` (contact inclus) |
 | GET | `/v1/badges/requests/{id}` | `badges:read` (contact inclus) |
-| POST | `/v1/badges/requests/{id}/approve` \| `reject` | `badges:manage` ; corps `category` (approbation d'un badge), `label`, `note` |
+| POST | `/v1/badges/requests/{id}/approve` \| `reject` | `badges:manage` ; corps `category` (approbation d'un badge), `label`, `expertise` (badge `expert`), `note` |
 | GET | `/v1/badges/reports?status=open` | `badges:read` |
 | GET | `/v1/badges/reports/{id}` | `badges:read` |
 | POST | `/v1/badges/reports/{id}/resolve` | `badges:manage` ; corps `status` (`resolved`, `dismissed`), `note` |

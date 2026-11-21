@@ -1016,6 +1016,12 @@ BDG_X_UNAVAILABLE = _define(
     retryable=True,
     hint="Set TOWER_X_BEARER_TOKEN on the gate service",
 )
+BDG_EXPERTISE_NOT_EXPERT = _define(
+    "TWR-BDG-027",
+    "A field of expertise is only allowed on an expert badge",
+    http_status=422,
+    severity=_INFO,
+)
 
 
 def get(code: str) -> ErrorCode:

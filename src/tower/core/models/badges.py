@@ -25,6 +25,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from tower.core.db.base import Base
 from tower.core.domain.badges import (
+    LEGACY_CATEGORIES,
     AffiliationSource,
     AffiliationStatus,
     BadgeAction,
@@ -45,6 +46,11 @@ def _public_id() -> Mapped[uuid.UUID]:
     )
 
 
+_CATEGORY_SQL = ", ".join(f"'{v}'" for v in [*BadgeCategory, *LEGACY_CATEGORIES])
+"""Allowed stored categories: current values, plus legacy ones until the contract
+migration rewrites the old rows (docs/badges.md)."""
+
+
 class Badge(Base):
     """Badge state of one platform account (one row per account, any status)."""
 
@@ -52,9 +58,7 @@ class Badge(Base):
     __table_args__ = (
         check_in("status", BadgeStatus, "status"),
         CheckConstraint(
-            "category IS NULL OR category IN ("
-            + ", ".join(f"'{c.value}'" for c in BadgeCategory)
-            + ")",
+            "category IS NULL OR category IN (" + _CATEGORY_SQL + ")",
             name="category",
         ),
         CheckConstraint("status <> 'active' OR category IS NOT NULL", name="active_category"),
@@ -78,6 +82,9 @@ class Badge(Base):
     label: Mapped[str | None] = mapped_column(Text)
     """Public display name (shown on affiliates for an organisation)."""
     logo_url: Mapped[str | None] = mapped_column(Text)
+    """Organisation logo, shown next to the handle of its affiliated accounts."""
+    expertise: Mapped[str | None] = mapped_column(Text)
+    """Field of an expert badge (French free text); None for other categories."""
     wikidata_qid: Mapped[str | None] = mapped_column(Text)
     wikidata_seen_at: Mapped[datetime | None]
     note: Mapped[str | None] = mapped_column(Text)
@@ -174,9 +181,7 @@ class BadgeRequest(Base):
         check_in("kind", RequestKind, "kind"),
         check_in("status", RequestStatus, "status"),
         CheckConstraint(
-            "requested_category IS NULL OR requested_category IN ("
-            + ", ".join(f"'{c.value}'" for c in BadgeCategory)
-            + ")",
+            "requested_category IS NULL OR requested_category IN (" + _CATEGORY_SQL + ")",
             name="requested_category",
         ),
         CheckConstraint(

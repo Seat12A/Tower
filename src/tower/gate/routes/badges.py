@@ -80,6 +80,8 @@ class LookupBadge(BaseModel):
     category: BadgeCategory
     color: str
     label: str | None
+    expertise: str | None
+    """Field of an expert badge (French free text), else None."""
 
 
 class LookupOrg(BaseModel):
@@ -97,12 +99,14 @@ class LookupAffiliation(BaseModel):
 
 
 class LookupEntry(BaseModel):
-    category: BadgeCategory
-    """Category to display: own badge, else the organisation's."""
-    color: str
+    category: BadgeCategory | None
+    """Check mark to display: the account's own badge only (None: no check mark)."""
+    color: str | None
     badge: LookupBadge | None
     affiliation: LookupAffiliation | None
-    """Primary affiliation (logo of the organisation)."""
+    """Primary affiliation: its organisation logo goes next to the handle."""
+    affiliations: list[LookupAffiliation]
+    """Active affiliations, primary first (at most 5)."""
 
 
 class LookupOut(BaseModel):
@@ -272,6 +276,8 @@ class BadgeIn(BaseModel):
     category: BadgeCategory
     label: str | None = Field(default=None, max_length=120)
     logo_url: str | None = Field(default=None, max_length=2048)
+    expertise: str | None = Field(default=None, max_length=120)
+    """Field of an expert badge (``TWR-BDG-027`` on another category); "" clears it."""
     note: str | None = Field(default=None, max_length=2000)
     handle: str | None = Field(default=None, max_length=100)
     version: int | None = None
@@ -327,6 +333,7 @@ async def grant_badge(
         category=body.category.value,
         label=body.label,
         logo_url=body.logo_url,
+        expertise=body.expertise,
         note=body.note,
         handle=body.handle,
         version=body.version,
@@ -524,6 +531,8 @@ class DecisionIn(BaseModel):
     category: BadgeCategory | None = None
     """Approval of a badge request: overrides the requested category."""
     label: str | None = Field(default=None, max_length=120)
+    expertise: str | None = Field(default=None, max_length=120)
+    """Approval as an expert badge: field of expertise."""
     note: str | None = Field(default=None, max_length=2000)
 
 
@@ -556,6 +565,7 @@ async def approve_request(
         public_id,
         category=body.category.value if body.category else None,
         label=body.label,
+        expertise=body.expertise,
         note=body.note,
     )
     account, org = await sub.request_parts(session, r)

@@ -64,14 +64,14 @@ __all__ = [
     "resolve_account",
 ]
 
-CATEGORIES = ("institutional", "media", "expert", "organization", "personality")
+CATEGORIES = ("institutional", "media", "expert", "organization", "verified")
 """Priority order (highest first)."""
 COLORS = {
     "institutional": "#FF7A00",
     "organization": "#FFD60A",
     "media": "#D946EF",
     "expert": "#22D3EE",
-    "personality": "#3B5BFF",
+    "verified": "#3B5BFF",
 }
 AFFILIABLE = frozenset({"institutional", "media", "organization"})
 PLATFORMS = ("x", "bluesky", "threads", "mastodon", "youtube", "tiktok", "telegram", "web")
@@ -187,6 +187,8 @@ async def _account_card(
         if badge.get("handle"):
             details.append((t(locale, "badge.d.handle"), code("@" + badge["handle"])))
         details.append((t(locale, "badge.d.category"), _category(locale, badge.get("category"))))
+        if badge.get("expertise"):
+            details.append((t(locale, "badge.d.expertise"), badge["expertise"]))
         details.append((t(locale, "badge.d.source"), code(badge.get("source") or "-")))
         if badge.get("granted_by") and status == "active":
             details.append(
@@ -305,13 +307,20 @@ async def badge_grant(
     label: str | None = None,
     logo_url: str | None = None,
     note: str | None = None,
+    expertise: str | None = None,
 ) -> Reply:
     resolved = await resolve_account(gate, acting, locale, platform, external_id)
     if isinstance(resolved, Reply):
         return resolved
     checked, found = (resolved[0], resolved[1]), resolved[2]
     done = await gate.grant_badge(
-        acting, *checked, category=category, label=label, logo_url=logo_url, note=note
+        acting,
+        *checked,
+        category=category,
+        label=label,
+        logo_url=logo_url,
+        expertise=expertise,
+        note=note,
     )
     footer = t(locale, "badge.granted", category=done["category"], version=done["version"])
     return await _account_card(gate, acting, locale, *checked, footer=_join(footer, found))
@@ -673,9 +682,12 @@ async def request_decide(
     approve: bool,
     category: str | None = None,
     note: str | None = None,
+    expertise: str | None = None,
 ) -> Reply:
     pid = await resolve_ref(gate, acting, "badge_request", ref)
-    await gate.decide_badge_request(acting, pid, approve=approve, category=category, note=note)
+    await gate.decide_badge_request(
+        acting, pid, approve=approve, category=category, note=note, expertise=expertise
+    )
     r = await gate.get_badge_request(acting, pid)
     key = "badge.req.approved" if approve else "badge.req.rejected"
     return _request_card(locale, r, t(locale, key))

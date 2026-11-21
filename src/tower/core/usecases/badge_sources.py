@@ -24,6 +24,7 @@ from tower.core.domain.badges import (
     classify_wikidata,
     commons_file_url,
     parse_lookup_ids,
+    wikidata_expertise,
 )
 from tower.core.domain.errors import InvalidInput
 from tower.core.domain.platforms import Platform, validate_external_id
@@ -139,6 +140,11 @@ async def apply_wikidata_batch(
                     source=BadgeSource.WIKIDATA,
                     label=item.label,
                     logo_url=logo,
+                    expertise=(
+                        wikidata_expertise(item.occupations)
+                        if category is BadgeCategory.EXPERT
+                        else None
+                    ),
                     wikidata_qid=qid,
                 ),
             )

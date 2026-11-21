@@ -16,6 +16,7 @@ from tower.core.domain import error_codes as ec
 from tower.core.domain.badges import (
     CATEGORY_COLORS,
     BadgeCategory,
+    check_expertise,
     check_url,
     classify_wikidata,
     color_of,
@@ -24,6 +25,8 @@ from tower.core.domain.badges import (
     parse_category,
     parse_lookup_ids,
     pick_category,
+    stored_values,
+    wikidata_expertise,
 )
 from tower.core.domain.errors import InvalidInput
 from tower.core.domain.security import (
@@ -44,7 +47,7 @@ def test_colors_match_the_spec() -> None:
         C.ORGANIZATION: "#FFD60A",
         C.MEDIA: "#D946EF",
         C.EXPERT: "#22D3EE",
-        C.PERSONALITY: "#3B5BFF",
+        C.VERIFIED: "#3B5BFF",
     }
     assert color_of("media") == "#D946EF"
 
@@ -52,11 +55,11 @@ def test_colors_match_the_spec() -> None:
 @pytest.mark.parametrize(
     ("given", "expected"),
     [
-        ([C.PERSONALITY, C.ORGANIZATION], C.ORGANIZATION),
+        ([C.VERIFIED, C.ORGANIZATION], C.ORGANIZATION),
         ([C.ORGANIZATION, C.EXPERT], C.EXPERT),
         ([C.EXPERT, C.MEDIA], C.MEDIA),
-        ([C.MEDIA, C.INSTITUTIONAL, C.PERSONALITY], C.INSTITUTIONAL),
-        (["personality"], C.PERSONALITY),
+        ([C.MEDIA, C.INSTITUTIONAL, C.VERIFIED], C.INSTITUTIONAL),
+        (["personality"], C.VERIFIED),
         ([], None),
     ],
 )
@@ -71,11 +74,40 @@ def test_parse_category_rejects_unknown() -> None:
     assert exc.value.error_code is ec.BDG_BAD_CATEGORY
 
 
+def test_personality_is_a_legacy_alias_of_verified() -> None:
+    assert parse_category("personality") is C.VERIFIED
+    assert C("personality") is C.VERIFIED
+    assert color_of("personality") == "#3B5BFF"
+    assert stored_values(C.VERIFIED) == ["verified", "personality"]
+    assert stored_values(C.MEDIA) == ["media"]
+    assert "personality" not in [c.value for c in C]
+
+
+def test_check_expertise() -> None:
+    assert check_expertise(C.EXPERT, "  virologie ") == "virologie"
+    assert check_expertise(C.EXPERT, "") is None
+    assert check_expertise(C.MEDIA, None) is None
+    assert check_expertise(C.MEDIA, " ") is None
+    with pytest.raises(InvalidInput) as exc:
+        check_expertise(C.VERIFIED, "musique")
+    assert exc.value.error_code is ec.BDG_EXPERTISE_NOT_EXPERT
+    with pytest.raises(InvalidInput) as exc:
+        check_expertise(C.EXPERT, "x" * 121)
+    assert exc.value.error_code is ec.BDG_BAD_TEXT
+
+
+def test_wikidata_expertise_prefers_precise_fields() -> None:
+    assert wikidata_expertise(["Q39631"]) == "médecine"
+    assert wikidata_expertise(["Q901", "Q169470", "Q170790"]) == "physique, mathématiques"
+    assert wikidata_expertise(["Q901", "Q1650915"]) == "sciences, recherche"
+    assert wikidata_expertise(["Q1930187"]) is None
+
+
 def test_classify_human_uses_occupations_only() -> None:
     # journalist + politician → institutional wins; P31 types are ignored for humans
     assert classify_wikidata(["Q5", "Q7278"], ["Q1930187", "Q82955"]) is C.INSTITUTIONAL
     assert classify_wikidata(["Q5"], ["Q1930187", "Q901"]) is C.MEDIA
-    assert classify_wikidata(["Q5"], ["Q937857"]) is C.PERSONALITY
+    assert classify_wikidata(["Q5"], ["Q937857"]) is C.VERIFIED
     assert classify_wikidata(["Q5"], ["Q999999999"]) is None
     assert classify_wikidata(["Q5"], []) is None
 

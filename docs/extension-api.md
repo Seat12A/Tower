@@ -233,11 +233,13 @@ afficher). Id invalide : `422`.
   {"category": "media",         "color": "#D946EF", "rank": 2},
   {"category": "expert",        "color": "#22D3EE", "rank": 3},
   {"category": "organization",  "color": "#FFD60A", "rank": 4},
-  {"category": "personality",   "color": "#3B5BFF", "rank": 5}
+  {"category": "verified",      "color": "#3B5BFF", "rank": 5}
 ]
 ```
 
-`rank` 1 = priorité la plus haute.
+`rank` 1 = priorité la plus haute. `verified` remplace l'ancienne catégorie
+`personality` (2026-11-21) : gate ne renvoie plus que `verified` et accepte encore
+`personality` en entrée.
 
 ### 4.2 `GET /v1/badges/lookup` — badges des comptes affichés
 
@@ -257,26 +259,36 @@ afficher). Id invalide : `422`.
     "44196397": {
       "category": "media",
       "color": "#D946EF",
-      "badge": {"category": "media", "color": "#D946EF", "label": "Média"},
-      "affiliation": null
+      "badge": {"category": "media", "color": "#D946EF", "label": "Média",
+                "expertise": null},
+      "affiliation": null,
+      "affiliations": []
     },
     "783214": {
-      "category": "institutional",
-      "color": "#FF7A00",
+      "category": null,
+      "color": null,
       "badge": null,
       "affiliation": {
         "org": {"platform": "x", "external_id": "111", "category": "institutional",
                 "color": "#FF7A00", "label": "Ministère …", "logo_url": "https://…"},
         "title": "Porte-parole"
-      }
+      },
+      "affiliations": [{"org": {"…": "…"}, "title": "Porte-parole"}]
     }
   }
 }
 ```
 
 - **Un id absent de `accounts` n'a pas de badge.**
-- `category`/`color` = ce qu'il faut afficher : badge propre du compte, sinon celui de
-  son organisation (affiliation principale).
+- **Badge et affiliation sont indépendants.** `category`/`color` = la coche à
+  afficher : badge propre du compte seulement ; `null` = pas de coche (un compte
+  seulement affilié n'hérite plus de la couleur de son organisation).
+- `affiliation` = affiliation principale : afficher le **logo de son organisation**
+  (`org.logo_url`) à côté du pseudo, avec ou sans coche. L'équipe choisit la principale.
+- `affiliations` : affiliations actives, principale en tête (5 au plus), pour le détail
+  au survol ; `[]` si aucune.
+- `badge.expertise` : domaine d'un badge `expert` (texte français, ex. « épidémiologie »),
+  sinon `null`.
 - `badge.label`, `affiliation.title`, `org.label`, `org.logo_url` : chaîne ou `null`.
 - En-têtes : `ETag: "<32 hex>"`, `Cache-Control: public, max-age=300`
   (`TOWER_BADGES_LOOKUP_MAX_AGE_S`). `304` sans corps si `If-None-Match` correspond.
@@ -294,7 +306,7 @@ inconnue), `422 TWR-ING-006` (id invalide, ex. un pseudo).
   "badge": {
     "public_id": "…", "account": {"platform": "x", "external_id": "783214"},
     "status": "active", "category": "expert", "color": "#22D3EE",
-    "label": "…", "logo_url": null
+    "label": "…", "logo_url": null, "expertise": "épidémiologie"
   },
   "affiliations": [
     {
@@ -302,7 +314,7 @@ inconnue), `422 TWR-ING-006` (id invalide, ex. un pseudo).
       "title": "Porte-parole",
       "org": {"public_id": "…", "account": {"platform": "x", "external_id": "111"},
               "status": "active", "category": "institutional", "color": "#FF7A00",
-              "label": "Ministère …", "logo_url": "https://…"},
+              "label": "Ministère …", "logo_url": "https://…", "expertise": null},
       "expires_at": "2027-05-01T00:00:00+00:00"
     }
   ]

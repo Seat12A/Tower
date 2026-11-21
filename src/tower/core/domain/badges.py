@@ -4,9 +4,15 @@ A badge belongs to one platform account, identified by its native id on the plat
 (X numeric id, ...), never by its handle. One badge per account; when an account
 qualifies for several categories, ``pick_category`` applies the priority order.
 
-An affiliation links an individual account to an organisation account that holds an
-affiliable badge (organisation, media, institutional). The affiliated account shows the
-organisation's colour and logo, unless it has its own badge.
+An affiliation links an account to a parent organisation account (identified by its
+native id, like any account) that holds an affiliable badge (organisation, media,
+institutional). An account may be affiliated with several organisations. Affiliation
+and badge are independent: an affiliation only shows the organisation's logo next to
+the handle (the primary affiliation's logo, chosen by the team), never a check mark;
+the check mark and its colour come from the account's own badge only.
+
+An expert badge may state the field of expertise (``expertise``, French free text like
+``label``); the other categories never carry one.
 
 The Wikidata classification tables below are deliberately conservative: an item whose
 types and occupations are not listed gets no badge (in doubt, no badge).
@@ -31,7 +37,17 @@ class BadgeCategory(StrEnum):
     ORGANIZATION = "organization"  # organisation
     MEDIA = "media"  # media
     EXPERT = "expert"  # expert
-    PERSONALITY = "personality"  # personnalite
+    VERIFIED = "verified"  # verifie (formerly "personality")
+
+    @classmethod
+    def _missing_(cls, value: object) -> BadgeCategory | None:
+        # Legacy value still stored in old rows and accepted from old clients.
+        return LEGACY_CATEGORIES.get(value) if isinstance(value, str) else None
+
+
+LEGACY_CATEGORIES: dict[str, BadgeCategory] = {"personality": BadgeCategory.VERIFIED}
+"""Former category values → current category. Accepted on input and when reading old
+rows; never written. ``stored_values`` lists them for SQL filters."""
 
 
 CATEGORY_COLORS: dict[BadgeCategory, str] = {
@@ -39,7 +55,7 @@ CATEGORY_COLORS: dict[BadgeCategory, str] = {
     BadgeCategory.ORGANIZATION: "#FFD60A",
     BadgeCategory.MEDIA: "#D946EF",
     BadgeCategory.EXPERT: "#22D3EE",
-    BadgeCategory.PERSONALITY: "#3B5BFF",
+    BadgeCategory.VERIFIED: "#3B5BFF",
 }
 
 CATEGORY_PRIORITY: tuple[BadgeCategory, ...] = (
@@ -47,9 +63,9 @@ CATEGORY_PRIORITY: tuple[BadgeCategory, ...] = (
     BadgeCategory.MEDIA,
     BadgeCategory.EXPERT,
     BadgeCategory.ORGANIZATION,
-    BadgeCategory.PERSONALITY,
+    BadgeCategory.VERIFIED,
 )
-"""Highest first: institutional > media > expert > organization > personality."""
+"""Highest first: institutional > media > expert > organization > verified."""
 
 AFFILIABLE_CATEGORIES = frozenset(
     {BadgeCategory.ORGANIZATION, BadgeCategory.MEDIA, BadgeCategory.INSTITUTIONAL}
@@ -142,6 +158,7 @@ AFFILIATION_VALIDITY = timedelta(days=365)
 
 MAX_LOOKUP_IDS = 100
 MAX_LABEL = 120
+MAX_EXPERTISE = 120
 MAX_TITLE = 120
 MAX_NOTE = 2000
 MAX_JUSTIFICATION = 4000
@@ -171,6 +188,30 @@ def parse_category(value: str) -> BadgeCategory:
 
 def color_of(category: BadgeCategory | str) -> str:
     return CATEGORY_COLORS[BadgeCategory(category)]
+
+
+def normalize_category(value: str | None) -> str | None:
+    """Stored or received category → current API value (legacy values mapped)."""
+    return BadgeCategory(value).value if value else None
+
+
+def stored_values(category: BadgeCategory) -> list[str]:
+    """Values a category may have in the database (current value and legacy ones)."""
+    return [category.value, *(k for k, v in LEGACY_CATEGORIES.items() if v is category)]
+
+
+def check_expertise(category: BadgeCategory, expertise: str | None) -> str | None:
+    """Field of an expert badge (stripped, ≤ ``MAX_EXPERTISE``; empty → None).
+
+    Only the ``expert`` category carries one (``TWR-BDG-027`` otherwise)."""
+    value = check_text(expertise, field="expertise", max_chars=MAX_EXPERTISE)
+    if value is not None and category is not BadgeCategory.EXPERT:
+        raise InvalidInput(
+            "Only an expert badge has a field of expertise",
+            code=ec.BDG_EXPERTISE_NOT_EXPERT,
+            category=category.value,
+        )
+    return value
 
 
 def affiliation_expiry(validated_at: datetime) -> datetime:
@@ -270,32 +311,45 @@ WIKIDATA_OCCUPATIONS: dict[str, BadgeCategory] = {
     "Q188094": BadgeCategory.EXPERT,  # economist
     "Q11063": BadgeCategory.EXPERT,  # astronomer
     "Q864503": BadgeCategory.EXPERT,  # biologist
-    # personality
-    "Q483501": BadgeCategory.PERSONALITY,  # artist
-    "Q33999": BadgeCategory.PERSONALITY,  # actor
-    "Q10800557": BadgeCategory.PERSONALITY,  # film actor
-    "Q2526255": BadgeCategory.PERSONALITY,  # film director
-    "Q28389": BadgeCategory.PERSONALITY,  # screenwriter
-    "Q177220": BadgeCategory.PERSONALITY,  # singer
-    "Q488205": BadgeCategory.PERSONALITY,  # singer-songwriter
-    "Q753110": BadgeCategory.PERSONALITY,  # songwriter
-    "Q639669": BadgeCategory.PERSONALITY,  # musician
-    "Q130857": BadgeCategory.PERSONALITY,  # disc jockey
-    "Q36180": BadgeCategory.PERSONALITY,  # writer
-    "Q6625963": BadgeCategory.PERSONALITY,  # novelist
-    "Q49757": BadgeCategory.PERSONALITY,  # poet
-    "Q1028181": BadgeCategory.PERSONALITY,  # painter
-    "Q245068": BadgeCategory.PERSONALITY,  # comedian
-    "Q4610556": BadgeCategory.PERSONALITY,  # model
-    "Q17125263": BadgeCategory.PERSONALITY,  # YouTuber
-    "Q15077007": BadgeCategory.PERSONALITY,  # podcaster
-    "Q2066131": BadgeCategory.PERSONALITY,  # athlete
-    "Q937857": BadgeCategory.PERSONALITY,  # association football player
-    "Q3665646": BadgeCategory.PERSONALITY,  # basketball player
-    "Q10833314": BadgeCategory.PERSONALITY,  # tennis player
-    "Q11774891": BadgeCategory.PERSONALITY,  # ice hockey player
+    # verified (artists, athletes, creators...)
+    "Q483501": BadgeCategory.VERIFIED,  # artist
+    "Q33999": BadgeCategory.VERIFIED,  # actor
+    "Q10800557": BadgeCategory.VERIFIED,  # film actor
+    "Q2526255": BadgeCategory.VERIFIED,  # film director
+    "Q28389": BadgeCategory.VERIFIED,  # screenwriter
+    "Q177220": BadgeCategory.VERIFIED,  # singer
+    "Q488205": BadgeCategory.VERIFIED,  # singer-songwriter
+    "Q753110": BadgeCategory.VERIFIED,  # songwriter
+    "Q639669": BadgeCategory.VERIFIED,  # musician
+    "Q130857": BadgeCategory.VERIFIED,  # disc jockey
+    "Q36180": BadgeCategory.VERIFIED,  # writer
+    "Q6625963": BadgeCategory.VERIFIED,  # novelist
+    "Q49757": BadgeCategory.VERIFIED,  # poet
+    "Q1028181": BadgeCategory.VERIFIED,  # painter
+    "Q245068": BadgeCategory.VERIFIED,  # comedian
+    "Q4610556": BadgeCategory.VERIFIED,  # model
+    "Q17125263": BadgeCategory.VERIFIED,  # YouTuber
+    "Q15077007": BadgeCategory.VERIFIED,  # podcaster
+    "Q2066131": BadgeCategory.VERIFIED,  # athlete
+    "Q937857": BadgeCategory.VERIFIED,  # association football player
+    "Q3665646": BadgeCategory.VERIFIED,  # basketball player
+    "Q10833314": BadgeCategory.VERIFIED,  # tennis player
+    "Q11774891": BadgeCategory.VERIFIED,  # ice hockey player
 }
 """Occupation (P106) of a human → category. QIDs checked against Wikidata labels."""
+
+WIKIDATA_EXPERTISE: dict[str, str] = {
+    "Q901": "sciences",
+    "Q1650915": "recherche",
+    "Q1622272": "enseignement supérieur",
+    "Q39631": "médecine",
+    "Q169470": "physique",
+    "Q170790": "mathématiques",
+    "Q188094": "économie",
+    "Q11063": "astronomie",
+    "Q864503": "biologie",
+}
+"""Expert occupation (P106) → field of expertise (French), for imported expert badges."""
 
 WIKIDATA_TYPES: dict[str, BadgeCategory] = {
     # institutional
@@ -351,6 +405,19 @@ def classify_wikidata(types: Iterable[str], occupations: Iterable[str]) -> Badge
             WIKIDATA_OCCUPATIONS[q] for q in occupations if q in WIKIDATA_OCCUPATIONS
         )
     return pick_category(WIKIDATA_TYPES[q] for q in type_set if q in WIKIDATA_TYPES)
+
+
+def wikidata_expertise(occupations: Iterable[str]) -> str | None:
+    """Fields of the expert occupations of an item (table order, at most 3), or None.
+
+    Generic fields (sciences, research, higher education) are dropped when a more precise
+    one is present."""
+    present = set(occupations)
+    fields = [f for q, f in WIKIDATA_EXPERTISE.items() if q in present]
+    generic = {"sciences", "recherche", "enseignement supérieur"}
+    precise = [f for f in fields if f not in generic]
+    chosen = (precise or fields)[:3]
+    return ", ".join(chosen) if chosen else None
 
 
 def is_qid(value: str) -> bool:

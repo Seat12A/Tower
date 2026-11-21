@@ -43,7 +43,7 @@ _OPEN = r"t12a:bdgo:(?P<view>requests|reports|affiliations)"
 _KEYS = r"t12a:bdgk:(?P<platform>[a-z]{1,16}):(?P<xid>.{1,70})"
 
 Platform = Literal["x", "bluesky", "threads", "mastodon", "youtube", "tiktok", "telegram", "web"]
-Category = Literal["institutional", "media", "expert", "organization", "personality"]
+Category = Literal["institutional", "media", "expert", "organization", "verified"]
 View = Literal["requests", "reports", "affiliations"]
 Handler = Callable[[str, int], Awaitable[Reply]]
 
@@ -115,24 +115,27 @@ def _kit(ctx: Context) -> tuple[Any, ...]:
             self.category = _category_select(locale, category)
             self.label: ui.TextInput[Any] = ui.TextInput(max_length=120, required=False)
             self.logo: ui.TextInput[Any] = ui.TextInput(max_length=2048, required=False)
+            self.expertise: ui.TextInput[Any] = ui.TextInput(max_length=120, required=False)
             self.note: ui.TextInput[Any] = ui.TextInput(
                 style=discord.TextStyle.paragraph, max_length=2000, required=False
             )
-            self.add_item(
-                ui.TextDisplay(
-                    f"-# {t(locale, 'badge.modal.grant.help', account=f'{platform}:{xid}')}"
+            # Discord allows 5 components per modal: the account goes in the first help.
+            helps = {
+                "badge.modal.category": t(
+                    locale, "badge.modal.grant.help", account=f"{platform}:{xid}"
                 )
-            )
+            }
             for key, component in (
                 ("badge.modal.category", self.category),
                 ("badge.modal.label", self.label),
                 ("badge.modal.logo", self.logo),
+                ("badge.modal.expertise", self.expertise),
                 ("badge.modal.note", self.note),
             ):
                 self.add_item(
                     ui.Label(
                         text=t(locale, key)[:45],
-                        description=t(locale, key + ".help")[:100],
+                        description=helps.get(key, t(locale, key + ".help"))[:100],
                         component=component,
                     )
                 )
@@ -141,11 +144,14 @@ def _kit(ctx: Context) -> tuple[Any, ...]:
             category = self.category.values[0] if self.category.values else bh.CATEGORIES[-1]
             label = self.label.value.strip() or None
             logo = self.logo.value.strip() or None
+            expertise = self.expertise.value.strip() or None
+            if category != "expert":
+                expertise = None
             note = self.note.value.strip() or None
             await run_handler(
                 interaction,
                 lambda loc, uid: bh.badge_grant(
-                    gate, uid, loc, self.platform, self.xid, category, label, logo, note
+                    gate, uid, loc, self.platform, self.xid, category, label, logo, note, expertise
                 ),
                 edit=interaction.message is not None,
             )
@@ -155,6 +161,7 @@ def _kit(ctx: Context) -> tuple[Any, ...]:
             super().__init__(title=t(locale, "badge.modal.approve.title")[:45])
             self.request_id = request_id
             self.category = _category_select(locale, None, keep=True)
+            self.expertise: ui.TextInput[Any] = ui.TextInput(max_length=120, required=False)
             self.note: ui.TextInput[Any] = ui.TextInput(
                 style=discord.TextStyle.paragraph, max_length=1000, required=False
             )
@@ -167,6 +174,13 @@ def _kit(ctx: Context) -> tuple[Any, ...]:
             )
             self.add_item(
                 ui.Label(
+                    text=t(locale, "badge.modal.expertise")[:45],
+                    description=t(locale, "badge.modal.expertise.help")[:100],
+                    component=self.expertise,
+                )
+            )
+            self.add_item(
+                ui.Label(
                     text=t(locale, "badge.modal.note")[:45],
                     description=t(locale, "badge.modal.reason.help")[:100],
                     component=self.note,
@@ -175,11 +189,12 @@ def _kit(ctx: Context) -> tuple[Any, ...]:
 
         async def on_submit(self, interaction: discord.Interaction) -> None:
             category = (self.category.values[0] if self.category.values else "") or None
+            expertise = self.expertise.value.strip() or None
             note = self.note.value.strip() or None
             await run_handler(
                 interaction,
                 lambda loc, uid: bh.request_decide(
-                    gate, uid, loc, self.request_id, True, category, note
+                    gate, uid, loc, self.request_id, True, category, note, expertise
                 ),
                 edit=interaction.message is not None,
             )

@@ -439,6 +439,17 @@ Claude, site de maths sérieux) était présentée comme peu fiable. Détails :
 | `/badge` accepte un `@pseudo` X, converti une fois en ID par gate via l'API X (`badges:manage`, sans cache, compte trouvé affiché) | Demande de Jules : l'ID X n'apparaît nulle part dans l'interface ; l'identification reste par ID, le pseudo n'est qu'une saisie ; pas de cache car un pseudo peut changer de propriétaire |
 | Identifiants courts étendus aux affiliations, demandes, signalements et clés (`/v1/ids/{kind}`, permission `badges:read`) | Le bot n'affiche que 8 caractères |
 
+## Badges : expertise, « vérifié », affiliations indépendantes (2026-11-21)
+
+| Décision | Raison |
+|---|---|
+| `personality` devient `verified` (même couleur, même rang) ; `personality` reste un alias accepté en entrée et lu en base, jamais écrit | Demande de Jules (catégorie plus large) ; règle expand/contract : réécrire les lignes dans la migration casserait le code déjà déployé pendant le pre-deploy. Une migration contract ultérieure réécrira les lignes et retirera `personality` des contraintes |
+| Domaine d'expertise : colonne `badges.expertise`, texte libre en français (≤ 120), réservé à `expert` (`TWR-BDG-027`), effacé quand la catégorie change ; facultatif | Demande de Jules ; texte libre plutôt qu'une liste fermée (domaines trop variés) ; en français comme `label` (service francophone, affiché tel quel) ; facultatif car l'import Wikidata et les badges existants n'en ont pas toujours |
+| Import Wikidata : domaine déduit des professions P106 experts par une table restreinte (`WIKIDATA_EXPERTISE`), rempli seulement s'il est vide | Aucun appel en plus (P106 est déjà lu) ; une saisie de l'équipe n'est jamais écrasée |
+| Badge et affiliation indépendants : l'affilié n'hérite plus de la couleur de l'organisation ; l'affiliation n'affiche que le logo ; lookup `category`/`color` = badge propre seulement | Demande de Jules : affilié ≠ vérifié ; une coche héritée laissait croire à une vérification du compte lui-même |
+| L'organisation parente doit toujours avoir un badge actif affiliable | Son logo à côté d'un pseudo engage Seat 12A : seule une organisation vérifiée peut le prêter ; garde les clés d'organisation et la chute des affiliations quand l'organisation perd son badge |
+| Logo à côté du pseudo = celui de l'affiliation principale (choisie par l'équipe) ; image = `logo_url` du badge de l'organisation, modifiable par l'équipe ; lookup liste aussi toutes les affiliations actives (5 au plus) | Plusieurs organisations possibles mais une seule place à côté du pseudo ; réutilise `is_primary` et `logo_url` existants (pas de nouvelle table) ; borne la réponse du lookup |
+
 ## Notes manuelles sans IA (2026-11-16)
 
 | Décision | Raison |

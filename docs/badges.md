@@ -49,12 +49,36 @@ requête `UserByScreenName`, champ `rest_id`.
 | `institutional` | institutionnel | `#FF7A00` | gouvernements, administrations, élus, partis, organisations internationales |
 | `organization` | organisation | `#FFD60A` | entreprises, associations, ONG, clubs |
 | `media` | média | `#D946EF` | médias, agences, journalistes |
-| `expert` | expert | `#22D3EE` | chercheurs, médecins, universitaires |
-| `personality` | personnalité | `#3B5BFF` | artistes, sportifs, créateurs |
+| `expert` | expert | `#22D3EE` | chercheurs, médecins, universitaires ; **domaine précisé** (`expertise`) |
+| `verified` | vérifié | `#3B5BFF` | toute personnalité ou compte notable vérifié : artistes, sportifs, créateurs… |
 
 Priorité si un compte peut prétendre à plusieurs badges :
-**institutional > media > expert > organization > personality** (`pick_category`).
+**institutional > media > expert > organization > verified** (`pick_category`).
 `GET /v1/badges/categories` renvoie ce tableau (couleurs et rang) pour l'extension.
+
+### `verified` (ex-`personality`)
+
+Renommée le 2026-11-21 pour couvrir plus large que les personnalités. Transition
+expand/contract :
+
+- l'API ne renvoie plus que `verified` ; elle accepte encore `personality` en entrée
+  (alias, `LEGACY_CATEGORIES`) ;
+- en base, les lignes existantes gardent `personality` jusqu'à une migration contract
+  ultérieure ; le code les lit comme `verified` (filtres SQL par `stored_values`), et une
+  réattribution de la même catégorie réécrit la valeur sans historique ni changement de
+  source.
+
+### Domaine d'expertise
+
+Un badge `expert` peut préciser **en quoi** (`badges.expertise`, texte libre en
+français, 120 caractères au plus, ex. « épidémiologie », « droit constitutionnel ») :
+renvoyé par le lookup (`badge.expertise`) et le détail public. Les autres catégories
+n'en ont jamais (`422 TWR-BDG-027` si on en donne un) ; passer d'`expert` à une autre
+catégorie l'efface. Saisie : `PUT /v1/badges/accounts/{p}/{id}` (`expertise`, `""`
+l'efface), approbation d'une demande, `/badge grant`. L'import Wikidata le remplit pour
+les experts à partir des professions P106 (`WIKIDATA_EXPERTISE` : médecine, physique,
+économie…, les domaines génériques « sciences », « recherche » et « enseignement
+supérieur » s'effaçant devant un domaine précis ; 3 au plus), seulement s'il est vide.
 
 ## États d'un badge
 
@@ -72,15 +96,25 @@ touchent plus.
 
 ## Affiliations
 
-- Lien entre un compte individuel et une **organisation badgée** `organization`,
-  `media` ou `institutional` (sinon `TWR-BDG-006`). Un compte ne peut pas s'affilier à
-  lui-même (`TWR-BDG-020`).
-- Le compte affilié **hérite de la couleur** de l'organisation, sauf s'il a son propre
-  badge ; l'extension affiche le **logo** de l'organisation (`logo_url`).
-- Plusieurs affiliations possibles en base, **une seule principale affichée**
-  (`is_primary`, index unique partiel). La première validée devient principale ; quand
-  la principale se termine, la plus ancienne active restante prend le relais. L'équipe
-  peut changer la principale.
+- Lien entre un compte et un **compte parent** : le compte de l'organisation sur la
+  plateforme (pour X, son ID numérique), qui doit porter un badge `organization`,
+  `media` ou `institutional` actif (sinon `TWR-BDG-006`). Un compte ne peut pas
+  s'affilier à lui-même (`TWR-BDG-020`).
+- **Plusieurs organisations** par compte (une ligne par paire membre-organisation).
+- **Badge et affiliation sont indépendants** : une affiliation n'affiche que le **logo**
+  de l'organisation à côté du pseudo, **jamais de coche** ; la coche (et sa couleur)
+  vient uniquement du badge propre du compte. Un compte peut donc être affilié sans
+  badge, badgé sans affiliation, ou les deux (le badge d'un affilié peut être d'une
+  autre catégorie que celui de l'organisation).
+- **Logo affiché à côté du pseudo** : celui de l'affiliation **principale**
+  (`is_primary`, index unique partiel), que l'équipe choisit
+  (`POST /v1/badges/affiliations/{id}/primary`, bouton « principale » de `/badge`). La
+  première validée devient principale ; quand la principale se termine, la plus
+  ancienne active restante prend le relais. L'image elle-même est le `logo_url` du badge
+  de l'organisation (https), modifiable par l'équipe (`PUT /v1/badges/accounts/…`,
+  `/badge grant` ou « Modifier ») ; l'import Wikidata le remplit (P154) seulement s'il
+  est vide. Les autres affiliations sont listées par le lookup (`affiliations`) et le
+  détail public.
 - **Validation obligatoire** par l'organisation (clé d'organisation) ou par l'équipe :
   une affiliation `pending` n'est pas affichée.
 - **Expiration** un an après la dernière validation ou reconfirmation (`expires_at`).
@@ -209,21 +243,22 @@ badge `institutional`, source `x_government`.
 
 ## Lookup pour l'extension
 
-`GET /v1/badges/lookup?platform=x&ids=1,2,3` (public, ≤ 100 IDs natifs, une requête SQL) :
+`GET /v1/badges/lookup?platform=x&ids=1,2,3` (public, ≤ 100 IDs natifs) :
 
 ```json
 {
   "platform": "x",
   "accounts": {
     "2": {
-      "category": "media",
-      "color": "#D946EF",
+      "category": null,
+      "color": null,
       "badge": null,
       "affiliation": {
         "org": {"platform": "x", "external_id": "100", "category": "media",
                 "color": "#D946EF", "label": "Le Journal", "logo_url": "https://…"},
         "title": "Reporter"
-      }
+      },
+      "affiliations": [{"org": {"…": "…"}, "title": "Reporter"}]
     }
   }
 }
@@ -231,9 +266,11 @@ badge `institutional`, source `x_government`.
 
 - Un ID **absent** de `accounts` n'a pas de badge Seat 12A (l'extension masque quand
   même le badge X).
-- `category` et `color` : ce qu'il faut afficher (badge propre, sinon couleur de
-  l'organisation de l'affiliation principale). `badge` : badge propre ;
-  `affiliation` : affiliation principale active et non échue.
+- `category` et `color` : la coche à afficher, **badge propre seulement** (`null` pour
+  un compte seulement affilié). `badge` : badge propre (avec `expertise`) ;
+  `affiliation` : affiliation principale active et non échue (logo à côté du pseudo) ;
+  `affiliations` : toutes les affiliations actives, principale en tête (5 au plus).
+  Deux requêtes SQL quel que soit le lot.
 - **Cache** : `Cache-Control: public, max-age=TOWER_BADGES_LOOKUP_MAX_AGE_S` (300 s) et
   `ETag` fort ; `If-None-Match` → `304`. Trier les IDs améliore les succès d'un cache
   partagé. Les changements publient `badge.changed` et `badge.affiliation_changed`.

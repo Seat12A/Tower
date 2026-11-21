@@ -184,12 +184,17 @@ Colonnes ajoutées à `source_registry` : `aliases`, `qid`, `controlled_by`,
 ## Badges de vérification (migration 0014)
 
 Migration `0014`, **expand** uniquement : tables nouvelles. Règles : [badges.md](badges.md).
+Migration `0015` (**expand**) : colonne `badges.expertise` ; les contraintes de catégorie
+de `badges.category` et `badge_requests.requested_category` admettent `verified` en plus
+de `personality`. Les lignes `personality` existantes seront réécrites par une
+migration **contract** ultérieure (puis `personality` retiré des contraintes), une fois
+le code qui lit `verified` déployé partout.
 Les comptes sont ceux de `platform_accounts` (plateforme + ID natif, `BIGINT`-compatible
 pour X) : aucune table ne stocke un compte par pseudo.
 
 | Table | Rôle |
 |---|---|
-| `badges` | Une ligne par compte (`account_id` unique) : `status` (`active`, `revoked`, `blocked`), `category` (obligatoire si actif ; `institutional`, `organization`, `media`, `expert`, `personality`), `source` (`manual`, `request`, `wikidata`, `x_government`), `label`, `logo_url`, `wikidata_qid` (index), `wikidata_seen_at`, `note` (interne), `granted_by/at`, `ended_by/at`, `end_reason`, `version` |
+| `badges` | Une ligne par compte (`account_id` unique) : `status` (`active`, `revoked`, `blocked`), `category` (obligatoire si actif ; `institutional`, `organization`, `media`, `expert`, `verified` ; l'ancienne valeur `personality` reste admise jusqu'à la migration contract, lue comme `verified`), `source` (`manual`, `request`, `wikidata`, `x_government`), `label`, `logo_url`, `expertise` (domaine d'un badge `expert`, migration 0015), `wikidata_qid` (index), `wikidata_seen_at`, `note` (interne), `granted_by/at`, `ended_by/at`, `end_reason`, `version` |
 | `badge_affiliations` | Membre (`member_account_id`) → badge d'organisation (`org_badge_id`), unique par paire : `status` (`pending`, `active`, `rejected`, `revoked`, `expired`), `is_primary` (index unique partiel par membre ; seulement si actif), `title`, `source` (`manual`, `organization`, `wikidata`, `request`), `wikidata_property`, `requested_by`, `validated_by/at`, `expires_at` (obligatoire si actif ; index partiel), `ended_by/at`, `end_reason`, `version` |
 | `badge_events` | Historique en ajout seul : `account_id`, `badge_id`, `affiliation_id`, `action` (CHECK), `actor`, `source`, `reason`, `changes` |
 | `badge_requests` | Demandes : `kind` (`badge`, `affiliation` → `org_badge_id` obligatoire), `account_id`, `requested_category`, `title`, `justification`, `contact` (équipe seulement), `evidence_urls` (JSONB), `status` (`pending`, `approved`, `rejected`), `submitted_by`, `decided_by/at`, `decision_note` ; une seule en attente par (type, compte, organisation) (index unique partiel) |
