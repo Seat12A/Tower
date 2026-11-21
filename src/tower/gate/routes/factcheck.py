@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query, Response
+import orjson
+from fastapi import APIRouter, Query, Request, Response
 
 from tower.core.domain.factcheck.manual import validate_manual_note
 from tower.core.usecases import drafts as uc
 from tower.core.usecases import manual_notes as manual_uc
+from tower.core.usecases import verdict_index as index_uc
 from tower.gate.deps import ActorDep, ReadSession, WriteSession
 from tower.gate.schemas import (
     DraftOut,
@@ -20,6 +23,7 @@ from tower.gate.schemas import (
     PublicVerdictOut,
     ReviewIn,
     ReviewOut,
+    VerdictBucketOut,
 )
 
 router = APIRouter()
@@ -140,3 +144,27 @@ async def public_verdict(
     verdict = await uc.get_public_verdict(session, actor, platform, external_id, lang)
     response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     return PublicVerdictOut.of(verdict)
+
+
+@router.get(
+    "/v1/verdict-index/{platform}/{bucket}",
+    response_model=VerdictBucketOut,
+    tags=["public"],
+)
+async def verdict_index_bucket(
+    platform: str, bucket: str, request: Request, actor: ActorDep, session: ReadSession
+) -> Response:
+    """Posts of a hash bucket that have a visible verdict (extension, all posts).
+
+    ``bucket`` = first 4 hex characters of ``sha256(UTF-8 native id)``. Compare the full
+    hashes locally, then call ``/v1/content/{platform}/{external_id}/verdict`` on a match
+    only. Cacheable: ``Cache-Control`` and a strong ``ETag`` (``If-None-Match`` → 304).
+    """
+    hashes = await index_uc.verdict_bucket(session, actor, platform, bucket)
+    out = VerdictBucketOut(platform=platform, bucket=bucket.lower(), hashes=hashes)
+    body = orjson.dumps(out.model_dump(mode="json"))
+    etag = '"' + hashlib.sha256(body).hexdigest()[:32] + '"'
+    headers = {"Cache-Control": PUBLIC_CACHE_CONTROL, "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=body, media_type="application/json", headers=headers)

@@ -389,10 +389,10 @@ Réponse `200` (schéma `PublicVerdictOut`) :
 **Vie privée : quels posts interroger ?** Interroger gate pour chaque post affiché
 reviendrait à transmettre au serveur, avec l'adresse IP, la liste de tout ce que
 l'utilisateur regarde, ce que la règle « rien sur l'utilisateur » interdit dans
-l'esprit. Recommandation pour la V1 : **n'interroger que les posts qui passent les
-filtres** (déjà envoyés de toute façon), au plus une fois par post et par période de
-cache. L'affichage sur tous les posts demande un endpoint serveur dédié (voir
-[points ouverts](#points-ouverts)).
+l'esprit. Méthode : pour chaque post affiché, calculer sa **boîte de hachage** et
+télécharger la liste de la boîte (`GET /v1/verdict-index/{platform}/{bucket}`, en
+cache) ; n'interroger la route du verdict que si le hachage du post y figure. Les
+filtres ne décident plus de l'affichage : ils ne servent qu'à l'envoi des posts.
 
 L'affichage s'insère sous le post sans masquer ni modifier son contenu, avec un style
 isolé (Shadow DOM ou classes préfixées) pour ne pas casser la page de X ni subir ses
@@ -585,11 +585,9 @@ pendant le développement de l'extension :
 2. **Sémantique de `thresholds`.** Le format accepte `{nom: nombre}` sans nom défini.
    Il faut fixer la liste des seuils (par exemple un nombre minimal de vues) et leur
    règle d'application, dans `ingestion.md` et dans le validateur.
-3. **Affichage sur tous les posts sans fuite de navigation.** Aujourd'hui, seul
-   l'endpoint par post existe. Pour afficher les vérifications sur des posts non
-   filtrés sans révéler ce que l'utilisateur regarde, il faudrait un endpoint de type
-   index (liste compacte des posts vérifiés, ou recherche par préfixe de hachage),
-   téléchargé périodiquement.
+3. **Affichage sur tous les posts sans fuite de navigation.** Résolu (2026-11-21) :
+   index par boîte de hachage, `GET /v1/verdict-index/{platform}/{bucket}`
+   ([extension-api.md](extension-api.md), section 2 bis).
 4. **Limitation de débit des lectures publiques.** Des seaux à jetons par IP protègent
    l'ingestion et les soumissions de badges ; `GET /v1/content/.../verdict` et
    `GET /v1/badges/lookup` n'ont que le cache HTTP de 5 minutes.
