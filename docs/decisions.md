@@ -449,3 +449,16 @@ Claude, site de maths sérieux) était présentée comme peu fiable. Détails :
 | L'affirmation est saisie en français ; groupe N4 sans embedding ni enquête | Simplicité ; N4 interdit toute réutilisation directe sans relecture. Les variantes reformulées ne profitent pas du verdict (limite assumée) |
 | La traduction automatique des versions manquantes reste active à la validation | Utile pour l'anglais et la langue du post ; signalée au lecteur (`machine_translated`) ; le texte de l'équipe reste `human` |
 | Idempotence par empreinte (auteur, post, contenu) cherchée parmi les verdicts du post, sans index ni migration | Protège du double envoi sans coût de schéma ; la recherche reste bornée au post |
+
+## Lien direct case ↔ brouillon (2026-11-21)
+
+Bug signalé par Jules : « Mark as published » dans le forum renvoyait `TWR-DOS-002` sur
+un case validé. Un groupe d'affirmations peut porter plusieurs cases (un par brouillon),
+et gate prenait le case le plus récent du groupe au lieu de celui du brouillon.
+
+| Décision | Raison |
+|---|---|
+| Colonne `cases.verdict_id` (unique), écrite à l'ouverture du case ; toutes les actions d'un brouillon (affichage, revue, publication) visent ce case | Un brouillon n'a qu'un case ; le dernier case du groupe peut appartenir à un autre brouillon |
+| Migration 0015 en expand : remplissage par le brouillon du groupe dont `drafted_at` est le plus proche de `created_at` (5 min au plus, un case par brouillon) | Les deux sont écrits dans la même transaction ; dans le doute, pas de lien |
+| Case sans lien (ouvert par l'ancien code pendant le déploiement) : utilisé seulement s'il est le seul case non lié du groupe, sinon aucun case | Sûreté : ne jamais agir sur un case incertain |
+
