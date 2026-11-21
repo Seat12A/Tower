@@ -29,7 +29,7 @@ MAX_BUCKET_HASHES = 5000
 _BUCKET = re.compile(r"[0-9a-f]{4}")
 _PLATFORMS = frozenset(p.value for p in Platform)
 
-# Same expression as the index ix_content_items_verdict_bucket (migration 0016).
+# Same expression as the index ix_content_items_verdict_bucket (migration 0017).
 _QUERY = text(
     """
     SELECT encode(sha256(ci.external_id::bytea), 'hex') AS hash

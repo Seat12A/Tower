@@ -11,8 +11,8 @@ Backfill: each fact-check case gets the drafted verdict of its claim group whose
 ``drafted_at`` is closest to the case's ``created_at`` (both are written in the same
 transaction), within 5 minutes, one case per verdict. Anything ambiguous stays unlinked.
 
-Revision : 0015
-Parents : 0014
+Revision : 0016
+Parents : 0015
 Created : 2026-11-21
 """
 
@@ -21,8 +21,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0015"
-down_revision: str | None = "0014"
+revision: str = "0016"
+down_revision: str | None = "0015"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -6,8 +6,8 @@ every post without telling gate which post it shows.
 Expand only: one index, built ``CONCURRENTLY`` (content_items can be large; writes keep
 going during the build). The deployed code ignores it.
 
-Revision : 0016
-Parents : 0015
+Revision : 0017
+Parents : 0016
 Created : 2026-11-21
 """
 
@@ -15,8 +15,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0016"
-down_revision: str | None = "0015"
+revision: str = "0017"
+down_revision: str | None = "0016"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

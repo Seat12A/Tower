@@ -20,7 +20,7 @@ PostgreSQL 16 (Railway). SQLAlchemy 2 en asynchrone (asyncpg), migrations Alembi
 
 | Table | Rôle |
 |---|---|
-| `cases` | Cases de fact-check ou de modération (`kind`), statut, post X, assignation, lien de publication, post du forum Discord (`discord_thread_id`, migration 0011), `verdict_id` (brouillon pour lequel le case a été ouvert, unique, FK `verdicts` `ON DELETE SET NULL`, migration 0015), version |
+| `cases` | Cases de fact-check ou de modération (`kind`), statut, post X, assignation, lien de publication, post du forum Discord (`discord_thread_id`, migration 0011), `verdict_id` (brouillon pour lequel le case a été ouvert, unique, FK `verdicts` `ON DELETE SET NULL`, migration 0016), version |
 | *(vues)* `dossiers`, `dossier_events`, `dossier_claim_groups` | Vues de compatibilité de la migration 0012 (anciens noms de tables et de colonnes) pour le code encore déployé pendant la bascule ; supprimées au contract |
 | `case_events` | Audit immuable : une ligne par transition (de, vers, acteur, motif, données) |
 | `events` | Outbox transactionnelle (topic, agrégat, payload, acteur, `xid` de la transaction) |
@@ -217,7 +217,7 @@ pour X) : aucune table ne stocke un compte par pseudo.
   30 jours), `content_hash`, `lang`, `first_seen_at`, index sur expression
   `(external_id::bigint) WHERE platform = 'x'` (IDs X numériques sans colonne générée),
   `ix_content_items_verdict_bucket (platform, substring(sha256(external_id::bytea) FROM 1
-  FOR 2))` (boîtes de l'index des verdicts, migration 0016, construit `CONCURRENTLY`).
+  FOR 2))` (boîtes de l'index des verdicts, migration 0017, construit `CONCURRENTLY`).
 - `observations` : `(content_id, observed_at)`, propagé à chaque partition.
 - Les partitions `observations_pAAAAMMJJ` sont créées par le service `ingest`, et les
   partitions `content_embeddings_pAAAAMMJJ` par le service `factcheck` ; elles sont

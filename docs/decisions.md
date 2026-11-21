@@ -471,7 +471,7 @@ et gate prenait le case le plus récent du groupe au lieu de celui du brouillon.
 | Décision | Raison |
 |---|---|
 | Colonne `cases.verdict_id` (unique), écrite à l'ouverture du case ; toutes les actions d'un brouillon (affichage, revue, publication) visent ce case | Un brouillon n'a qu'un case ; le dernier case du groupe peut appartenir à un autre brouillon |
-| Migration 0015 en expand : remplissage par le brouillon du groupe dont `drafted_at` est le plus proche de `created_at` (5 min au plus, un case par brouillon) | Les deux sont écrits dans la même transaction ; dans le doute, pas de lien |
+| Migration 0016 en expand : remplissage par le brouillon du groupe dont `drafted_at` est le plus proche de `created_at` (5 min au plus, un case par brouillon) | Les deux sont écrits dans la même transaction ; dans le doute, pas de lien |
 | Case sans lien (ouvert par l'ancien code pendant le déploiement) : utilisé seulement s'il est le seul case non lié du groupe, sinon aucun case | Sûreté : ne jamais agir sur un case incertain |
 
 ## Affichage des vérifications sur tous les posts (2026-11-21)

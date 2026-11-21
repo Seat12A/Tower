@@ -14,7 +14,7 @@ Retours de Jules sur Discord :
   brouillon) et `_case_of_group` prenait le **plus récent** du groupe. Le bouton du forum
   publiait donc un autre case (encore `received`). Même défaut pour la revue d'un brouillon
   depuis le forum (elle pouvait faire avancer le mauvais case) et pour `draft_id_of_case`.
-- Correctif : colonne `cases.verdict_id` (migration `0015`, expand, remplissage des cases
+- Correctif : colonne `cases.verdict_id` (migration `0016`, expand, remplissage des cases
   existants), écrite par `open_draft_for_content` ; `_case_of_verdict` et
   `draft_id_of_case` utilisent ce lien, avec repli sur le seul case non lié du groupe.
 - Docs : `database.md`, `intercom.md`, `decisions.md`.
@@ -23,7 +23,7 @@ Retours de Jules sur Discord :
   rien). `GET /v1/verdict-index/{platform}/{bucket}` : SHA-256 des posts d'une boîte de
   hachage (4 caractères hex) qui ont un verdict visible, même règle que la route du
   verdict ; `core/usecases/verdict_index.py`, route dans `gate/routes/factcheck.py`,
-  code `TWR-FCK-050`, index sur expression (migration `0016`, `CONCURRENTLY`). Docs :
+  code `TWR-FCK-050`, index sur expression (migration `0017`, `CONCURRENTLY`). Docs :
   `api.md`, `extension-api.md` (section 2 bis), `extension.md`, `database.md`,
   `errors.md` régénéré. Note pour la session de l'extension (hors dépôt).
 
@@ -40,7 +40,7 @@ Retours de Jules sur Discord :
   migration ajoutés.
 - 4 assertions de `test_drafts_usecases.py` étaient déjà fausses sur la base de départ
   (champ `discord_thread_id` absent des attentes) : corrigées.
-- `alembic check` OK, migration aller-retour 0014 ↔ 0015 OK, ruff et mypy strict OK.
+- `alembic check` OK, migration aller-retour 0015 ↔ 0016 OK, ruff et mypy strict OK.
 - Smoke test : `tower gate` démarre (doublures, `TOWER_LLM_FAKE=1`), `/health` → 200.
   `GET /v1/verdict-index/x/6f58` → 200 `{"hashes": []}`, boîte invalide → 422. Aucun
   appel réel à une API externe.
@@ -50,7 +50,7 @@ Retours de Jules sur Discord :
   tests intercom qui lisaient l'UUID complet dans les cartes ont été adaptés à l'id court.
 - Index des verdicts : 3 tests (nominal, brouillon et verdict expiré exclus, `304`,
   boîte ou plateforme invalide) ; plan d'exécution mesuré sur 200 000 contenus factices :
-  parcours de l'index, 0,06 ms ; migration 0015 ↔ 0016 aller-retour OK.
+  parcours de l'index, 0,06 ms ; migration 0016 ↔ 0017 aller-retour OK.
 - RAM : pas de mesure, seuls un petit module de cas d'usage et une route sont chargés par
   gate (`orjson` et `hashlib` étaient déjà chargés).
 

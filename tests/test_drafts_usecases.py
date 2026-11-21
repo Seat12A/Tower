@@ -878,9 +878,9 @@ async def test_migration_backfill_links_each_case_to_its_draft(db: Database) -> 
     path = (
         Path(next(iter(tower.migrations.__path__)))
         / "versions"
-        / "20261121_0015_link_cases_to_their_draft_verdict.py"
+        / "20261121_0016_link_cases_to_their_draft_verdict.py"
     )
-    spec = importlib.util.spec_from_file_location("migration_0015", path)
+    spec = importlib.util.spec_from_file_location("migration_0016", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
