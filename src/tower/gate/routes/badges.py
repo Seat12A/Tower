@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from tower.core.domain import error_codes as ec
 from tower.core.domain.badges import (
     CATEGORY_COLORS,
+    CATEGORY_COLORS_DARK,
     CATEGORY_PRIORITY,
     MAX_EVIDENCE_URLS,
     MAX_LOOKUP_IDS,
@@ -62,6 +63,9 @@ class AccountIn(BaseModel):
 class CategoryOut(BaseModel):
     category: BadgeCategory
     color: str
+    """Light theme."""
+    color_dark: str
+    """Dark and dim themes."""
     rank: int
     """1 = highest priority."""
 
@@ -71,7 +75,9 @@ async def categories(response: Response) -> list[CategoryOut]:
     """Categories, colours and priority order (static: cache it)."""
     response.headers["Cache-Control"] = "public, max-age=86400"
     return [
-        CategoryOut(category=c, color=CATEGORY_COLORS[c], rank=i + 1)
+        CategoryOut(
+            category=c, color=CATEGORY_COLORS[c], color_dark=CATEGORY_COLORS_DARK[c], rank=i + 1
+        )
         for i, c in enumerate(CATEGORY_PRIORITY)
     ]
 
@@ -79,6 +85,7 @@ async def categories(response: Response) -> list[CategoryOut]:
 class LookupBadge(BaseModel):
     category: BadgeCategory
     color: str
+    color_dark: str
     label: str | None
     expertise: str | None
     """Field of an expert badge (French free text), else None."""
@@ -89,6 +96,7 @@ class LookupOrg(BaseModel):
     external_id: str
     category: BadgeCategory
     color: str
+    color_dark: str
     label: str | None
     logo_url: str | None
 
@@ -102,6 +110,9 @@ class LookupEntry(BaseModel):
     category: BadgeCategory | None
     """Check mark to display: the account's own badge only (None: no check mark)."""
     color: str | None
+    """Light theme colour of the check mark (None: no check mark)."""
+    color_dark: str | None
+    """Dark and dim themes colour of the check mark."""
     badge: LookupBadge | None
     affiliation: LookupAffiliation | None
     """Primary affiliation: its organisation logo goes next to the handle."""

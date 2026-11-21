@@ -67,11 +67,11 @@ __all__ = [
 CATEGORIES = ("institutional", "media", "expert", "organization", "verified")
 """Priority order (highest first)."""
 COLORS = {
-    "institutional": "#FF7A00",
-    "organization": "#FFD60A",
-    "media": "#D946EF",
-    "expert": "#22D3EE",
-    "verified": "#3B5BFF",
+    "institutional": "#F46600",
+    "organization": "#E30B5C",
+    "media": "#EA00FF",
+    "expert": "#16A34A",
+    "verified": "#335CFF",
 }
 AFFILIABLE = frozenset({"institutional", "media", "organization"})
 PLATFORMS = ("x", "bluesky", "threads", "mastodon", "youtube", "tiktok", "telegram", "web")

@@ -34,6 +34,7 @@ from tower.core.domain.badges import (
     check_expertise,
     check_text,
     check_url,
+    color_dark_of,
     color_of,
     normalize_category,
     parse_category,
@@ -113,6 +114,7 @@ def badge_payload(
         "status": badge.status,
         "category": normalize_category(badge.category),
         "color": color_of(badge.category) if badge.category else None,
+        "color_dark": color_dark_of(badge.category) if badge.category else None,
         "label": badge.label,
         "logo_url": badge.logo_url,
         "expertise": badge.expertise,
@@ -738,6 +740,7 @@ async def lookup_badges(
                         "external_id": oa.external_id,
                         "category": normalize_category(o.category),
                         "color": color_of(o.category or ""),
+                        "color_dark": color_dark_of(o.category or ""),
                         "label": o.label,
                         "logo_url": o.logo_url,
                     },
@@ -753,6 +756,7 @@ async def lookup_badges(
             {
                 "category": normalize_category(own.category),
                 "color": color_of(own.category),
+                "color_dark": color_dark_of(own.category),
                 "label": own.label,
                 "expertise": own.expertise,
             }
@@ -762,6 +766,7 @@ async def lookup_badges(
         out[xid] = {
             "category": badge["category"] if badge else None,
             "color": badge["color"] if badge else None,
+            "color_dark": badge["color_dark"] if badge else None,
             "badge": badge,
             "affiliation": listed[0] if listed else None,
             "affiliations": listed,

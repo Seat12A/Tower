@@ -44,17 +44,20 @@ requête `UserByScreenName`, champ `rest_id`.
 
 ## Catégories
 
-| Valeur API | Nom | Couleur | Pour |
-|---|---|---|---|
-| `institutional` | institutionnel | `#FF7A00` | gouvernements, administrations, élus, partis, organisations internationales |
-| `organization` | organisation | `#FFD60A` | entreprises, associations, ONG, clubs |
-| `media` | média | `#D946EF` | médias, agences, journalistes |
-| `expert` | expert | `#22D3EE` | chercheurs, médecins, universitaires ; **domaine précisé** (`expertise`) |
-| `verified` | vérifié | `#3B5BFF` | toute personnalité ou compte notable vérifié : artistes, sportifs, créateurs… |
+| Valeur API | Nom | Clair (`color`) | Sombre et Dim (`color_dark`) | Pour |
+|---|---|---|---|---|
+| `institutional` | institutionnel | `#F46600` | `#FF6A00` | gouvernements, administrations, élus, partis, organisations internationales |
+| `organization` | organisation | `#E30B5C` | `#E30B5C` | entreprises, associations, ONG, clubs |
+| `media` | média | `#EA00FF` | `#EE33FF` | médias, agences, journalistes |
+| `expert` | expert | `#16A34A` | `#16A34A` | chercheurs, médecins, universitaires ; **domaine précisé** (`expertise`) |
+| `verified` | vérifié | `#335CFF` | `#6D8AFF` | toute personnalité ou compte notable vérifié : artistes, sportifs, créateurs… |
 
 Priorité si un compte peut prétendre à plusieurs badges :
 **institutional > media > expert > organization > verified** (`pick_category`).
 `GET /v1/badges/categories` renvoie ce tableau (couleurs et rang) pour l'extension.
+Chaque couleur existe en deux variantes (2026-11-21) : `color` pour le thème clair de X,
+`color_dark` pour les thèmes sombre et Dim ; partout où l'API renvoie `color`, elle
+renvoie aussi `color_dark`.
 
 ### `verified` (ex-`personality`)
 
@@ -255,7 +258,7 @@ badge `institutional`, source `x_government`.
       "badge": null,
       "affiliation": {
         "org": {"platform": "x", "external_id": "100", "category": "media",
-                "color": "#D946EF", "label": "Le Journal", "logo_url": "https://…"},
+                "color": "#EA00FF", "color_dark": "#EE33FF", "label": "Le Journal", "logo_url": "https://…"},
         "title": "Reporter"
       },
       "affiliations": [{"org": {"…": "…"}, "title": "Reporter"}]

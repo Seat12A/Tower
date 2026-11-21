@@ -405,14 +405,15 @@ Règles complètes : [badges.md](badges.md). Ce qui concerne l'extension :
 **Catégories.** Au démarrage puis une fois par jour, lire `GET /v1/badges/categories` :
 
 ```json
-[{"category": "institutional", "color": "#FF7A00", "rank": 1},
- {"category": "media", "color": "#D946EF", "rank": 2}, "…"]
+[{"category": "institutional", "color": "#F46600", "color_dark": "#FF6A00", "rank": 1},
+ {"category": "media", "color": "#EA00FF", "color_dark": "#EE33FF", "rank": 2}, "…"]
 ```
 
 Cinq catégories aujourd'hui (`institutional`, `media`, `expert`, `organization`,
 `verified`, ex-`personality`). Une coche vient du badge propre du compte ; une
 affiliation n'affiche que le logo de l'organisation à côté du pseudo (sans coche si le
-compte n'a pas de badge). Les couleurs viennent de l'API (ne pas les coder en dur) ; les
+compte n'a pas de badge). Les couleurs viennent de l'API (ne pas les coder en dur) : `color` pour le thème clair
+de X, `color_dark` pour les thèmes sombre et Dim ; les
 libellés viennent des fichiers de traduction (section 4).
 
 **Lookup en lot.** Pour les auteurs affichés à l'écran :

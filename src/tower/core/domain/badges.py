@@ -51,12 +51,22 @@ rows; never written. ``stored_values`` lists them for SQL filters."""
 
 
 CATEGORY_COLORS: dict[BadgeCategory, str] = {
-    BadgeCategory.INSTITUTIONAL: "#FF7A00",
-    BadgeCategory.ORGANIZATION: "#FFD60A",
-    BadgeCategory.MEDIA: "#D946EF",
-    BadgeCategory.EXPERT: "#22D3EE",
-    BadgeCategory.VERIFIED: "#3B5BFF",
+    BadgeCategory.INSTITUTIONAL: "#F46600",
+    BadgeCategory.ORGANIZATION: "#E30B5C",
+    BadgeCategory.MEDIA: "#EA00FF",
+    BadgeCategory.EXPERT: "#16A34A",
+    BadgeCategory.VERIFIED: "#335CFF",
 }
+"""Light theme colours (API field ``color``)."""
+
+CATEGORY_COLORS_DARK: dict[BadgeCategory, str] = {
+    BadgeCategory.INSTITUTIONAL: "#FF6A00",
+    BadgeCategory.ORGANIZATION: "#E30B5C",
+    BadgeCategory.MEDIA: "#EE33FF",
+    BadgeCategory.EXPERT: "#16A34A",
+    BadgeCategory.VERIFIED: "#6D8AFF",
+}
+"""Dark and dim theme colours (API field ``color_dark``)."""
 
 CATEGORY_PRIORITY: tuple[BadgeCategory, ...] = (
     BadgeCategory.INSTITUTIONAL,
@@ -187,7 +197,13 @@ def parse_category(value: str) -> BadgeCategory:
 
 
 def color_of(category: BadgeCategory | str) -> str:
+    """Light theme colour."""
     return CATEGORY_COLORS[BadgeCategory(category)]
+
+
+def color_dark_of(category: BadgeCategory | str) -> str:
+    """Dark and dim theme colour."""
+    return CATEGORY_COLORS_DARK[BadgeCategory(category)]
 
 
 def normalize_category(value: str | None) -> str | None:

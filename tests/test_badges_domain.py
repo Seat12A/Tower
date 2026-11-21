@@ -15,10 +15,12 @@ from tower.core.adapters.x_client import XPlatformClient
 from tower.core.domain import error_codes as ec
 from tower.core.domain.badges import (
     CATEGORY_COLORS,
+    CATEGORY_COLORS_DARK,
     BadgeCategory,
     check_expertise,
     check_url,
     classify_wikidata,
+    color_dark_of,
     color_of,
     commons_file_url,
     is_qid,
@@ -43,13 +45,16 @@ C = BadgeCategory
 
 def test_colors_match_the_spec() -> None:
     assert CATEGORY_COLORS == {
-        C.INSTITUTIONAL: "#FF7A00",
-        C.ORGANIZATION: "#FFD60A",
-        C.MEDIA: "#D946EF",
-        C.EXPERT: "#22D3EE",
-        C.VERIFIED: "#3B5BFF",
+        C.INSTITUTIONAL: "#F46600",
+        C.ORGANIZATION: "#E30B5C",
+        C.MEDIA: "#EA00FF",
+        C.EXPERT: "#16A34A",
+        C.VERIFIED: "#335CFF",
     }
-    assert color_of("media") == "#D946EF"
+    assert color_of("media") == "#EA00FF"
+    assert color_dark_of("media") == "#EE33FF"
+    assert color_dark_of("verified") == "#6D8AFF"
+    assert set(CATEGORY_COLORS_DARK) == set(C)
 
 
 @pytest.mark.parametrize(
@@ -77,7 +82,7 @@ def test_parse_category_rejects_unknown() -> None:
 def test_personality_is_a_legacy_alias_of_verified() -> None:
     assert parse_category("personality") is C.VERIFIED
     assert C("personality") is C.VERIFIED
-    assert color_of("personality") == "#3B5BFF"
+    assert color_of("personality") == "#335CFF"
     assert stored_values(C.VERIFIED) == ["verified", "personality"]
     assert stored_values(C.MEDIA) == ["media"]
     assert "personality" not in [c.value for c in C]

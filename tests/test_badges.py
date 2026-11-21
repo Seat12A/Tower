@@ -79,10 +79,12 @@ async def test_grant_lookup_and_history(db: Database) -> None:
     assert found == {
         "1": {
             "category": "expert",
-            "color": "#22D3EE",
+            "color": "#16A34A",
+            "color_dark": "#16A34A",
             "badge": {
                 "category": "expert",
-                "color": "#22D3EE",
+                "color": "#16A34A",
+                "color_dark": "#16A34A",
                 "label": "Dr A",
                 "expertise": None,
             },
@@ -254,7 +256,7 @@ async def test_affiliation_display_and_primary(db: Database) -> None:
         assert second.is_primary is False
     async with db.session() as s:
         found = await uc.lookup_badges(s, ANON, "x", ["200"])
-    assert found["200"]["color"] == "#3B5BFF" and found["200"]["category"] == "verified"
+    assert found["200"]["color"] == "#335CFF" and found["200"]["category"] == "verified"
     assert found["200"]["affiliation"]["org"]["external_id"] == "100"
     assert [a["org"]["external_id"] for a in found["200"]["affiliations"]] == ["100", "101"]
     async with db.transaction() as s:
@@ -679,10 +681,12 @@ async def test_gate_lookup_is_public_and_cacheable(
         "accounts": {
             "42": {
                 "category": "media",
-                "color": "#D946EF",
+                "color": "#EA00FF",
+                "color_dark": "#EE33FF",
                 "badge": {
                     "category": "media",
-                    "color": "#D946EF",
+                    "color": "#EA00FF",
+                    "color_dark": "#EE33FF",
                     "label": "AFP",
                     "expertise": None,
                 },

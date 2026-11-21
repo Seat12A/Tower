@@ -39,6 +39,9 @@ Demandes de Jules sur les badges de vérification :
 - **intercom** : catégorie « Vérifié » ; champ « Domaine d'expertise » dans les modals
   d'attribution et d'approbation (le rappel du compte passe dans l'aide du champ
   catégorie : Discord limite un modal à 5 composants) ; expertise affichée sur la carte.
+- **Nouvelles couleurs** (demande de Jules, même jour) : thème clair (`color`) et
+  thèmes sombre et Dim (`color_dark`, nouveau champ) dans `/categories`, le lookup, le
+  détail et les événements ; couleurs du bot alignées sur le thème clair.
 - **Documentation** : `badges.md`, `extension-api.md`, `extension.md`, `api.md`,
   `database.md`, `events.md`, `intercom.md`, `decisions.md`, `errors.md`.
 

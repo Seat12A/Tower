@@ -229,15 +229,17 @@ afficher). Id invalide : `422`.
 
 ```json
 [
-  {"category": "institutional", "color": "#FF7A00", "rank": 1},
-  {"category": "media",         "color": "#D946EF", "rank": 2},
-  {"category": "expert",        "color": "#22D3EE", "rank": 3},
-  {"category": "organization",  "color": "#FFD60A", "rank": 4},
-  {"category": "verified",      "color": "#3B5BFF", "rank": 5}
+  {"category": "institutional", "color": "#F46600", "color_dark": "#FF6A00", "rank": 1},
+  {"category": "media",         "color": "#EA00FF", "color_dark": "#EE33FF", "rank": 2},
+  {"category": "expert",        "color": "#16A34A", "color_dark": "#16A34A", "rank": 3},
+  {"category": "organization",  "color": "#E30B5C", "color_dark": "#E30B5C", "rank": 4},
+  {"category": "verified",      "color": "#335CFF", "color_dark": "#6D8AFF", "rank": 5}
 ]
 ```
 
-`rank` 1 = priorité la plus haute. `verified` remplace l'ancienne catégorie
+`rank` 1 = priorité la plus haute. `color` = thème clair de X, `color_dark` = thèmes
+sombre et Dim (choisir selon le thème de la page) ; les deux accompagnent `color`
+partout dans l'API (lookup, détail). `verified` remplace l'ancienne catégorie
 `personality` (2026-11-21) : gate ne renvoie plus que `verified` et accepte encore
 `personality` en entrée.
 
@@ -258,8 +260,9 @@ afficher). Id invalide : `422`.
   "accounts": {
     "44196397": {
       "category": "media",
-      "color": "#D946EF",
-      "badge": {"category": "media", "color": "#D946EF", "label": "Média",
+      "color": "#EA00FF",
+      "color_dark": "#EE33FF",
+      "badge": {"category": "media", "color": "#EA00FF", "color_dark": "#EE33FF", "label": "Média",
                 "expertise": null},
       "affiliation": null,
       "affiliations": []
@@ -267,10 +270,12 @@ afficher). Id invalide : `422`.
     "783214": {
       "category": null,
       "color": null,
+      "color_dark": null,
       "badge": null,
       "affiliation": {
         "org": {"platform": "x", "external_id": "111", "category": "institutional",
-                "color": "#FF7A00", "label": "Ministère …", "logo_url": "https://…"},
+                "color": "#F46600", "color_dark": "#FF6A00", "label": "Ministère …",
+                "logo_url": "https://…"},
         "title": "Porte-parole"
       },
       "affiliations": [{"org": {"…": "…"}, "title": "Porte-parole"}]
@@ -305,7 +310,7 @@ inconnue), `422 TWR-ING-006` (id invalide, ex. un pseudo).
   "account": {"platform": "x", "external_id": "783214"},
   "badge": {
     "public_id": "…", "account": {"platform": "x", "external_id": "783214"},
-    "status": "active", "category": "expert", "color": "#22D3EE",
+    "status": "active", "category": "expert", "color": "#16A34A", "color_dark": "#16A34A",
     "label": "…", "logo_url": null, "expertise": "épidémiologie"
   },
   "affiliations": [
@@ -313,7 +318,7 @@ inconnue), `422 TWR-ING-006` (id invalide, ex. un pseudo).
       "primary": true,
       "title": "Porte-parole",
       "org": {"public_id": "…", "account": {"platform": "x", "external_id": "111"},
-              "status": "active", "category": "institutional", "color": "#FF7A00",
+              "status": "active", "category": "institutional", "color": "#F46600", "color_dark": "#FF6A00",
               "label": "Ministère …", "logo_url": "https://…", "expertise": null},
       "expires_at": "2027-05-01T00:00:00+00:00"
     }

@@ -45,7 +45,7 @@ async def test_account_lifecycle(gate: GateClient, locale: str) -> None:
     assert reply.accent == "neutral" and "x:4242" in reply.text
     assert_persistent(reply)
     reply = await h.badge_grant(gate, EDITOR, locale, "x", "4242", "media", "AFP", None, "ok")
-    assert reply.accent == "primary" and "AFP" in reply.text and "#D946EF" in reply.text
+    assert reply.accent == "primary" and "AFP" in reply.text and "#EA00FF" in reply.text
     assert "v2" in reply.footer
     assert len(reply.buttons) == 5  # edit, revoke, block, history, keys (affiliable)
     assert_persistent(reply)
