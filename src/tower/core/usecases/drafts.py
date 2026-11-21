@@ -187,25 +187,53 @@ class PublicVerdict:
 # --- reading ---------------------------------------------------------------------------
 
 
-async def _case_of_group(session: AsyncSession, group_id: int) -> Case | None:
-    return await session.scalar(
-        select(Case)
-        .join(CaseClaimGroup, CaseClaimGroup.case_id == Case.id)
-        .where(CaseClaimGroup.claim_group_id == group_id)
-        .order_by(Case.id.desc())
-        .limit(1)
-    )
+async def _case_of_verdict(session: AsyncSession, verdict: Verdict) -> Case | None:
+    """The case opened for this draft. A claim group can hold several cases over time
+    (one per draft), so the group's latest case is never assumed to be the draft's."""
+    case = await session.scalar(select(Case).where(Case.verdict_id == verdict.id))
+    if case is not None or verdict.drafted_at is None:
+        return case
+    # Case opened by code that did not record the draft yet (deploy window): accepted
+    # only when it is the single unlinked case of the group. In doubt, no case.
+    rows = (
+        await session.scalars(
+            select(Case)
+            .join(CaseClaimGroup, CaseClaimGroup.case_id == Case.id)
+            .where(
+                CaseClaimGroup.claim_group_id == verdict.claim_group_id,
+                Case.verdict_id.is_(None),
+            )
+            .limit(2)
+        )
+    ).all()
+    return rows[0] if len(rows) == 1 else None
 
 
 async def draft_id_of_case(session: AsyncSession, case_id: int) -> uuid.UUID | None:
-    """Public id of the latest draft (drafted verdict) of a case's claim groups."""
-    return await session.scalar(
+    """Public id of the draft a case was opened for."""
+    linked = await session.scalar(
         select(Verdict.public_id)
-        .join(CaseClaimGroup, CaseClaimGroup.claim_group_id == Verdict.claim_group_id)
-        .where(CaseClaimGroup.case_id == case_id, Verdict.drafted_at.is_not(None))
-        .order_by(Verdict.id.desc())
-        .limit(1)
+        .join(Case, Case.verdict_id == Verdict.id)
+        .where(Case.id == case_id)
     )
+    if linked is not None:
+        return linked
+    # Unlinked case (deploy window): its group's single drafted verdict that no case
+    # claims. In doubt, no draft.
+    claimed = select(Case.id).where(Case.verdict_id == Verdict.id).exists()
+    rows = (
+        await session.scalars(
+            select(Verdict.public_id)
+            .join(CaseClaimGroup, CaseClaimGroup.claim_group_id == Verdict.claim_group_id)
+            .where(
+                CaseClaimGroup.case_id == case_id,
+                Verdict.drafted_at.is_not(None),
+                ~claimed,
+            )
+            .limit(2)
+        )
+    ).all()
+    return rows[0] if len(rows) == 1 else None
 
 
 async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
@@ -218,7 +246,7 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         if verdict.investigation_id is not None
         else None
     )
-    case = await _case_of_group(session, group.id)
+    case = await _case_of_verdict(session, verdict)
     content_id = (
         case.content_id
         if case is not None and case.content_id is not None
@@ -524,7 +552,7 @@ async def review_draft(
     group = await session.get(ClaimGroup, verdict.claim_group_id)
     if group is None:  # pragma: no cover - foreign key
         raise NotFound("Draft not found", code=ec.FCK_DRAFT_NOT_FOUND)
-    case = await _case_of_group(session, group.id)
+    case = await _case_of_verdict(session, verdict)
     note = await session.scalar(
         select(ContextNote).where(ContextNote.verdict_id == verdict.id).with_for_update()
     )

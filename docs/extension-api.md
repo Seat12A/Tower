@@ -51,6 +51,7 @@ en-tête d'authentification).
 |---|---|---|---|
 | GET | `/v1/ingest/config` | aucune | Filtres pilotés par le serveur (quels posts envoyer) |
 | POST | `/v1/ingest/observations` | `X-Installation-Token` | Envoi des posts filtrés |
+| GET | `/v1/verdict-index/{platform}/{bucket}` | aucune | Posts vérifiés d'une boîte de hachage (affichage sur tous les posts) |
 | GET | `/v1/content/{platform}/{external_id}/verdict` | aucune | Verdict publié d'un post |
 | GET | `/v1/badges/categories` | aucune | Catégories, couleurs, priorité |
 | GET | `/v1/badges/lookup` | aucune | Badges de jusqu'à 100 comptes visibles |
@@ -162,6 +163,46 @@ Ne rien envoyer sur l'utilisateur (ni compte connecté, ni historique, ni URL de
 
 Conseil : regrouper les posts (lots de 50 au plus, toutes les 10 à 30 s), ne pas
 renvoyer un même post à chaque défilement.
+
+---
+
+## 2 bis. `GET /v1/verdict-index/{platform}/{bucket}` — quels posts ont un verdict
+
+Permet d'afficher les vérifications sur **tous les posts**, filtrés ou non, sans dire à
+Tower quel post l'utilisateur regarde.
+
+**Calcul de la boîte**, dans l'extension, pour chaque post affiché :
+
+```js
+const bytes = new TextEncoder().encode(externalId);            // ID natif, ex. "1856000000000000000"
+const digest = await crypto.subtle.digest("SHA-256", bytes);
+const hash = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("");
+const bucket = hash.slice(0, 4);                                // "6f58"
+```
+
+**Envoi** : `/v1/verdict-index/x/6f58`, sans corps. En-tête facultatif
+`If-None-Match: <ETag reçu précédemment>`.
+
+**Réception `200`** :
+
+```json
+{"platform": "x", "bucket": "6f58", "hashes": ["6f5893791244b945fa04f4d1589f6e996baefc800236a63f1bcb57e16acbd9af"]}
+```
+
+- `hashes` : SHA-256 complets (hex, triés) des posts de la boîte qui ont un verdict
+  visible, selon la même règle que la route 3 (verdict validé, non périmé). Liste souvent
+  vide ; une trentaine d'entrées par boîte à 2 millions de vérifications ; 5 000 au plus.
+- Si `hash` du post est dans la liste : appeler la route 3 pour ce post. Sinon : ne rien
+  demander.
+- En-têtes : `ETag` fort, `Cache-Control: public, max-age=300`. **`304`** si
+  `If-None-Match` correspond. Garder chaque boîte en cache 5 minutes (borné) : de
+  nombreux posts partagent une boîte.
+- **Erreur** : `422` `TWR-FCK-050` si la boîte n'est pas faite de 4 caractères hex ou si
+  la plateforme est inconnue.
+
+**Vie privée.** Tower ne reçoit que la boîte (1/65 536 de tous les posts de la
+plateforme), jamais l'ID ni le hachage complet du post. Il reste un signal faible : une
+boîte demandée à un instant donné.
 
 ---
 

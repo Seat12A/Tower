@@ -64,6 +64,7 @@ async def build_draft(
     veracity: str = "false",
     previous_active: bool = False,
     flags: dict[str, Any] | None = None,
+    link_case: bool = True,
 ) -> Built:
     """Insert a complete draft (claim, group, investigation, sources, citations, note,
     translations, case) the way E9 and E10 leave it."""
@@ -225,6 +226,7 @@ async def build_draft(
             x_post_id=int(ext),
             content_id=content.id,
             opened_by="system:factcheck",
+            verdict_id=verdict.id if link_case and drafted else None,
         )
         s.add(case)
         await s.flush()
@@ -346,7 +348,7 @@ async def test_get_draft_view(db: Database) -> None:
         "url": f"https://x.com/i/status/{EXT}",
         "lang": "fr",
     }
-    assert view.case == {"id": str(built.case), "status": "received"}
+    assert view.case == {"id": str(built.case), "status": "received", "discord_thread_id": None}
     assert set(view.notes) == {"fr"} and view.notes["fr"]["origin"] == "machine"
     assert view.links == [f"https://insee.example/{EXT}"]
     cites = view.rationale[0]["citations"]
@@ -399,7 +401,11 @@ async def test_accept_by_reviewer_is_an_endorsement(db: Database) -> None:
     async with db.transaction() as s:
         result = await uc.review_draft(s, REVIEWER, built.verdict, decision="accept")
     assert result.outcome == "endorsed" and result.draft.status == "draft"
-    assert result.draft.case == {"id": str(built.case), "status": "in_review"}
+    assert result.draft.case == {
+        "id": str(built.case),
+        "status": "in_review",
+        "discord_thread_id": None,
+    }
     verdict = await verdict_row(db, built.verdict)
     assert verdict.status == "draft" and verdict.validated_at is None
     assert [e.topic for e in await events(db)] == ["case.transitioned", "draft.reviewed"]
@@ -447,7 +453,11 @@ async def test_accept_by_editor_validates(db: Database) -> None:
             s, EDITOR, built.verdict, decision="accept", labels=["wrong_context", "wrong_context"]
         )
     assert result.outcome == "validated" and result.draft.status == "active"
-    assert result.draft.case == {"id": str(built.case), "status": "validated"}
+    assert result.draft.case == {
+        "id": str(built.case),
+        "status": "validated",
+        "discord_thread_id": None,
+    }
     verdict = await verdict_row(db, built.verdict)
     assert verdict.status == "active" and verdict.validated_by == EDITOR.label
     assert verdict.validated_at is not None
@@ -594,7 +604,11 @@ async def test_reject_by_editor(db: Database) -> None:
             labels=["wrong_source"],
         )
     assert result.outcome == "rejected" and result.draft.status == "rejected"
-    assert result.draft.case == {"id": str(built.case), "status": "rejected"}
+    assert result.draft.case == {
+        "id": str(built.case),
+        "status": "rejected",
+        "discord_thread_id": None,
+    }
     async with db.session() as s:
         note = await s.get(ContextNote, built.note_id)
         assert note is not None and note.status == "rejected"
@@ -779,3 +793,130 @@ async def test_public_verdict_after_replacement_shows_only_the_active_one(db: Da
         )
         assert count == 1
         assert await s.scalar(select(func.count()).select_from(Citation)) == 0
+
+
+# --- a claim group with several cases ---------------------------------------------------
+
+
+async def add_newer_draft(db: Database, built: Built, *, link_case: bool = True) -> Built:
+    """A second draft of the same claim group with its own (newer) case."""
+    async with db.transaction() as s:
+        verdict = Verdict(
+            claim_group_id=built.group_id,
+            veracity="false",
+            context_need="necessary",
+            status="draft",
+            drafted_at=func.now(),
+        )
+        s.add(verdict)
+        await s.flush()
+        case = Case(
+            kind="fact_check",
+            status="received",
+            opened_by="system:factcheck",
+            verdict_id=verdict.id if link_case else None,
+        )
+        s.add(case)
+        await s.flush()
+        s.add(CaseClaimGroup(case_id=case.id, claim_group_id=built.group_id))
+        await s.flush()
+        return Built(
+            verdict=verdict.public_id,
+            verdict_id=verdict.id,
+            group_id=built.group_id,
+            note_id=built.note_id,
+            case=case.public_id,
+            case_id=case.id,
+            content_id=built.content_id,
+            claim_id=built.claim_id,
+            passage_id=built.passage_id,
+        )
+
+
+async def case_status(db: Database, case_id: int) -> str:
+    async with db.session() as s:
+        return (await s.scalars(select(Case.status).where(Case.id == case_id))).one()
+
+
+async def test_draft_targets_its_own_case_not_the_groups_latest(db: Database) -> None:
+    old = await build_draft(db)
+    new = await add_newer_draft(db, old)
+    async with db.session() as s:
+        view = await uc.get_draft(s, REVIEWER, old.verdict)
+        assert view.case is not None and view.case["id"] == str(old.case)
+        newer = await uc.get_draft(s, REVIEWER, new.verdict)
+        assert newer.case is not None and newer.case["id"] == str(new.case)
+        assert await uc.draft_id_of_case(s, old.case_id) == old.verdict
+        assert await uc.draft_id_of_case(s, new.case_id) == new.verdict
+
+    async with db.transaction() as s:
+        await uc.review_draft(s, EDITOR, old.verdict, decision="accept")
+    assert await case_status(db, old.case_id) == "validated"
+    assert await case_status(db, new.case_id) == "received"
+
+
+async def test_unlinked_case_is_used_only_when_unambiguous(db: Database) -> None:
+    old = await build_draft(db, link_case=False)
+    async with db.session() as s:
+        view = await uc.get_draft(s, REVIEWER, old.verdict)
+        assert view.case is not None and view.case["id"] == str(old.case)
+        assert await uc.draft_id_of_case(s, old.case_id) == old.verdict
+
+    await add_newer_draft(db, old, link_case=False)
+    async with db.session() as s:
+        view = await uc.get_draft(s, REVIEWER, old.verdict)
+        assert view.case is None
+        assert await uc.draft_id_of_case(s, old.case_id) is None
+
+
+async def test_migration_backfill_links_each_case_to_its_draft(db: Database) -> None:
+    import importlib.util
+    from pathlib import Path
+
+    import tower.migrations
+
+    path = (
+        Path(next(iter(tower.migrations.__path__)))
+        / "versions"
+        / "20261121_0016_link_cases_to_their_draft_verdict.py"
+    )
+    spec = importlib.util.spec_from_file_location("migration_0016", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    old = await build_draft(db, link_case=False)
+    new = await add_newer_draft(db, old, link_case=False)
+    async with db.transaction() as s:
+        far = Case(kind="fact_check", status="received", opened_by="system:factcheck")
+        s.add(far)
+        await s.flush()
+        await s.execute(
+            text("UPDATE cases SET created_at = now() - interval '1 hour' WHERE id = :id"),
+            {"id": far.id},
+        )
+        s.add(CaseClaimGroup(case_id=far.id, claim_group_id=old.group_id))
+        far_id = far.id
+    async with db.transaction() as s:
+        # Both drafts were drafted in the same second here: tell them apart like real
+        # data, where each draft is written with its own case.
+        await s.execute(
+            text("UPDATE cases SET created_at = now() - interval '2 minutes' WHERE id = :id"),
+            {"id": old.case_id},
+        )
+        await s.execute(
+            text("UPDATE verdicts SET drafted_at = now() - interval '2 minutes' WHERE id = :id"),
+            {"id": old.verdict_id},
+        )
+        await s.execute(text(module._BACKFILL))
+    async with db.session() as s:
+        links = dict(
+            (
+                await s.execute(
+                    select(Case.id, Case.verdict_id).where(
+                        Case.id.in_([old.case_id, new.case_id, far_id])
+                    )
+                )
+            ).all()
+        )
+    assert links == {old.case_id: old.verdict_id, new.case_id: new.verdict_id, far_id: None}

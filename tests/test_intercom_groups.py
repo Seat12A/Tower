@@ -152,7 +152,7 @@ async def test_same_group_button_merges_the_given_group_into_the_draft_group(
     a, b = await two_groups(db)
     target, source = await group_public(db, a), await group_public(db, b)
     reply = await fc.group_merge_same(gate, EDITOR, locale, str(a.verdict), source, "same story")
-    assert target in reply.text and "2" in reply.text and reply.ephemeral
+    assert target[:8] in reply.text and "2" in reply.text and reply.ephemeral
     detail = await gate.get_group(EDITOR, source)
     assert detail["state"] == "merged" and detail["merged_into"] == target
     reply = await fc.group_merge_same(gate, EDITOR, locale, str(a.verdict), source, None)
@@ -183,7 +183,7 @@ async def test_split_button_and_command(gate: GateClient, db: Database, locale: 
     claims = f"{await claim_public(db, one)}, {await claim_public(db, two)}"
     reply = await fc.group_split_draft(gate, EDITOR, locale, str(built.verdict), claims, "other")
     # The reply names the new group (a random UUID: never test for a given digit).
-    assert re.search(r"`[0-9a-f-]{36}`", reply.text) and "TWR" not in reply.text
+    assert re.search(r"`[0-9a-f]{8}`", reply.text) and "TWR" not in reply.text
     assert len((await gate.get_group(EDITOR, await group_public(db, built)))["members"]) == 1
 
     group = await group_public(db, built)
@@ -202,9 +202,9 @@ async def test_group_merge_and_show_commands(gate: GateClient, db: Database, loc
     a, b = await two_groups(db)
     target, source = await group_public(db, a), await group_public(db, b)
     reply = await fc.group_merge(gate, EDITOR, locale, target, source, "same")
-    assert target in reply.text
+    assert target[:8] in reply.text
     shown = await fc.group_show(gate, REVIEWER, locale, target)
-    assert target in shown.text and "N3" in shown.text and "merged" in shown.text
+    assert target[:8] in shown.text and "N3" in shown.text and "merged" in shown.text
     assert "https://x.com/i/status/1850000000000000301" in shown.text
     assert "https://x.com/i/status/1850000000000000302" in shown.text
     merged = await fc.group_show(gate, REVIEWER, locale, source)

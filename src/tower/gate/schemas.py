@@ -345,6 +345,13 @@ class PublicClaimOut(BaseModel):
     inherited: PublicInheritedOut | None = None
 
 
+class VerdictBucketOut(BaseModel):
+    platform: str
+    bucket: str
+    hashes: list[str]
+    """Full sha256 (hex) of the native ids of the bucket's posts with a visible verdict."""
+
+
 class PublicVerdictOut(BaseModel):
     """Validated verdicts of a content, for the website and the extension."""
 

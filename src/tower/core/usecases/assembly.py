@@ -77,6 +77,7 @@ async def open_draft_for_content(
     )
     if content is not None:
         case.content_id = content.id
+    case.verdict_id = verdict.id
     session.add(CaseClaimGroup(case_id=case.id, claim_group_id=group.id))
     verdict.drafted_at = datetime.now(UTC)
     verdict.updated_at = func.now()
