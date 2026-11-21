@@ -62,7 +62,7 @@ unique d'au moins 6 caractères**.
 | `/watchlist list [plateforme]` | Liste paginée (8 par page), filtre de plateforme, menu « gérer un compte » (carte : modifier, désactiver), bouton « Ajouter » | `watchlist:read` |
 | `/watchlist add` | Modal : plateforme et catégorie (menus), pseudo, priorité, note ; le radar résout l'identifiant ([radar.md](radar.md)) | `watchlist:write` |
 | `/watchlist edit id` / `deactivate id` | Modal (champ vide = inchangé ; verrou optimiste géré par le bot) / confirmation sur place | `watchlist:write` |
-| `/case show id` | Carte avec Prendre, Valider, Rejeter (modal), Publier (modal : lien) selon le statut, lien vers le post | `cases:read` (+ actions) |
+| `/case show id` (id court, 6 caractères ou plus, ou complet) | Carte avec Prendre, Valider, Rejeter (modal), Publier (modal : lien) selon le statut, lien vers le post | `cases:read` (+ actions) |
 | `/case take` / `validate` / `reject` / `publish id` | Mêmes actions en commande ; **la publication sur X reste manuelle** | `cases:review` / `cases:decide` / `cases:publish` |
 | `/incidents list [code] [all]` | Liste (filtre par code `TWR-…`, `all` : résolus compris), menus « voir » et « résoudre » (modal : note), actualisation | `errors:read` |
 | `/incidents show empreinte` | Détail (préfixe de 6 caractères accepté, résolus compris) : statut, sévérité, occurrences, première et dernière occurrence, processus, emplacement, exception, relançable, note de résolution, dernier message, piste du catalogue, dernier contexte (12 clés au plus) et fin de la dernière trace, le tout borné à un message Discord ; boutons « Résoudre » (si ouvert) et retour à la liste | `errors:read` (`errors:manage` pour résoudre) |

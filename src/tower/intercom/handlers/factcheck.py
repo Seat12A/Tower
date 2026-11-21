@@ -267,7 +267,7 @@ def _group_block(view: dict[str, Any], locale: str) -> str | None:
         t(
             locale,
             "draft.group.line",
-            group_id=group["id"],
+            group_id=short(group["id"]),
             members=group["members"],
             platforms=", ".join(view.get("platforms") or []) or "-",
         )
@@ -281,7 +281,7 @@ def _group_block(view: dict[str, Any], locale: str) -> str | None:
             t(
                 locale,
                 "draft.group.related",
-                group_id=related["group_id"],
+                group_id=short(related["group_id"]),
                 veracity=veracity_label(locale, str(related["veracity"])),
             )
         )
@@ -296,7 +296,7 @@ def _narrative_block(view: dict[str, Any], locale: str) -> str | None:
     return t(
         locale,
         "draft.narrative.line",
-        narrative_id=narrative["id"],
+        narrative_id=short(narrative["id"]),
         title=_clip(narrative["title"], 100)
         if narrative.get("title")
         else t(locale, "narrative.untitled"),
@@ -705,9 +705,9 @@ def _group_done(locale: str, title_key: str, body_key: str, group: dict[str, Any
     members = len(group.get("members", []))
     return success(
         t(locale, title_key),
-        t(locale, body_key, group_id=group["id"], members=members),
+        t(locale, body_key, group_id=short(group["id"]), members=members),
         details=(
-            (t(locale, "group.detail.id"), code(group["id"])),
+            (t(locale, "group.detail.id"), code(short(group["id"]))),
             (t(locale, "group.detail.members"), code(members)),
         ),
         buttons=(_show_group_button(locale, group["id"]),),
@@ -782,7 +782,7 @@ async def group_show(gate: GateClient, acting: int, locale: str, group_id: str) 
     group = await gate.get_group(acting, await resolve_ref(gate, acting, "group", group_id))
     verdict = group.get("active_verdict")
     details: list[tuple[str, str]] = [
-        (t(locale, "group.detail.id"), code(group["id"])),
+        (t(locale, "group.detail.id"), code(short(group["id"]))),
         (t(locale, "group.detail.level"), code(group["level"])),
         (t(locale, "group.detail.state"), code(group["state"])),
         (t(locale, "group.detail.members"), code(len(group["members"]))),
@@ -824,7 +824,7 @@ async def group_show(gate: GateClient, acting: int, locale: str, group_id: str) 
             t(
                 locale,
                 "group.show.member",
-                claim_id=m["claim_id"],
+                claim_id=short(m["claim_id"]),
                 text=_clip(m["text_fr"] if locale == "fr" else m["text_original"], 120),
                 links=links,
             ).strip()
@@ -966,7 +966,7 @@ async def fact_show(gate: GateClient, acting: int, locale: str, fact_id: str) ->
         accent="neutral" if status == "rejected" else "primary",
         body=_clip(f["label"], 200),
         details=(
-            (t(locale, "fact.detail.id"), code(f["id"])),
+            (t(locale, "fact.detail.id"), code(short(f["id"]))),
             (t(locale, "fact.detail.status"), code(_label(locale, "fact.status", status))),
             (t(locale, "fact.detail.value"), code(f"{f['value']} {f['unit']}")),
             (t(locale, "fact.detail.period"), code(f"{f['period_start']} / {f['period_end']}")),

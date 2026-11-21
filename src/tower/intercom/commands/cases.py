@@ -106,17 +106,17 @@ def register(tree: Any, ctx: Context) -> None:
     group = app_commands.Group(name="case", description="Fact-check cases", guild_only=True)
 
     @group.command(name="show", description="Show a case with its action buttons")
-    @app_commands.describe(public_id="Case public id")
+    @app_commands.describe(public_id="Case id (6 characters or more)")
     async def d_show(interaction: discord.Interaction, public_id: str) -> None:
         await run_handler(interaction, lambda loc, uid: dos.show(gate, uid, loc, public_id))
 
     @group.command(name="take", description="Take a case into review")
-    @app_commands.describe(public_id="Case public id")
+    @app_commands.describe(public_id="Case id (6 characters or more)")
     async def d_take(interaction: discord.Interaction, public_id: str) -> None:
         await run_handler(interaction, lambda loc, uid: dos.take(gate, uid, loc, public_id))
 
     @group.command(name="validate", description="Validate a case")
-    @app_commands.describe(public_id="Case public id", note="Optional note")
+    @app_commands.describe(public_id="Case id (6 characters or more)", note="Optional note")
     async def d_validate(
         interaction: discord.Interaction, public_id: str, note: str | None = None
     ) -> None:
@@ -125,14 +125,14 @@ def register(tree: Any, ctx: Context) -> None:
         )
 
     @group.command(name="reject", description="Reject a case (opens a note form)")
-    @app_commands.describe(public_id="Case public id")
+    @app_commands.describe(public_id="Case id (6 characters or more)")
     async def d_reject(interaction: discord.Interaction, public_id: str) -> None:
         await interaction.response.send_modal(
             reject_modal(public_id, interaction_locale(interaction))
         )
 
     @group.command(name="publish", description="Record the X publication link (manual post)")
-    @app_commands.describe(public_id="Case public id")
+    @app_commands.describe(public_id="Case id (6 characters or more)")
     async def d_publish(interaction: discord.Interaction, public_id: str) -> None:
         await interaction.response.send_modal(
             publish_modal(public_id, interaction_locale(interaction))
