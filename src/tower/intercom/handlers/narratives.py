@@ -270,7 +270,7 @@ async def narrative_show(gate: GateClient, acting: int, locale: str, narrative_i
             t(
                 locale,
                 "narrative.show.group",
-                group_id=g["id"],
+                group_id=short(g["id"]),
                 level=g["level"],
                 verdict=verdict,
                 signal=g.get("light_signal") or "-",
@@ -354,7 +354,7 @@ async def narrative_merge(
         t(locale, "narrative.merged.title"),
         t(locale, "narrative.merged"),
         details=(
-            (t(locale, "narrative.detail.id"), code(merged["id"])),
+            (t(locale, "narrative.detail.id"), code(short(merged["id"]))),
             (t(locale, "narrative.detail.groups"), code(groups)),
         ),
         buttons=(_show_button(locale, merged["id"]),),
@@ -377,7 +377,7 @@ async def narrative_split(
     return success(
         t(locale, "narrative.split.title"),
         t(locale, "narrative.split"),
-        details=((t(locale, "narrative.detail.id"), code(new["id"])),),
+        details=((t(locale, "narrative.detail.id"), code(short(new["id"]))),),
         buttons=(_show_button(locale, new["id"]),),
     )
 
@@ -394,6 +394,6 @@ async def narrative_title(
     return success(
         t(locale, "narrative.title.title"),
         _title(locale, done["title"]),
-        details=((t(locale, "narrative.detail.id"), code(done["id"])),),
+        details=((t(locale, "narrative.detail.id"), code(short(done["id"]))),),
         buttons=(_show_button(locale, done["id"]),),
     )

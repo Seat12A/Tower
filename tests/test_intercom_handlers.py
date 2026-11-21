@@ -126,6 +126,21 @@ async def test_case_happy_path(bot: GateClient) -> None:
     assert d["status"] == "published" and d["published_url"].endswith(POST)
 
 
+async def test_case_commands_accept_the_short_id(bot: GateClient) -> None:
+    pid = await open_case(bot)
+    short_id = pid[:8].upper()
+    shown = await cases.show(bot, REVIEWER, "en", short_id)
+    assert pid[:8] in shown.text and "received" in shown.text
+    r = await cases.take(bot, REVIEWER, "en", f" {short_id} ")
+    assert "taken into review" in r.text
+    await cases.validate(bot, EDITOR, "en", pid[:6])
+    r = await cases.publish(bot, EDITOR, "en", pid[:8], f"https://x.com/seat12a/status/{POST}")
+    assert r.accent == "success"
+    assert (await bot.get_case(EDITOR, pid))["status"] == "published"
+    missing = await cases.show(bot, EDITOR, "en", "ffffffff")
+    assert "TWR-GEN-002" in missing.text or "TWR-DOS-001" in missing.text
+
+
 async def test_case_reject_and_errors(bot: GateClient) -> None:
     pid = await open_case(bot)
     await cases.take(bot, EDITOR, "en", pid)

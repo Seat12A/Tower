@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from tower.intercom.gate_client import GateClient, GateError
-from tower.intercom.handlers import Accent, Button, Reply, card, code, guarded, short
+from tower.intercom.handlers import Accent, Button, Reply, card, code, guarded, resolve_ref, short
 from tower.intercom.i18n import has, t
 from tower.intercom.ui import emojis
 
@@ -96,14 +96,20 @@ def _card(locale: str, d: dict[str, Any], footer: str = "") -> Reply:
     )
 
 
+async def _ref(gate: GateClient, acting: int, value: str) -> str:
+    """Full case id from a short id (6 characters or more) or a full one."""
+    return await resolve_ref(gate, acting, "case", value)
+
+
 @guarded
 async def show(gate: GateClient, acting: int, locale: str, public_id: str) -> Reply:
-    return _card(locale, await gate.get_case(acting, public_id))
+    return _card(locale, await gate.get_case(acting, await _ref(gate, acting, public_id)))
 
 
 async def _transition(
     gate: GateClient, acting: int, locale: str, public_id: str, to: str, key: str, note: str | None
 ) -> Reply:
+    public_id = await _ref(gate, acting, public_id)
     current = await gate.get_case(acting, public_id)
     updated = await gate.transition_case(
         acting, public_id, to=to, version=_version(current), note=note or None
@@ -133,6 +139,7 @@ async def reject(
 
 @guarded
 async def publish(gate: GateClient, acting: int, locale: str, public_id: str, url: str) -> Reply:
+    public_id = await _ref(gate, acting, public_id)
     current = await gate.get_case(acting, public_id)
     updated = await gate.publish_case(acting, public_id, url=url.strip(), version=_version(current))
     return _card(
