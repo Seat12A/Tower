@@ -31,7 +31,7 @@ par Railway. Un fichier `.env` est lu en local (voir `.env.example`).
 | `TOWER_AUTH_CACHE_TTL` | `15` | Durée du cache des tokens et rôles (s). Délai maximal d'une révocation |
 | `TOWER_SSE_HEARTBEAT_SECONDS` | `15` | Intervalle des commentaires keepalive SSE |
 | `TOWER_SSE_BATCH_SIZE` | `200` | Événements lus par requête SQL |
-| `TOWER_CORS_ORIGINS` | vide | Origines autorisées (GET uniquement), séparées par des virgules |
+| `TOWER_CORS_ORIGINS` | vide | Origines autorisées pour le site (méthodes GET et POST ; en-têtes `Authorization`, `Content-Type`, `X-Installation-Token`), séparées par des virgules. Inutile pour l'extension, dont le service worker n'est pas soumis au CORS (voir [extension.md](extension.md)) |
 | `TOWER_ADMIN_DISCORD_IDS` | vide | IDs Discord des administrateurs codés en dur, séparés par des virgules : toutes les permissions, sans ligne en base, non modifiables (voir [auth.md](auth.md)) |
 
 ## hangar
