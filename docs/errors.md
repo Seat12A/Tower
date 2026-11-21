@@ -159,6 +159,7 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-FCK-047` | Calibration model not found | 404 | info | non | non |  |
 | `TWR-FCK-048` | Candidate model not activated: its measurement does not beat the current one | 409 | info | non | non |  |
 | `TWR-FCK-049` | Invalid manual note | 422 | info | non | non | details.field names the field; see docs/fact-check.md (Notes manuelles). |
+| `TWR-FCK-050` | Invalid verdict index bucket (4 lowercase hex characters) or platform | 422 | info | non | non | Bucket = first 4 hex characters of sha256(UTF-8 native id); see docs/extension-api.md. |
 
 ## GEN : Général
 

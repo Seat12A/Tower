@@ -215,7 +215,9 @@ pour X) : aucune table ne stocke un compte par pseudo.
   `ix_content_items_checked_at (checked_at) WHERE checked_at IS NOT NULL` (compte du jour).
 - `content_items` : `(simhash_bN, first_seen_at)` pour chaque bande (quasi-copies sur
   30 jours), `content_hash`, `lang`, `first_seen_at`, index sur expression
-  `(external_id::bigint) WHERE platform = 'x'` (IDs X numériques sans colonne générée).
+  `(external_id::bigint) WHERE platform = 'x'` (IDs X numériques sans colonne générée),
+  `ix_content_items_verdict_bucket (platform, substring(sha256(external_id::bytea) FROM 1
+  FOR 2))` (boîtes de l'index des verdicts, migration 0016, construit `CONCURRENTLY`).
 - `observations` : `(content_id, observed_at)`, propagé à chaque partition.
 - Les partitions `observations_pAAAAMMJJ` sont créées par le service `ingest`, et les
   partitions `content_embeddings_pAAAAMMJJ` par le service `factcheck` ; elles sont

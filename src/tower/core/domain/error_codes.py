@@ -857,6 +857,13 @@ FCK_MANUAL_INVALID = _define(
     severity=_INFO,
     hint="details.field names the field; see docs/fact-check.md (Notes manuelles).",
 )
+FCK_BAD_INDEX_BUCKET = _define(
+    "TWR-FCK-050",
+    "Invalid verdict index bucket (4 lowercase hex characters) or platform",
+    http_status=422,
+    severity=_INFO,
+    hint="Bucket = first 4 hex characters of sha256(UTF-8 native id); see docs/extension-api.md.",
+)
 
 # --- STF: team ranks and individual permissions -------------------------------
 STF_NOT_RANKED = _define("TWR-STF-001", "Member not ranked", http_status=404, severity=_INFO)

@@ -173,6 +173,13 @@ class ContentItem(Base):
             sa_text("(external_id::bigint)"),
             postgresql_where=sa_text("platform = 'x'"),
         ),
+        Index(
+            # Verdict index bucket (first 2 bytes of sha256 of the native id), see
+            # core/usecases/verdict_index.py.
+            "ix_content_items_verdict_bucket",
+            "platform",
+            sa_text("substring(sha256(external_id::bytea) FROM 1 FOR 2)"),
+        ),
         Index("ix_content_items_simhash_b0", "simhash_b0", "first_seen_at"),
         Index("ix_content_items_simhash_b1", "simhash_b1", "first_seen_at"),
         Index("ix_content_items_simhash_b2", "simhash_b2", "first_seen_at"),
