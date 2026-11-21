@@ -169,7 +169,7 @@ def test_render_shows_the_narrative_and_the_coordination_block(locale: str) -> N
     reply = fc.render_draft(wave_view(), locale)
     body = joined(reply)
     assert all(len(c.body) <= MAX_MESSAGE for c in cards(reply))
-    assert f"`{NID}`" in body and "Fausse hausse des prix" in body
+    assert f"`{NID[:8]}`" in body and "Fausse hausse des prix" in body
     assert "12 " in body and "25 " in body and "6 " in body and "future_kind" in body
     if locale == "en":
         assert "informational, never a verdict input" in body and "surge" in body
@@ -251,7 +251,7 @@ async def test_list_and_show(gate: GateClient, db: Database, locale: str) -> Non
     assert_persistent(listing)
     assert len(shown.buttons) == 5
     assert listing.fields[0].control.options[0].value == public  # type: ignore[union-attr]
-    assert str(await public_id(db, gids[2])) in shown.text
+    assert str(await public_id(db, gids[2]))[:8] in shown.text
     assert ("split is suggested" if locale == "en" else "Scission suggérée") in shown.text
 
 
@@ -271,7 +271,7 @@ async def test_merge_split_and_title(gate: GateClient, db: Database, locale: str
     denied = await nh.narrative_merge(gate, REVIEWER, locale, target, source, "same")
     assert "403" in denied.text or "TWR-" in denied.text
     merged = await nh.narrative_merge(gate, EDITOR, locale, target, source, "same story")
-    assert target in merged.text and "4" in merged.text
+    assert target[:8] in merged.text and "4" in merged.text
     again = await nh.narrative_merge(gate, EDITOR, locale, target, source, "again")
     assert "TWR-FCK-044" in again.text
 
@@ -281,7 +281,7 @@ async def test_merge_split_and_title(gate: GateClient, db: Database, locale: str
     assert "TWR-GEN-001" in bad.text
     split = await nh.narrative_split(gate, EDITOR, locale, target, ", ".join(moved), "other story")
     created = [r for r in await gate.list_narratives(EDITOR) if r["id"] != target]
-    assert len(created) == 1 and created[0]["id"] in split.text
+    assert len(created) == 1 and created[0]["id"][:8] in split.text
     invalid = await nh.narrative_split(gate, EDITOR, locale, target, UNKNOWN, "x")
     assert "TWR-FCK-044" in invalid.text
 

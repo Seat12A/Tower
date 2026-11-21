@@ -41,6 +41,11 @@ class Case(Base):
     published_url: Mapped[str | None] = mapped_column(Text)
     discord_thread_id: Mapped[int | None] = mapped_column(BigInteger)
     """Discord forum post (thread) showing the case; set by intercom."""
+    verdict_id: Mapped[int | None] = mapped_column(
+        ForeignKey("verdicts.id", ondelete="SET NULL"), unique=True
+    )
+    """Draft verdict this case was opened for (fact-check). A claim group can hold several
+    cases over time: the draft is always tied to its own case, never to the group's latest."""
     opened_by: Mapped[str] = mapped_column(Text)
     version: Mapped[int] = mapped_column(server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

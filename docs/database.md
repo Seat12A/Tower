@@ -20,7 +20,7 @@ PostgreSQL 16 (Railway). SQLAlchemy 2 en asynchrone (asyncpg), migrations Alembi
 
 | Table | Rôle |
 |---|---|
-| `cases` | Cases de fact-check ou de modération (`kind`), statut, post X, assignation, lien de publication, post du forum Discord (`discord_thread_id`, migration 0011), version |
+| `cases` | Cases de fact-check ou de modération (`kind`), statut, post X, assignation, lien de publication, post du forum Discord (`discord_thread_id`, migration 0011), `verdict_id` (brouillon pour lequel le case a été ouvert, unique, FK `verdicts` `ON DELETE SET NULL`, migration 0015), version |
 | *(vues)* `dossiers`, `dossier_events`, `dossier_claim_groups` | Vues de compatibilité de la migration 0012 (anciens noms de tables et de colonnes) pour le code encore déployé pendant la bascule ; supprimées au contract |
 | `case_events` | Audit immuable : une ligne par transition (de, vers, acteur, motif, données) |
 | `events` | Outbox transactionnelle (topic, agrégat, payload, acteur, `xid` de la transaction) |
