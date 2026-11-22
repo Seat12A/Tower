@@ -137,6 +137,13 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
   intercom (module chargé seulement par la CLI) : pas de mesure de RAM nécessaire.
 
 
+- Lot des icônes (fin de session) : suite complète **2 235 verts, 2 échecs** (les mêmes
+  `test_source_standing_db.py` préexistants) ; ruff, mypy strict verts ; `alembic check`
+  sans différence ; migrations aller-retour 0018 → 0017 → 0018 ; RAM de gate au repos
+  (lancé directement, 8 s ; « avant » dans un worktree de `1cf328a`) : 104,5 Mo avant,
+  99,5 Mo après (bruit). Smoke test du vrai processus limité au démarrage de gate ; la
+  route est testée par ASGI.
+
 ## Points ouverts / suite
 
 - Coût de `--apply` complet : 143 lectures X au plus × 0,01 $ (valeur de configuration,
