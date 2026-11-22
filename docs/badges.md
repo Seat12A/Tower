@@ -250,7 +250,10 @@ badge `institutional`, source `x_government`.
 Attribution en masse depuis une liste triée par l'équipe : `src/tower/core/data/badge_seed.csv`
 (livrée dans le paquet ; `--file` pour une autre liste). Colonnes : `handle`, `category`,
 `name` (noms attendus séparés par `|`), `expertise` (experts seulement), `review` (`1`),
-`note` (note interne). Les lignes `#` sont des commentaires.
+`note` (note interne), `logo` (URL https de l'**icône** de l'organisation, posée à
+l'attribution d'un badge affiliable) et `parent` (organisations parentes de la liste,
+`Pseudo=Titre|Autre`). Les lignes `#` sont des commentaires. Un parent doit être une
+ligne de la liste de catégorie affiliable, jamais la ligne elle-même.
 
 1. **Wikidata d'abord (gratuit)** : l'ID natif de chaque pseudo est cherché sur Wikidata
    (déclaration P2002 avec son qualificatif P6552, rang non déprécié, sans date de fin),
@@ -270,7 +273,13 @@ Attribution en masse depuis une liste triée par l'équipe : `src/tower/core/dat
    sinon). Une ligne `review` exige la coche grise `government` (`review` sinon), sauf
    `--include-review`.
 3. Attribution par `grant_badge` (source `manual`, acteur `system:badges-seed`, note
-   `seed badges-seed (wikidata|x <coche>): …`).
+   `seed badges-seed (wikidata|x <coche>): …`, `logo_url` = colonne `logo`).
+4. **Affiliations** : un compte dont le badge est actif est affilié à chacun de ses
+   parents par `create_affiliation` (validée par l'équipe, titre de la colonne). Les
+   organisations passent avant leurs membres ; un parent pas encore badgé donne
+   `parent_missing` (relancer). Jamais créée s'il existe déjà une ligne d'affiliation
+   pour la paire, quel que soit son état : une affiliation retirée ou rejetée n'est
+   pas rouverte (`affiliation_exists`).
 
 Règles communes : un compte qui a déjà un badge (actif, bloqué, ou retiré par l'équipe)
 n'est jamais modifié ; un compte déjà badgé sous ce pseudo (pseudo stocké) est sauté

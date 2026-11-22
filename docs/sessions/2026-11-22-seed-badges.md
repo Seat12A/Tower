@@ -40,6 +40,17 @@ les autres en `verified`.
   Bolsonaro apparaît sous « Italy »), les domaines d'expertise restent larges.
   Total de la liste : **2 978 comptes, 2 835 avec ID Wikidata (gratuits), 143 lectures
   X au plus**.
+- **Icônes et affiliés** (demande de Jules) : colonnes `logo` et `parent` dans la liste ;
+  la commande crée les affiliations (validées par l'équipe, jamais de réouverture d'une
+  affiliation terminée) et pose l'icône à l'attribution. L'import Wikidata prend
+  désormais l'icône (P8972, sinon P2910) au lieu du logo complet P154. Collecte :
+  **seulement 18 icônes** pour 1 272 organisations et médias (la propriété est rarement
+  remplie sur Wikidata) ; **194 affiliés ajoutés** (`verified`) et 6 personnes déjà
+  présentes rattachées (ex. Elon Musk → Tesla, SpaceX, Neuralink ; Sam Altman →
+  OpenAI ; journalistes du NYT, de Mediapart, de BFMTV). Règles et cas écartés :
+  voir `decisions.md` (fondateurs, employés d'entreprises, emplois non datés). Une
+  personne déjà dans la liste et affiliée passe `verified` (sauf élu en fonction) ;
+  10 experts et quelques journalistes sont concernés. Total : 3 799 comptes.
 - **Entreprises et ONG** (demande de Jules) : 627 lignes `organization` tirées de la même
   collecte (entreprises dès 100 000 abonnés, ONG et fondations dès 20 000, sans
   plafond) : 397 entreprises, 230 ONG et fondations (250 et 150 premières au monde, puis
@@ -49,7 +60,7 @@ les autres en `verified`.
   fiche dont le nom se retrouve dans le pseudo (`@TfL` était sur « Legible London »),
   noms évoquant un média ou un organisme public écartés ; corrigés à la main : SBS, PBS,
   KCRW → `media`, Smithsonian → `institutional`, « Sony Centre » → « Sony ».
-  Total : **3 605 comptes, 3 462 avec ID Wikidata, 143 lectures X au plus**.
+  Total alors : 3 605 comptes.
 - **Wikidata d'abord** (demande de Jules) : `WikidataSparqlSource.accounts_by_handles`
   (P2002 + qualificatif P6552) ; un ID unique est cru sans appel à X ; hors Wikidata, X
   avec coche obligatoire (`no_check` sinon) ; `--no-wikidata`. Dry run réel contre
@@ -107,7 +118,7 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
 - CSV présent dans la roue construite (`uv build`).
 - Dry run réel de la CLI : 770 lignes, 0 invalide. `tests/test_badge_seed.py` : 19 verts.
 - **Appelé pour de vrai** : Wikidata (requêtes SPARQL en lecture, gratuites) pour la
-  mesure de couverture, la collecte (environ 245 requêtes) et le dry run. L'API X n'a jamais été appelée.
+  mesure de couverture, la collecte (environ 330 requêtes) et le dry run. L'API X n'a jamais été appelée.
 - Aucune migration (pas de changement de schéma) ; aucun code ajouté à gate, hangar ou
   intercom (module chargé seulement par la CLI) : pas de mesure de RAM nécessaire.
 
@@ -116,6 +127,8 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
 
 - Coût de `--apply` complet : 143 lectures X au plus × 0,01 $ (valeur de configuration,
   tarif réel de X à vérifier) ≈ 1,4 $ sur `provider:x`.
+- Icônes : 18 seulement sur Wikidata ; les autres organisations restent sans logo tant
+  que l'équipe ne l'ajoute pas (pistes : avatar X par l'API, favicon du site officiel).
 - Experts hors Wikidata souvent sans coche X : ils sortiront en `no_check`, à badger à
   la main après vérification (page institutionnelle qui renvoie au compte).
 - Relire la sortie : `name_mismatch` et `review` sont à vérifier à la main (`/badge`).
