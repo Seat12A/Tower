@@ -246,6 +246,7 @@ en ID (gate : mettre aussi `TOWER_X_BEARER_TOKEN` sur le service gate) réutilis
 | `TOWER_BADGES_X_DAILY_CHECKS` | `500` | Comptes X vérifiés par jour UTC au plus (`verified_type`) ; `0` désactive |
 | `TOWER_BADGES_X_RECHECK_DAYS` | `30` | Délai avant de revérifier un compte sur X (indices et badges `x_government`) |
 | `TOWER_BADGES_LOOKUP_MAX_AGE_S` | `300` | `Cache-Control: max-age` du lookup public |
+| `TOWER_PUBLIC_GATE_URL` | — | Origine publique https de gate, sans `/` final (ex. `https://tower.example.org`) : base du `logo_url` des icônes stockées par Tower. Sans elle, `tower badges seed` ne récupère aucune icône |
 
 ## intercom (bot Discord)
 

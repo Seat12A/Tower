@@ -42,8 +42,6 @@ _TEXT_TYPES = frozenset(
     }
 )
 _BINARY_TYPES = frozenset({"application/pdf"})
-_ALLOWED_TYPES = _TEXT_TYPES | _BINARY_TYPES
-_ACCEPT = ", ".join(sorted(_ALLOWED_TYPES))
 _ROBOTS_MAX_BYTES = 512 * 1024
 _ROBOTS_FAILURE_TTL = 600.0
 _DEFAULT_PORTS = {"http": 80, "https": 443}
@@ -119,6 +117,7 @@ class HttpFetcher:
         max_bytes: int = 2_000_000,
         max_redirects: int = 5,
         robots_cache_size: int = 256,
+        binary_types: frozenset[str] = _BINARY_TYPES,
         robots_ttl: float = 86_400.0,
         resolver: Resolver | None = None,
         transport: Any = None,
@@ -128,6 +127,10 @@ class HttpFetcher:
         self._httpx = httpx
         self._user_agent = user_agent
         self._max_bytes = max_bytes
+        # Extra binary types (images for organisation icons): body kept, never decoded.
+        self._binary_types = binary_types
+        self._allowed_types = _TEXT_TYPES | binary_types
+        self._accept = ", ".join(sorted(self._allowed_types))
         self._max_redirects = max_redirects
         self._robots_cache_size = robots_cache_size
         self._robots_ttl = robots_ttl
@@ -206,7 +209,7 @@ class HttpFetcher:
             request_url = f"{target.scheme}://{ip_netloc}{path}"
             headers = {
                 "User-Agent": self._user_agent,
-                "Accept": "*/*" if is_robots else _ACCEPT,
+                "Accept": "*/*" if is_robots else self._accept,
                 "Accept-Encoding": "identity",
                 "Host": host_header,
             }
@@ -253,7 +256,7 @@ class HttpFetcher:
             cap = self._max_bytes
             if not 200 <= status < 300:
                 raise FetchError(f"HTTP status {status}", code=ec.WEB_FETCH_FAILED, url=url)
-            if main not in _ALLOWED_TYPES:
+            if main not in self._allowed_types:
                 raise FetchError(
                     f"Content type not allowed: {main or 'missing'}",
                     code=ec.WEB_BAD_CONTENT_TYPE,
@@ -325,7 +328,7 @@ class HttpFetcher:
 
     async def fetch(self, url: str) -> FetchedPage:
         raw = await self._get(url, is_robots=False)
-        is_binary = raw.content_type in _BINARY_TYPES
+        is_binary = raw.content_type in self._binary_types
         return FetchedPage(
             url=url,
             final_url=raw.url,

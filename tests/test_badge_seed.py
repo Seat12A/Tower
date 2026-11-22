@@ -30,7 +30,7 @@ from tower.core.usecases import badges as uc
 
 from .conftest import make_settings
 
-HEADER = "handle,category,name,expertise,review,note,logo,parent,x_id\n"
+HEADER = "handle,category,name,expertise,review,note,logo,parent,x_id,website\n"
 
 
 def test_shipped_seed_is_valid() -> None:

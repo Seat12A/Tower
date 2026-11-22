@@ -40,6 +40,16 @@ les autres en `verified`.
   Bolsonaro apparaît sous « Italy »), les domaines d'expertise restent larges.
   Total de la liste : **2 978 comptes, 2 835 avec ID Wikidata (gratuits), 143 lectures
   X au plus**.
+- **Icônes des sites officiels** (choix de Jules) : `core/domain/badge_icons.py` (choix de
+  l'icône dans la page, reconnaissance des formats à leurs premiers octets),
+  `core/usecases/badge_logos.py` (stockage, lecture, récupération par le port
+  `WebFetcher`), table `badge_logos` (migration 0018), route publique
+  `GET /v1/badges/logos/{sha256}.{ext}`, codes `TWR-BDG-028` et `TWR-BDG-029`, variable
+  `TOWER_PUBLIC_GATE_URL`, option `binary_types` de `HttpFetcher` (comportement par défaut
+  inchangé). Colonne `website` de la liste : 1 209 sites officiels (P856) pour 1 349
+  organisations et médias. Mesure réelle sur 80 sites : 64 icônes (80 %), surtout PNG,
+  42 d'au moins 64 px (mesurée depuis ce conteneur par un script passant par le proxy :
+  `HttpFetcher` ignore volontairement les proxys, il sortira en direct sur Railway).
 - **ID figés** (demande de Jules) : colonne `x_id` ; 3 656 ID écrits (même fonction
   `lookup_wikidata` que la commande : 4 pseudos ambigus laissés à X, aucun ID en double).
   La commande ne consulte plus Wikidata que pour les lignes sans ID ; 143 lectures X au
@@ -131,8 +141,10 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
 
 - Coût de `--apply` complet : 143 lectures X au plus × 0,01 $ (valeur de configuration,
   tarif réel de X à vérifier) ≈ 1,4 $ sur `provider:x`.
-- Icônes : 18 seulement sur Wikidata ; les autres organisations restent sans logo tant
-  que l'équipe ne l'ajoute pas. Écartés : avatar X (coût, décision de Jules), logo
+- Icônes : environ 80 % des organisations et médias en recevront une depuis leur site au
+  `--apply` (il faut `TOWER_PUBLIC_GATE_URL` sur gate) ; les autres restent sans logo
+  tant que l'équipe ne l'ajoute pas. Les organisations badgées avant ne sont pas
+  modifiées par la commande. Écartés : avatar X (coût, décision de Jules), logo
   Wikidata carré (essayé : 155 trouvés, environ un quart faux sur un échantillon de 30 :
   photo pour Lamborghini et la Clinton Foundation, logos de 1950 ou 2003, texte),
   favicon du site (vie privée des utilisateurs de l'extension). Piste gratuite non

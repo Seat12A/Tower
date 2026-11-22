@@ -24,6 +24,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from tower.core.db.base import Base
+from tower.core.domain.badge_icons import ICON_TYPES
 from tower.core.domain.badges import (
     LEGACY_CATEGORIES,
     AffiliationSource,
@@ -309,3 +310,26 @@ class BadgeImportRun(Base):
     """End of the listing step (batches enqueued)."""
     accounts: Mapped[int] = mapped_column(Integer, server_default=sa_text("0"))
     batches: Mapped[int] = mapped_column(Integer, server_default=sa_text("0"))
+
+
+class BadgeLogo(Base):
+    """Organisation icon stored by Tower (content-addressed, immutable).
+
+    Taken once from the organisation's official website and served by gate
+    (``GET /v1/badges/logos/{sha256}.{ext}``), so that the extension never loads an image
+    from the organisation's own site."""
+
+    __tablename__ = "badge_logos"
+    __table_args__ = (
+        check_in("content_type", ICON_TYPES, "content_type"),
+        CheckConstraint("octet_length(data) <= 200000", name="data_size"),
+        CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name="sha256"),
+    )
+
+    sha256: Mapped[str] = mapped_column(Text, primary_key=True)
+    content_type: Mapped[str] = mapped_column(Text)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    width: Mapped[int] = mapped_column(Integer, server_default=sa_text("0"))
+    height: Mapped[int] = mapped_column(Integer, server_default=sa_text("0"))
+    source_url: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())

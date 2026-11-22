@@ -9,7 +9,7 @@ import hashlib
 from typing import Annotated, Any, Literal
 
 import orjson
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, Path, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from tower.core.domain import error_codes as ec
@@ -80,6 +80,28 @@ async def categories(response: Response) -> list[CategoryOut]:
         )
         for i, c in enumerate(CATEGORY_PRIORITY)
     ]
+
+
+@router.get("/logos/{name}")
+async def logo(
+    session: ReadSession,
+    name: Annotated[str, Path(pattern=r"^[0-9a-f]{64}\.(png|ico|jpg|gif|webp)$")],
+) -> Response:
+    """Organisation icon stored by Tower (public, immutable: ``{sha256}.{ext}``)."""
+    from tower.core.usecases.badge_logos import get_logo
+
+    sha, ext = name.split(".", 1)
+    found = await get_logo(session, sha, ext)
+    return Response(
+        content=found.data,
+        media_type=found.content_type,
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+            "Cross-Origin-Resource-Policy": "cross-origin",
+        },
+    )
 
 
 class LookupBadge(BaseModel):

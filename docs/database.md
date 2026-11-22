@@ -203,6 +203,7 @@ pour X) : aucune table ne stocke un compte par pseudo.
 | `badge_wikidata_links` | Liens d'affiliation lus sur Wikidata : clé (`member_account_id`, `org_qid`, `property`), `seen_at` ; index `org_qid` |
 | `badge_import_runs` | Dernier import par portée : `scope`, `started_at`, `listed_at`, `accounts`, `batches` |
 | `badge_x_checks` | Vérifications X par compte : `hinted_at`, `checked_at` (nul = à vérifier ; index partiel), `verified_type` |
+| `badge_logos` | Icônes d'organisation stockées par Tower (migration 0018) : `sha256` (clé, hex), `content_type` (`CHECK` : PNG, ICO, JPEG, GIF, WebP ; jamais SVG), `data` (≤ 200 000 octets, `CHECK`), `width`, `height` (0 si inconnues), `source_url`, `created_at`. Immuable, adressée par son contenu ; servie par `GET /v1/badges/logos/…` |
 
 ## Index notables
 

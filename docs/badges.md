@@ -143,6 +143,30 @@ Une affiliation `rejected`, `revoked` ou `expired` peut être recréée par l'é
 l'organisation (la ligne est rouverte) ; **l'import Wikidata ne rouvre jamais** une
 affiliation terminée.
 
+## Icônes stockées par Tower
+
+Pour qu'aucun utilisateur de l'extension ne charge une image depuis le site d'une
+organisation (qui verrait son adresse IP), Tower copie **une fois** l'icône du site
+officiel et la sert lui-même (`core/usecases/badge_logos.py`,
+`core/domain/badge_icons.py`) :
+
+1. récupération par le port `WebFetcher` (`HttpFetcher` : protection contre les adresses
+   internes, `robots.txt` respecté, taille plafonnée) : page d'accueil, puis la meilleure
+   icône déclarée (`<link rel="apple-touch-icon">`, puis `<link rel="icon">`, plus grande
+   taille annoncée d'abord), enfin `/favicon.ico` ;
+2. seuls les formats matriciels reconnus à leurs premiers octets sont acceptés (PNG, ICO,
+   JPEG, GIF, WebP ; 200 kB au plus ; 16 px au moins quand la taille est lisible). **Jamais
+   de SVG** : il peut contenir du script et serait servi depuis le domaine de Tower
+   (`TWR-BDG-028` sinon) ;
+3. stockage dans `badge_logos`, clé = SHA-256 du contenu (mêmes octets, même ligne) ;
+4. service public par `GET /v1/badges/logos/{sha256}.{ext}` (immuable, cache d'un an,
+   `nosniff`, CSP `sandbox`) ; le `logo_url` du badge vaut
+   `TOWER_PUBLIC_GATE_URL` + ce chemin.
+
+Utilisé par `tower badges seed` à l'attribution d'un badge d'organisation ou de média.
+Mesure du 2026-11-22 sur 80 sites de la liste : une icône pour 64 (80 %), surtout en PNG,
+42 d'au moins 64 px.
+
 ## Organisations : clés d'organisation
 
 Une organisation badgée gère ses affiliés avec une **clé d'organisation** délivrée par
@@ -252,7 +276,7 @@ Attribution en masse depuis une liste triée par l'équipe : `src/tower/core/dat
 `name` (noms attendus séparés par `|`), `expertise` (experts seulement), `review` (`1`),
 `note` (note interne), `logo` (URL https de l'**icône** de l'organisation, posée à
 l'attribution d'un badge affiliable) et `parent` (organisations parentes de la liste,
-`Pseudo=Titre|Autre`) et `x_id` (ID X natif **figé** dans la liste : lu une fois sur
+`Pseudo=Titre|Autre`), `website` (site officiel, tiré de Wikidata P856) et `x_id` (ID X natif **figé** dans la liste : lu une fois sur
 Wikidata le 2026-11-22, il est utilisé tel quel, sans aucune requête ; un ID X ne change
 jamais). Les lignes `#` sont des commentaires. Un parent doit être une
 ligne de la liste de catégorie affiliable, jamais la ligne elle-même.
@@ -276,7 +300,10 @@ ligne de la liste de catégorie affiliable, jamais la ligne elle-même.
    sinon). Une ligne `review` exige la coche grise `government` (`review` sinon), sauf
    `--include-review`.
 3. Attribution par `grant_badge` (source `manual`, acteur `system:badges-seed`, note
-   `seed badges-seed (wikidata|x <coche>): …`, `logo_url` = colonne `logo`).
+   `seed badges-seed (wikidata|x <coche>): …`, `logo_url` = colonne `logo`). Sans
+   `logo`, une organisation ou un média qui a un `website` reçoit l'**icône de son
+   site**, stockée par Tower (voir « Icônes stockées par Tower ») ; échec de la
+   récupération : badge attribué quand même, sans logo (`no icon (…)`).
 4. **Affiliations** : un compte dont le badge est actif est affilié à chacun de ses
    parents par `create_affiliation` (validée par l'équipe, titre de la colonne). Les
    organisations passent avant leurs membres ; un parent pas encore badgé donne

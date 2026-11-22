@@ -69,6 +69,8 @@ Format : `TWR-<DOMAINE>-<NNN>`. Un code n'est jamais renuméroté ni réutilisé
 | `TWR-BDG-025` | No X account with this handle (or suspended, or protected and hidden) | 404 | info | non | non |  |
 | `TWR-BDG-026` | X API not configured on gate or unavailable | 503 | warning | oui | oui | Set TOWER_X_BEARER_TOKEN on the gate service |
 | `TWR-BDG-027` | A field of expertise is only allowed on an expert badge | 422 | info | non | non |  |
+| `TWR-BDG-028` | Not an accepted organisation icon (PNG, ICO, JPEG, GIF or WebP, at most 200 kB) | 422 | info | non | non |  |
+| `TWR-BDG-029` | Organisation icon not found | 404 | info | non | non |  |
 
 ## BOT : BOT
 
