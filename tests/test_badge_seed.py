@@ -30,7 +30,7 @@ from tower.core.usecases import badges as uc
 
 from .conftest import make_settings
 
-HEADER = "handle,category,name,expertise,review,note\n"
+HEADER = "handle,category,name,expertise,review,note,logo,parent\n"
 
 
 def test_shipped_seed_is_valid() -> None:
@@ -58,6 +58,27 @@ def test_parse_reports_invalid_rows() -> None:
     assert parsed.rows[1].review is True and parsed.rows[1].expertise == "IA"
     assert len(parsed.errors) == 5
     assert "duplicate" in parsed.errors[0]
+
+
+def test_parse_logo_and_parents() -> None:
+    text = HEADER + (
+        "Tesla,organization,Tesla,,,,https://commons.wikimedia.org/x.svg,\n"
+        "elonmusk,verified,Elon Musk,,,,,Tesla=CEO|SpaceX\n"
+        "SpaceX,organization,SpaceX,,,,,\n"
+        "orphan,verified,Orphan,,,,,Missing\n"
+        "self,organization,Self,,,,,self\n"
+        "fan,verified,Fan,,,,,elonmusk\n"
+        "badlogo,organization,Bad,,,,http://x.svg,\n"
+    )
+    parsed = parse_seed(text)
+    rows = {r.handle: r for r in parsed.rows}
+    assert set(rows) == {"Tesla", "elonmusk", "SpaceX"}
+    assert rows["Tesla"].logo == "https://commons.wikimedia.org/x.svg"
+    assert rows["elonmusk"].parents == (("Tesla", "CEO"), ("SpaceX", None))
+    assert len(parsed.errors) == 4
+    assert any("not in the list" in e for e in parsed.errors)
+    assert any("own parent" in e for e in parsed.errors)
+    assert any("non-affiliable" in e for e in parsed.errors)
 
 
 def test_parse_rejects_bad_header() -> None:
@@ -186,6 +207,53 @@ async def test_seed_one_uses_wikidata_without_x(db: Database) -> None:
         db, None, _row("Other", "Other"), ttl_s=600, include_review=False, wikidata=wd
     )
     assert out.status == "needs_x"
+
+
+async def test_seed_affiliates_members_and_sets_the_icon(db: Database) -> None:
+    from tower.core.models.badges import BadgeAffiliation
+
+    org = SeedRow(
+        2,
+        "Tesla",
+        BadgeCategory.ORGANIZATION,
+        ("Tesla",),
+        None,
+        False,
+        None,
+        logo="https://commons.wikimedia.org/wiki/Special:FilePath/T.svg",
+    )
+    member = SeedRow(
+        3,
+        "elonmusk",
+        BadgeCategory.VERIFIED,
+        ("Elon Musk",),
+        None,
+        False,
+        None,
+        parents=(("Tesla", "CEO"),),
+    )
+    wd: dict[str, str | None] = {"tesla": "13298591", "elonmusk": "44196397"}
+    # Member before its organisation: badge granted, affiliation waits for a rerun.
+    out = await seed_one(db, None, member, ttl_s=600, include_review=False, wikidata=wd)
+    assert out.status == "granted"
+    assert out.affiliations and out.affiliations[0].startswith("parent_missing")
+    out = await seed_one(db, None, org, ttl_s=600, include_review=False, wikidata=wd)
+    assert out.status == "granted"
+    badge = await _badge(db, "13298591")
+    assert badge is not None and badge.logo_url and badge.logo_url.endswith("T.svg")
+    out = await seed_one(db, None, member, ttl_s=600, include_review=False, wikidata=wd)
+    assert out.status == "exists" and out.affiliations == ["affiliated @Tesla (CEO)"]
+    async with db.session() as s:
+        aff = await s.scalar(select(BadgeAffiliation))
+    assert aff is not None and aff.status == "active" and aff.title == "CEO"
+    assert aff.is_primary
+    # An affiliation ended by the team is never reopened.
+    async with db.transaction() as s:
+        await s.execute(
+            BadgeAffiliation.__table__.update().values(status="revoked", is_primary=False)
+        )
+    out = await seed_one(db, None, member, ttl_s=600, include_review=False, wikidata=wd)
+    assert out.affiliations == ["affiliation_exists @Tesla (revoked)"]
 
 
 class FakeWikidata:

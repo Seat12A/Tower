@@ -115,7 +115,8 @@ touchent plus.
   première validée devient principale ; quand la principale se termine, la plus
   ancienne active restante prend le relais. L'image elle-même est le `logo_url` du badge
   de l'organisation (https), modifiable par l'équipe (`PUT /v1/badges/accounts/…`,
-  `/badge grant` ou « Modifier ») ; l'import Wikidata le remplit (P154) seulement s'il
+  `/badge grant` ou « Modifier ») ; l'import Wikidata le remplit avec l'**icône** (P8972 « petit logo ou icône », sinon
+  P2910 « icône » ; jamais le logo complet P154, décision du 2026-11-22) seulement s'il
   est vide. Les autres affiliations sont listées par le lookup (`affiliations`) et le
   détail public.
 - **Validation obligatoire** par l'organisation (clé d'organisation) ou par l'équipe :
@@ -204,7 +205,7 @@ valeurs ne sont pas numériques : elles sont ignorées.
    P2002 **sans date de fin (P582)** et non dépréciée. Un ID X revendiqué par plusieurs
    éléments est ignoré. Un job `badges.wikidata_batch` par lot de 200.
 3. Job `badges.wikidata_batch` : lit par `VALUES` (une requête) P31 (nature), P106
-   (profession), libellé français, P154 (logo, organisations seulement) et les
+   (profession), libellé français, icône P8972 ou P2910 (organisations seulement ; jamais le logo complet P154) et les
    affiliations **P108** (employeur), **P102** (parti), **P54** (équipe), **P463**
    (membre de), **en ignorant les déclarations qui ont un P582**.
 4. Catégorie (`classify_wikidata`) : une personne (P31 = Q5) est classée par ses

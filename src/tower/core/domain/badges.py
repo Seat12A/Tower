@@ -441,7 +441,7 @@ def is_qid(value: str) -> bool:
 
 
 def commons_file_url(file_name: str) -> str | None:
-    """https URL of a Wikimedia Commons file (logo P154), None if the name is unusable."""
+    """https URL of a Wikimedia Commons file (organisation icon), None if the name is unusable."""
     name = file_name.strip().replace(" ", "_")
     if not name or len(name) > 240 or "/" in name or not name.isprintable():
         return None

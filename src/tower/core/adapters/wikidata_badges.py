@@ -8,7 +8,9 @@ Checked live on 2026-11-16 against ``https://query.wikidata.org/sparql``:
   rows in ~7 s; organisations by country P17: ~6.8k rows in ~29 s); adding labels and
   types to it with GROUP BY timed out, so details are fetched by batches of ≤ 200 QIDs
   with ``VALUES`` (< 1 s per batch);
-- statements with an end time (P582) or a deprecated rank are ignored.
+- statements with an end time (P582) or a deprecated rank are ignored;
+- the organisation image is its icon (P8972 small logo or icon, else P2910 icon),
+  never the full logo P154 (team decision, 2026-11-22).
 """
 
 from __future__ import annotations
@@ -78,7 +80,8 @@ def details_query(qids: Sequence[str]) -> str:
   VALUES ?item {{ {values} }}
   {{ ?item wdt:P31 ?v . BIND("P31" AS ?k) }}
   UNION {{ ?item wdt:P106 ?v . BIND("P106" AS ?k) }}
-  UNION {{ ?item wdt:P154 ?v . BIND("P154" AS ?k) }}
+  UNION {{ ?item wdt:P8972 ?v . BIND("P8972" AS ?k) }}
+  UNION {{ ?item wdt:P2910 ?v . BIND("P2910" AS ?k) }}
   UNION {{ ?item rdfs:label ?v . FILTER(lang(?v) = "fr") BIND("label" AS ?k) }}
   UNION {{
     VALUES (?prop ?ps ?k) {{ {links} }}
@@ -124,13 +127,24 @@ def parse_details(body: Mapping[str, Any]) -> dict[str, WikidataItem]:
         if qid is None or key is None or value is None:
             continue
         item = acc.setdefault(
-            qid, {"label": None, "types": [], "occupations": [], "logo": None, "links": []}
+            qid,
+            {
+                "label": None,
+                "types": [],
+                "occupations": [],
+                "logo": None,
+                "icon": None,
+                "links": [],
+            },
         )
         if key == "label":
             item["label"] = item["label"] or value
-        elif key == "P154":
-            # Commons media values come as Special:FilePath URLs; keep the file name.
-            item["logo"] = item["logo"] or unquote(value.rsplit("/", 1)[-1])
+        elif key in ("P8972", "P2910"):
+            # Icon only (team decision 2026-11-22: never the full logo P154). Commons media
+            # values come as Special:FilePath URLs; keep the file name. P8972 (small logo
+            # or icon) wins over P2910 (icon).
+            slot = "logo" if key == "P8972" else "icon"
+            item[slot] = item[slot] or unquote(value.rsplit("/", 1)[-1])
         elif key in ("P31", "P106"):
             q = _qid(value)
             if q is not None:
@@ -145,7 +159,7 @@ def parse_details(body: Mapping[str, Any]) -> dict[str, WikidataItem]:
             label=v["label"],
             types=tuple(dict.fromkeys(v["types"])),
             occupations=tuple(dict.fromkeys(v["occupations"])),
-            logo=v["logo"],
+            logo=v["logo"] or v["icon"],
             links=tuple(dict.fromkeys(v["links"])),
         )
         for qid, v in acc.items()

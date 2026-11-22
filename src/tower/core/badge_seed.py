@@ -33,8 +33,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from tower.core.domain.badges import (
+    AFFILIABLE_CATEGORIES,
+    MAX_TITLE,
     BadgeCategory,
     check_expertise,
+    check_text,
+    check_url,
     parse_category,
     parse_x_handle,
 )
@@ -45,7 +49,7 @@ if TYPE_CHECKING:
 
 DEFAULT_SEED = "badge_seed.csv"
 SEED_ACTOR = "badges-seed"
-COLUMNS = ("handle", "category", "name", "expertise", "review", "note")
+COLUMNS = ("handle", "category", "name", "expertise", "review", "note", "logo", "parent")
 _WORD = re.compile(r"[a-z0-9]+")
 
 
@@ -58,6 +62,10 @@ class SeedRow:
     expertise: str | None
     review: bool
     note: str | None
+    logo: str | None = None
+    """https URL of the organisation icon, set when the badge is granted."""
+    parents: tuple[tuple[str, str | None], ...] = ()
+    """(parent handle, title) of the organisations this account is affiliated with."""
 
 
 @dataclass(slots=True)
@@ -111,6 +119,12 @@ def parse_seed(text: str) -> SeedParse:
         except DomainError as exc:
             errors.append(f"row {index} ({label}): {exc}")
             continue
+        try:
+            logo = check_url(raw.get("logo") or None, field="logo_url")
+            parents = _parse_parents(raw.get("parent") or "")
+        except DomainError as exc:
+            errors.append(f"row {index} ({label}): {exc}")
+            continue
         names = tuple(n.strip() for n in (raw.get("name") or "").split("|") if n.strip())
         if not names:
             errors.append(f"row {index} ({label}): name required")
@@ -129,9 +143,46 @@ def parse_seed(text: str) -> SeedParse:
                 expertise=expertise,
                 review=(raw.get("review") or "").strip() == "1",
                 note=(raw.get("note") or "").strip() or None,
+                logo=logo,
+                parents=parents,
             )
         )
-    return SeedParse(rows, errors)
+    return SeedParse(*_check_parents(rows, errors))
+
+
+def _parse_parents(value: str) -> tuple[tuple[str, str | None], ...]:
+    """``Handle=Title|Other`` → ((Handle, Title), (Other, None))."""
+    out: list[tuple[str, str | None]] = []
+    for part in value.split("|"):
+        if not part.strip():
+            continue
+        handle, _, title = part.partition("=")
+        out.append(
+            (parse_x_handle(handle), check_text(title or None, field="title", max_chars=MAX_TITLE))
+        )
+    return tuple(out)
+
+
+def _check_parents(rows: list[SeedRow], errors: list[str]) -> tuple[list[SeedRow], list[str]]:
+    """A parent must be a row of the list with an affiliable category, never the row
+    itself. Rows with an invalid parent are reported and dropped."""
+    by_handle = {r.handle.lower(): r for r in rows}
+    kept: list[SeedRow] = []
+    for row in rows:
+        bad = None
+        for parent, _ in row.parents:
+            target = by_handle.get(parent.lower())
+            if target is None:
+                bad = f"parent @{parent} is not in the list"
+            elif target is row:
+                bad = "an account cannot be its own parent"
+            elif target.category not in AFFILIABLE_CATEGORIES:
+                bad = f"parent @{parent} has a non-affiliable category"
+        if bad:
+            errors.append(f"row {row.line} ({row.handle}): {bad}")
+        else:
+            kept.append(row)
+    return kept, errors
 
 
 def read_seed(path: str | None) -> str:
@@ -144,8 +195,11 @@ def read_seed(path: str | None) -> str:
 class SeedOutcome:
     handle: str
     status: str
-    """``granted``, ``exists``, ``name_mismatch``, ``review``, ``not_found``, ``error``."""
+    """``granted``, ``exists``, ``name_mismatch``, ``review``, ``no_check``,
+    ``not_found``, ``needs_x``."""
     detail: str = ""
+    affiliations: list[str] | None = None
+    """One line per parent: ``affiliated``, ``affiliation_exists``, ``parent_missing``…"""
 
 
 async def _existing_badge(db: Any, external_id: str) -> tuple[str, str | None] | None:
@@ -165,8 +219,9 @@ async def _existing_badge(db: Any, external_id: str) -> tuple[str, str | None] |
     return (row[0], row[1]) if row else None
 
 
-async def _known_active(db: Any, handle: str) -> bool:
-    """Active badge on an account whose stored handle matches (saves an X read)."""
+async def _known_active(db: Any, handle: str) -> str | None:
+    """Native id of an account with an active badge whose stored handle matches (saves an
+    X read; also finds the parent organisation of an affiliation)."""
     from sqlalchemy import func, select
 
     from tower.core.models.badges import Badge
@@ -174,8 +229,8 @@ async def _known_active(db: Any, handle: str) -> bool:
 
     async with db.session() as session:
         found = await session.scalar(
-            select(Badge.id)
-            .join(PlatformAccount, PlatformAccount.id == Badge.account_id)
+            select(PlatformAccount.external_id)
+            .join(Badge, PlatformAccount.id == Badge.account_id)
             .where(
                 PlatformAccount.platform == "x",
                 func.lower(PlatformAccount.handle) == handle.lower(),
@@ -183,7 +238,7 @@ async def _known_active(db: Any, handle: str) -> bool:
             )
             .limit(1)
         )
-    return found is not None
+    return str(found) if found is not None else None
 
 
 def _blocks_grant(existing: tuple[str, str | None] | None) -> str | None:
@@ -242,10 +297,75 @@ async def _grant(
                 expertise=row.expertise,
                 note=note,
                 handle=handle,
+                logo_url=row.logo if row.category in AFFILIABLE_CATEGORIES else None,
             )
     except Conflict as exc:
         return str(exc)
     return None
+
+
+async def _affiliate(
+    db: Any,
+    member_xid: str,
+    member_handle: str,
+    parent: str,
+    title: str | None,
+    wikidata: dict[str, str | None] | None,
+) -> str:
+    """Affiliate a member with an active badge to a parent organisation of the list.
+
+    Validated at once by the team (seed actor). Never created when any affiliation row
+    already exists for the pair: an affiliation ended by the team or the organisation is
+    not reopened."""
+    from sqlalchemy import select
+
+    from tower.core.domain.badges import AccountRef
+    from tower.core.domain.platforms import Platform
+    from tower.core.domain.security import Actor
+    from tower.core.models.badges import Badge, BadgeAffiliation
+    from tower.core.models.ingestion import PlatformAccount
+    from tower.core.usecases.badge_affiliations import create_affiliation
+
+    parent_xid = await _known_active(db, parent) or (wikidata or {}).get(parent.lower())
+    if parent_xid is None:
+        return f"parent_missing @{parent} (no active badge yet: rerun after it)"
+    async with db.session() as session:
+        org_badge = await session.scalar(
+            select(Badge.id)
+            .join(PlatformAccount, PlatformAccount.id == Badge.account_id)
+            .where(
+                PlatformAccount.platform == "x",
+                PlatformAccount.external_id == parent_xid,
+                Badge.status == "active",
+            )
+        )
+        if org_badge is None:
+            return f"parent_missing @{parent} (no active badge yet: rerun after it)"
+        row = await session.scalar(
+            select(BadgeAffiliation.status)
+            .join(PlatformAccount, PlatformAccount.id == BadgeAffiliation.member_account_id)
+            .where(
+                PlatformAccount.platform == "x",
+                PlatformAccount.external_id == member_xid,
+                BadgeAffiliation.org_badge_id == org_badge,
+            )
+        )
+    if row is not None:
+        return f"affiliation_exists @{parent} ({row})"
+    try:
+        async with db.transaction() as session:
+            await create_affiliation(
+                session,
+                Actor.system(SEED_ACTOR),
+                AccountRef(Platform.X, member_xid),
+                org_ref=AccountRef(Platform.X, parent_xid),
+                title=title,
+                validate=True,
+                handle=member_handle,
+            )
+    except DomainError as exc:
+        return f"affiliation_refused @{parent}: {exc}"
+    return f"affiliated @{parent}" + (f" ({title})" if title else "")
 
 
 async def seed_one(
@@ -257,7 +377,29 @@ async def seed_one(
     include_review: bool,
     wikidata: dict[str, str | None] | None = None,
 ) -> SeedOutcome:
-    """Resolve and grant one row (see module docstring for the safety rules).
+    """Resolve and grant one row, then affiliate it to its parents (see the module
+    docstring for the safety rules). Affiliations need the member's badge to be active."""
+    outcome, member_xid = await _seed_badge(
+        db, client, row, ttl_s=ttl_s, include_review=include_review, wikidata=wikidata
+    )
+    if member_xid is not None and row.parents:
+        outcome.affiliations = [
+            await _affiliate(db, member_xid, row.handle, parent, title, wikidata)
+            for parent, title in row.parents
+        ]
+    return outcome
+
+
+async def _seed_badge(
+    db: Any,
+    client: Any,
+    row: SeedRow,
+    *,
+    ttl_s: int,
+    include_review: bool,
+    wikidata: dict[str, str | None] | None,
+) -> tuple[SeedOutcome, str | None]:
+    """Outcome and, when the badge is active afterwards, the member's native id.
 
     An unambiguous Wikidata id is used as is, without any X call. Otherwise the handle
     is resolved with the X API and the account must carry an X check."""
@@ -265,40 +407,48 @@ async def seed_one(
     from tower.core.domain.security import Actor
     from tower.core.usecases.badge_sources import resolve_x_handle
 
-    if await _known_active(db, row.handle):
-        return SeedOutcome(row.handle, "exists", "badge active (stored handle)")
+    known = await _known_active(db, row.handle)
+    if known is not None:
+        return SeedOutcome(row.handle, "exists", "badge active (stored handle)"), known
     wd_id = (wikidata or {}).get(row.handle.lower())
     if wd_id is not None:
-        blocked = _blocks_grant(await _existing_badge(db, wd_id))
+        existing = await _existing_badge(db, wd_id)
+        active = wd_id if existing is not None and existing[0] == "active" else None
+        blocked = _blocks_grant(existing)
         if blocked:
-            return SeedOutcome(row.handle, "exists", f"{blocked}; id={wd_id} (wikidata)")
+            return SeedOutcome(row.handle, "exists", f"{blocked}; id={wd_id} (wikidata)"), active
         error = await _grant(db, row, wd_id, row.handle, "wikidata")
         if error:
-            return SeedOutcome(row.handle, "exists", f"{error}; id={wd_id} (wikidata)")
-        return SeedOutcome(row.handle, "granted", f"{row.category.value}; id={wd_id} (wikidata)")
+            return SeedOutcome(row.handle, "exists", f"{error}; id={wd_id} (wikidata)"), None
+        detail = f"{row.category.value}; id={wd_id} (wikidata)"
+        return SeedOutcome(row.handle, "granted", detail), wd_id
     if client is None:
-        return SeedOutcome(row.handle, "needs_x", "not on Wikidata; X API not configured")
+        return SeedOutcome(row.handle, "needs_x", "not on Wikidata; X API not configured"), None
     try:
         found = await resolve_x_handle(
             db, Actor.system(SEED_ACTOR), client, row.handle, ttl_s=ttl_s
         )
     except NotFound:
-        return SeedOutcome(row.handle, "not_found")
+        return SeedOutcome(row.handle, "not_found"), None
+    xid = found["external_id"]
     vtype = found["verified_type"]
-    shown = f"{found['display_name']!r} id={found['external_id']} x={vtype}"
-    blocked = _blocks_grant(await _existing_badge(db, found["external_id"]))
+    shown = f"{found['display_name']!r} id={xid} x={vtype}"
+    existing = await _existing_badge(db, xid)
+    blocked = _blocks_grant(existing)
     if blocked:
-        return SeedOutcome(row.handle, "exists", f"{blocked}; {shown}")
+        active = xid if existing is not None and existing[0] == "active" else None
+        return SeedOutcome(row.handle, "exists", f"{blocked}; {shown}"), active
     if not name_matches(row.names, found["display_name"], found["handle"]):
-        return SeedOutcome(row.handle, "name_mismatch", f"expected {row.names[0]!r}; {shown}")
+        detail = f"expected {row.names[0]!r}; {shown}"
+        return SeedOutcome(row.handle, "name_mismatch", detail), None
     if row.review and not include_review and vtype != "government":
-        return SeedOutcome(row.handle, "review", shown)
+        return SeedOutcome(row.handle, "review", shown), None
     if vtype not in CHECKED_TYPES:
-        return SeedOutcome(row.handle, "no_check", shown)
-    error = await _grant(db, row, found["external_id"], found["handle"], f"x {vtype}")
+        return SeedOutcome(row.handle, "no_check", shown), None
+    error = await _grant(db, row, xid, found["handle"], f"x {vtype}")
     if error:
-        return SeedOutcome(row.handle, "exists", f"{error}; {shown}")
-    return SeedOutcome(row.handle, "granted", f"{row.category.value}; {shown}")
+        return SeedOutcome(row.handle, "exists", f"{error}; {shown}"), None
+    return SeedOutcome(row.handle, "granted", f"{row.category.value}; {shown}"), xid
 
 
 def _x_client(settings: Settings) -> Any:
@@ -395,6 +545,8 @@ async def run_seed(
     from tower.core.db.database import Database
     from tower.core.domain.errors import Conflict
 
+    # Organisations first, so that their members can be affiliated in the same run.
+    rows = sorted(rows, key=lambda r: bool(r.parents))
     db = Database(settings)
     counts: dict[str, int] = {}
     code = 0
@@ -416,6 +568,10 @@ async def run_seed(
                 break
             counts[outcome.status] = counts.get(outcome.status, 0) + 1
             print(f"{outcome.status:<13} @{outcome.handle:<16} {outcome.detail}")
+            for line in outcome.affiliations or ():
+                key = line.split(" ", 1)[0]
+                counts[key] = counts.get(key, 0) + 1
+                print(f"  {line}")
             if "(wikidata)" not in outcome.detail:
                 await asyncio.sleep(0.1)
     finally:

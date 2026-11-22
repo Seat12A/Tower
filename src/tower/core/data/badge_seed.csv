@@ -8,7 +8,7 @@
 # "government" check, otherwise listed for a manual check (uncertain or obscure handle).
 # Excluded (see docs/sessions/2026-11-22-seed-badges.md): handles longer than 15
 # characters, people without an X account, deceased people, known unofficial accounts.
-handle,category,name,expertise,review,note
+handle,category,name,expertise,review,note,logo,parent
 # --- World leaders (worldleaders.website, in office per the source) ---
 BarrowPresident,institutional,Adama Barrow|Barrow,,,President of the Gambia
 AAdeleke_01,institutional,Ademola Adeleke|Adeleke,,,Governor of Osun State
