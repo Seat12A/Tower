@@ -546,6 +546,66 @@ def _icon_fetch(settings: Settings, base_url: str) -> IconFetch:
     )
 
 
+async def seed_icon(db: Any, row: SeedRow, icons: IconFetch) -> SeedOutcome:
+    """Set the icon of an organisation or media badge already granted by this command.
+
+    Only an active badge granted by the seed actor and still without ``logo_url`` is
+    touched (a logo set by the team is never replaced), and only its ``logo_url``
+    changes, through ``grant_badge`` (audited). No X call."""
+    from sqlalchemy import func, or_, select
+
+    from tower.core.domain.badges import AccountRef
+    from tower.core.domain.platforms import Platform
+    from tower.core.domain.security import Actor
+    from tower.core.models.badges import Badge
+    from tower.core.models.ingestion import PlatformAccount
+    from tower.core.ports.web import FetchError
+    from tower.core.usecases import badge_logos
+    from tower.core.usecases import badges as uc
+
+    if row.category not in AFFILIABLE_CATEGORIES or not (row.logo or row.website):
+        return SeedOutcome(row.handle, "icon_skip", "no website")
+    actor = Actor.system(SEED_ACTOR)
+    match = func.lower(PlatformAccount.handle) == row.handle.lower()
+    if row.x_id:
+        match = or_(PlatformAccount.external_id == row.x_id, match)
+    async with db.session() as session:
+        found = (
+            await session.execute(
+                select(Badge, PlatformAccount.external_id)
+                .join(PlatformAccount, PlatformAccount.id == Badge.account_id)
+                .where(PlatformAccount.platform == "x", match)
+                .limit(1)
+            )
+        ).first()
+    if found is None or found[0].status != "active":
+        return SeedOutcome(row.handle, "icon_skip", "no active badge")
+    badge, xid = found
+    if badge.logo_url:
+        return SeedOutcome(row.handle, "icon_skip", "logo already set")
+    if badge.granted_by != actor.label:
+        return SeedOutcome(row.handle, "icon_skip", f"granted by {badge.granted_by}")
+    icon: tuple[bytes, str] | None = None
+    if not row.logo and row.website:
+        try:
+            icon = await badge_logos.fetch_site_icon(icons.page, icons.image, row.website)
+        except (FetchError, DomainError) as exc:
+            return SeedOutcome(row.handle, "no_icon", str(exc)[:80])
+    async with db.transaction() as session:
+        logo = row.logo
+        if icon is not None:
+            logo = icons.base_url + await badge_logos.store_logo(session, actor, *icon)
+        await uc.grant_badge(
+            session,
+            actor,
+            AccountRef(Platform.X, str(xid)),
+            category=str(badge.category),
+            logo_url=logo,
+            version=badge.version,
+        )
+    return SeedOutcome(row.handle, "icon_set", (logo or "").rsplit("/", 1)[-1][:20])
+
+
 def _x_client(settings: Settings) -> Any:
     if settings.x_bearer_token is None:
         return None
@@ -600,6 +660,50 @@ def print_plan(
         )
 
 
+async def run_icons(
+    settings: Settings,
+    *,
+    path: str | None,
+    category: str | None,
+    limit: int | None,
+    icons: IconFetch | None = None,
+) -> int:
+    """``--icons-only``: icons of organisation and media badges granted without one."""
+    parsed = parse_seed(read_seed(path))
+    rows = [
+        r
+        for r in parsed.rows
+        if r.category in AFFILIABLE_CATEGORIES
+        and (category is None or r.category.value == category)
+    ]
+    if limit is not None:
+        rows = rows[:limit]
+    own = icons is None
+    if own:
+        if settings.public_gate_url is None:
+            print("TOWER_PUBLIC_GATE_URL is not set: set it on gate, then run again.")
+            return 1
+        icons = _icon_fetch(settings, settings.public_gate_url)
+    assert icons is not None  # noqa: S101 - set just above
+    from tower.core.db.database import Database
+
+    db = Database(settings)
+    counts: dict[str, int] = {}
+    try:
+        for row in rows:
+            outcome = await seed_icon(db, row, icons)
+            counts[outcome.status] = counts.get(outcome.status, 0) + 1
+            if outcome.status != "icon_skip":
+                print(f"{outcome.status:<13} @{outcome.handle:<16} {outcome.detail}")
+    finally:
+        if own:
+            await icons.page.aclose()
+            await icons.image.aclose()
+        await db.dispose()
+    print("Done: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+    return 0
+
+
 async def run_seed(
     settings: Settings,
     *,
@@ -611,8 +715,11 @@ async def run_seed(
     use_wikidata: bool = True,
     wikidata_source: Any = None,
     icons: IconFetch | None = None,
+    icons_only: bool = False,
 ) -> int:
     """CLI helper. Returns the process exit code (1 on invalid rows, Wikidata or X errors)."""
+    if icons_only:
+        return await run_icons(settings, path=path, category=category, limit=limit, icons=icons)
     from tower.core.ports.knowledge import SourceUnavailable
 
     parsed = parse_seed(read_seed(path))

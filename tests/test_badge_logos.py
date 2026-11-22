@@ -184,3 +184,93 @@ async def test_seed_fetches_and_stores_the_icon(db: Database, tmp_path: Path) ->
         db, None, row2, ttl_s=600, include_review=False, wikidata={"ex2": "78"}, icons=icons2
     )
     assert out.status == "granted" and "no icon" in out.detail
+
+
+async def test_icons_only_sets_missing_icons(db: Database) -> None:
+    from tower.core.badge_seed import seed_icon
+    from tower.core.domain.badges import AccountRef
+    from tower.core.domain.platforms import Platform
+    from tower.core.domain.security import ActorKind, Permission
+    from tower.core.usecases import badges as uc
+
+    page = FakeFetcher({"https://ex.org": ("text/html", b"<link rel=icon href=/i.png>")})
+    icons = IconFetch(
+        page=page,
+        image=FakeFetcher({"https://ex.org/i.png": ("image/png", png())}),
+        base_url="https://gate.example",
+    )
+    row = SeedRow(
+        2,
+        "Ex",
+        BadgeCategory.MEDIA,
+        ("Ex",),
+        None,
+        False,
+        None,
+        x_id="91",
+        website="https://ex.org",
+    )
+    # Not badged yet: nothing done.
+    assert (await seed_icon(db, row, icons)).status == "icon_skip"
+    # Granted by the seed without icon (TOWER_PUBLIC_GATE_URL was missing).
+    out = await seed_one(db, None, row, ttl_s=600, include_review=False)
+    assert out.status == "granted"
+    out = await seed_icon(db, row, icons)
+    assert out.status == "icon_set"
+    async with db.session() as s:
+        badge = await s.scalar(
+            select(Badge).join(PlatformAccount).where(PlatformAccount.external_id == "91")
+        )
+    assert badge is not None and badge.category == "media"
+    assert badge.logo_url and badge.logo_url.startswith("https://gate.example/v1/badges/logos/")
+    # Second run: logo already set, no fetch.
+    page.calls.clear()
+    assert (await seed_icon(db, row, icons)).status == "icon_skip" and page.calls == []
+    # A badge granted by the team is never touched.
+    staff = Actor(ActorKind.STAFF, "1", frozenset(Permission), via="intercom")
+    async with db.transaction() as s:
+        await uc.grant_badge(
+            s, staff, AccountRef(Platform.X, "92"), category="media", handle="Team"
+        )
+    team_row = SeedRow(
+        3,
+        "Team",
+        BadgeCategory.MEDIA,
+        ("Team",),
+        None,
+        False,
+        None,
+        x_id="92",
+        website="https://ex.org",
+    )
+    out = await seed_icon(db, team_row, icons)
+    assert out.status == "icon_skip" and "granted by" in out.detail
+    # A site without icon.
+    row3 = SeedRow(
+        4,
+        "Ex3",
+        BadgeCategory.MEDIA,
+        ("Ex3",),
+        None,
+        False,
+        None,
+        x_id="93",
+        website="https://none.org",
+    )
+    await seed_one(db, None, row3, ttl_s=600, include_review=False)
+    assert (await seed_icon(db, row3, icons)).status == "no_icon"
+
+
+async def test_icons_only_needs_public_gate_url(capsys: pytest.CaptureFixture[str]) -> None:
+    from tower.core.badge_seed import run_seed
+
+    code = await run_seed(
+        make_settings(public_gate_url=None),
+        path=None,
+        apply=True,
+        category=None,
+        limit=None,
+        include_review=False,
+        icons_only=True,
+    )
+    assert code == 1 and "TOWER_PUBLIC_GATE_URL" in capsys.readouterr().out
