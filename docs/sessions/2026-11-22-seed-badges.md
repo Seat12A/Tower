@@ -132,7 +132,11 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
 - Coût de `--apply` complet : 143 lectures X au plus × 0,01 $ (valeur de configuration,
   tarif réel de X à vérifier) ≈ 1,4 $ sur `provider:x`.
 - Icônes : 18 seulement sur Wikidata ; les autres organisations restent sans logo tant
-  que l'équipe ne l'ajoute pas (pistes : avatar X par l'API, favicon du site officiel).
+  que l'équipe ne l'ajoute pas. Écartés : avatar X (coût, décision de Jules), logo
+  Wikidata carré (essayé : 155 trouvés, environ un quart faux sur un échantillon de 30 :
+  photo pour Lamborghini et la Clinton Foundation, logos de 1950 ou 2003, texte),
+  favicon du site (vie privée des utilisateurs de l'extension). Piste gratuite non
+  essayée : Simple Icons (icônes libres, surtout des marques tech et grand public).
 - Experts hors Wikidata souvent sans coche X : ils sortiront en `no_check`, à badger à
   la main après vérification (page institutionnelle qui renvoie au compte).
 - Relire la sortie : `name_mismatch` et `review` sont à vérifier à la main (`/badge`).
