@@ -144,7 +144,20 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
   99,5 Mo après (bruit). Smoke test du vrai processus limité au démarrage de gate ; la
   route est testée par ASGI.
 
+- **Relecture du dry run réel de Jules** (Railway, après déploiement) : 34 catégories
+  corrigées à la main dans la partie collectée : 27 ONG ou associations typées
+  « organisation internationale » sur Wikidata (terme qui inclut les ONG) passées de
+  `institutional` à `organization` (WikiLeaks, Privacy International, Club of Rome,
+  Gavi, Goethe-Institut, AAAS…), les vraies organisations intergouvernementales gardées
+  (Eurocontrol, ESO, BRI…) ; 7 anciens responsables politiques passés de `media` à
+  `verified` (Malcolm Turnbull, Juan Manuel Santos, Ivanka Trump…).
+
 ## Points ouverts / suite
+
+- Limite connue de la table du dépôt : « organisation internationale » (Q484652) mène à
+  `institutional`, alors que Wikidata y range aussi des ONG ; l'import automatique peut
+  donc faire la même erreur. À revoir (par exemple ne garder que Q245065,
+  intergouvernementale).
 
 - Coût de `--apply` complet : 143 lectures X au plus × 0,01 $ (valeur de configuration,
   tarif réel de X à vérifier) ≈ 1,4 $ sur `provider:x`.
