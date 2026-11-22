@@ -495,6 +495,6 @@ médias, personnalités, experts) en respectant la catégorie.
 | Commande `tower badges seed` + liste CSV livrée dans le paquet, plutôt qu'un script collé dans la console Railway | Passe par les cas d'usage (permission, audit, événement), testée, relançable ; un long script collé dans un terminal web est fragile |
 | Dry run par défaut ; `--apply` résout chaque pseudo par l'API X officielle | Un pseudo n'identifie pas un compte ; pas de scraping |
 | Jamais de modification d'un compte déjà badgé, bloqué ou retiré par l'équipe | Une décision de l'équipe l'emporte toujours |
-| Contrôle du nom (un mot commun) et lignes `review` réservées aux comptes `government` de X | Sûreté : les listes fournies ne sont pas authentifiées ; dans le doute, ne pas attribuer |
+| Contrôle du nom (un mot commun avec le nom affiché ; repli sur le pseudo seulement pour un nom affiché sans alphabet latin) et lignes `review` réservées aux comptes `government` de X | Sûreté : les listes fournies ne sont pas authentifiées ; dans le doute, ne pas attribuer |
 | `institutional` seulement pour les personnes en fonction (dont direction de parti), sinon `verified` | Consigne de Jules ; la catégorie vient de la fonction, jamais de l'opinion |
 | Domaine des experts en français | Décision du 2026-11-21 (expertise en texte libre français) |

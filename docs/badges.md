@@ -259,8 +259,11 @@ Attribution en masse depuis une liste triée par l'équipe : `src/tower/core/dat
   par `grant_badge` (source `manual`, acteur `system:badges-seed`, note
   `seed badges-seed: …`).
 - Règles de sûreté : un compte qui a déjà un badge (actif, bloqué, ou retiré par
-  l'équipe) n'est jamais modifié ; le nom affiché ou le pseudo renvoyé par X doit
-  contenir un mot d'un nom attendu, sinon `name_mismatch` ; une ligne `review` n'est
+  l'équipe) n'est jamais modifié ; le nom affiché renvoyé par X doit contenir un mot
+  (3 caractères au moins) d'un nom attendu, sinon `name_mismatch` ; seulement si le nom
+  affiché n'a aucun mot en alphabet latin (japonais, arabe, cyrillique…), un mot de
+  4 caractères au moins du nom attendu peut être trouvé dans le pseudo (ces lignes sont
+  marquées `review`) ; une ligne `review` n'est
   attribuée que si X marque le compte `government` (coche grise), sauf
   `--include-review`. Un compte déjà badgé sous ce pseudo (pseudo stocké) est sauté sans
   appel à X : relancer la commande reprend là où elle s'est arrêtée.

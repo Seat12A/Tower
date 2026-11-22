@@ -13,8 +13,14 @@ les autres en `verified`.
 
 - `src/tower/core/badge_seed.py` : validation du CSV, contrôle du nom, `seed_one`
   (résolution par `resolve_x_handle`, attribution par `grant_badge`), `run_seed`.
-- `src/tower/core/data/badge_seed.csv` : 713 comptes (institutional 481, verified 94,
-  expert 68, media 65, organization 5), 71 marqués `review`. Deuxième ajout du jour :
+- `src/tower/core/data/badge_seed.csv` : 770 comptes (institutional 538, verified 94,
+  expert 68, media 65, organization 5), 128 marqués `review`. Troisième ajout : 57 comptes
+  du gouvernement japonais, tous en `review` (noms affichés en japonais) ; lignes
+  « À confirmer » écartées.
+- Contrôle du nom resserré : le pseudo ne sert de repli que si le nom affiché n'a aucun
+  mot latin (avant, un mot du nom attendu présent dans le pseudo suffisait toujours, ce
+  qui rendait le contrôle sans effet pour la plupart des lignes).
+- Précédemment : Deuxième ajout du jour :
   51 comptes de l'État français (services, agences, autorités indépendantes,
   établissements publics, préfectures, diplomatie) ; doublons et « À confirmer » écartés ;
   France Universités et UNSS en `organization` (associations) ; `@Ccomptes` et
@@ -63,7 +69,7 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
   (`test_identity_refresh_errors`, `test_subject_sites_failure_does_not_stop_the_investigation`),
   fichier déjà noté en échec préexistant le 2026-11-21, sans lien avec les badges. Non corrigés.
 - CSV présent dans la roue construite (`uv build`).
-- Dry run réel de la CLI : 713 lignes, 0 invalide.
+- Dry run réel de la CLI : 770 lignes, 0 invalide. `tests/test_badge_seed.py` : 16 verts.
 - Aucune migration (pas de changement de schéma) ; aucun code ajouté à gate, hangar ou
   intercom (module chargé seulement par la CLI) : pas de mesure de RAM nécessaire.
 - **Rien d'externe appelé** : ni l'API X, ni Wikidata. Les pseudos n'ont donc pas été
@@ -71,7 +77,7 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
 
 ## Points ouverts / suite
 
-- Coût de `--apply` complet : environ 713 lectures × 0,01 $ ≈ 7,1 $ sur `provider:x`
+- Coût de `--apply` complet : environ 770 lectures × 0,01 $ ≈ 7,7 $ sur `provider:x`
   (plafond par défaut 20 $/mois, partagé avec le radar). Lancer par catégorie si besoin.
 - Relire la sortie : `name_mismatch` et `review` sont à vérifier à la main (`/badge`).
 - Les fonctions de 2026 postérieures aux connaissances de l'assistant (ex. Premier

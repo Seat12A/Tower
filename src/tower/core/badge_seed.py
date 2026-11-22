@@ -74,12 +74,16 @@ def _words(text: str) -> set[str]:
 
 def name_matches(expected: Sequence[str], display_name: str | None, handle: str | None) -> bool:
     """True when one word (≥ 3 characters, accents and case folded) of an expected name
-    appears in the resolved display name, or inside the resolved handle."""
+    appears in the resolved display name.
+
+    Only when the display name has no Latin word at all (Japanese, Arabic, Cyrillic…
+    script) does the check fall back to a word of ≥ 4 characters inside the resolved
+    handle; such rows should be flagged ``review`` in the list."""
     found = _words(display_name or "")
     folded_handle = _fold(handle or "")
     for name in expected:
         for word in _words(name):
-            if word in found or (len(word) >= 4 and word in folded_handle):
+            if word in found or (not found and len(word) >= 4 and word in folded_handle):
                 return True
     return False
 
