@@ -20,6 +20,26 @@ les autres en `verified`.
 - Contrôle du nom resserré : le pseudo ne sert de repli que si le nom affiché n'a aucun
   mot latin (avant, un mot du nom attendu présent dans le pseudo suffisait toujours, ce
   qui rendait le contrôle sans effet pour la plupart des lignes).
+- **Collecte Wikidata** (demande de Jules : « le reste des grands pays, célébrités,
+  médias ») : 2 208 lignes ajoutées, tirées de Wikidata et non de mémoire. Méthode : les
+  41 671 fiches qui ont un compte X avec ID et un nombre d'abonnés (P8687) d'au moins
+  100 000, plus les organismes publics (ministères, agences, parlements, partis,
+  organisations internationales, agences de presse) dès 10 000 abonnés ; détails par
+  lots de 200 ; catégorie par les tables du dépôt (`classify_wikidata`). Personnes
+  décédées et organismes dissous écartés. Un politique n'est `institutional` qu'avec un
+  mandat P39 commencé en 2020 ou après et sans date de fin (Wikidata oublie souvent les
+  dates de fin : Gilbert Collard sortait « en fonction »), sinon sa catégorie suivante
+  ou `verified` ; un `expert` doit avoir un domaine précis et aucune profession
+  politique ou artistique (Joe Biden, Zack Snyder sortaient « experts »). Quotas par
+  pays (37 pays : institutions 25, médias 15, élus 12, personnalités 12, journalistes
+  5, experts 5) et personnes les plus suivies au monde (personnalités 300, experts 80,
+  journalistes 60). Un compte par fiche ; personnes déjà présentes sous un autre pseudo
+  écartées (`@POTUS45`). Résultat : institutional 698, media 653, verified 709,
+  expert 148. Limites connues : un mandat P39 peut être un poste non électif (ex. PDG
+  d'entreprise publique), le pays de section suit la première nationalité (Eduardo
+  Bolsonaro apparaît sous « Italy »), les domaines d'expertise restent larges.
+  Total de la liste : **2 978 comptes, 2 835 avec ID Wikidata (gratuits), 143 lectures
+  X au plus**.
 - **Wikidata d'abord** (demande de Jules) : `WikidataSparqlSource.accounts_by_handles`
   (P2002 + qualificatif P6552) ; un ID unique est cru sans appel à X ; hors Wikidata, X
   avec coche obligatoire (`no_check` sinon) ; `--no-wikidata`. Dry run réel contre
@@ -77,14 +97,14 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
 - CSV présent dans la roue construite (`uv build`).
 - Dry run réel de la CLI : 770 lignes, 0 invalide. `tests/test_badge_seed.py` : 19 verts.
 - **Appelé pour de vrai** : Wikidata (requêtes SPARQL en lecture, gratuites) pour la
-  mesure de couverture et le dry run. L'API X n'a jamais été appelée.
+  mesure de couverture, la collecte (environ 230 requêtes) et le dry run. L'API X n'a jamais été appelée.
 - Aucune migration (pas de changement de schéma) ; aucun code ajouté à gate, hangar ou
   intercom (module chargé seulement par la CLI) : pas de mesure de RAM nécessaire.
 
 
 ## Points ouverts / suite
 
-- Coût de `--apply` complet : 142 lectures X au plus × 0,01 $ (valeur de configuration,
+- Coût de `--apply` complet : 143 lectures X au plus × 0,01 $ (valeur de configuration,
   tarif réel de X à vérifier) ≈ 1,4 $ sur `provider:x`.
 - Experts hors Wikidata souvent sans coche X : ils sortiront en `no_check`, à badger à
   la main après vérification (page institutionnelle qui renvoie au compte).

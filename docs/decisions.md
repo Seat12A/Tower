@@ -497,6 +497,7 @@ médias, personnalités, experts) en respectant la catégorie.
 | Un ID Wikidata unique est cru sans contrôle (même pour une ligne `review`) ; ID multiples ignorés | Décision de Jules : une erreur y est peu probable ; dans le doute (plusieurs ID), on passe par X |
 | Hors Wikidata : coche X obligatoire (`blue`, `business` ou `government`), grise pour une ligne `review` | Décision de Jules ; un compte sans coche est listé (`no_check`) pour l'équipe |
 | Wikidata indisponible : arrêt, pas de repli sur X | Aucune dépense non prévue |
+| Extension de la liste par collecte Wikidata (abonnés P8687, tables `classify_wikidata`), pas par des listes écrites de mémoire | Données sourcées avec ID ; un mandat ne compte que s'il est daté (2020 ou après, sans fin), un expert doit avoir un domaine précis |
 | Jamais de modification d'un compte déjà badgé, bloqué ou retiré par l'équipe | Une décision de l'équipe l'emporte toujours |
 | Contrôle du nom (un mot commun avec le nom affiché ; repli sur le pseudo seulement pour un nom affiché sans alphabet latin) et lignes `review` réservées aux comptes `government` de X | Sûreté : les listes fournies ne sont pas authentifiées ; dans le doute, ne pas attribuer |
 | `institutional` seulement pour les personnes en fonction (dont direction de parti), sinon `verified` | Consigne de Jules ; la catégorie vient de la fonction, jamais de l'opinion |
