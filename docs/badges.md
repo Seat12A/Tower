@@ -244,6 +244,34 @@ badge `institutional`, source `x_government`.
    si X ne confirme plus (autre type, compte absent de la réponse), retrait par le
    système (motif `x_verification_lost`).
 
+## Liste amorce (`tower badges seed`)
+
+Attribution en masse depuis une liste triée par l'équipe : `src/tower/core/data/badge_seed.csv`
+(livrée dans le paquet ; `--file` pour une autre liste). Colonnes : `handle`, `category`,
+`name` (noms attendus séparés par `|`), `expertise` (experts seulement), `review` (`1`),
+`note` (note interne). Les lignes `#` sont des commentaires.
+
+- **Sans `--apply`** : rien n'est appelé ni écrit ; le fichier est validé (pseudo de 15
+  caractères au plus, catégorie, expertise, doublons) et le plan est affiché.
+- **Avec `--apply`** (sur le service **gate**, qui a `TOWER_X_BEARER_TOKEN`) : chaque
+  pseudo est converti une fois en ID par l'API X (`resolve_x_handle`, une lecture
+  d'utilisateur facturée sur `provider:x`, environ 0,01 $), puis le badge est attribué
+  par `grant_badge` (source `manual`, acteur `system:badges-seed`, note
+  `seed badges-seed: …`).
+- Règles de sûreté : un compte qui a déjà un badge (actif, bloqué, ou retiré par
+  l'équipe) n'est jamais modifié ; le nom affiché ou le pseudo renvoyé par X doit
+  contenir un mot d'un nom attendu, sinon `name_mismatch` ; une ligne `review` n'est
+  attribuée que si X marque le compte `government` (coche grise), sauf
+  `--include-review`. Un compte déjà badgé sous ce pseudo (pseudo stocké) est sauté sans
+  appel à X : relancer la commande reprend là où elle s'est arrêtée.
+- Arrêt propre si X est indisponible ou si le budget `provider:x` est épuisé (code 1).
+- Options : `--category <catégorie>`, `--limit N`, `--include-review`.
+
+Catégories de la liste : `institutional` pour les personnes **en fonction** (exécutif,
+parlement, exécutif local, direction d'un parti) et les institutions publiques et
+organisations intergouvernementales ; anciens responsables et personnalités en
+`verified` ; médias et journalistes en `media` ; chercheurs en `expert` avec domaine.
+
 ## Lookup pour l'extension
 
 `GET /v1/badges/lookup?platform=x&ids=1,2,3` (public, ≤ 100 IDs natifs) :

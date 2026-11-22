@@ -1,0 +1,686 @@
+# Curated badge seed list (tower badges seed). Compiled 2026-11-22 from lists supplied by
+# Jules (worldleaders.website, Wikidata-based, and assistant-generated lists), not
+# individually authenticated: the seed resolves every handle with the X API and skips
+# name mismatches. Categories follow docs/badges.md: institutional only for people who
+# currently hold an office (government, parliament, local executive, party leadership)
+# and for public institutions and intergovernmental organisations; former officials
+# and other notable people are "verified". review=1: granted only if X shows the grey
+# "government" check, otherwise listed for a manual check (uncertain or obscure handle).
+# Excluded (see docs/sessions/2026-11-22-seed-badges.md): handles longer than 15
+# characters, people without an X account, deceased people, known unofficial accounts.
+handle,category,name,expertise,review,note
+# --- World leaders (worldleaders.website, in office per the source) ---
+BarrowPresident,institutional,Adama Barrow|Barrow,,,President of the Gambia
+AAdeleke_01,institutional,Ademola Adeleke|Adeleke,,,Governor of Osun State
+AOuattara_PRCI,institutional,Alassane Ouattara|Ouattara,,,President of Côte d'Ivoire
+ANorrisMP,institutional,Alex Norris,,,UK minister
+alexstubb,institutional,Alexander Stubb,,,President of Finland
+AndrejBabis,institutional,Andrej Babiš,,,Prime Minister of the Czech Republic
+andrejplenkovic,institutional,Andrej Plenković,,,Prime Minister of Croatia
+andrewholnessjm,institutional,Andrew Holness,,,Prime Minister of Jamaica
+andyburnhammp,institutional,Andy Burnham,,,UK MP (Prime Minister per source)
+angelaeagle,institutional,Angela Eagle,,,UK minister
+AngelaRayner,institutional,Angela Rayner,,,UK MP
+AlboMP,institutional,Anthony Albanese|Albanese,,,Prime Minister of Australia
+antoniocostapm,institutional,António Costa,,,President of the European Council
+antonioguterres,institutional,António Guterres,,,UN Secretary-General
+aquilesalvarez,institutional,Aquiles Álvarez,,1,Mayor of Guayaquil
+belenfcasero,institutional,Belen Fernandez,,1,Mayor of Dagupan
+officialABAT,institutional,Bola Ahmed Tinubu|Tinubu,,,President of Nigeria
+BrianKempGA,institutional,Brian Kemp,,,Governor of Georgia
+carlosfgalan,institutional,Carlos Fernando Galán,,,Mayor of Bogotá
+czorrinho,institutional,Carlos Zorrinho,,1,President of the Évora City Council
+lagarde,institutional,Christine Lagarde,,,President of the ECB
+ChristopheBechu,institutional,Christophe Béchu,,,Mayor of Angers
+Claudiashein,institutional,Claudia Sheinbaum,,,President of Mexico
+cyrilramaphosa,institutional,Cyril Ramaphosa,,,President of South Africa
+DanielNoboaOk,institutional,Daniel Noboa,,,President of Ecuador
+DanielVilela15,institutional,Daniel Vilela,,1,Governor of Goiás
+realDonaldTrump,institutional,Donald J. Trump|Trump,,,President of the United States
+RepDougCollins,institutional,Doug Collins,,,US Secretary of Veterans Affairs
+fordnation,institutional,Doug Ford,,,Premier of Ontario
+Ed_Miliband,institutional,Ed Miliband,,,UK minister
+elliereeves,institutional,Ellie Reeves,,,Attorney General for England and Wales
+elmanooficial,institutional,Elmano de Freitas|Elmano,,1,Governor of Ceará
+garciapage,institutional,Emiliano García-Page,,,President of Castilla-La Mancha
+EmmanuelMacron,institutional,Emmanuel Macron,,,President of France
+ernestoam21,institutional,Ernesto Álvarez Miranda,,1,Minister of Justice of Peru
+equipoclavijo,institutional,Fernando Clavijo|Clavijo,,1,President of the Canary Islands
+_FriedrichMerz,institutional,Friedrich Merz,,,Chancellor of Germany
+GiorgiaMeloni,institutional,Giorgia Meloni,,,President of the Council of Ministers of Italy
+gogamkd,institutional,Gordana Siljanovska-Davkova|Siljanovska,,1,President of North Macedonia
+HHichilema,institutional,Hakainde Hichilema,,,President of Zambia
+HassanalBolkia4,institutional,Hassanal Bolkiah,,1,Sultan of Brunei (handle looks unofficial)
+heidi_mp,institutional,Heidi Alexander,,,UK minister
+herculanopassos,institutional,Herculano Passos,,1,Mayor of Itu
+hmunozalcalde,institutional,Héctor Muñoz,,1,Mayor of Concepción
+Imanol_Pradales,institutional,Imanol Pradales,,,Lehendakari of the Basque Country
+drmohamedirfaa1,institutional,Irfaan Ali|Mohamed Irfaan,,1,President of Guyana
+idiazayuso,institutional,Isabel Díaz Ayuso|Ayuso,,,President of the Community of Madrid
+sutrykjacek,institutional,Jacek Sutryk,,,Mayor of Wrocław
+orengo_james,institutional,James Orengo,,1,Governor of Siaya County
+GovJanetMills,institutional,Janet Mills,,,Governor of Maine
+jjansasds,institutional,Janez Janša,,,Prime Minister of Slovenia
+jaumecollboni,institutional,Jaume Collboni,,,Mayor of Barcelona
+JMilei,institutional,Javier Milei,,,President of Argentina
+JDMahama,institutional,John Dramani Mahama|Mahama,,,President of Ghana
+JohnHealey_MP,institutional,John Healey,,,UK minister
+johnbricenobze,institutional,Johnny Briceño,,,Prime Minister of Belize
+SakajaJohnson,institutional,Johnson Sakaja,,,Governor of Nairobi
+jonasgahrstore,institutional,Jonas Gahr Støre,,,Prime Minister of Norway
+jreynoldsMP,institutional,Jonathan Reynolds,,,UK minister
+CameroonPm237,institutional,Joseph Dion Ngute|Ngute|Cameroon,,1,Prime Minister of Cameroon
+joelenku,institutional,Joseph Ole Lenku|Lenku,,1,Governor of Kajiado County
+JoshStein_,institutional,Josh Stein,,,Governor of North Carolina
+JuanMa_Moreno,institutional,Juan Manuel Moreno|Juanma Moreno,,,President of Andalusia
+PresidentBio,institutional,Julius Maada Bio,,,President of Sierra Leone
+kaiwegner,institutional,Kai Wegner,,,Governing Mayor of Berlin
+tokayevkz,institutional,Kassym-Jomart Tokayev|Tokayev|Токаев,,,President of Kazakhstan
+keikofujimori,institutional,Keiko Fujimori,,,Peru (President per source; party leader)
+LawrenceWongST,institutional,Lawrence Wong,,,Prime Minister of Singapore
+lisanandy,institutional,Lisa Nandy,,,UK minister
+LouHaigh,institutional,Louise Haigh,,,UK minister
+lucfrieden,institutional,Luc Frieden,,,Prime Minister of Luxembourg
+LucyMPowell,institutional,Lucy Powell,,,UK minister
+luisabinader,institutional,Luis Abinader,,,President of the Dominican Republic
+LulaOficial,institutional,Luiz Inácio Lula da Silva|Lula,,,President of Brazil
+LMontenegro_PT,institutional,Luís Montenegro,,,Prime Minister of Portugal
+manuelgambini,institutional,Manuel Gambini,,1,Governor of Ucayali
+marioduran1,institutional,Mario Durán,,1,Mayor of San Salvador
+MarkJCarney,institutional,Mark Carney,,,Prime Minister of Canada
+Markus_Soeder,institutional,Markus Söder,,,Minister-President of Bavaria
+MateusSimoesBH,institutional,Mateus Simões,,1,Governor of Minas Gerais
+MattMeyerDE,institutional,Matt Meyer,,,Governor of Delaware
+Miatsf,institutional,Miatta Fahnbulleh,,1,UK minister
+bgmludwig,institutional,Michael Ludwig,,,Mayor of Vienna
+moneillsf,institutional,Michelle O'Neill|Michelle,,,First Minister of Northern Ireland
+Mikelkehoe,institutional,Mike Kehoe,,1,Governor of Missouri
+MickeySpajic,institutional,Milojko Spajić|Spajic,,,Prime Minister of Montenegro
+oonomotohiro,institutional,Motohiro Ono|大野元裕,,1,Governor of Saitama
+narendramodi,institutional,Narendra Modi,,,Prime Minister of India
+NOIweala,institutional,Ngozi Okonjo-Iweala|Okonjo,,,WTO Director-General
+nikolpashinyan,institutional,Nikol Pashinyan|Pashinyan,,,Prime Minister of Armenia
+GovWike,institutional,Nyesom Wike,,,Minister of the FCT (Nigeria)
+OlafLies,institutional,Olaf Lies,,,Minister-President of Lower Saxony
+oliviachow,institutional,Olivia Chow,,,Mayor of Toronto
+patmcfaddenmp,institutional,Pat McFadden,,,UK minister
+morriseywv,institutional,Patrick Morrisey,,,Governor of West Virginia
+PR_Paul_BIYA,institutional,Paul Biya,,,President of Cameroon
+paulbristow79,institutional,Paul Bristow,,,Mayor of Cambridgeshire and Peterborough
+PaulKagame,institutional,Paul Kagame,,,President of Rwanda
+sanchezcastejon,institutional,Pedro Sánchez,,,Prime Minister of Spain
+Pontifex,institutional,Pope Leo XIV|Leo XIV|Pontifex,,,Holy See (replaces @drprevost: pre-pontificate account)
+prabowo,institutional,Prabowo Subianto,,,President of Indonesia
+RafaelFonteles_,institutional,Rafael Fonteles,,,Governor of Piauí
+reyreysincorona,institutional,Rafael Rey,,1,Minister of Transport of Peru
+trzaskowski_,institutional,Rafał Trzaskowski,,,Mayor of Warsaw
+joakinram,institutional,Joaquín Ramírez|Reber Ramírez,,1,Mayor of Cajamarca
+rt_erdogan,institutional,Recep Tayyip Erdoğan|Erdogan,,,President of Türkiye
+renzo_reggiardo,institutional,Renzo Reggiardo,,,Mayor of Lima
+RhunapIorwerth,institutional,Rhun ap Iorwerth,,,First Minister of Wales
+RobertFicoSVK,institutional,Robert Fico,,,Prime Minister of Slovakia
+RobertaMetsola,institutional,Roberta Metsola,,,President of the European Parliament
+EP_President,institutional,European Parliament President|Metsola|President,,,EP President role account
+takaichi_sanae,institutional,Sanae Takaichi|高市早苗,,,Prime Minister of Japan
+SantiPenap,institutional,Santiago Peña,,,President of Paraguay
+seyiamakinde,institutional,Seyi Makinde,,,Governor of Oyo State
+ShabanaMahmood,institutional,Shabana Mahmood,,,UK minister
+DrTedros,institutional,Tedros Adhanom Ghebreyesus|Tedros,,,WHO Director-General
+terrance_drew,institutional,Terrance Drew,,,Prime Minister of Saint Kitts and Nevis
+TimHoustonNS,institutional,Tim Houston,,,Premier of Nova Scotia
+tsheringtobgay,institutional,Tshering Tobgay,,,Prime Minister of Bhutan
+ubasanius,institutional,Uba Sani,,,Governor of Kaduna State
+UKhurelsukh,institutional,Ukhnaagiin Khürelsükh|Khurelsukh,,1,President of Mongolia
+UlfKristersson,institutional,Ulf Kristersson,,,Prime Minister of Sweden
+vonderleyen,institutional,Ursula von der Leyen,,,President of the European Commission
+vitaliy_klychko,institutional,Vitali Klitschko|Klitschko|Кличко,,,Mayor of Kyiv
+WabKinew,institutional,Wab Kinew,,,Premier of Manitoba
+Honwavinyandeti,institutional,Wavinya Ndeti,,1,Governor of Machakos County
+wesstreeting,institutional,Wes Streeting,,,UK minister
+WilliamsRuto,institutional,William Ruto,,,President of Kenya
+KagutaMuseveni,institutional,Yoweri Museveni|Museveni,,,President of Uganda
+ecoyuri,institutional,Yuriko Koike|小池百合子,,,Governor of Tokyo
+YvetteCooperMP,institutional,Yvette Cooper,,,UK minister
+ZohranKMamdani,institutional,Zohran Mamdani,,,Mayor of New York City
+# --- France: politicians ---
+SebLecornu,institutional,Sébastien Lecornu,,,Prime Minister
+gerard_larcher,institutional,Gérard Larcher,,,Senator
+YaelBRAUNPIVET,institutional,Yaël Braun-Pivet,,,President of the National Assembly
+BrunoRetailleau,institutional,Bruno Retailleau,,,LR president
+GabrielAttal,institutional,Gabriel Attal,,,MP; Renaissance leader
+Elisabeth_Borne,institutional,Élisabeth Borne,,,MP
+jnbarrot,institutional,Jean-Noël Barrot,,,Minister
+datirachida,institutional,Rachida Dati,,,Paris councillor
+GDarmanin,institutional,Gérald Darmanin,,,Minister
+J_Bardella,institutional,Jordan Bardella,,,MEP; RN president
+MLP_officiel,institutional,Marine Le Pen,,,MP
+JLMelenchon,verified,Jean-Luc Mélenchon,,,LFI founder; no elected office
+mbompard,institutional,Manuel Bompard,,,MP; LFI coordinator
+faureolivier,institutional,Olivier Faure,,,MP; PS first secretary
+rglucks1,institutional,Raphaël Glucksmann,,,MEP
+Fabien_Roussel,institutional,Fabien Roussel,,,PCF national secretary
+marinetondelier,institutional,Marine Tondelier,,,Les Écologistes national secretary
+EPhilippe_LH,institutional,Édouard Philippe,,,Mayor of Le Havre; Horizons
+bayrou,institutional,François Bayrou,,,MoDem president
+ECiotti,institutional,Éric Ciotti,,,MP; UDR president
+fhollande,institutional,François Hollande,,,MP
+NicolasSarkozy,verified,Nicolas Sarkozy,,,Former president
+RoyalSegolene,verified,Ségolène Royal,,,Former minister
+Villepin,institutional,Dominique de Villepin,,,La France humaniste president
+Francois_Ruffin,institutional,François Ruffin,,,MP
+Clem_Autain,institutional,Clémentine Autain,,,MP
+sandrousseau,institutional,Sandrine Rousseau,,,MP
+fxbellamy,institutional,François-Xavier Bellamy,,,MEP
+laurentwauquiez,institutional,Laurent Wauquiez,,,MP
+ManonAubryFr,institutional,Manon Aubry,,,MEP
+# --- United States: politicians ---
+JDVance,institutional,JD Vance|Vance,,,Vice President
+BarackObama,verified,Barack Obama,,,Former president
+JoeBiden,verified,Joe Biden,,,Former president
+HillaryClinton,verified,Hillary Clinton,,,Former Secretary of State
+BernieSanders,institutional,Bernie Sanders,,,Senator
+AOC,institutional,Alexandria Ocasio-Cortez,,,Representative
+SpeakerPelosi,institutional,Nancy Pelosi,,1,Representative (former Speaker role account)
+GavinNewsom,institutional,Gavin Newsom,,,Governor of California
+RonDeSantis,institutional,Ron DeSantis,,,Governor of Florida
+marcorubio,institutional,Marco Rubio,,,Secretary of State
+tedcruz,institutional,Ted Cruz,,,Senator
+KamalaHarris,verified,Kamala Harris,,,Former Vice President
+LeaderMcConnell,institutional,Mitch McConnell|McConnell,,,Senator
+SenSchumer,institutional,Chuck Schumer|Schumer,,,Senator
+SenWarren,institutional,Elizabeth Warren|Warren,,,Senator
+IlhanMN,institutional,Ilhan Omar|Ilhan,,,Representative
+RashidaTlaib,institutional,Rashida Tlaib,,,Representative
+# --- Europe and world: politicians ---
+Keir_Starmer,institutional,Keir Starmer,,,UK MP
+ZelenskyyUa,institutional,Volodymyr Zelensky|Zelenskyy|Зеленський,,,President of Ukraine
+PM_ViktorOrban,institutional,Viktor Orbán|Orban,,,Hungary
+donaldtusk,institutional,Donald Tusk,,,Prime Minister of Poland
+SecGenNATO,institutional,NATO Secretary General|NATO|Rutte,,,NATO SG role account
+kmitsotakis,institutional,Kyriakos Mitsotakis|Μητσοτάκης,,,Prime Minister of Greece
+Statsmin,institutional,Statsministeriet|Mette Frederiksen|Statsminister,,,Danish PM office
+Bart_DeWever,institutional,Bart De Wever,,,Prime Minister of Belgium
+MichealMartinTD,institutional,Micheál Martin,,,Taoiseach
+netanyahu,institutional,Benjamin Netanyahu|Netanyahu|נתניהו,,,Israel
+Jaemyung_Lee,institutional,Lee Jae-myung|이재명|Jaemyung,,,President of South Korea
+MohamedBinZayed,institutional,Mohamed bin Zayed|محمد بن زايد,,,President of the UAE
+AlsisiOfficial,institutional,Abdel Fattah el-Sisi|Sisi|السيسي,,,President of Egypt
+TamimBinHamad,institutional,Tamim bin Hamad|تميم بن حمد,,,Emir of Qatar
+PR_Diomaye,institutional,Bassirou Diomaye Faye|Diomaye,,,President of Senegal
+nayibbukele,institutional,Nayib Bukele,,,President of El Salvador
+petrogustavo,verified,Gustavo Petro,,,Former president of Colombia (term ended Aug 2026)
+GabrielBoric,verified,Gabriel Boric,,,Former president of Chile (term ended Mar 2026)
+JoseRaulMulino,institutional,José Raúl Mulino,,,President of Panama
+OrsiYamandu,institutional,Yamandú Orsi,,,President of Uruguay
+DinaErcilia,verified,Dina Boluarte,,,Former president of Peru
+Nigel_Farage,institutional,Nigel Farage,,,UK MP; Reform UK leader
+DavidLammy,institutional,David Lammy,,,UK MP
+jeremycorbyn,institutional,Jeremy Corbyn,,,UK MP
+RobertHabeck,verified,Robert Habeck,,,Former German minister
+Alice_Weidel,institutional,Alice Weidel,,,Bundestag; AfD co-leader
+matteosalvinimi,institutional,Matteo Salvini,,,Italian minister
+# --- France: state institutions ---
+gouvernementFR,institutional,Gouvernement,,,
+Elysee,institutional,Élysée|Elysee,,,
+Matignon,institutional,Matignon|Premier ministre,,,
+AssembleeNat,institutional,Assemblée nationale,,,
+Senat,institutional,Sénat|Senat,,,
+Conseil_constit,institutional,Conseil constitutionnel,,,
+Conseil_Etat,institutional,Conseil d'État,,,
+Ccomptes,institutional,Cour des comptes,,,
+Interieur_Gouv,institutional,Ministère de l'Intérieur|Intérieur,,,
+Armees_Gouv,institutional,Ministère des Armées|Armées,,,
+justice_gouv,institutional,Ministère de la Justice|Justice,,,
+Economie_Gouv,institutional,Ministère de l'Économie|Économie,,,
+Education_Gouv,institutional,Ministère de l'Éducation nationale|Éducation,,,
+francediplo,institutional,France Diplomatie|Diplomatie,,,
+Agri_Gouv,institutional,Ministère de l'Agriculture|Agriculture,,,
+Ecologie_Gouv,institutional,Ministère de la Transition écologique|Écologie|Ecologique,,,
+Sante_Gouv,institutional,Ministère de la Santé|Santé,,,
+MinistereCC,institutional,Ministère de la Culture|Culture,,,
+Travail_Gouv,institutional,Ministère du Travail|Travail,,,
+Sports_Gouv,institutional,Ministère des Sports|Sports,,,
+sup_recherche,institutional,Enseignement supérieur|Recherche,,,
+lesoutremer,institutional,Ministère des Outre-mer|Outre-mer|Outremer,,,
+PoliceNationale,institutional,Police nationale,,,
+Gendarmerie,institutional,Gendarmerie nationale,,,
+SecCivileFrance,institutional,Sécurité civile,,,
+dgfip_officiel,institutional,DGFiP|Finances publiques,,,
+DGTresor,institutional,DG Trésor|Trésor,,,
+InseeFr,institutional,Insee,,,
+meteofrance,institutional,Météo-France|Meteo,,,
+ANSSI_FR,institutional,ANSSI,,,
+CNIL,institutional,CNIL,,,
+Defenseurdroits,institutional,Défenseur des droits,,,
+servicepublicfr,institutional,Service Public,,,
+# --- United States: federal government ---
+WhiteHouse,institutional,The White House|White House,,,
+POTUS,institutional,President|POTUS,,,
+VP,institutional,Vice President,,,
+USAGov,institutional,USAGov,,,
+PressSec,institutional,Press Secretary|Press,,,
+DOGE,institutional,Department of Government Efficiency|DOGE,,1,
+StateDept,institutional,Department of State|State,,,
+USTreasury,institutional,Treasury,,,
+DeptofWar,institutional,Department of War|Defense,,,
+TheJusticeDept,institutional,Department of Justice|Justice,,,
+Interior,institutional,Department of the Interior|Interior,,,
+USDA,institutional,Department of Agriculture|USDA,,,
+CommerceGov,institutional,Department of Commerce|Commerce,,,
+USDOL,institutional,Department of Labor|Labor,,,
+HHSGov,institutional,Health and Human Services|HHS,,,
+HUDgov,institutional,Housing and Urban Development|HUD,,,
+USDOT,institutional,Department of Transportation|Transportation,,,
+ENERGY,institutional,Department of Energy|Energy,,,
+usedgov,institutional,Department of Education|Education,,,
+DeptVetAffairs,institutional,Veterans Affairs|Veterans,,,
+DHSgov,institutional,Homeland Security|Homeland,,,
+FBI,institutional,FBI,,,
+CIA,institutional,CIA,,,
+NSAGov,institutional,National Security Agency|NSA,,,
+CDCgov,institutional,CDC,,,
+NIH,institutional,National Institutes of Health|NIH,,,
+US_FDA,institutional,FDA,,,
+EPA,institutional,EPA|Environmental Protection,,,
+fema,institutional,FEMA,,,
+CBP,institutional,Customs and Border Protection|CBP,,,
+ICEgov,institutional,ICE|Immigration,,,
+SBAgov,institutional,Small Business Administration|SBA,,,
+USTradeRep,institutional,Trade Representative|USTR,,,
+NASA,institutional,NASA,,,
+NOAA,institutional,NOAA,,,
+NWS,institutional,National Weather Service|NWS,,,
+USGS,institutional,USGS|Geological,,,
+USNatArchives,institutional,National Archives|Archives,,,
+FTC,institutional,FTC|Federal Trade Commission,,,
+FCC,institutional,FCC,,,
+SECGov,institutional,SEC|Securities,,,
+CISAgov,institutional,CISA|Cybersecurity,,,
+uspto,institutional,USPTO|Patent,,,
+SecretService,institutional,Secret Service,,,
+TSA,institutional,TSA,,,
+USCG,institutional,Coast Guard|USCG,,,
+RapidResponse47,institutional,Rapid Response 47|Rapid Response,,1,White House communication team
+# --- United Kingdom: government ---
+GOVUK,institutional,GOV.UK|GOVUK,,,
+10DowningStreet,institutional,Downing Street|Number 10,,,
+cabinetofficeuk,institutional,Cabinet Office,,,
+UKParliament,institutional,UK Parliament|Parliament,,,
+HouseofCommons,institutional,House of Commons,,,
+UKHouseofLords,institutional,House of Lords,,,
+FCDOGovUK,institutional,Foreign Commonwealth & Development Office|FCDO|Foreign,,,
+ukhomeoffice,institutional,Home Office,,,
+DefenceHQ,institutional,Ministry of Defence|Defence,,,
+hmtreasury,institutional,HM Treasury|Treasury,,,
+MoJGovUK,institutional,Ministry of Justice|Justice,,,
+DWPgovuk,institutional,Department for Work and Pensions|DWP,,,
+DHSCgovuk,institutional,Department of Health and Social Care|DHSC,,,
+educationgovuk,institutional,Department for Education|Education,,,
+transportgovuk,institutional,Department for Transport|Transport,,,
+DefraGovUK,institutional,Defra,,,
+NCA_UK,institutional,National Crime Agency|NCA,,,
+MI5Official,institutional,MI5,,,
+GCHQ,institutional,GCHQ,,,
+metpoliceuk,institutional,Metropolitan Police|Met Police,,,
+CollegeofPolice,institutional,College of Policing,,,
+PoliceChiefs,institutional,National Police Chiefs' Council|Police Chiefs,,,
+ukborder,institutional,Border Force,,,
+HMRCgovuk,institutional,HMRC,,,
+HMRCcustomers,institutional,HMRC,,,
+NHSuk,institutional,NHS,,,
+UKHSA,institutional,UK Health Security Agency|UKHSA,,,
+metoffice,institutional,Met Office,,,
+EnvAgency,institutional,Environment Agency,,,
+DVSAgovuk,institutional,DVSA|Driver and Vehicle Standards,,,
+UKStatsAuth,institutional,UK Statistics Authority|Statistics,,,
+ONS,institutional,Office for National Statistics|ONS,,,
+CMAgovUK,institutional,Competition and Markets Authority|CMA,,,
+RoyalNavy,institutional,Royal Navy,,,
+BritishArmy,institutional,British Army,,,
+RoyalAirForce,institutional,Royal Air Force|RAF,,,
+MODPolice,institutional,Ministry of Defence Police|MOD Police,,,
+UKinFrance,institutional,UK in France|Royaume-Uni,,,
+UKUN_NewYork,institutional,UK at the UN|United Nations,,,
+UKMisBrussels,institutional,UK Mission to the EU|UK Mission,,,
+# --- Germany: federal government ---
+RegSprecher,institutional,Regierungssprecher|Bundesregierung,,,
+bundeskanzler,institutional,Bundeskanzler,,,
+bundestag,institutional,Bundestag,,,
+bundesrat,institutional,Bundesrat,,,
+AuswaertigesAmt,institutional,Auswärtiges Amt|Auswaertiges,,,
+aussenminDE,institutional,Außenminister|Aussenminister,,,
+bmf_bund,institutional,Bundesfinanzministerium|BMF,,,
+BMI_Bund,institutional,Bundesinnenministerium|BMI,,,
+BMAS_Bund,institutional,Bundesministerium für Arbeit|BMAS,,,
+BMVg_Bundeswehr,institutional,Verteidigungsministerium|BMVg|Bundeswehr,,,Inactive since 2025
+_BMUKN,institutional,Bundesumweltministerium|BMUKN,,1,
+bka,institutional,Bundeskriminalamt|BKA,,,
+bpol,institutional,Bundespolizei,,1,
+BfV_Bund,institutional,Verfassungsschutz|BfV,,1,
+rki_de,institutional,Robert Koch-Institut|Robert Koch,,,
+Umweltbundesamt,institutional,Umweltbundesamt,,,
+BA_X,institutional,Bundesagentur für Arbeit|Bundesagentur,,1,
+GermanyDiplo,institutional,GermanyDiplo|Federal Foreign Office|Germany,,,
+AllemagneDiplo,institutional,Allemagne Diplo|Allemagne,,,
+# --- Spain: central government ---
+desdelamoncloa,institutional,La Moncloa|Moncloa,,,
+060gobes,institutional,060|Administración,,1,
+Congreso_Es,institutional,Congreso de los Diputados|Congreso,,,
+Senadoesp,institutional,Senado,,,
+MAECgob,institutional,Ministerio de Asuntos Exteriores|Exteriores,,,
+SpainMFA,institutional,Spain MFA|Spain,,,
+Defensagob,institutional,Ministerio de Defensa|Defensa,,,
+interiorgob,institutional,Ministerio del Interior|Interior,,,
+educaciongob,institutional,Ministerio de Educación|Educación,,,
+territorialgob,institutional,Política Territorial|Territorial,,1,
+mintradigital,institutional,Transformación Digital|Digital,,1,
+sanidadgob,institutional,Ministerio de Sanidad|Sanidad,,,
+policia,institutional,Policía Nacional|Policia,,,
+guardiacivil,institutional,Guardia Civil,,,
+DGTes,institutional,DGT|Tráfico,,,
+UMEgob,institutional,Unidad Militar de Emergencias|UME,,,
+empleo_SEPE,institutional,SEPE|Empleo,,,
+es_INE,institutional,INE|Estadística,,,
+AEMET_Esp,institutional,AEMET,,,
+SaludISCIII,institutional,Instituto de Salud Carlos III|ISCIII,,,
+AEMPSGOB,institutional,AEMPS,,,
+CSIC,institutional,CSIC,,,
+EmbEspFrancia,institutional,Embajada de España en Francia|Ambassade d'Espagne|Embajada,,,
+EmbEspUSA,institutional,Embassy of Spain|Embajada,,,
+EmbSpainUK,institutional,Embassy of Spain|Embajada,,,
+# --- International and intergovernmental organisations ---
+UN,institutional,United Nations|Nations Unies,,,
+UN_News_Centre,institutional,UN News|ONU Info,,,
+UN_Spokesperson,institutional,UN Spokesperson|Spokesperson,,,
+UNICEF,institutional,UNICEF,,,
+UNESCO,institutional,UNESCO,,,
+WHO,institutional,World Health Organization|WHO,,,
+Refugees,institutional,UNHCR|Refugee,,,
+WFP,institutional,World Food Programme|WFP,,,
+UNDP,institutional,UNDP,,,
+UN_Women,institutional,UN Women,,,
+UNEP,institutional,UN Environment|UNEP,,,
+ilo,institutional,International Labour Organization|ILO,,,
+FAO,institutional,FAO,,,
+UNmigration,institutional,UN Migration|IOM,,,
+UNOCHA,institutional,OCHA,,,
+UNHumanRights,institutional,UN Human Rights|Human Rights,,,
+UNFPA,institutional,UNFPA,,,
+UNHABITAT,institutional,UN-Habitat|Habitat,,,
+ICAO,institutional,ICAO,,,
+IMOHQ,institutional,International Maritime Organization|IMO,,,
+WMO,institutional,World Meteorological Organization|WMO,,,
+ITU,institutional,ITU,,,
+WIPO,institutional,WIPO,,,
+UNWTO,institutional,UN Tourism|UNWTO|Tourism,,,
+EU_Commission,institutional,European Commission,,,
+Europarl_EN,institutional,European Parliament,,,
+EUCouncil,institutional,EU Council|Council,,,
+eu_eeas,institutional,European External Action Service|EEAS,,,
+EUCourtPress,institutional,Court of Justice|CJEU|Curia,,,
+ecb,institutional,European Central Bank|ECB,,,
+EIB,institutional,European Investment Bank|EIB,,,
+EUauditors,institutional,European Court of Auditors|Auditors,,,
+Frontex,institutional,Frontex,,,
+EUEnvironment,institutional,European Environment Agency|EEA,,,
+Europol,institutional,Europol,,,
+Eurojust,institutional,Eurojust,,,
+NATO,institutional,NATO|OTAN,,,
+OTAN_FR,institutional,OTAN,,1,
+OSCE,institutional,OSCE,,,
+INTERPOL_HQ,institutional,INTERPOL,,,
+OPCW,institutional,OPCW,,,
+iaeaorg,institutional,IAEA,,,
+IMFNews,institutional,IMF,,,
+WorldBank,institutional,World Bank,,,
+WTO,institutional,World Trade Organization|WTO,,,
+OMC_fr,institutional,OMC,,1,
+OECD,institutional,OECD,,,
+AfDB_Group,institutional,African Development Bank|AfDB,,,
+ADB_HQ,institutional,Asian Development Bank|ADB,,,
+EBRD,institutional,EBRD,,,
+OPECSecretariat,institutional,OPEC,,,
+UNCTAD,institutional,UNCTAD|UN Trade,,,
+_AfricanUnion,institutional,African Union,,,
+arableague_gs,institutional,Arab League|جامعة الدول العربية,,1,
+OAS_official,institutional,Organization of American States|OAS|OEA,,,
+ASEAN,institutional,ASEAN,,,
+cis_mfa,institutional,CIS|СНГ,,1,Handle does not look like the CIS executive committee
+ecowas_cedeao,institutional,ECOWAS|CEDEAO,,,
+jumuiya,institutional,East African Community|EAC,,,
+OIFrancophonie,institutional,Francophonie,,,
+CoE_fr,institutional,Conseil de l'Europe|Council of Europe,,1,
+UfMSecretariat,institutional,Union for the Mediterranean|UfM,,,
+GCCSG,institutional,GCC|مجلس التعاون,,1,
+CIJ_ICJ,institutional,International Court of Justice|CIJ|ICJ,,,
+IntlCrimCourt,institutional,International Criminal Court|ICC,,,
+ECHR_CEDH,institutional,European Court of Human Rights|ECHR|CEDH,,,
+VeniceComm,institutional,Venice Commission|Venice,,,
+WOAH,institutional,World Organisation for Animal Health|WOAH,,,
+CERN,institutional,CERN,,,
+esa,institutional,European Space Agency|ESA,,,
+eumetsat,institutional,EUMETSAT,,,
+ICRC,organization,International Committee of the Red Cross|ICRC|Red Cross,,,Not an IGO
+IFRC,organization,IFRC|Red Cross,,,Federation of national societies
+isostandards,organization,ISO,,,Network of national standards bodies
+# --- Media: France ---
+lemondefr,media,Le Monde,,,
+Le_Figaro,media,Le Figaro,,,
+libe,media,Libération|Libe,,,
+Mediapart,media,Mediapart,,,
+LEXPRESS,media,L'Express|Express,,,
+LePoint,media,Le Point,,,
+lobs,media,L'Obs|Obs,,,
+MarianneleMag,media,Marianne,,,
+LaCroix,media,La Croix,,,
+LesEchos,media,Les Echos,,,
+le_Parisien,media,Le Parisien,,,
+20Minutes,media,20 Minutes|Minutes,,,
+leJDD,media,Le JDD|JDD,,,
+LeHuffPost,media,HuffPost,,,
+Challenges,media,Challenges,,,
+BFMTV,media,BFMTV,,,
+franceinfo,media,franceinfo,,,
+FRANCE24,media,France 24|FRANCE24,,,
+TF1Info,media,TF1 Info|TF1,,,
+LCI,media,LCI,,,
+CNEWS,media,CNEWS,,,
+LCP,media,LCP,,,
+publicsenat,media,Public Sénat,,,
+franceinter,media,France Inter,,,
+RTLFrance,media,RTL,,,
+RMCInfo,media,RMC,,,
+Europe1,media,Europe 1|Europe1,,,
+radiofrance,media,Radio France,,,
+afpfr,media,AFP,,,
+# --- Media: international ---
+nytimes,media,The New York Times|New York Times,,,
+CNN,media,CNN,,,
+AP,media,The Associated Press|Associated Press,,,
+Reuters,media,Reuters,,,
+washingtonpost,media,The Washington Post|Washington Post,,,
+WSJ,media,The Wall Street Journal|Wall Street Journal,,,
+business,media,Bloomberg,,,
+NBCNews,media,NBC News,,,
+CBSNews,media,CBS News,,,
+ABC,media,ABC News,,,
+FoxNews,media,Fox News,,,
+axios,media,Axios,,,
+politico,media,Politico,,,
+TheAtlantic,media,The Atlantic|Atlantic,,,
+TIME,media,TIME,,,
+Forbes,media,Forbes,,,
+BBCNews,media,BBC News,,,
+BBCBreaking,media,BBC Breaking News|BBC,,,
+BBCWorld,media,BBC News World|BBC,,,
+guardian,media,The Guardian|Guardian,,,
+FT,media,Financial Times,,,
+SkyNews,media,Sky News,,,
+TheEconomist,media,The Economist|Economist,,,
+Telegraph,media,The Telegraph|Telegraph,,,
+Independent,media,The Independent|Independent,,,
+AJEnglish,media,Al Jazeera English|Al Jazeera,,,
+France24_en,media,France 24,,,
+dwnews,media,DW News|DW,,,
+euronews,media,euronews,,,
+rtenews,media,RTÉ News|RTE,,,
+NHKWORLD_News,media,NHK WORLD|NHK,,,
+SCMPNews,media,South China Morning Post|SCMP,,,
+KyivIndependent,media,The Kyiv Independent|Kyiv Independent,,,
+el_pais,media,EL PAÍS|Pais,,,
+repubblica,media,la Repubblica|Repubblica,,,
+FareedZakaria,media,Fareed Zakaria,,,Journalist (CNN host)
+# --- Notable people (verified) ---
+rihanna,verified,Rihanna,,,
+taylorswift13,verified,Taylor Swift,,,
+justinbieber,verified,Justin Bieber,,,
+katyperry,verified,Katy Perry,,,
+ladygaga,verified,Lady Gaga,,,
+selenagomez,verified,Selena Gomez,,,
+shakira,verified,Shakira,,,
+britneyspears,verified,Britney Spears,,,
+MileyCyrus,verified,Miley Cyrus,,,
+ArianaGrande,verified,Ariana Grande,,,
+NICKIMINAJ,verified,Nicki Minaj,,,
+Drake,verified,Drake,,,
+Eminem,verified,Eminem,,,
+SnoopDogg,verified,Snoop Dogg,,,
+jtimberlake,verified,Justin Timberlake,,,
+billieeilish,verified,Billie Eilish,,,
+DUALIPA,verified,Dua Lipa,,,
+edsheeran,verified,Ed Sheeran,,,
+Beyonce,verified,Beyoncé,,,
+BrunoMars,verified,Bruno Mars,,,
+theweeknd,verified,The Weeknd|Weeknd,,,
+BTS_twt,verified,BTS|방탄소년단,,,
+TheRock,verified,Dwayne Johnson|The Rock,,,
+VancityReynolds,verified,Ryan Reynolds,,,
+RealHughJackman,verified,Hugh Jackman,,,
+SamuelLJackson,verified,Samuel L. Jackson,,,
+MarkRuffalo,verified,Mark Ruffalo,,,
+Schwarzenegger,verified,Arnold Schwarzenegger|Arnold,,,
+aplusk,verified,Ashton Kutcher,,,
+KevinHart4real,verified,Kevin Hart,,,
+BenStiller,verified,Ben Stiller,,,
+Alyssa_Milano,verified,Alyssa Milano,,,
+ActuallyNPH,verified,Neil Patrick Harris,,,
+WilliamShatner,verified,William Shatner,,,
+Cristiano,verified,Cristiano Ronaldo,,,
+neymarjr,verified,Neymar,,,
+KMbappe,verified,Kylian Mbappé|Mbappe,,,
+Benzema,verified,Karim Benzema,,,
+AntoGriezmann,verified,Antoine Griezmann,,,
+TeamMessi,verified,Leo Messi|Messi,,,Team account
+KingJames,verified,LeBron James,,,
+StephenCurry30,verified,Stephen Curry,,,
+LewisHamilton,verified,Lewis Hamilton,,,
+serenawilliams,verified,Serena Williams,,,
+RafaelNadal,verified,Rafa Nadal|Nadal,,,
+DjokerNole,verified,Novak Djokovic|Đoković,,,
+imVkohli,verified,Virat Kohli,,,
+Ibra_official,verified,Zlatan Ibrahimović|Zlatan,,,
+tonyparker,verified,Tony Parker,,,
+jimmyfallon,verified,Jimmy Fallon,,,
+TheEllenShow,verified,Ellen DeGeneres|Ellen,,,
+ConanOBrien,verified,Conan O'Brien|Conan,,,
+Trevornoah,verified,Trevor Noah,,,
+StephenAtHome,verified,Stephen Colbert,,,
+rickygervais,verified,Ricky Gervais,,,
+JKCorden,verified,James Corden,,,
+JamelDebbouze,verified,Jamel Debbouze,,,
+OmarSy,verified,Omar Sy,,,
+Cyrilhanouna,verified,Cyril Hanouna,,,
+MrBeast,verified,MrBeast,,,
+LoganPaul,verified,Logan Paul,,,
+jakepaul,verified,Jake Paul,,,
+KSI,verified,KSI,,,
+KimKardashian,verified,Kim Kardashian,,,
+KylieJenner,verified,Kylie Jenner,,,
+ParisHilton,verified,Paris Hilton,,,
+pewdiepie,verified,PewDiePie,,,
+MKBHD,verified,Marques Brownlee,,,
+ishowspeedsui,verified,iShowSpeed|Speed,,,
+elonmusk,verified,Elon Musk,,,
+BillGates,verified,Bill Gates,,,
+JeffBezos,verified,Jeff Bezos,,,
+finkd,verified,Mark Zuckerberg,,,
+tim_cook,verified,Tim Cook,,,
+sama,verified,Sam Altman,,,
+JensenHuang,verified,Jensen Huang,,1,Account not confirmed
+satyanadella,verified,Satya Nadella,,,
+richardbranson,verified,Richard Branson,,,
+jack,verified,Jack Dorsey|jack,,,
+VitalikButerin,verified,Vitalik Buterin,,,
+billmckibben,verified,Bill McKibben,,,Writer and activist
+doctorow,verified,Cory Doctorow,,,Writer
+Snowden,verified,Edward Snowden,,,
+yanisvaroufakis,institutional,Yanis Varoufakis,,,MeRA25 secretary-general
+# --- Experts ---
+PascalBoniface,expert,Pascal Boniface,Relations internationales,,
+ianbremmer,expert,Ian Bremmer,"Science politique, géopolitique",,
+BrunoTertrais,expert,Bruno Tertrais,"Études stratégiques, géopolitique",,
+TimothyDSnyder,expert,Timothy Snyder,Histoire,,
+anneapplebaum,expert,Anne Applebaum,"Histoire, relations internationales",,
+markhleonard,expert,Mark Leonard,"Géopolitique, politique étrangère européenne",,
+MearsheimerJ,expert,John Mearsheimer,Relations internationales,1,Account not confirmed
+RobertKagan,expert,Robert Kagan,Relations internationales,1,Account not confirmed
+celiabelin,expert,Célia Belin,"Politique américaine, relations transatlantiques",,
+paulkrugman,expert,Paul Krugman,"Économie, macroéconomie",,
+JosephEStiglitz,expert,Joseph Stiglitz,"Économie, inégalités",,
+PikettyLeMonde,expert,Thomas Piketty|Piketty,"Économie, inégalités de patrimoine",,
+DAcemogluMIT,expert,Daron Acemoglu,"Économie politique, croissance",,
+EstherDuflo,expert,Esther Duflo,Économie du développement,1,Account not confirmed
+gabriel_zucman,expert,Gabriel Zucman,"Économie publique, fiscalité",,Handle corrected from @gabriezucman
+MazzucatoM,expert,Mariana Mazzucato,"Économie, politique d'innovation",,
+krogoff,expert,Kenneth Rogoff,"Économie internationale, économie monétaire",1,Account not confirmed
+Nouriel,expert,Nouriel Roubini,"Macroéconomie, crises financières",,
+adam_tooze,expert,Adam Tooze,"Histoire économique, économie politique",,
+JMJancovici,expert,Jean-Marc Jancovici,"Énergie, changement climatique",,
+rahmstorf,expert,Stefan Rahmstorf,"Climatologie, océanographie",,
+MichaelEMann,expert,Michael E. Mann,Climatologie,,
+KHayhoe,expert,Katharine Hayhoe,Climatologie,,
+hausfath,expert,Zeke Hausfather,"Climatologie, modélisation du climat",,
+DrJamesEHansen,expert,James Hansen,Sciences de l'atmosphère,1,Account not confirmed
+jasonhickel,expert,Jason Hickel,Économie écologique,,
+neiltyson,expert,Neil deGrasse Tyson,Astrophysique,,
+ProfBrianCox,expert,Brian Cox,Physique des particules,,
+seanmcarroll,expert,Sean Carroll,"Physique théorique, cosmologie",,
+AstroKatie,expert,Katie Mack,"Astrophysique, cosmologie",,
+carlorovelli,expert,Carlo Rovelli,Physique théorique,,
+LKrauss1,expert,Lawrence Krauss,Physique théorique,,
+bgreene,expert,Brian Greene,"Physique théorique, théorie des cordes",,
+skdh,expert,Sabine Hossenfelder,Physique théorique,,
+ylecun,expert,Yann LeCun,"Intelligence artificielle, apprentissage profond",,
+Yoshua_Bengio,expert,Yoshua Bengio,"Intelligence artificielle, apprentissage automatique",,
+geoffreyhinton,expert,Geoffrey Hinton,"Intelligence artificielle, réseaux de neurones",,
+StuartJRussell,expert,Stuart Russell,"Sûreté de l'IA, informatique",1,Account not confirmed
+GaryMarcus,expert,Gary Marcus,"Sciences cognitives, intelligence artificielle",,
+karpathy,expert,Andrej Karpathy,"Intelligence artificielle, vision par ordinateur",,
+drfeifei,expert,Fei-Fei Li,"Vision par ordinateur, intelligence artificielle",,
+demishassabis,expert,Demis Hassabis,"Neurosciences, intelligence artificielle",,
+EricTopol,expert,Eric Topol,"Médecine, santé numérique",,
+Atul_Gawande,expert,Atul Gawande,"Santé publique, chirurgie",,
+PeterHotez,expert,Peter Hotez,"Vaccinologie, maladies infectieuses",,
+DrPaulOffit,expert,Paul Offit,"Pédiatrie, vaccinologie",1,Account not confirmed
+DrSidMukherjee,expert,Siddhartha Mukherjee,"Oncologie, génétique",,
+FrancisCollins,expert,Francis Collins,"Génétique, génomique",1,Account not confirmed
+DrEricDing,expert,Eric Feigl-Ding|Eric Ding,"Épidémiologie, santé publique",,
+RWMaloneMD,expert,Robert Malone,"Vaccinologie, biologie moléculaire",,
+sapinker,expert,Steven Pinker,"Psychologie cognitive, linguistique",,
+JonHaidt,expert,Jonathan Haidt,"Psychologie sociale, psychologie morale",,
+RobertSapolsky,expert,Robert Sapolsky,"Neurosciences, biologie du comportement",1,Account not confirmed
+AdamMGrant,expert,Adam Grant,Psychologie des organisations,,
+LFeldmanBarrett,expert,Lisa Feldman Barrett,"Neurosciences affectives, psychologie",,
+DominiqueMeda,expert,Dominique Méda,"Sociologie, travail",1,Account not confirmed
+CassSunstein,expert,Cass Sunstein,"Droit constitutionnel, économie comportementale",,
+Yascha_Mounk,expert,Yascha Mounk,"Science politique, démocratie",,
+tribelaw,expert,Laurence Tribe,Droit constitutionnel,,
+RichardDawkins,expert,Richard Dawkins,Biologie de l'évolution,,
+NoahRFeldman,expert,Noah Feldman,"Droit constitutionnel, théorie du droit",1,Account not confirmed
+philippesands,expert,Philippe Sands,Droit international,,
+HaroldHongjuKoh,expert,Harold Hongju Koh|Harold Koh,"Droit international, droits humains",1,Account not confirmed
+timberners_lee,expert,Tim Berners-Lee,"Informatique, technologies du web",,
+MichaelSandel,expert,Michael Sandel,Philosophie politique,1,Account not confirmed
+PeterSinger,expert,Peter Singer,"Philosophie morale, éthique appliquée",,
+MarthaNussbaum,expert,Martha Nussbaum,"Philosophie, théorie politique",1,Account not confirmed
+michaelshermer,expert,Michael Shermer,"Scepticisme scientifique, histoire des sciences",,

@@ -203,6 +203,24 @@ def cmd_factcheck(args: argparse.Namespace) -> None:
         raise SystemExit(code)
 
 
+def cmd_badges(args: argparse.Namespace) -> None:
+    settings = _settings("cli")
+    from tower.core.badge_seed import run_seed
+
+    code = asyncio.run(
+        run_seed(
+            settings,
+            path=args.file,
+            apply=args.apply,
+            category=args.category,
+            limit=args.limit,
+            include_review=args.include_review,
+        )
+    )
+    if code:
+        raise SystemExit(code)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tower", description="12A Tower")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -259,6 +277,26 @@ def build_parser() -> argparse.ArgumentParser:
     asub.add_parser(
         "legi-sync", help="Synchronize the LEGI mirror now (global dump, then daily diffs)"
     ).set_defaults(func=cmd_atlas)
+    p = sub.add_parser("badges", help="Badge tools: bulk seed from a curated list")
+    bsub = p.add_subparsers(dest="action", required=True)
+    pb = bsub.add_parser(
+        "seed", help="Grant badges from a CSV list (dry run unless --apply; X reads on apply)"
+    )
+    pb.add_argument("--file", help="CSV file (default: the list shipped with the package)")
+    pb.add_argument("--apply", action="store_true", help="Resolve with the X API and grant")
+    pb.add_argument(
+        "--category",
+        choices=["institutional", "organization", "media", "expert", "verified"],
+        help="Only rows of this category",
+    )
+    pb.add_argument("--limit", type=int, help="At most this many rows")
+    pb.add_argument(
+        "--include-review",
+        action="store_true",
+        help="Also grant review rows without the X government check",
+    )
+    pb.set_defaults(func=cmd_badges)
+
     p = sub.add_parser("factcheck", help="Fact-check tools: evaluation and registry seed")
     fsub = p.add_subparsers(dest="action", required=True)
     pe = fsub.add_parser("eval", help="Run an evaluation set (JSONL) through the pipeline")

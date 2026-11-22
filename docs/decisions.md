@@ -484,3 +484,17 @@ Demande de Jules : un post vérifié hors des filtres n'affichait rien dans l'ex
 | Calcul à la demande par SQL, avec un index sur expression `(platform, substring(sha256(external_id::bytea) FROM 1 FOR 2))`, et cache HTTP 5 minutes + `ETag` | Même règle que la route du verdict (expiration, groupes, rattachements) sans table à maintenir ni risque de désynchronisation ; mesuré à 0,06 ms par boîte sur 200 000 contenus |
 | Les filtres ne décident plus de l'affichage, seulement de l'envoi des posts | L'affichage ne révèle plus la navigation ; l'envoi reste limité aux posts filtrés |
 
+
+## Liste amorce de badges (2026-11-22)
+
+Demande de Jules : badger en masse des listes de comptes (dirigeants, institutions,
+médias, personnalités, experts) en respectant la catégorie.
+
+| Décision | Raison |
+|---|---|
+| Commande `tower badges seed` + liste CSV livrée dans le paquet, plutôt qu'un script collé dans la console Railway | Passe par les cas d'usage (permission, audit, événement), testée, relançable ; un long script collé dans un terminal web est fragile |
+| Dry run par défaut ; `--apply` résout chaque pseudo par l'API X officielle | Un pseudo n'identifie pas un compte ; pas de scraping |
+| Jamais de modification d'un compte déjà badgé, bloqué ou retiré par l'équipe | Une décision de l'équipe l'emporte toujours |
+| Contrôle du nom (un mot commun) et lignes `review` réservées aux comptes `government` de X | Sûreté : les listes fournies ne sont pas authentifiées ; dans le doute, ne pas attribuer |
+| `institutional` seulement pour les personnes en fonction (dont direction de parti), sinon `verified` | Consigne de Jules ; la catégorie vient de la fonction, jamais de l'opinion |
+| Domaine des experts en français | Décision du 2026-11-21 (expertise en texte libre français) |
