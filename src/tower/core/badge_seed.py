@@ -1,19 +1,22 @@
 """Bulk badge seed from a curated CSV list (``tower badges seed``).
 
 Each row names an X account by handle, the expected display name and the badge
-category. Without ``--apply`` nothing is called nor written: the file is validated and
-the plan is printed. With ``--apply`` every handle is resolved once with the official X
-API (``resolve_x_handle``: one billable user read on ``provider:x``), then the badge is
-granted through the ``grant_badge`` use case (permission, audit, event).
+category. The native X id is first looked up on Wikidata (free: P2002 username with its
+P6552 id qualifier). Without ``--apply`` nothing is written and X is never called: the
+file is validated and the plan (free and paid rows) is printed. With ``--apply`` the
+badge is granted through the ``grant_badge`` use case (permission, audit, event).
 
 Safety rules (when in doubt, do not grant):
 
 - an account that already has a badge row is never touched (active, blocked, or
   revoked by the team), except a badge revoked by the system;
-- the resolved display name or handle must share a word with the expected name,
-  otherwise the row is skipped (``name_mismatch``) for a manual check;
-- a row flagged ``review`` is only granted when X itself marks the account
-  ``government`` (grey check); otherwise it is listed for a manual check.
+- an unambiguous Wikidata id is trusted as is (team decision, 2026-11-22); several
+  ids for one handle are ignored and the row goes to X;
+- a row not found on Wikidata is resolved with the official X API
+  (``resolve_x_handle``: one billable user read on ``provider:x``) and must pass the
+  name check (``name_mismatch`` otherwise) and carry an X check (``blue``,
+  ``business`` or ``government``; ``no_check`` otherwise);
+- such a row flagged ``review`` needs the ``government`` (grey) check.
 """
 
 from __future__ import annotations
@@ -192,46 +195,109 @@ def _blocks_grant(existing: tuple[str, str | None] | None) -> str | None:
     return f"badge {status}" + (f" by {ended_by}" if ended_by and status != "active" else "")
 
 
-async def seed_one(
-    db: Any, client: Any, row: SeedRow, *, ttl_s: int, include_review: bool
-) -> SeedOutcome:
-    """Resolve and grant one row (see module docstring for the safety rules)."""
+CHECKED_TYPES = frozenset({"blue", "business", "government"})
+
+
+async def lookup_wikidata(source: Any, handles: Sequence[str]) -> dict[str, str | None]:
+    """Native X id of each handle from Wikidata (P2002 + P6552), keyed by lowercase
+    handle. ``None``: several different ids (ambiguous, never used). Handles are asked
+    as given and in lowercase (WDQS compares strings exactly)."""
+    from tower.core.domain.errors import DomainError
+    from tower.core.domain.platforms import Platform, validate_external_id
+
+    ids: dict[str, set[str]] = {}
+    unique = list(dict.fromkeys(handles))
+    for start in range(0, len(unique), 100):
+        chunk = unique[start : start + 100]
+        asked = list(dict.fromkeys([*chunk, *(h.lower() for h in chunk)]))
+        for account in await source.accounts_by_handles(asked):
+            if account.handle is None:
+                continue
+            try:
+                xid = validate_external_id(Platform.X, account.x_id)
+            except DomainError:
+                continue
+            ids.setdefault(account.handle.lower(), set()).add(xid)
+    return {h: (next(iter(v)) if len(v) == 1 else None) for h, v in ids.items()}
+
+
+async def _grant(
+    db: Any, row: SeedRow, external_id: str, handle: str, extra_note: str
+) -> str | None:
+    """Grant through the use case; returns an error text on a conflict."""
     from tower.core.domain.badges import AccountRef
-    from tower.core.domain.errors import Conflict, NotFound
+    from tower.core.domain.errors import Conflict
     from tower.core.domain.platforms import Platform
     from tower.core.domain.security import Actor
     from tower.core.usecases import badges as uc
+
+    note = f"seed {SEED_ACTOR} ({extra_note})" + (f": {row.note}" if row.note else "")
+    try:
+        async with db.transaction() as session:
+            await uc.grant_badge(
+                session,
+                Actor.system(SEED_ACTOR),
+                AccountRef(Platform.X, external_id),
+                category=row.category.value,
+                expertise=row.expertise,
+                note=note,
+                handle=handle,
+            )
+    except Conflict as exc:
+        return str(exc)
+    return None
+
+
+async def seed_one(
+    db: Any,
+    client: Any,
+    row: SeedRow,
+    *,
+    ttl_s: int,
+    include_review: bool,
+    wikidata: dict[str, str | None] | None = None,
+) -> SeedOutcome:
+    """Resolve and grant one row (see module docstring for the safety rules).
+
+    An unambiguous Wikidata id is used as is, without any X call. Otherwise the handle
+    is resolved with the X API and the account must carry an X check."""
+    from tower.core.domain.errors import NotFound
+    from tower.core.domain.security import Actor
     from tower.core.usecases.badge_sources import resolve_x_handle
 
-    actor = Actor.system(SEED_ACTOR)
     if await _known_active(db, row.handle):
         return SeedOutcome(row.handle, "exists", "badge active (stored handle)")
+    wd_id = (wikidata or {}).get(row.handle.lower())
+    if wd_id is not None:
+        blocked = _blocks_grant(await _existing_badge(db, wd_id))
+        if blocked:
+            return SeedOutcome(row.handle, "exists", f"{blocked}; id={wd_id} (wikidata)")
+        error = await _grant(db, row, wd_id, row.handle, "wikidata")
+        if error:
+            return SeedOutcome(row.handle, "exists", f"{error}; id={wd_id} (wikidata)")
+        return SeedOutcome(row.handle, "granted", f"{row.category.value}; id={wd_id} (wikidata)")
+    if client is None:
+        return SeedOutcome(row.handle, "needs_x", "not on Wikidata; X API not configured")
     try:
-        found = await resolve_x_handle(db, actor, client, row.handle, ttl_s=ttl_s)
+        found = await resolve_x_handle(
+            db, Actor.system(SEED_ACTOR), client, row.handle, ttl_s=ttl_s
+        )
     except NotFound:
         return SeedOutcome(row.handle, "not_found")
-    shown = f"{found['display_name']!r} id={found['external_id']} x={found['verified_type']}"
+    vtype = found["verified_type"]
+    shown = f"{found['display_name']!r} id={found['external_id']} x={vtype}"
     blocked = _blocks_grant(await _existing_badge(db, found["external_id"]))
     if blocked:
         return SeedOutcome(row.handle, "exists", f"{blocked}; {shown}")
     if not name_matches(row.names, found["display_name"], found["handle"]):
         return SeedOutcome(row.handle, "name_mismatch", f"expected {row.names[0]!r}; {shown}")
-    if row.review and not include_review and found["verified_type"] != "government":
+    if row.review and not include_review and vtype != "government":
         return SeedOutcome(row.handle, "review", shown)
-    note = f"seed {SEED_ACTOR}" + (f": {row.note}" if row.note else "")
-    try:
-        async with db.transaction() as session:
-            await uc.grant_badge(
-                session,
-                actor,
-                AccountRef(Platform.X, found["external_id"]),
-                category=row.category.value,
-                expertise=row.expertise,
-                note=note,
-                handle=found["handle"],
-            )
-    except Conflict as exc:
-        return SeedOutcome(row.handle, "exists", f"{exc}; {shown}")
+    if vtype not in CHECKED_TYPES:
+        return SeedOutcome(row.handle, "no_check", shown)
+    error = await _grant(db, row, found["external_id"], found["handle"], f"x {vtype}")
+    if error:
+        return SeedOutcome(row.handle, "exists", f"{error}; {shown}")
     return SeedOutcome(row.handle, "granted", f"{row.category.value}; {shown}")
 
 
@@ -248,11 +314,27 @@ def _x_client(settings: Settings) -> Any:
     )
 
 
-def print_plan(parsed: SeedParse, rows: Sequence[SeedRow]) -> None:
+def print_plan(
+    parsed: SeedParse,
+    rows: Sequence[SeedRow],
+    wikidata: dict[str, str | None] | None,
+    user_read_usd: float,
+) -> None:
+    def route(row: SeedRow) -> str:
+        if wikidata is None:
+            return "?"
+        key = row.handle.lower()
+        if key in wikidata:
+            return "wikidata" if wikidata[key] is not None else "x(ambig)"
+        return "x"
+
     for row in rows:
         flag = " [review]" if row.review else ""
         extra = f" ({row.expertise})" if row.expertise else ""
-        print(f"plan  @{row.handle:<16} {row.category.value:<13} {row.names[0]}{extra}{flag}")
+        print(
+            f"plan  @{row.handle:<16} {row.category.value:<13} {route(row):<9}"
+            f" {row.names[0]}{extra}{flag}"
+        )
     for error in parsed.errors:
         print(f"invalid  {error}")
     counts: dict[str, int] = {}
@@ -261,6 +343,12 @@ def print_plan(parsed: SeedParse, rows: Sequence[SeedRow]) -> None:
     summary = ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
     review = sum(1 for r in rows if r.review)
     print(f"Plan: {len(rows)} rows ({summary}); review={review}; invalid={len(parsed.errors)}.")
+    if wikidata is not None:
+        paid = sum(1 for r in rows if route(r) != "wikidata")
+        print(
+            f"Wikidata ids: {len(rows) - paid} (free); X reads at most: {paid}"
+            f" (≈ {paid * user_read_usd:.2f} USD at TOWER_X_PRICE_USER_READ_USD)."
+        )
 
 
 async def run_seed(
@@ -271,20 +359,39 @@ async def run_seed(
     category: str | None,
     limit: int | None,
     include_review: bool,
+    use_wikidata: bool = True,
+    wikidata_source: Any = None,
 ) -> int:
-    """CLI helper. Returns the process exit code (1 on invalid rows or X errors)."""
+    """CLI helper. Returns the process exit code (1 on invalid rows, Wikidata or X errors)."""
+    from tower.core.ports.knowledge import SourceUnavailable
+
     parsed = parse_seed(read_seed(path))
     rows = [r for r in parsed.rows if category is None or r.category.value == category]
     if limit is not None:
         rows = rows[:limit]
+    wikidata: dict[str, str | None] | None = None
+    if use_wikidata:
+        source = wikidata_source
+        if source is None:
+            from tower.core.adapters.wikidata_badges import WikidataSparqlSource
+
+            source = WikidataSparqlSource(endpoint=settings.badges_wikidata_endpoint)
+        try:
+            wikidata = await lookup_wikidata(source, [r.handle for r in rows])
+        except SourceUnavailable as exc:
+            # Never fall back silently to paid X reads.
+            print(f"Wikidata unavailable ({exc}): retry later, or pass --no-wikidata.")
+            return 1
+        finally:
+            if wikidata_source is None:
+                await source.aclose()
     if not apply:
-        print_plan(parsed, rows)
-        print("Dry run: nothing called, nothing written. Add --apply to resolve and grant.")
+        print_plan(parsed, rows, wikidata, settings.x_price_user_read_usd)
+        print("Dry run: no X call, nothing written. Add --apply to grant.")
         return 1 if parsed.errors else 0
     client = _x_client(settings)
     if client is None:
-        print("TOWER_X_BEARER_TOKEN is not set: run this on the gate service.")
-        return 1
+        print("TOWER_X_BEARER_TOKEN is not set: rows not on Wikidata are skipped (needs_x).")
     from tower.core.db.database import Database
     from tower.core.domain.errors import Conflict
 
@@ -300,6 +407,7 @@ async def run_seed(
                     row,
                     ttl_s=settings.budget_reservation_ttl_s,
                     include_review=include_review,
+                    wikidata=wikidata,
                 )
             except Conflict as exc:
                 # X unavailable or budget exhausted: stop, a rerun resumes safely.
@@ -308,9 +416,11 @@ async def run_seed(
                 break
             counts[outcome.status] = counts.get(outcome.status, 0) + 1
             print(f"{outcome.status:<13} @{outcome.handle:<16} {outcome.detail}")
-            await asyncio.sleep(0.1)
+            if "(wikidata)" not in outcome.detail:
+                await asyncio.sleep(0.1)
     finally:
-        await client.aclose()
+        if client is not None:
+            await client.aclose()
         await db.dispose()
     print("Done: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
     return code

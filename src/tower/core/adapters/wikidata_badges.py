@@ -27,6 +27,7 @@ __all__ = ["SPARQL_ENDPOINT", "WikidataSparqlSource"]
 SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
 USER_AGENT = "Seat12A-Tower/0.1 (badge import)"
 MAX_DETAIL_QIDS = 200
+MAX_HANDLES = 200
 INTL_SCOPE = "intl"
 _INTL_TYPES = ("Q484652", "Q245065")  # international / intergovernmental organization
 _ENTITY = "http://www.wikidata.org/entity/"
@@ -52,6 +53,22 @@ def accounts_queries(scope: str) -> list[str]:
         f"{head} ?item wdt:P27 wd:{scope} . {_ACCOUNT_FILTER} }}",
         f"{head} ?item wdt:P17 wd:{scope} . {_ACCOUNT_FILTER} }}",
     ]
+
+
+def handles_query(handles: Sequence[str]) -> str:
+    """(item, numeric id, handle) of the given X handles (exact strings: WDQS cannot
+    compare case-insensitively at this size without timing out; callers pass the case
+    variants they want)."""
+    values = " ".join(f'"{h}"' for h in dict.fromkeys(handles) if _safe_handle(h))
+    return (
+        "SELECT ?item ?xid ?handle WHERE { VALUES ?handle { " + values + " } "
+        "?item p:P2002 ?st . ?st ps:P2002 ?handle ; pq:P6552 ?xid ; wikibase:rank ?rank . "
+        "FILTER(?rank != wikibase:DeprecatedRank) FILTER NOT EXISTS { ?st pq:P582 ?end } }"
+    )
+
+
+def _safe_handle(handle: str) -> bool:
+    return 1 <= len(handle) <= 15 and all(c.isascii() and (c.isalnum() or c == "_") for c in handle)
 
 
 def details_query(qids: Sequence[str]) -> str:
@@ -177,6 +194,14 @@ class WikidataSparqlSource:
         for query in accounts_queries(scope):
             out.extend(parse_accounts(await self._query(query)))
         return out
+
+    async def accounts_by_handles(self, handles: Sequence[str]) -> Sequence[WikidataAccount]:
+        """Accounts whose current X username statement is one of ``handles`` (≤ 200)."""
+        if len(handles) > MAX_HANDLES:
+            raise ValueError(f"at most {MAX_HANDLES} handles per call")
+        if not handles:
+            return []
+        return parse_accounts(await self._query(handles_query(handles)))
 
     async def items(self, qids: Sequence[str]) -> Mapping[str, WikidataItem]:
         clean = [q for q in dict.fromkeys(qids) if is_qid(q)]

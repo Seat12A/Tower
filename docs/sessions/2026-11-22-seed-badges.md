@@ -20,6 +20,12 @@ les autres en `verified`.
 - Contrôle du nom resserré : le pseudo ne sert de repli que si le nom affiché n'a aucun
   mot latin (avant, un mot du nom attendu présent dans le pseudo suffisait toujours, ce
   qui rendait le contrôle sans effet pour la plupart des lignes).
+- **Wikidata d'abord** (demande de Jules) : `WikidataSparqlSource.accounts_by_handles`
+  (P2002 + qualificatif P6552) ; un ID unique est cru sans appel à X ; hors Wikidata, X
+  avec coche obligatoire (`no_check` sinon) ; `--no-wikidata`. Dry run réel contre
+  Wikidata : **628 lignes gratuites sur 770**, 142 lectures X au plus (≈ 1,42 $ au lieu
+  de 7,70 $). Par catégorie : institutional 426/538, verified 87/94, expert 50/68,
+  media 61/65, organization 4/5.
 - Précédemment : Deuxième ajout du jour :
   51 comptes de l'État français (services, agences, autorités indépendantes,
   établissements publics, préfectures, diplomatie) ; doublons et « À confirmer » écartés ;
@@ -69,16 +75,19 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
   (`test_identity_refresh_errors`, `test_subject_sites_failure_does_not_stop_the_investigation`),
   fichier déjà noté en échec préexistant le 2026-11-21, sans lien avec les badges. Non corrigés.
 - CSV présent dans la roue construite (`uv build`).
-- Dry run réel de la CLI : 770 lignes, 0 invalide. `tests/test_badge_seed.py` : 16 verts.
+- Dry run réel de la CLI : 770 lignes, 0 invalide. `tests/test_badge_seed.py` : 19 verts.
+- **Appelé pour de vrai** : Wikidata (requêtes SPARQL en lecture, gratuites) pour la
+  mesure de couverture et le dry run. L'API X n'a jamais été appelée.
 - Aucune migration (pas de changement de schéma) ; aucun code ajouté à gate, hangar ou
   intercom (module chargé seulement par la CLI) : pas de mesure de RAM nécessaire.
-- **Rien d'externe appelé** : ni l'API X, ni Wikidata. Les pseudos n'ont donc pas été
-  vérifiés en direct : c'est le rôle de `--apply`.
+
 
 ## Points ouverts / suite
 
-- Coût de `--apply` complet : environ 770 lectures × 0,01 $ ≈ 7,7 $ sur `provider:x`
-  (plafond par défaut 20 $/mois, partagé avec le radar). Lancer par catégorie si besoin.
+- Coût de `--apply` complet : 142 lectures X au plus × 0,01 $ (valeur de configuration,
+  tarif réel de X à vérifier) ≈ 1,4 $ sur `provider:x`.
+- Experts hors Wikidata souvent sans coche X : ils sortiront en `no_check`, à badger à
+  la main après vérification (page institutionnelle qui renvoie au compte).
 - Relire la sortie : `name_mismatch` et `review` sont à vérifier à la main (`/badge`).
 - Les fonctions de 2026 postérieures aux connaissances de l'assistant (ex. Premier
   ministre britannique, présidente du Pérou) viennent de la liste source ; la catégorie

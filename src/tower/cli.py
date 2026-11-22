@@ -215,6 +215,7 @@ def cmd_badges(args: argparse.Namespace) -> None:
             category=args.category,
             limit=args.limit,
             include_review=args.include_review,
+            use_wikidata=not args.no_wikidata,
         )
     )
     if code:
@@ -280,7 +281,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("badges", help="Badge tools: bulk seed from a curated list")
     bsub = p.add_subparsers(dest="action", required=True)
     pb = bsub.add_parser(
-        "seed", help="Grant badges from a CSV list (dry run unless --apply; X reads on apply)"
+        "seed", help="Grant badges from a CSV list (Wikidata ids first; dry run unless --apply)"
     )
     pb.add_argument("--file", help="CSV file (default: the list shipped with the package)")
     pb.add_argument("--apply", action="store_true", help="Resolve with the X API and grant")
@@ -294,6 +295,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--include-review",
         action="store_true",
         help="Also grant review rows without the X government check",
+    )
+    pb.add_argument(
+        "--no-wikidata", action="store_true", help="Resolve every handle with the X API"
     )
     pb.set_defaults(func=cmd_badges)
 

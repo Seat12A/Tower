@@ -76,7 +76,7 @@ contre un vrai uvicorn (httpx `ASGITransport` ne diffuse pas une réponse infini
 | `tower errors list [--all]` | Erreurs stockées |
 | `tower errors resolve <empreinte> [--note]` | Résoudre une erreur |
 | `tower errors catalog --markdown` | Catalogue (régénère `docs/errors.md`) |
-| `tower badges seed [--apply]` | Badges en masse depuis la liste amorce (dry run sans `--apply` ; voir [badges.md](badges.md#liste-amorce-tower-badges-seed)) |
+| `tower badges seed [--apply]` | Badges en masse depuis la liste amorce : ID Wikidata gratuits d'abord, API X sinon (dry run sans `--apply` ; voir [badges.md](badges.md#liste-amorce-tower-badges-seed)) |
 | `tower atlas seed` | Amorce les flux d'actualité de référence et les registres par pays (idempotent, n'écrase pas une ligne modifiée par l'équipe) |
 | `tower atlas legi-sync` | Synchronise le miroir LEGI maintenant (dump global la première fois, puis différences) et affiche taille, durée et RSS de pointe |
 | `tower factcheck calibrate [--dry-run]` | Recalibre la confiance sur les revues (candidat inactif ; refusé sous 200 revues, modèle complet à partir de 100 refus) |

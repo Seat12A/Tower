@@ -251,24 +251,36 @@ Attribution en masse depuis une liste triée par l'équipe : `src/tower/core/dat
 `name` (noms attendus séparés par `|`), `expertise` (experts seulement), `review` (`1`),
 `note` (note interne). Les lignes `#` sont des commentaires.
 
-- **Sans `--apply`** : rien n'est appelé ni écrit ; le fichier est validé (pseudo de 15
-  caractères au plus, catégorie, expertise, doublons) et le plan est affiché.
-- **Avec `--apply`** (sur le service **gate**, qui a `TOWER_X_BEARER_TOKEN`) : chaque
-  pseudo est converti une fois en ID par l'API X (`resolve_x_handle`, une lecture
-  d'utilisateur facturée sur `provider:x`, environ 0,01 $), puis le badge est attribué
-  par `grant_badge` (source `manual`, acteur `system:badges-seed`, note
-  `seed badges-seed: …`).
-- Règles de sûreté : un compte qui a déjà un badge (actif, bloqué, ou retiré par
-  l'équipe) n'est jamais modifié ; le nom affiché renvoyé par X doit contenir un mot
-  (3 caractères au moins) d'un nom attendu, sinon `name_mismatch` ; seulement si le nom
-  affiché n'a aucun mot en alphabet latin (japonais, arabe, cyrillique…), un mot de
-  4 caractères au moins du nom attendu peut être trouvé dans le pseudo (ces lignes sont
-  marquées `review`) ; une ligne `review` n'est
-  attribuée que si X marque le compte `government` (coche grise), sauf
-  `--include-review`. Un compte déjà badgé sous ce pseudo (pseudo stocké) est sauté sans
-  appel à X : relancer la commande reprend là où elle s'est arrêtée.
-- Arrêt propre si X est indisponible ou si le budget `provider:x` est épuisé (code 1).
-- Options : `--category <catégorie>`, `--limit N`, `--include-review`.
+1. **Wikidata d'abord (gratuit)** : l'ID natif de chaque pseudo est cherché sur Wikidata
+   (déclaration P2002 avec son qualificatif P6552, rang non déprécié, sans date de fin),
+   par lots de 100 pseudos, tels quels et en minuscules (WDQS compare les chaînes
+   exactement). Un ID unique est **utilisé tel quel, sans appel à X ni contrôle du nom**
+   (décision de Jules : une erreur y est peu probable), y compris pour une ligne
+   `review`. Plusieurs ID pour un pseudo : ignorés, la ligne passe par X. Wikidata
+   indisponible : la commande s'arrête (jamais de repli silencieux sur des lectures
+   payantes) ; `--no-wikidata` force X pour toutes les lignes.
+2. **X ensuite (payant)**, pour les lignes absentes de Wikidata, sur le service **gate**
+   (`TOWER_X_BEARER_TOKEN` ; sans lui, ces lignes sont sautées : `needs_x`) : le pseudo
+   est converti par `resolve_x_handle` (une lecture d'utilisateur facturée sur
+   `provider:x`, `TOWER_X_PRICE_USER_READ_USD`). Il faut que le nom affiché contienne un
+   mot (3 caractères au moins) d'un nom attendu (`name_mismatch` sinon ; repli sur un mot
+   de 4 caractères dans le pseudo seulement si le nom affiché n'a aucun mot latin) et
+   que le compte ait **une coche X** : `blue`, `business` ou `government` (`no_check`
+   sinon). Une ligne `review` exige la coche grise `government` (`review` sinon), sauf
+   `--include-review`.
+3. Attribution par `grant_badge` (source `manual`, acteur `system:badges-seed`, note
+   `seed badges-seed (wikidata|x <coche>): …`).
+
+Règles communes : un compte qui a déjà un badge (actif, bloqué, ou retiré par l'équipe)
+n'est jamais modifié ; un compte déjà badgé sous ce pseudo (pseudo stocké) est sauté
+sans aucun appel, si bien que relancer reprend là où la commande s'est arrêtée ; arrêt
+propre si X est indisponible ou si le budget `provider:x` est épuisé (code 1).
+
+Sans `--apply`, rien n'est écrit et X n'est jamais appelé : le fichier est validé
+(pseudo de 15 caractères au plus, catégorie, expertise, doublons), Wikidata est
+interrogé et le plan affiche pour chaque ligne la voie (`wikidata`, `x`, `x(ambig)`),
+puis le nombre maximal de lectures X et leur coût estimé. Options : `--category`,
+`--limit N`, `--include-review`, `--no-wikidata`.
 
 Catégories de la liste : `institutional` pour les personnes **en fonction** (exécutif,
 parlement, exécutif local, direction d'un parti) et les institutions publiques et

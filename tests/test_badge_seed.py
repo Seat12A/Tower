@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from tower.core.badge_seed import (
     SeedRow,
+    lookup_wikidata,
     name_matches,
     parse_seed,
     read_seed,
@@ -16,11 +17,14 @@ from tower.core.badge_seed import (
     seed_one,
 )
 from tower.core.db.database import Database
+from tower.core.domain import error_codes as ec
 from tower.core.domain.badges import AccountRef, BadgeCategory
 from tower.core.domain.platforms import Platform
 from tower.core.domain.security import Actor
 from tower.core.models.badges import Badge
 from tower.core.models.ingestion import PlatformAccount
+from tower.core.ports.badges import WikidataAccount
+from tower.core.ports.knowledge import SourceUnavailable
 from tower.core.ports.platforms import PublicAccount
 from tower.core.usecases import badges as uc
 
@@ -110,9 +114,10 @@ async def _badge(db: Database, xid: str) -> Badge | None:
 async def test_seed_one_grants_and_skips(db: Database) -> None:
     fake = FakeX(
         {
-            "EmmanuelMacron": _acct("1976143068", "EmmanuelMacron", "Emmanuel Macron"),
-            "Impostor": _acct("42", "Impostor", "Totally Someone"),
-            "Obscure": _acct("43", "Obscure", "Obscure Mayor"),
+            "EmmanuelMacron": _acct("1976143068", "EmmanuelMacron", "Emmanuel Macron", "blue"),
+            "Impostor": _acct("42", "Impostor", "Totally Someone", "blue"),
+            "Obscure": _acct("43", "Obscure", "Obscure Mayor", "business"),
+            "NoCheck": _acct("45", "NoCheck", "No Check", "none"),
             "GovMayor": _acct("44", "GovMayor", "Gov Mayor", "government"),
         }
     )
@@ -154,6 +159,63 @@ async def test_seed_one_grants_and_skips(db: Database) -> None:
         db, fake, _row("Obscure", "Obscure Mayor", review=True), ttl_s=600, include_review=True
     )
     assert out.status == "granted"
+    out = await seed_one(db, fake, _row("NoCheck", "No Check"), ttl_s=600, include_review=False)
+    assert out.status == "no_check" and await _badge(db, "45") is None
+
+
+async def test_seed_one_uses_wikidata_without_x(db: Database) -> None:
+    fake = FakeX({"Amb": _acct("61", "Amb", "Amb", "government")})
+    wd: dict[str, str | None] = {"wdperson": "60", "amb": None}
+    out = await seed_one(
+        db,
+        fake,
+        _row("WdPerson", "Anything", review=True),
+        ttl_s=600,
+        include_review=False,
+        wikidata=wd,
+    )
+    assert out.status == "granted" and "(wikidata)" in out.detail and fake.calls == []
+    badge = await _badge(db, "60")
+    assert badge is not None and badge.category == "institutional"
+    assert "wikidata" in (badge.note or "")
+    # Ambiguous Wikidata ids: resolved with X instead.
+    out = await seed_one(db, fake, _row("Amb", "Amb"), ttl_s=600, include_review=False, wikidata=wd)
+    assert out.status == "granted" and fake.calls == ["Amb"]
+    # Not on Wikidata and no X client: skipped, never guessed.
+    out = await seed_one(
+        db, None, _row("Other", "Other"), ttl_s=600, include_review=False, wikidata=wd
+    )
+    assert out.status == "needs_x"
+
+
+class FakeWikidata:
+    def __init__(self, accounts: list[WikidataAccount] | None = None, fail: bool = False) -> None:
+        self.accounts = accounts or []
+        self.fail = fail
+        self.asked: list[list[str]] = []
+
+    async def accounts_by_handles(self, handles: list[str]) -> list[WikidataAccount]:
+        self.asked.append(list(handles))
+        if self.fail:
+            raise SourceUnavailable("down", code=ec.ATL_SOURCE_UNAVAILABLE, source="wikidata")
+        return [a for a in self.accounts if a.handle in handles]
+
+    async def aclose(self) -> None:
+        return None
+
+
+async def test_lookup_wikidata_case_and_ambiguity() -> None:
+    src = FakeWikidata(
+        [
+            WikidataAccount("Q1", "100", "emmanuelmacron"),
+            WikidataAccount("Q2", "200", "Dup"),
+            WikidataAccount("Q3", "201", "Dup"),
+            WikidataAccount("Q4", "not-an-id", "Bad"),
+        ]
+    )
+    ids = await lookup_wikidata(src, ["EmmanuelMacron", "Dup", "Bad", "Missing"])
+    assert ids == {"emmanuelmacron": "100", "dup": None}
+    assert "emmanuelmacron" in src.asked[0] and "EmmanuelMacron" in src.asked[0]
 
 
 async def test_seed_one_respects_team_decisions(db: Database) -> None:
@@ -162,7 +224,7 @@ async def test_seed_one_respects_team_decisions(db: Database) -> None:
         await uc.grant_badge(s, _staff(), ref, category="media", handle="OldHandle")
     async with db.transaction() as s:
         await uc.revoke_badge(s, _staff(), ref, reason="team decision")
-    fake = FakeX({"NewHandle": _acct("50", "NewHandle", "Some Media")})
+    fake = FakeX({"NewHandle": _acct("50", "NewHandle", "Some Media", "business")})
     out = await seed_one(db, fake, _row("NewHandle", "Some Media"), ttl_s=600, include_review=False)
     assert out.status == "exists" and "revoked" in out.detail
     badge = await _badge(db, "50")
@@ -187,21 +249,43 @@ async def test_run_seed_dry_run_calls_nothing(
         category=None,
         limit=None,
         include_review=False,
+        wikidata_source=FakeWikidata([WikidataAccount("Q1", "100", "EmmanuelMacron")]),
     )
     out = capsys.readouterr().out
     assert code == 1
-    assert "plan  @EmmanuelMacron" in out and "invalid=1" in out and "Dry run" in out
+    assert "plan  @EmmanuelMacron" in out and "wikidata" in out and "invalid=1" in out
+    assert "X reads at most: 0" in out and "Dry run" in out
 
 
-async def test_run_seed_apply_needs_x_token(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+async def test_run_seed_stops_when_wikidata_is_down(capsys: pytest.CaptureFixture[str]) -> None:
     code = await run_seed(
-        make_settings(x_bearer_token=None),
+        make_settings(),
         path=None,
         apply=True,
         category="media",
-        limit=1,
+        limit=2,
         include_review=False,
+        wikidata_source=FakeWikidata(fail=True),
     )
-    assert code == 1 and "TOWER_X_BEARER_TOKEN" in capsys.readouterr().out
+    assert code == 1 and "Wikidata unavailable" in capsys.readouterr().out
+
+
+async def test_run_seed_apply_without_x_token(
+    db: Database, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "seed.csv"
+    path.write_text(HEADER + "lemondefr,media,Le Monde,,,\nliberation,media,Libération,,,\n")
+    code = await run_seed(
+        make_settings(x_bearer_token=None),
+        path=str(path),
+        apply=True,
+        category=None,
+        limit=None,
+        include_review=False,
+        wikidata_source=FakeWikidata([WikidataAccount("Q12461", "24744541", "lemondefr")]),
+    )
+    out = capsys.readouterr().out
+    assert code == 0 and "TOWER_X_BEARER_TOKEN" in out
+    assert "granted=1" in out and "needs_x=1" in out
+    badge = await _badge(db, "24744541")
+    assert badge is not None and badge.category == "media"

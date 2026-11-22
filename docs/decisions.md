@@ -493,7 +493,10 @@ médias, personnalités, experts) en respectant la catégorie.
 | Décision | Raison |
 |---|---|
 | Commande `tower badges seed` + liste CSV livrée dans le paquet, plutôt qu'un script collé dans la console Railway | Passe par les cas d'usage (permission, audit, événement), testée, relançable ; un long script collé dans un terminal web est fragile |
-| Dry run par défaut ; `--apply` résout chaque pseudo par l'API X officielle | Un pseudo n'identifie pas un compte ; pas de scraping |
+| Dry run par défaut ; ID d'abord par Wikidata (P2002 + P6552, gratuit), sinon par l'API X officielle | Un pseudo n'identifie pas un compte ; pas de scraping ; 628 lignes sur 770 gratuites au 2026-11-22 |
+| Un ID Wikidata unique est cru sans contrôle (même pour une ligne `review`) ; ID multiples ignorés | Décision de Jules : une erreur y est peu probable ; dans le doute (plusieurs ID), on passe par X |
+| Hors Wikidata : coche X obligatoire (`blue`, `business` ou `government`), grise pour une ligne `review` | Décision de Jules ; un compte sans coche est listé (`no_check`) pour l'équipe |
+| Wikidata indisponible : arrêt, pas de repli sur X | Aucune dépense non prévue |
 | Jamais de modification d'un compte déjà badgé, bloqué ou retiré par l'équipe | Une décision de l'équipe l'emporte toujours |
 | Contrôle du nom (un mot commun avec le nom affiché ; repli sur le pseudo seulement pour un nom affiché sans alphabet latin) et lignes `review` réservées aux comptes `government` de X | Sûreté : les listes fournies ne sont pas authentifiées ; dans le doute, ne pas attribuer |
 | `institutional` seulement pour les personnes en fonction (dont direction de parti), sinon `verified` | Consigne de Jules ; la catégorie vient de la fonction, jamais de l'opinion |
