@@ -233,6 +233,7 @@ Règles : [badges.md](badges.md). IDs natifs en **chaînes**, jamais de pseudo.
 |---|---|---|
 | GET | `/v1/badges/categories` | public ; catégories, couleurs, rang (cache 24 h) |
 | GET | `/v1/badges/lookup?platform=x&ids=1,2` | public ; ≤ 100 IDs ; `Cache-Control`, `ETag`, `304` |
+| GET | `/v1/badges/logos/{sha256}.{ext}` | public ; icône d'organisation stockée par Tower (`png`, `ico`, `jpg`, `gif`, `webp`) ; immuable (`Cache-Control: public, max-age=31536000, immutable`), `nosniff`, CSP `sandbox` ; `TWR-BDG-029` si absente, 422 si le nom est mal formé |
 | GET | `/v1/badges/accounts/{p}/{id}` | public ; badge et affiliations actives ; `404 TWR-BDG-001` |
 | POST | `/v1/badges/requests` | public (`badges:submit`), limité par IP ; `201 {public_id, status}` ; corps `kind`, `account`, `category` ou `org`, `title`, `justification`, `contact`, `evidence_urls` (https, ≤ 10) |
 | POST | `/v1/badges/reports` | public, limité par IP ; `201` ; corps `account`, `reason`, `comment` |

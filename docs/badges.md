@@ -115,7 +115,8 @@ touchent plus.
   première validée devient principale ; quand la principale se termine, la plus
   ancienne active restante prend le relais. L'image elle-même est le `logo_url` du badge
   de l'organisation (https), modifiable par l'équipe (`PUT /v1/badges/accounts/…`,
-  `/badge grant` ou « Modifier ») ; l'import Wikidata le remplit (P154) seulement s'il
+  `/badge grant` ou « Modifier ») ; l'import Wikidata le remplit avec l'**icône** (P8972 « petit logo ou icône », sinon
+  P2910 « icône » ; jamais le logo complet P154, décision du 2026-11-22) seulement s'il
   est vide. Les autres affiliations sont listées par le lookup (`affiliations`) et le
   détail public.
 - **Validation obligatoire** par l'organisation (clé d'organisation) ou par l'équipe :
@@ -141,6 +142,30 @@ touchent plus.
 Une affiliation `rejected`, `revoked` ou `expired` peut être recréée par l'équipe ou
 l'organisation (la ligne est rouverte) ; **l'import Wikidata ne rouvre jamais** une
 affiliation terminée.
+
+## Icônes stockées par Tower
+
+Pour qu'aucun utilisateur de l'extension ne charge une image depuis le site d'une
+organisation (qui verrait son adresse IP), Tower copie **une fois** l'icône du site
+officiel et la sert lui-même (`core/usecases/badge_logos.py`,
+`core/domain/badge_icons.py`) :
+
+1. récupération par le port `WebFetcher` (`HttpFetcher` : protection contre les adresses
+   internes, `robots.txt` respecté, taille plafonnée) : page d'accueil, puis la meilleure
+   icône déclarée (`<link rel="apple-touch-icon">`, puis `<link rel="icon">`, plus grande
+   taille annoncée d'abord), enfin `/favicon.ico` ;
+2. seuls les formats matriciels reconnus à leurs premiers octets sont acceptés (PNG, ICO,
+   JPEG, GIF, WebP ; 200 kB au plus ; 16 px au moins quand la taille est lisible). **Jamais
+   de SVG** : il peut contenir du script et serait servi depuis le domaine de Tower
+   (`TWR-BDG-028` sinon) ;
+3. stockage dans `badge_logos`, clé = SHA-256 du contenu (mêmes octets, même ligne) ;
+4. service public par `GET /v1/badges/logos/{sha256}.{ext}` (immuable, cache d'un an,
+   `nosniff`, CSP `sandbox`) ; le `logo_url` du badge vaut
+   `TOWER_PUBLIC_GATE_URL` + ce chemin.
+
+Utilisé par `tower badges seed` à l'attribution d'un badge d'organisation ou de média.
+Mesure du 2026-11-22 sur 80 sites de la liste : une icône pour 64 (80 %), surtout en PNG,
+42 d'au moins 64 px.
 
 ## Organisations : clés d'organisation
 
@@ -204,7 +229,7 @@ valeurs ne sont pas numériques : elles sont ignorées.
    P2002 **sans date de fin (P582)** et non dépréciée. Un ID X revendiqué par plusieurs
    éléments est ignoré. Un job `badges.wikidata_batch` par lot de 200.
 3. Job `badges.wikidata_batch` : lit par `VALUES` (une requête) P31 (nature), P106
-   (profession), libellé français, P154 (logo, organisations seulement) et les
+   (profession), libellé français, icône P8972 ou P2910 (organisations seulement ; jamais le logo complet P154) et les
    affiliations **P108** (employeur), **P102** (parti), **P54** (équipe), **P463**
    (membre de), **en ignorant les déclarations qui ont un P582**.
 4. Catégorie (`classify_wikidata`) : une personne (P31 = Q5) est classée par ses
@@ -243,6 +268,64 @@ badge `institutional`, source `x_government`.
 3. Revérification des badges `x_government` tous les `TOWER_BADGES_X_RECHECK_DAYS` :
    si X ne confirme plus (autre type, compte absent de la réponse), retrait par le
    système (motif `x_verification_lost`).
+
+## Liste amorce (`tower badges seed`)
+
+Attribution en masse depuis une liste triée par l'équipe : `src/tower/core/data/badge_seed.csv`
+(livrée dans le paquet ; `--file` pour une autre liste). Colonnes : `handle`, `category`,
+`name` (noms attendus séparés par `|`), `expertise` (experts seulement), `review` (`1`),
+`note` (note interne), `logo` (URL https de l'**icône** de l'organisation, posée à
+l'attribution d'un badge affiliable) et `parent` (organisations parentes de la liste,
+`Pseudo=Titre|Autre`), `website` (site officiel, tiré de Wikidata P856) et `x_id` (ID X natif **figé** dans la liste : lu une fois sur
+Wikidata le 2026-11-22, il est utilisé tel quel, sans aucune requête ; un ID X ne change
+jamais). Les lignes `#` sont des commentaires. Un parent doit être une
+ligne de la liste de catégorie affiliable, jamais la ligne elle-même.
+
+0. **ID figé** (colonne `x_id`) : utilisé directement (note `seed badges-seed (list)`).
+1. **Wikidata ensuite (gratuit)**, pour les lignes sans ID figé : l'ID natif est cherché sur Wikidata
+   (déclaration P2002 avec son qualificatif P6552, rang non déprécié, sans date de fin),
+   par lots de 100 pseudos, tels quels et en minuscules (WDQS compare les chaînes
+   exactement). Un ID unique est **utilisé tel quel, sans appel à X ni contrôle du nom**
+   (décision de Jules : une erreur y est peu probable), y compris pour une ligne
+   `review`. Plusieurs ID pour un pseudo : ignorés, la ligne passe par X. Wikidata
+   indisponible : la commande s'arrête (jamais de repli silencieux sur des lectures
+   payantes) ; `--no-wikidata` force X pour toutes les lignes.
+2. **X ensuite (payant)**, pour les lignes absentes de Wikidata, sur le service **gate**
+   (`TOWER_X_BEARER_TOKEN` ; sans lui, ces lignes sont sautées : `needs_x`) : le pseudo
+   est converti par `resolve_x_handle` (une lecture d'utilisateur facturée sur
+   `provider:x`, `TOWER_X_PRICE_USER_READ_USD`). Il faut que le nom affiché contienne un
+   mot (3 caractères au moins) d'un nom attendu (`name_mismatch` sinon ; repli sur un mot
+   de 4 caractères dans le pseudo seulement si le nom affiché n'a aucun mot latin) et
+   que le compte ait **une coche X** : `blue`, `business` ou `government` (`no_check`
+   sinon). Une ligne `review` exige la coche grise `government` (`review` sinon), sauf
+   `--include-review`.
+3. Attribution par `grant_badge` (source `manual`, acteur `system:badges-seed`, note
+   `seed badges-seed (wikidata|x <coche>): …`, `logo_url` = colonne `logo`). Sans
+   `logo`, une organisation ou un média qui a un `website` reçoit l'**icône de son
+   site**, stockée par Tower (voir « Icônes stockées par Tower ») ; échec de la
+   récupération : badge attribué quand même, sans logo (`no icon (…)`).
+4. **Affiliations** : un compte dont le badge est actif est affilié à chacun de ses
+   parents par `create_affiliation` (validée par l'équipe, titre de la colonne). Les
+   organisations passent avant leurs membres ; un parent pas encore badgé donne
+   `parent_missing` (relancer). Jamais créée s'il existe déjà une ligne d'affiliation
+   pour la paire, quel que soit son état : une affiliation retirée ou rejetée n'est
+   pas rouverte (`affiliation_exists`).
+
+Règles communes : un compte qui a déjà un badge (actif, bloqué, ou retiré par l'équipe)
+n'est jamais modifié ; un compte déjà badgé sous ce pseudo (pseudo stocké) est sauté
+sans aucun appel, si bien que relancer reprend là où la commande s'est arrêtée ; arrêt
+propre si X est indisponible ou si le budget `provider:x` est épuisé (code 1).
+
+Sans `--apply`, rien n'est écrit et X n'est jamais appelé : le fichier est validé
+(pseudo de 15 caractères au plus, catégorie, expertise, doublons), Wikidata est
+interrogé et le plan affiche pour chaque ligne la voie (`wikidata`, `x`, `x(ambig)`),
+puis le nombre maximal de lectures X et leur coût estimé. Options : `--category`,
+`--limit N`, `--include-review`, `--no-wikidata`.
+
+Catégories de la liste : `institutional` pour les personnes **en fonction** (exécutif,
+parlement, exécutif local, direction d'un parti) et les institutions publiques et
+organisations intergouvernementales ; anciens responsables et personnalités en
+`verified` ; médias et journalistes en `media` ; chercheurs en `expert` avec domaine.
 
 ## Lookup pour l'extension
 

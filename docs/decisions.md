@@ -484,3 +484,26 @@ Demande de Jules : un post vérifié hors des filtres n'affichait rien dans l'ex
 | Calcul à la demande par SQL, avec un index sur expression `(platform, substring(sha256(external_id::bytea) FROM 1 FOR 2))`, et cache HTTP 5 minutes + `ETag` | Même règle que la route du verdict (expiration, groupes, rattachements) sans table à maintenir ni risque de désynchronisation ; mesuré à 0,06 ms par boîte sur 200 000 contenus |
 | Les filtres ne décident plus de l'affichage, seulement de l'envoi des posts | L'affichage ne révèle plus la navigation ; l'envoi reste limité aux posts filtrés |
 
+
+## Liste amorce de badges (2026-11-22)
+
+Demande de Jules : badger en masse des listes de comptes (dirigeants, institutions,
+médias, personnalités, experts) en respectant la catégorie.
+
+| Décision | Raison |
+|---|---|
+| Commande `tower badges seed` + liste CSV livrée dans le paquet, plutôt qu'un script collé dans la console Railway | Passe par les cas d'usage (permission, audit, événement), testée, relançable ; un long script collé dans un terminal web est fragile |
+| Dry run par défaut ; ID d'abord par Wikidata (P2002 + P6552, gratuit), sinon par l'API X officielle | Un pseudo n'identifie pas un compte ; pas de scraping ; 628 lignes sur 770 gratuites au 2026-11-22 |
+| Un ID Wikidata unique est cru sans contrôle (même pour une ligne `review`) ; ID multiples ignorés | Décision de Jules : une erreur y est peu probable ; dans le doute (plusieurs ID), on passe par X |
+| Hors Wikidata : coche X obligatoire (`blue`, `business` ou `government`), grise pour une ligne `review` | Décision de Jules ; un compte sans coche est listé (`no_check`) pour l'équipe |
+| Wikidata indisponible : arrêt, pas de repli sur X | Aucune dépense non prévue |
+| Icônes d'organisation : copiées **une fois** depuis le site officiel (Wikidata P856) et servies par Tower (`badge_logos`, `GET /v1/badges/logos/{sha256}.{ext}`), jamais chargées par l'extension depuis le site de l'organisation ; formats matriciels seulement (jamais SVG) ; `TOWER_PUBLIC_GATE_URL` | Choix de Jules (option gratuite) ; vie privée des utilisateurs de l'extension ; un SVG servi depuis le domaine de Tower pourrait porter du script ; PostgreSQL reste la seule infrastructure (images ≤ 200 kB, adressées par contenu, cache immuable) |
+| Pas de logo par l'avatar X (≈ 13 $ pour ~1 270 organisations) ni par le logo Wikidata carré (155 trouvés, dont environ un quart faux à l'échantillon : photos, logos périmés, texte) ; logos = icônes Wikidata (18) + ajout manuel par l'équipe | Décision de Jules (coût) ; dans le doute, pas de logo plutôt qu'un logo faux affiché au nom de Seat 12A |
+| ID X figés dans la liste (colonne `x_id`, 3 656 lignes lues sur Wikidata avec les règles de la commande) | Demande de Jules : relecture possible avant `--apply`, plus de dépendance à Wikidata au lancement ; un ID X ne change jamais |
+| Logo d'organisation = **icône** (P8972 « petit logo ou icône », sinon P2910), jamais le logo complet P154, dans l'import et dans la liste ; sans icône, pas de logo | Demande de Jules ; un logo complet est illisible en pastille à côté d'un pseudo |
+| Affiliés de la liste (demande de Jules) : dirigeants actuels (P169, P488, P1037) des organisations et médias ; employés (P108) des médias et ONG seulement, avec un emploi commencé en 2018 ou après sans date de fin ; fondateurs exclus ; badge `verified` (un élu en fonction reste `institutional`) | Fondateur = qualité permanente sur Wikidata (Musk sortait affilié à OpenAI) ; « employés » d'entreprises = mannequins ou égéries ; dates de fin souvent absentes (Berenson sortait au NYT, quitté en 2010) |
+| Extension de la liste par collecte Wikidata (abonnés P8687, tables `classify_wikidata`), pas par des listes écrites de mémoire | Données sourcées avec ID ; un mandat ne compte que s'il est daté (2020 ou après, sans fin), un expert doit avoir un domaine précis |
+| Jamais de modification d'un compte déjà badgé, bloqué ou retiré par l'équipe | Une décision de l'équipe l'emporte toujours |
+| Contrôle du nom (un mot commun avec le nom affiché ; repli sur le pseudo seulement pour un nom affiché sans alphabet latin) et lignes `review` réservées aux comptes `government` de X | Sûreté : les listes fournies ne sont pas authentifiées ; dans le doute, ne pas attribuer |
+| `institutional` seulement pour les personnes en fonction (dont direction de parti), sinon `verified` | Consigne de Jules ; la catégorie vient de la fonction, jamais de l'opinion |
+| Domaine des experts en français | Décision du 2026-11-21 (expertise en texte libre français) |

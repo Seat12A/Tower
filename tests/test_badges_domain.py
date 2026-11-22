@@ -200,8 +200,18 @@ def test_sparql_queries_and_parsing() -> None:
                 {"item": {"value": e + "Q1"}, "k": {"value": "P108"}, "v": {"value": e + "Q9"}},
                 {
                     "item": {"value": e + "Q9"},
-                    "k": {"value": "P154"},
+                    "k": {"value": "P2910"},
+                    "v": {"value": "http://commons.wikimedia.org/wiki/Special:FilePath/Other.svg"},
+                },
+                {
+                    "item": {"value": e + "Q9"},
+                    "k": {"value": "P8972"},
                     "v": {"value": "http://commons.wikimedia.org/wiki/Special:FilePath/A%20b.svg"},
+                },
+                {
+                    "item": {"value": e + "Q8"},
+                    "k": {"value": "P2910"},
+                    "v": {"value": "http://commons.wikimedia.org/wiki/Special:FilePath/Icon.png"},
                 },
             ]
         }
@@ -211,7 +221,8 @@ def test_sparql_queries_and_parsing() -> None:
     assert items["Q1"].occupations == ("Q901",)
     assert items["Q1"].label == "Marie"
     assert items["Q1"].links == (("P108", "Q9"),)
-    assert items["Q9"].logo == "A b.svg"
+    assert items["Q9"].logo == "A b.svg"  # P8972 wins over P2910
+    assert items["Q8"].logo == "Icon.png"
 
 
 def test_actor_permissions() -> None:

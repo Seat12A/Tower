@@ -1029,6 +1029,15 @@ BDG_EXPERTISE_NOT_EXPERT = _define(
     http_status=422,
     severity=_INFO,
 )
+BDG_BAD_LOGO = _define(
+    "TWR-BDG-028",
+    "Not an accepted organisation icon (PNG, ICO, JPEG, GIF or WebP, at most 200 kB)",
+    http_status=422,
+    severity=_INFO,
+)
+BDG_LOGO_NOT_FOUND = _define(
+    "TWR-BDG-029", "Organisation icon not found", http_status=404, severity=_INFO
+)
 
 
 def get(code: str) -> ErrorCode:

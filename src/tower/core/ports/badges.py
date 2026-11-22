@@ -27,7 +27,7 @@ class WikidataItem:
     occupations: tuple[str, ...] = ()
     """P106 values (QIDs)."""
     logo: str | None = None
-    """P154 Commons file name."""
+    """Icon Commons file name (P8972, else P2910; never the full logo P154)."""
     links: tuple[tuple[str, str], ...] = field(default_factory=tuple)
     """(property, organisation QID) of P108/P102/P54/P463 statements without end time."""
 

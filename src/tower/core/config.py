@@ -327,6 +327,9 @@ class Settings(BaseSettings):
     """An account is checked again on X after this many days (hints and badges)."""
     badges_lookup_max_age_s: int = Field(default=300, ge=0, le=86_400)
     """``Cache-Control: max-age`` of the public badge lookup."""
+    public_gate_url: str | None = Field(default=None, pattern=r"^https://[^/\s]+$")
+    """Public https origin of gate (no trailing slash), used to build the ``logo_url`` of
+    organisation icons stored by Tower. Without it, ``tower badges seed`` fetches none."""
 
     # --- intercom (Discord bot) -------------------------------------------------
     discord_token: SecretStr | None = None
