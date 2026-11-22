@@ -216,6 +216,7 @@ def cmd_badges(args: argparse.Namespace) -> None:
             limit=args.limit,
             include_review=args.include_review,
             use_wikidata=not args.no_wikidata,
+            icons_only=args.icons_only,
         )
     )
     if code:
@@ -298,6 +299,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pb.add_argument(
         "--no-wikidata", action="store_true", help="Resolve every handle with the X API"
+    )
+    pb.add_argument(
+        "--icons-only",
+        action="store_true",
+        help="Only set the icon of organisation and media badges granted without one",
     )
     pb.set_defaults(func=cmd_badges)
 

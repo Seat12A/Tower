@@ -152,6 +152,11 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
   (Eurocontrol, ESO, BRI…) ; 7 anciens responsables politiques passés de `media` à
   `verified` (Malcolm Turnbull, Juan Manuel Santos, Ivanka Trump…).
 
+- **`--icons-only`** (Jules avait oublié `TOWER_PUBLIC_GATE_URL` au premier `--apply`) :
+  pose l'icône sur les badges d'organisation et de média attribués par la commande et
+  encore sans logo, sans toucher à la catégorie ni à un logo de l'équipe ; tests :
+  33 verts (`test_badge_logos.py`, `test_badge_seed.py`).
+
 ## Points ouverts / suite
 
 - Limite connue de la table du dépôt : « organisation internationale » (Q484652) mène à

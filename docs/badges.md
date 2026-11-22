@@ -320,7 +320,14 @@ Sans `--apply`, rien n'est écrit et X n'est jamais appelé : le fichier est val
 (pseudo de 15 caractères au plus, catégorie, expertise, doublons), Wikidata est
 interrogé et le plan affiche pour chaque ligne la voie (`wikidata`, `x`, `x(ambig)`),
 puis le nombre maximal de lectures X et leur coût estimé. Options : `--category`,
-`--limit N`, `--include-review`, `--no-wikidata`.
+`--limit N`, `--include-review`, `--no-wikidata`, `--icons-only`.
+
+`--icons-only` (rattrapage, par exemple si `TOWER_PUBLIC_GATE_URL` manquait au premier
+passage) : pour chaque ligne d'organisation ou de média, pose l'icône du site sur le
+badge **seulement** s'il est actif, attribué par la commande (`system:badges-seed`) et
+encore sans logo ; un logo posé par l'équipe n'est jamais remplacé. Seul `logo_url`
+change, par `grant_badge` (historique). Aucun appel à X. Résultats : `icon_set`,
+`no_icon` (pas d'icône utilisable sur le site), `icon_skip` (non affiché).
 
 Catégories de la liste : `institutional` pour les personnes **en fonction** (exécutif,
 parlement, exécutif local, direction d'un parti) et les institutions publiques et
