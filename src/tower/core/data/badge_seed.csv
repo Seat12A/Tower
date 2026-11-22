@@ -832,9 +832,9 @@ PrensaTupac,institutional,Organización Barrial Tupac Amaru,,,wikidata Q5708971;
 CONAE_Oficial,institutional,Comisión Nacional de Actividades Espaciales,,,wikidata Q1114726; 24326 followers,,,303809120,
 HCDiputadosBA,institutional,Buenos Aires Province Chamber of Deputies,,,wikidata Q4985544; 21585 followers,,,4503417675,
 rep_unidosAR,institutional,Republicanos Unidos,,,wikidata Q99853023; 17145 followers,,,1110576244607909888,
-iapti,institutional,IAPTI,,,wikidata Q386559; 14033 followers,,,94372403,
+iapti,organization,IAPTI,,,wikidata Q386559; 14033 followers; category corrected by hand (institutional → organization),,,94372403,
 # --- Wikidata 2026-11-22: institutional, Australia ---
-wikileaks,institutional,WikiLeaks,,,wikidata Q359; 5649417 followers,,,16589206,
+wikileaks,organization,WikiLeaks,,,wikidata Q359; 5649417 followers; category corrected by hand (institutional → organization),,,16589206,
 MrKRudd,institutional,Kevin Rudd,,,wikidata Q43135; 1596499 followers,,,16832632,
 SenatorWong,institutional,Penny Wong,,,wikidata Q456759; 413161 followers,,,529147678,
 tanya_plibersek,institutional,Tanya Plibersek,,,wikidata Q7684036; 338047 followers,,,307755781,
@@ -868,16 +868,16 @@ UNPeacekeeping,institutional,United Nations peacekeeping,,,wikidata Q219575; 569
 eliodirupo,institutional,Elio Di Rupo,,,wikidata Q15048; 283933 followers,,,4808861,
 alexanderdecroo,institutional,Alexander De Croo,,,wikidata Q476596; 232548 followers,,,39500950,
 FranckenTheo,institutional,Theo Francken,,,wikidata Q2072384; 149955 followers,,,951258554,
-escardio,institutional,European Society of Cardiology,,,wikidata Q1376977; 133912 followers,,,21572529,
+escardio,organization,European Society of Cardiology,,,wikidata Q1376977; 133912 followers; category corrected by hand (institutional → organization),,,21572529,
 eurocontrol,institutional,Eurocontrol,,,wikidata Q663492; 109675 followers,,,64672345,
 de_NVA,institutional,New Flemish Alliance,,,wikidata Q28982; 82174 followers,,,24688336,
 openvld,institutional,Anders,,,wikidata Q1160192; 50881 followers,,,21994861,
-youth_forum,institutional,European Youth Forum,,,wikidata Q935345; 36669 followers,,,94657978,
+youth_forum,organization,European Youth Forum,,,wikidata Q935345; 36669 followers; category corrected by hand (institutional → organization),,,94657978,
 ecolo,institutional,Ecolo,,,wikidata Q655611; 31136 followers,,,14514457,
-edri,institutional,European Digital Rights,,,wikidata Q1376533; 30483 followers,,,84873971,
-efpia,institutional,European Federation of Pharmaceutical Industries and Associations,,,wikidata Q1376562; 26373 followers,,,52084584,
-gokdigo,institutional,Kidney Disease: Improving Global Outcomes,,,wikidata Q1529365; 25453 followers,,,898326793,
-corporateeurope,institutional,Corporate Europe Observatory,,,wikidata Q2997673; 25278 followers,,,86301869,
+edri,organization,European Digital Rights,,,wikidata Q1376533; 30483 followers; category corrected by hand (institutional → organization),,,84873971,
+efpia,organization,European Federation of Pharmaceutical Industries and Associations,,,wikidata Q1376562; 26373 followers; category corrected by hand (institutional → organization),,,52084584,
+gokdigo,organization,Kidney Disease: Improving Global Outcomes,,,wikidata Q1529365; 25453 followers; category corrected by hand (institutional → organization),,,898326793,
+corporateeurope,organization,Corporate Europe Observatory,,,wikidata Q2997673; 25278 followers; category corrected by hand (institutional → organization),,,86301869,
 MobirisFR,institutional,Brussels Mobility,,,wikidata Q2231661; 15078 followers,,,2842545303,
 costprogramme,institutional,European Cooperation in Science and Technology,,,wikidata Q1024175; 14531 followers,,,30185126,
 wco_omd,institutional,World Customs Organization,,,wikidata Q605326; 11193 followers,,,454121984,
@@ -936,7 +936,7 @@ melaniejoly,institutional,Mélanie Joly,,,wikidata Q15054353; 130223 followers,,
 ONThealth,institutional,Ministry of Health,,,wikidata Q6867114; 121947 followers,,,253688871,
 Roman_Baber,institutional,Roman Baber,,,wikidata Q55081065; 110596 followers,,,3064984647,
 partiquebecois,institutional,Parti Québécois,,,wikidata Q950356; 105080 followers,,,80925103,
-iww,institutional,Industrial Workers of the World,,,wikidata Q1046722; 99944 followers,,,210619467,
+iww,organization,Industrial Workers of the World,,,wikidata Q1046722; 99944 followers; category corrected by hand (institutional → organization),,,210619467,
 financecanada,institutional,Department of Finance Canada,,,wikidata Q1191438; 93081 followers,,,16364684,
 QuebecSolidaire,institutional,Québec solidaire,,,wikidata Q2660011; 76261 followers,,,17029532,
 AHS_media,institutional,Alberta Health Services,,,wikidata Q4711650; 74130 followers,,,279097431,
@@ -944,7 +944,7 @@ cihr_irsc,institutional,Canadian Institutes of Health Research,,,wikidata Q50301
 OntarioNDP,institutional,Ontario New Democratic Party,,,wikidata Q827589; 63685 followers,,,15346695,
 peoplespca,institutional,People's Party of Canada,,,wikidata Q56612740; 61258 followers,,,1035238562042716160,
 OntarioPCParty,institutional,Progressive Conservative Party of Ontario,,,wikidata Q826977; 60949 followers,,,58791677,
-TennisCanada,institutional,Tennis Canada,,,wikidata Q7700298; 59659 followers,,,22178135,
+TennisCanada,organization,Tennis Canada,,,wikidata Q7700298; 59659 followers; category corrected by hand (institutional → organization),,,22178135,
 bcndp,institutional,British Columbia New Democratic Party,,,wikidata Q919052; 55888 followers,,,16690722,
 LiberalQuebec,institutional,Quebec Liberal Party,,,wikidata Q1631384; 55273 followers,,,17814716,
 OntLiberal,institutional,Ontario Liberal Party,,,wikidata Q1553186; 49751 followers,,,130516054,
@@ -1028,15 +1028,15 @@ ArminLaschet,institutional,Armin Laschet,,,wikidata Q78205; 191184 followers,,,8
 Piratenpartei,institutional,Pirate Party Germany,,,wikidata Q13129; 164679 followers,,,14341194,
 ESO,institutional,European Southern Observatory,,,wikidata Q151991; 154823 followers,,,15820660,
 BMZ_Bund,institutional,Federal Ministry for Economic Cooperation and Development,,,wikidata Q684357; 76800 followers,,,343890284,
-goetheinstitut,institutional,Goethe-Institut,,,wikidata Q157033; 63653 followers,,,19019580,
+goetheinstitut,organization,Goethe-Institut,,,wikidata Q157033; 63653 followers; category corrected by hand (institutional → organization),,,19019580,
 EMBL,institutional,European Molecular Biology Laboratory,,,wikidata Q695267; 62544 followers,,,1513221576,
 stuttgart_stadt,institutional,Stuttgart City Council,,,wikidata Q108315630; 38550 followers,,,127505577,
 GBA_b_BGH,institutional,Public Prosecutor General,,,wikidata Q449319; 31937 followers,,,814755785850966016,
 umweltstiftung,institutional,German Federal Environmental Foundation,,,wikidata Q1202253; 24381 followers,,,63128684,
-dkms_de,institutional,DKMS Group,,,wikidata Q996269; 19299 followers,,,16363130,
-croptrust,institutional,Global Crop Diversity Trust,,,wikidata Q2004478; 19061 followers,,,177214413,
+dkms_de,organization,DKMS Group,,,wikidata Q996269; 19299 followers; category corrected by hand (institutional → organization),,,16363130,
+croptrust,organization,Global Crop Diversity Trust,,,wikidata Q2004478; 19061 followers; category corrected by hand (institutional → organization),,,177214413,
 StrassenNRW,institutional,Landesbetrieb Strassenbau,,,wikidata Q1548258; 17833 followers,,,386445538,
-fanseurope,institutional,Football Supporters Europe,,,wikidata Q14816384; 13081 followers,,,263660977,
+fanseurope,organization,Football Supporters Europe,,,wikidata Q14816384; 13081 followers; category corrected by hand (institutional → organization),,,263660977,
 bfrde,institutional,German Federal Institute for Risk Assessment,,,wikidata Q1006223; 11103 followers,,,51214982,
 # --- Wikidata 2026-11-22: institutional, Greece ---
 greecemfa,institutional,Ministry of Foreign Affairs of Greece,,,wikidata Q3125291; 177847 followers,,,134812919,
@@ -1074,7 +1074,7 @@ DGCAIndia,institutional,Directorate General of Civil Aviation,,,wikidata Q465994
 INCGujarat,institutional,Gujarat Pradesh Congress Committee,,,wikidata Q5617003; 171072 followers,,,23918402,
 CSIR_IND,institutional,Council of Scientific and Industrial Research,,,wikidata Q3519967; 130636 followers,,,3250593031,
 pluralsbharat,institutional,Plurals Party,,,wikidata Q106912729; 62397 followers,,,1255613474354290690,
-icrisat,institutional,International Crops Research Institute for the Semi-Arid Tropics,,,wikidata Q262250; 48375 followers,,,102661215,
+icrisat,organization,International Crops Research Institute for the Semi-Arid Tropics,,,wikidata Q262250; 48375 followers; category corrected by hand (institutional → organization),,,102661215,
 AAPMaharashtra,institutional,Aam Aadmi Party Maharashtra,,,wikidata Q47754236; 44951 followers,,,307389069,
 NFAIOfficial,institutional,National Film Archive of India,,,wikidata Q6972623; 37415 followers,,,3269822791,
 INCGoa,institutional,Goa Pradesh Congress Committee,,,wikidata Q5575092; 31680 followers,,,771962563424817152,
@@ -1180,7 +1180,7 @@ CRAJ2026,institutional,Centrist Reform Alliance,,,wikidata Q137787102; 31596 fol
 tocho_kensetsu,institutional,Tokyo Metropolitan Government Bureau of Construction,,,wikidata Q11525321; 20813 followers,,,1018750818,
 tocho_toshisei,institutional,Tokyo Metropolitan Government Bureau of Urban Development,,,wikidata Q11525885; 19472 followers,,,1018816898,
 NPA_jinjiin,institutional,National Personnel Authority,,,wikidata Q178314; 18476 followers,,,607987138,
-sgi_info,institutional,Soka Gakkai International,,,wikidata Q11398042; 18422 followers,,,3235693280,
+sgi_info,organization,Soka Gakkai International,,,wikidata Q11398042; 18422 followers; category corrected by hand (institutional → organization),,,3235693280,
 tocho_zaimu,institutional,Tokyo Metropolitan Government Bureau of Finance,,,wikidata Q11525675; 18164 followers,,,1021198892,
 nedo_info,institutional,New Energy and Industrial Technology Development Organization,,,wikidata Q1047780; 13002 followers,,,1214468107432906753,
 # --- Wikidata 2026-11-22: institutional, Mexico ---
@@ -1208,15 +1208,15 @@ PartijvdDieren,institutional,Party for the Animals,,,wikidata Q663535; 63992 fol
 cdavandaag,institutional,Christian Democratic Appeal,,,wikidata Q273749; 61381 followers,,,23770198,
 ministeriejenv,institutional,Ministry of Justice and Security,,,wikidata Q1041343; 55240 followers,,,517365220,
 BoerBurgerB,institutional,Farmer–Citizen Movement,,,wikidata Q101083924; 45366 followers,,,1116624945000280072,
-gri_secretariat,institutional,Global Reporting Initiative,,,wikidata Q1531665; 39157 followers,,,66687136,
-IFLA,institutional,International Federation of Library Associations and Institutions,,,wikidata Q1334284; 33231 followers,,,53361561,
+gri_secretariat,organization,Global Reporting Initiative,,,wikidata Q1531665; 39157 followers; category corrected by hand (institutional → organization),,,66687136,
+IFLA,organization,International Federation of Library Associations and Institutions,,,wikidata Q1334284; 33231 followers; category corrected by hand (institutional → organization),,,53361561,
 VoltNederland,institutional,Volt Netherlands,,,wikidata Q105412880; 32073 followers,,,966790780869316608,
 JuisteAntwoord,institutional,JA21,,,wikidata Q104244010; 31889 followers,,,1339518164410003457,
 PolitiekBIJ1,institutional,BIJ1,,,wikidata Q28857892; 24676 followers,,,811509459310747648,
 DenkNL,institutional,DENK,,,wikidata Q28147283; 22222 followers,,,3017869683,
 Piratenpartij,institutional,Pirate Party of the Netherlands,,,wikidata Q1133908; 18230 followers,,,44876843,
 museumnaturalis,institutional,Naturalis Biodiversity Center,,,wikidata Q641676; 15187 followers,,,16182180,
-UNPOintl,institutional,Unrepresented Nations and Peoples Organization,,,wikidata Q215613; 12467 followers,,,115425249,
+UNPOintl,organization,Unrepresented Nations and Peoples Organization,,,wikidata Q215613; 12467 followers; category corrected by hand (institutional → organization),,,115425249,
 # --- Wikidata 2026-11-22: institutional, Nigeria ---
 PoliceNG,institutional,Nigeria Police Force,,,wikidata Q836615; 2344148 followers,,,470130723,
 officialEFCC,institutional,Economic and Financial Crimes Commission,,,wikidata Q431302; 1815011 followers,,,1088596340,
@@ -1296,7 +1296,7 @@ MOC_Music,institutional,The Music Commission,,,wikidata Q85876201; 135488 follow
 NELC_SA,institutional,National center for e-learning,,,wikidata Q17126038; 65036 followers,,,303164731,
 aliftasa,institutional,Permanent Committee for Scholarly Research and Ifta,,,wikidata Q2360234; 59641 followers,,,791228973921492993,
 DgaGovSa,institutional,Digital Government Authority,,,wikidata Q105840066; 43699 followers,,,1363643975899492352,
-camelsorg,institutional,International Camel Organization,,,wikidata Q63122539; 21474 followers,,,1105054312496013312,
+camelsorg,organization,International Camel Organization,,,wikidata Q63122539; 21474 followers; category corrected by hand (institutional → organization),,,1105054312496013312,
 kfmrc_official,institutional,King Fahd Medical Research Center,,,wikidata Q12242273; 11645 followers,,,2260151888,
 # --- Wikidata 2026-11-22: institutional, South Africa ---
 EFFSouthAfrica,institutional,Economic Freedom Fighters,,,wikidata Q15613585; 1996921 followers,,,932163222,
@@ -1379,15 +1379,15 @@ medborgsamling,institutional,Citizens' Coalition,,,wikidata Q39055208; 24225 fol
 IPCC_CH,institutional,Intergovernmental Panel on Climate Change,,,wikidata Q171183; 394409 followers,,,192942213,
 globalfund,institutional,"The Global Fund to Fight AIDS, Tuberculosis and Malaria",,,wikidata Q1414657; 265438 followers,,,34889448,
 alain_berset,institutional,Alain Berset,,,wikidata Q123939; 190796 followers,,,214032204,
-Gavi,institutional,GAVI,,,wikidata Q688592; 165779 followers,,,97219875,
+Gavi,organization,GAVI,,,wikidata Q688592; 165779 followers; category corrected by hand (institutional → organization),,,97219875,
 iocmedia,institutional,International Olympic Committee,,,wikidata Q40970; 160866 followers,,,234306659,
 bis_org,institutional,Bank for International Settlements,,,wikidata Q309195; 156996 followers,,,158289900,
 ipuparliament,institutional,Interparliamentary Union,,,wikidata Q176815; 38040 followers,,,522157793,
 Suisse,institutional,Presence Switzerland,,,wikidata Q3409083; 22868 followers,,,739835941641150464,
-PPInternational,institutional,Pirate Parties International,,,wikidata Q170; 21378 followers,,,71498154,
-WILPF,institutional,Women's International League for Peace and Freedom,,,wikidata Q689768; 17056 followers,,,54233559,
-clubofrome,institutional,Club of Rome,,,wikidata Q107569; 15960 followers,,,913777688464232448,
-lutheranworld,institutional,Lutheran World Federation,,,wikidata Q942284; 10655 followers,,,17988622,
+PPInternational,organization,Pirate Parties International,,,wikidata Q170; 21378 followers; category corrected by hand (institutional → organization),,,71498154,
+WILPF,organization,Women's International League for Peace and Freedom,,,wikidata Q689768; 17056 followers; category corrected by hand (institutional → organization),,,54233559,
+clubofrome,organization,Club of Rome,,,wikidata Q107569; 15960 followers; category corrected by hand (institutional → organization),,,913777688464232448,
+lutheranworld,organization,Lutheran World Federation,,,wikidata Q942284; 10655 followers; category corrected by hand (institutional → organization),,,17988622,
 # --- Wikidata 2026-11-22: institutional, Tunisia ---
 ISIETN,institutional,Independent High Authority for Elections,,,wikidata Q3151685; 150329 followers,,,328905677,
 NahdhaTunisie,institutional,Ennahda Movement,,,wikidata Q692022; 107307 followers,,,296134526,
@@ -1489,7 +1489,7 @@ sinnfeinireland,institutional,Sinn Féin,,,wikidata Q76382; 172079 followers,,,2
 innovateuk,institutional,Innovate UK,,,wikidata Q7692585; 135177 followers,,,66998204,
 uk_sport,institutional,UK Sport,,,wikidata Q7864952; 120718 followers,,,49939773,
 DVLAgovuk,institutional,Driver and Vehicle Licensing Agency,,,wikidata Q5308010; 95530 followers,,,582765044,
-privacyint,institutional,Privacy International,,,wikidata Q72781; 86582 followers,,,20982910,
+privacyint,organization,Privacy International,,,wikidata Q72781; 86582 followers; category corrected by hand (institutional → organization),,,20982910,
 The_MRC,institutional,Medical Research Council,,,wikidata Q746879; 83930 followers,,,57579512,
 scottishgreens,institutional,Scottish Greens,,,wikidata Q1256956; 68523 followers,,,131282783,
 Plaid_Cymru,institutional,Plaid Cymru,,,wikidata Q10691; 61429 followers,,,14411725,
@@ -1527,7 +1527,7 @@ NWS_NTWC,institutional,National Tsunami Warning Center,,,wikidata Q7984847; 1556
 AZGOP,institutional,Arizona Republican Party,,,wikidata Q4791379; 153811 followers,,,15937190,
 tbinvestigation,institutional,Tennessee Bureau of Investigation,,,wikidata Q7700029; 146551 followers,,,288395542,
 txdps,institutional,Texas Department of Public Safety,,,wikidata Q3985379; 143174 followers,,,16651871,
-aaas,institutional,American Association for the Advancement of Science,,,wikidata Q40358; 141744 followers,,,17292623,
+aaas,organization,American Association for the Advancement of Science,,,wikidata Q40358; 141744 followers; category corrected by hand (institutional → organization),,,17292623,
 lapublichealth,institutional,Los Angeles County Department of Public Health,,,wikidata Q6682079; 136985 followers,,,38287098,
 samhsagov,institutional,Substance Abuse and Mental Health Services Administration,,,wikidata Q7632057; 136685 followers,,,24959108,
 traveloregon,institutional,Oregon Tourism Commission,,,wikidata Q7101403; 132523 followers,,,14276094,
@@ -1543,7 +1543,7 @@ anwarmalek,media,Anouar Malek,,,wikidata Q12180924; 582455 followers; no dated c
 hassinaouch,media,Hassina Ouchene,,,wikidata Q12208255; 305861 followers,,,277024763,
 AL24newschannel,media,AL24news,,,wikidata Q109371603; 302663 followers,,,1308128283331121154,https://al24news.com/
 elhayatonline,media,El Hayat TV,,,wikidata Q54859827; 221196 followers,,,2175838393,https://www.elhayat.dz/
-Messahel_MAE,media,Abdelkader Messahel,,,wikidata Q5654785; 218422 followers; no dated current position on Wikidata,,,774536323541639168,
+Messahel_MAE,verified,Abdelkader Messahel,,,wikidata Q5654785; 218422 followers; no dated current position on Wikidata; category corrected by hand (media → verified),,,774536323541639168,
 MehdiMouse,media,Mehdi Maïzi,,,wikidata Q96252963; 214719 followers,,,30274118,
 # --- Wikidata 2026-11-22: media, Argentina ---
 cuervotinelli,media,Marcelo Tinelli,,,wikidata Q3845728; 10367148 followers,,,789856765,
@@ -1571,7 +1571,7 @@ annecurtissmith,media,Anne Curtis,,,wikidata Q3550254; 14910078 followers,,,2356
 RebelWilson,media,Rebel Wilson,,,wikidata Q442897; 2753576 followers,,,149590738,
 andrewbiggs,media,Andrew Biggs,,,wikidata Q4756353; 2541684 followers,,,35689802,
 DanniiMinogue,media,Dannii Minogue,,,wikidata Q188461; 1098110 followers,,,21089219,https://www.danniiminogue.com/
-TurnbullMalcolm,media,Malcolm Turnbull,,,wikidata Q927550; 992975 followers; no dated current position on Wikidata,,,16734909,https://www.malcolmturnbull.com.au/
+TurnbullMalcolm,verified,Malcolm Turnbull,,,wikidata Q927550; 992975 followers; no dated current position on Wikidata; category corrected by hand (media → verified),,,16734909,https://www.malcolmturnbull.com.au/
 theage,media,The Age,,,wikidata Q631893; 955076 followers,,,32201814,https://www.theage.com.au/
 smh,media,The Sydney Morning Herald,,,wikidata Q390216; 903677 followers,,,16675569,https://www.smh.com.au
 australian,media,The Australian,,,wikidata Q1478700; 812347 followers,,,9609632,https://cn.theaustralian.com.au/
@@ -1913,7 +1913,7 @@ thecableng,media,TheCable,,,wikidata Q48803445; 1094851 followers,,,1954402777,h
 937RhythmFM,media,Rhythm 93.7 FM Lagos,,,wikidata Q22031730; 1089614 followers,,,176566301,http://www.rhythm937.com
 yelesowore,media,Omoyele Sowore,,,wikidata Q54166065; 870014 followers,,,1051795722,http://saharareporters.com/
 nigeriantribune,media,Nigerian Tribune,,,wikidata Q7033024; 846653 followers,,,44900997,http://tribuneonlineng.com
-abikedabiri,media,Abike Dabiri,,,wikidata Q4667738; 811090 followers; no dated current position on Wikidata,,,238554588,
+abikedabiri,verified,Abike Dabiri,,,wikidata Q4667738; 811090 followers; no dated current position on Wikidata; category corrected by hand (media → verified),,,238554588,
 soundcitytv,media,Soundcity TV,,,wikidata Q16976332; 730988 followers,,,35279836,https://soundcity.tv/
 todayng,media,TODAY,,,wikidata Q103658360; 236359 followers,,,2483954344,https://www.today.ng/
 # --- Wikidata 2026-11-22: media, Poland ---
@@ -2111,8 +2111,8 @@ VeraBrezhneva,media,Vera Brezhneva,,,wikidata Q2329850; 3001135 followers,,,1276
 IAPonomarenko,media,Illia Ponomarenko,,,wikidata Q116173859; 1256024 followers,,,262219168,
 anna_sedokova,media,Anna Sedokova,,,wikidata Q2350283; 1084445 followers,,,162799522,https://annasedokova.com/
 HromadskeUA,media,Hromadske.TV,,,wikidata Q15280975; 1023148 followers,,,1454734730,https://hromadske.ua
-mefimus,media,Mustafa Nayyem,,,wikidata Q2690181; 751807 followers; no dated current position on Wikidata,,,43960170,
-Podolyak_M,media,Mykhailo Podolyak,,,wikidata Q108389921; 739676 followers; no dated current position on Wikidata,,,1498176452084256772,
+mefimus,verified,Mustafa Nayyem,,,wikidata Q2690181; 751807 followers; no dated current position on Wikidata; category corrected by hand (media → verified),,,43960170,
+Podolyak_M,verified,Mykhailo Podolyak,,,wikidata Q108389921; 739676 followers; no dated current position on Wikidata; category corrected by hand (media → verified),,,1498176452084256772,
 5channel,media,5 Kanal,,,wikidata Q2987894; 530175 followers,,,47581890,https://www.5.ua/
 korrespondent,media,Korrespondent,,,wikidata Q1333067; 341880 followers,,,19387688,https://korrespondent.net/
 EspresoTV,media,Espreso TV,,,wikidata Q15689802; 254582 followers,,,2207625002,https://espreso.tv/
@@ -2179,7 +2179,7 @@ jimmykimmel,media,Jimmy Kimmel,,,wikidata Q4914; 11973898 followers,,,26053643,h
 Byoussef,media,Bassem Youssef,,,wikidata Q3515579; 11190522 followers,,,262299947,https://www.bassemyoussef.xyz/
 billmaher,media,Bill Maher,,,wikidata Q489; 11074142 followers,,,19697415,http://billmaher.com
 maddow,media,Rachel Maddow,,,wikidata Q555; 10622415 followers,,,16129920,https://www.rachelmaddow.com/
-IvankaTrump,media,Ivanka Trump,,,wikidata Q239411; 10550060 followers; no dated current position on Wikidata,,,52544275,https://www.ivankatrump.com
+IvankaTrump,verified,Ivanka Trump,,,wikidata Q239411; 10550060 followers; no dated current position on Wikidata; category corrected by hand (media → verified),,,52544275,https://www.ivankatrump.com
 andersoncooper,media,Anderson Cooper,,,wikidata Q316997; 10159490 followers,,,15224867,http://www.andersoncooper.com
 DonaldJTrumpJr,media,Donald Trump Jr.,,,wikidata Q3713655; 9624870 followers,,,39344374,https://donjr.com/
 discovery,media,Discovery Channel,,,wikidata Q43404; 9284313 followers,,,17842366,http://dsc.discovery.com
@@ -2221,7 +2221,7 @@ iqrarulhassan,media,Iqrar ul Hassan Syed,,,wikidata Q104777484; 6716742 follower
 mscathygonzaga,media,Alex Gonzaga,,,wikidata Q4717068; 6394577 followers,,,1649958450,
 mubasherlucman,media,Mubashir Luqman,,,wikidata Q6930882; 5955237 followers; no dated current position on Wikidata,,,54610518,
 luckymanzano,media,Luis Manzano,,,wikidata Q3546728; 5667400 followers,,,134657984,http://almoslim.net/nasert
-JuanManSantos,media,Juan Manuel Santos,,,wikidata Q57311; 5616628 followers; no dated current position on Wikidata,,,64839766,https://juanmanuelsantos.com
+JuanManSantos,verified,Juan Manuel Santos,,,wikidata Q57311; 5616628 followers; no dated current position on Wikidata; category corrected by hand (media → verified),,,64839766,https://juanmanuelsantos.com
 jessicacediel,media,Jessica Cediel,,,wikidata Q2836944; 5121449 followers,,,121169579,http://jessicacediel.net/
 waseembadami,media,Waseem Badami,,,wikidata Q16205817; 5068971 followers,,,903495284,https://wbhemani.com
 # --- Wikidata 2026-11-22: expert, Algeria ---
