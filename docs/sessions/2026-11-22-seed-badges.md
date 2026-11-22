@@ -40,6 +40,16 @@ les autres en `verified`.
   Bolsonaro apparaît sous « Italy »), les domaines d'expertise restent larges.
   Total de la liste : **2 978 comptes, 2 835 avec ID Wikidata (gratuits), 143 lectures
   X au plus**.
+- **Entreprises et ONG** (demande de Jules) : 627 lignes `organization` tirées de la même
+  collecte (entreprises dès 100 000 abonnés, ONG et fondations dès 20 000, sans
+  plafond) : 397 entreprises, 230 ONG et fondations (250 et 150 premières au monde, puis
+  10 et 6 par pays). Types d'entreprise et d'ONG définis dans le script de collecte (la
+  table du dépôt ne connaît que « company », « nonprofit »… : « public company »,
+  « bank », « airline », « foundation » y manquent ; non modifiée ici). Filtres :
+  fiche dont le nom se retrouve dans le pseudo (`@TfL` était sur « Legible London »),
+  noms évoquant un média ou un organisme public écartés ; corrigés à la main : SBS, PBS,
+  KCRW → `media`, Smithsonian → `institutional`, « Sony Centre » → « Sony ».
+  Total : **3 605 comptes, 3 462 avec ID Wikidata, 143 lectures X au plus**.
 - **Wikidata d'abord** (demande de Jules) : `WikidataSparqlSource.accounts_by_handles`
   (P2002 + qualificatif P6552) ; un ID unique est cru sans appel à X ; hors Wikidata, X
   avec coche obligatoire (`no_check` sinon) ; `--no-wikidata`. Dry run réel contre
@@ -97,7 +107,7 @@ badgé, bloqué ou retiré ; contrôle du nom ; `review` réservé aux comptes `
 - CSV présent dans la roue construite (`uv build`).
 - Dry run réel de la CLI : 770 lignes, 0 invalide. `tests/test_badge_seed.py` : 19 verts.
 - **Appelé pour de vrai** : Wikidata (requêtes SPARQL en lecture, gratuites) pour la
-  mesure de couverture, la collecte (environ 230 requêtes) et le dry run. L'API X n'a jamais été appelée.
+  mesure de couverture, la collecte (environ 245 requêtes) et le dry run. L'API X n'a jamais été appelée.
 - Aucune migration (pas de changement de schéma) ; aucun code ajouté à gate, hangar ou
   intercom (module chargé seulement par la CLI) : pas de mesure de RAM nécessaire.
 
