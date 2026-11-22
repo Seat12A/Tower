@@ -40,6 +40,10 @@ les autres en `verified`.
   Bolsonaro apparaît sous « Italy »), les domaines d'expertise restent larges.
   Total de la liste : **2 978 comptes, 2 835 avec ID Wikidata (gratuits), 143 lectures
   X au plus**.
+- **ID figés** (demande de Jules) : colonne `x_id` ; 3 656 ID écrits (même fonction
+  `lookup_wikidata` que la commande : 4 pseudos ambigus laissés à X, aucun ID en double).
+  La commande ne consulte plus Wikidata que pour les lignes sans ID ; 143 lectures X au
+  plus.
 - **Icônes et affiliés** (demande de Jules) : colonnes `logo` et `parent` dans la liste ;
   la commande crée les affiliations (validées par l'équipe, jamais de réouverture d'une
   affiliation terminée) et pose l'icône à l'attribution. L'import Wikidata prend

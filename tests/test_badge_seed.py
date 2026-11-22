@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from tower.core.badge_seed import (
     SeedRow,
@@ -30,7 +30,7 @@ from tower.core.usecases import badges as uc
 
 from .conftest import make_settings
 
-HEADER = "handle,category,name,expertise,review,note,logo,parent\n"
+HEADER = "handle,category,name,expertise,review,note,logo,parent,x_id\n"
 
 
 def test_shipped_seed_is_valid() -> None:
@@ -79,6 +79,40 @@ def test_parse_logo_and_parents() -> None:
     assert any("not in the list" in e for e in parsed.errors)
     assert any("own parent" in e for e in parsed.errors)
     assert any("non-affiliable" in e for e in parsed.errors)
+
+
+def test_shipped_seed_freezes_ids() -> None:
+    rows = parse_seed(read_seed(None)).rows
+    frozen = [r.x_id for r in rows if r.x_id]
+    assert len(frozen) > 3000 and len(set(frozen)) == len(frozen)
+
+
+def test_parse_x_id() -> None:
+    parsed = parse_seed(HEADER + "a,verified,A,,,,,,123\nb,verified,B,,,,,,12x\n")
+    assert [r.x_id for r in parsed.rows] == ["123"] and len(parsed.errors) == 1
+
+
+async def test_frozen_id_needs_no_lookup(
+    db: Database, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "seed.csv"
+    path.write_text(HEADER + "Org,organization,Org,,,,,,900\nboss,verified,Boss,,,,,Org=CEO,901\n")
+    src = FakeWikidata()
+    code = await run_seed(
+        make_settings(x_bearer_token=None),
+        path=str(path),
+        apply=True,
+        category="verified",
+        limit=None,
+        include_review=False,
+        wikidata_source=src,
+    )
+    out = capsys.readouterr().out
+    assert code == 0 and src.asked == []
+    assert "granted       @boss" in out and "(list)" in out
+    # The parent (outside the category filter) is known by its frozen id but has no
+    # badge yet: affiliation waits for a run that badges it.
+    assert "parent_missing @Org" in out
 
 
 def test_parse_rejects_bad_header() -> None:
@@ -249,9 +283,7 @@ async def test_seed_affiliates_members_and_sets_the_icon(db: Database) -> None:
     assert aff.is_primary
     # An affiliation ended by the team is never reopened.
     async with db.transaction() as s:
-        await s.execute(
-            BadgeAffiliation.__table__.update().values(status="revoked", is_primary=False)
-        )
+        await s.execute(update(BadgeAffiliation).values(status="revoked", is_primary=False))
     out = await seed_one(db, None, member, ttl_s=600, include_review=False, wikidata=wd)
     assert out.affiliations == ["affiliation_exists @Tesla (revoked)"]
 
@@ -325,13 +357,17 @@ async def test_run_seed_dry_run_calls_nothing(
     assert "X reads at most: 0" in out and "Dry run" in out
 
 
-async def test_run_seed_stops_when_wikidata_is_down(capsys: pytest.CaptureFixture[str]) -> None:
+async def test_run_seed_stops_when_wikidata_is_down(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "seed.csv"
+    path.write_text(HEADER + "lemondefr,media,Le Monde,,,,,,\n")
     code = await run_seed(
         make_settings(),
-        path=None,
+        path=str(path),
         apply=True,
-        category="media",
-        limit=2,
+        category=None,
+        limit=None,
         include_review=False,
         wikidata_source=FakeWikidata(fail=True),
     )

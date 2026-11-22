@@ -252,10 +252,13 @@ Attribution en masse depuis une liste triée par l'équipe : `src/tower/core/dat
 `name` (noms attendus séparés par `|`), `expertise` (experts seulement), `review` (`1`),
 `note` (note interne), `logo` (URL https de l'**icône** de l'organisation, posée à
 l'attribution d'un badge affiliable) et `parent` (organisations parentes de la liste,
-`Pseudo=Titre|Autre`). Les lignes `#` sont des commentaires. Un parent doit être une
+`Pseudo=Titre|Autre`) et `x_id` (ID X natif **figé** dans la liste : lu une fois sur
+Wikidata le 2026-11-22, il est utilisé tel quel, sans aucune requête ; un ID X ne change
+jamais). Les lignes `#` sont des commentaires. Un parent doit être une
 ligne de la liste de catégorie affiliable, jamais la ligne elle-même.
 
-1. **Wikidata d'abord (gratuit)** : l'ID natif de chaque pseudo est cherché sur Wikidata
+0. **ID figé** (colonne `x_id`) : utilisé directement (note `seed badges-seed (list)`).
+1. **Wikidata ensuite (gratuit)**, pour les lignes sans ID figé : l'ID natif est cherché sur Wikidata
    (déclaration P2002 avec son qualificatif P6552, rang non déprécié, sans date de fin),
    par lots de 100 pseudos, tels quels et en minuscules (WDQS compare les chaînes
    exactement). Un ID unique est **utilisé tel quel, sans appel à X ni contrôle du nom**

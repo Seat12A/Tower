@@ -43,13 +43,14 @@ from tower.core.domain.badges import (
     parse_x_handle,
 )
 from tower.core.domain.errors import DomainError
+from tower.core.domain.platforms import Platform, validate_external_id
 
 if TYPE_CHECKING:
     from tower.core.config import Settings
 
 DEFAULT_SEED = "badge_seed.csv"
 SEED_ACTOR = "badges-seed"
-COLUMNS = ("handle", "category", "name", "expertise", "review", "note", "logo", "parent")
+COLUMNS = ("handle", "category", "name", "expertise", "review", "note", "logo", "parent", "x_id")
 _WORD = re.compile(r"[a-z0-9]+")
 
 
@@ -65,6 +66,8 @@ class SeedRow:
     logo: str | None = None
     """https URL of the organisation icon, set when the badge is granted."""
     parents: tuple[tuple[str, str | None], ...] = ()
+    x_id: str | None = None
+    """Native X id frozen in the list (read once from Wikidata): no lookup at all."""
     """(parent handle, title) of the organisations this account is affiliated with."""
 
 
@@ -121,6 +124,8 @@ def parse_seed(text: str) -> SeedParse:
             continue
         try:
             logo = check_url(raw.get("logo") or None, field="logo_url")
+            raw_id = (raw.get("x_id") or "").strip()
+            x_id = validate_external_id(Platform.X, raw_id) if raw_id else None
             parents = _parse_parents(raw.get("parent") or "")
         except DomainError as exc:
             errors.append(f"row {index} ({label}): {exc}")
@@ -145,6 +150,7 @@ def parse_seed(text: str) -> SeedParse:
                 note=(raw.get("note") or "").strip() or None,
                 logo=logo,
                 parents=parents,
+                x_id=x_id,
             )
         )
     return SeedParse(*_check_parents(rows, errors))
@@ -410,17 +416,18 @@ async def _seed_badge(
     known = await _known_active(db, row.handle)
     if known is not None:
         return SeedOutcome(row.handle, "exists", "badge active (stored handle)"), known
-    wd_id = (wikidata or {}).get(row.handle.lower())
+    wd_id = row.x_id or (wikidata or {}).get(row.handle.lower())
+    via = "list" if row.x_id else "wikidata"
     if wd_id is not None:
         existing = await _existing_badge(db, wd_id)
         active = wd_id if existing is not None and existing[0] == "active" else None
         blocked = _blocks_grant(existing)
         if blocked:
-            return SeedOutcome(row.handle, "exists", f"{blocked}; id={wd_id} (wikidata)"), active
-        error = await _grant(db, row, wd_id, row.handle, "wikidata")
+            return SeedOutcome(row.handle, "exists", f"{blocked}; id={wd_id} ({via})"), active
+        error = await _grant(db, row, wd_id, row.handle, via)
         if error:
-            return SeedOutcome(row.handle, "exists", f"{error}; id={wd_id} (wikidata)"), None
-        detail = f"{row.category.value}; id={wd_id} (wikidata)"
+            return SeedOutcome(row.handle, "exists", f"{error}; id={wd_id} ({via})"), None
+        detail = f"{row.category.value}; id={wd_id} ({via})"
         return SeedOutcome(row.handle, "granted", detail), wd_id
     if client is None:
         return SeedOutcome(row.handle, "needs_x", "not on Wikidata; X API not configured"), None
@@ -471,6 +478,8 @@ def print_plan(
     user_read_usd: float,
 ) -> None:
     def route(row: SeedRow) -> str:
+        if row.x_id:
+            return "list"
         if wikidata is None:
             return "?"
         key = row.handle.lower()
@@ -494,9 +503,11 @@ def print_plan(
     review = sum(1 for r in rows if r.review)
     print(f"Plan: {len(rows)} rows ({summary}); review={review}; invalid={len(parsed.errors)}.")
     if wikidata is not None:
-        paid = sum(1 for r in rows if route(r) != "wikidata")
+        paid = sum(1 for r in rows if route(r) not in ("wikidata", "list"))
+        frozen = sum(1 for r in rows if r.x_id)
         print(
-            f"Wikidata ids: {len(rows) - paid} (free); X reads at most: {paid}"
+            f"Ids frozen in the list: {frozen}; from Wikidata: {len(rows) - paid - frozen}"
+            f" (free); X reads at most: {paid}"
             f" (≈ {paid * user_read_usd:.2f} USD at TOWER_X_PRICE_USER_READ_USD)."
         )
 
@@ -527,7 +538,7 @@ async def run_seed(
 
             source = WikidataSparqlSource(endpoint=settings.badges_wikidata_endpoint)
         try:
-            wikidata = await lookup_wikidata(source, [r.handle for r in rows])
+            wikidata = await lookup_wikidata(source, [r.handle for r in rows if not r.x_id])
         except SourceUnavailable as exc:
             # Never fall back silently to paid X reads.
             print(f"Wikidata unavailable ({exc}): retry later, or pass --no-wikidata.")
@@ -535,6 +546,10 @@ async def run_seed(
         finally:
             if wikidata_source is None:
                 await source.aclose()
+    # Frozen ids of the whole list (parents may be outside a --category filter).
+    frozen_ids = {r.handle.lower(): r.x_id for r in parsed.rows if r.x_id}
+    if frozen_ids:
+        wikidata = {**(wikidata or {}), **frozen_ids}
     if not apply:
         print_plan(parsed, rows, wikidata, settings.x_price_user_read_usd)
         print("Dry run: no X call, nothing written. Add --apply to grant.")
@@ -572,7 +587,7 @@ async def run_seed(
                 key = line.split(" ", 1)[0]
                 counts[key] = counts.get(key, 0) + 1
                 print(f"  {line}")
-            if "(wikidata)" not in outcome.detail:
+            if "(wikidata)" not in outcome.detail and "(list)" not in outcome.detail:
                 await asyncio.sleep(0.1)
     finally:
         if client is not None:
