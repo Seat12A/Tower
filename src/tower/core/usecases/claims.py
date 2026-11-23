@@ -17,7 +17,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tower.core.domain.factcheck.matching import MatchDecision
+from tower.core.domain.factcheck.matching import COMPATIBLE_JOIN_RULE, MatchDecision
 from tower.core.domain.factcheck.opinion import initial_depth
 from tower.core.domain.factcheck.profiles import Profile
 from tower.core.domain.factcheck.reuse import ReuseContext, can_reuse
@@ -279,8 +279,12 @@ async def _identical_to_representative(
     claim: Claim,
     post_day: date | None,
     current_period_days: int,
+    *,
+    compatible_ok: bool = False,
 ) -> bool:
-    """Re-check under the lock (a concurrent merge may have changed the representative)."""
+    """Re-check under the lock (a concurrent merge may have changed the representative).
+    ``compatible_ok``: a join decided on a compatible signature (fields missing on one
+    side, arbiter "same claim") only needs no conflicting field."""
     representative = await session.get(Claim, group.representative_claim_id)
     if representative is None:
         return False
@@ -290,6 +294,8 @@ async def _identical_to_representative(
         claim_signature(representative, day),
         current_period_days=current_period_days,
     )
+    if compatible_ok:
+        return not comparison.conflicting
     return comparison.identical
 
 
@@ -603,7 +609,12 @@ async def record_extraction(
         if decision.outcome is MatchOutcome.JOIN and decision.group_id is not None:
             candidate = await _live_group(session, decision.group_id)
             if candidate is not None and await _identical_to_representative(
-                session, candidate, claim, post_date, current_period_days
+                session,
+                candidate,
+                claim,
+                post_date,
+                current_period_days,
+                compatible_ok=decision.rule == COMPATIBLE_JOIN_RULE,
             ):
                 joined = candidate
                 join_data = {

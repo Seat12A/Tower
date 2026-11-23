@@ -42,6 +42,7 @@ from tower.core.domain.factcheck.independence import (
     SourceRef,
     apply_independence_rule,
     assess_independence,
+    is_established,
     normalize_origin,
 )
 from tower.core.domain.factcheck.opinion import (
@@ -427,6 +428,51 @@ GOOD = IndependenceResult(2, True, ("a", "b"))
 def test_rule_downgrades_true_and_false(v: Veracity, result: IndependenceResult) -> None:
     out = apply_independence_rule(v, ContextNeed.NONE, result, has_partial_evidence=False)
     assert out == (V.UNVERIFIABLE, ContextNeed.NONE, True)
+
+
+def test_two_established_outlets_corroborate_without_primary() -> None:
+    """Export 2026-11-22: deaths, outages and candidacies reported by two independent
+    outlets ended "unverifiable" because the press is never primary."""
+    press = [
+        SourceRef("P1", "Reuters", "nbcnews.com", "unrated", _far(1), standing="press"),
+        SourceRef("P2", "Paris Match", "parismatch.com", "unrated", _far(2), standing="press"),
+    ]
+    r = assess_independence(press)
+    assert (r.independent_origins, r.has_primary, r.established_origins) == (2, False, 2)
+    assert r.corroborated
+    out = apply_independence_rule(V.TRUE, ContextNeed.NONE, r, has_partial_evidence=True)
+    assert out == (V.TRUE, ContextNeed.NONE, False)
+
+
+def test_same_origin_relayed_by_two_outlets_is_one() -> None:
+    relays = [
+        SourceRef("P1", "AFP", "a.fr", "unrated", _far(1), standing="press"),
+        SourceRef("P2", "AFP", "b.fr", "unrated", _far(2), standing="press"),
+    ]
+    assert not assess_independence(relays).corroborated
+
+
+def test_unknown_sites_and_encyclopedias_are_not_established() -> None:
+    weak = [
+        SourceRef("P1", "Blog", "blog.example", "unrated", _far(1)),
+        SourceRef("P2", "Wikipédia", "wikipedia.org", "tertiary", _far(2), standing="reference"),
+        SourceRef("P3", "Forum", "forum.example", "unrated", _far(3), standing="user_generated"),
+    ]
+    r = assess_independence(weak)
+    assert r.independent_origins == 3 and r.established_origins == 0
+    assert not r.corroborated
+    mixed = [
+        weak[0],
+        SourceRef("P4", "Le Monde", "lemonde.fr", "unrated", _far(4), standing="press"),
+    ]
+    assert not assess_independence(mixed).corroborated  # one established origin only
+
+
+def test_is_established() -> None:
+    assert is_established("primary", None) and is_established("secondary", None)
+    assert is_established("unrated", "press") and is_established("unrated", "academic")
+    assert not is_established("unrated", None) and not is_established("tertiary", "press")
+    assert not is_established("avoid", "press")
 
 
 @pytest.mark.parametrize("v", list(Veracity))
@@ -1083,6 +1129,21 @@ def test_select_limit_and_per_source() -> None:
     out = select_passages(ranked, limit=10, per_source=2)
     assert [(r.chunk.source_key, r.chunk.position) for r in out] == [("a", 0), ("a", 1), ("b", 0)]
     assert len(select_passages(ranked, limit=2, per_source=4)) == 2
+
+
+def test_select_relevance_floor() -> None:
+    """Export 2026-11-22: unrelated passages (law articles, other stories) were given to
+    the judge and described in the notes. Below the floor, a chunk is dropped."""
+    ranked = [
+        _rc("a", 0, 10.0, 0),
+        _rc("b", 0, 2.0, 0xFFFF_FFFF_0000_0000),
+        _rc("c", 0, 0.0, 0x5555_5555_5555_5555),
+    ]
+    keys = [r.chunk.source_key for r in select_passages(ranked, limit=5, min_relative_score=0.15)]
+    assert keys == ["a", "b"]  # 2.0 >= 1.5; zero never kept
+    keys = [r.chunk.source_key for r in select_passages(ranked, limit=5, min_relative_score=0.3)]
+    assert keys == ["a"]
+    assert len(select_passages(ranked, limit=5)) == 3  # no floor by default
 
 
 def test_select_removes_near_duplicates_and_zero_limit() -> None:

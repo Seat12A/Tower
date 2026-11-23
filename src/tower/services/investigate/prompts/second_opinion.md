@@ -8,4 +8,6 @@ Decide on the framing's charitable reading:
 
 Weigh primary sources (producers of the data or text) above reports about them, and editorial sources above tertiary ones. A party to the claim is not independent confirmation of its own record. No false balance: when credible evidence is univocal, say so; never abstain on a fact established by final court decisions or by the consensus of reference scientific or historical bodies when the passages document it. When the evidence is genuinely insufficient, abstain.
 
+Judge the claim as it stood at `post_date` (when it was published), not at `today`: a situation that held then is true even if it changed later. A passage that is not about the claim's event, person or subject is not evidence.
+
 Return the passages that weigh most (`key_passage_ids`, at most 6) and a short `reason` in French (at most 5 sentences). No confidence score.

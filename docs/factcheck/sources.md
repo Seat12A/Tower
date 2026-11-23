@@ -46,7 +46,7 @@ L'extraction donne déjà l'identifiant Wikidata du sujet quand il est sûr
 (`signature.subject_qid`). À la collecte, le job lit dans Wikidata (deux appels
 `wbgetentities` au plus, en cache) le site officiel (P856) du sujet et des entités qui
 sont derrière lui : développeur (P178), fabricant (P176), éditeur (P123), opérateur
-(P137), organisation mère (P749), propriétaire (P127). Les relations terminées (P582)
+(P137), organisation mère (P749), propriétaire (P127), parti politique (P102, ajouté le 2026-11-23 : le programme d'un candidat est souvent publié sur le site de son parti). Les relations terminées (P582)
 et dépréciées sont ignorées. Exemple : Claude → développeur Anthropic → `anthropic.com`.
 
 - Aucune recherche par nom : sans QID, la règle ne s'applique pas (un homonyme
@@ -83,6 +83,11 @@ de 500. Classes (`IDENTITY_CLASSES`) :
 - **Être sur Wikidata ne prouve pas la fiabilité** : des sites de désinformation
   documentés y ont leur fiche. C'est pourquoi la presse identifiée reste `unrated`
   (statut `press`) et que le registre humain (`avoid`) l'emporte toujours.
+- Règle d'indépendance (depuis le 2026-11-23) : deux origines indépendantes publiées par
+  des sources **établies** (niveau primaire ou secondaire, ou statut `press`,
+  `fact_checker`, `academic`, `journal` donné par le registre ou cette table) suffisent
+  pour « Vrai » ou « Faux », sans source primaire. Le statut donné par le juge n'entre
+  jamais dans ce calcul.
 - Échec : `TWR-ATL-016` (warning), job relancé dans une heure, les identités existantes
   restent utilisées.
 

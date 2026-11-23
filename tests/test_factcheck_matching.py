@@ -530,6 +530,30 @@ async def test_missing_only_difference_creates_a_related_group(db: Database, h: 
     assert journal[0] == groups[0][0] and journal[1]["rule"] == "new:related"
 
 
+async def test_same_rumour_with_a_missing_field_joins_after_the_arbiter(
+    db: Database, h: Harness
+) -> None:
+    """Export 2026-11-22: the same rumour posted twice (similarity 0.99, arbiter "same
+    claim") made two groups, two investigations and a manual merge. Outside statistics,
+    a field missing on one side with near-identical texts joins after the arbiter."""
+    first_text = "Des employés de chantier entendent des cris d'enfants dans des conteneurs."
+    second_text = "Des employés de chantier entendent des cris d'enfants dans les conteneurs."
+    h.embedder.table = {first_text: vec(1.0), second_text: vec(0.999)}
+    h.llm.arbiter = [arbiter_out(True)]
+    first = claim(first_text, claim_type=ClaimType.CONDUCT, sig=signature(subject="employés"))
+    second = claim(
+        second_text,
+        claim_type=ClaimType.CONDUCT,
+        sig=signature(subject="employés", definition_variant="ports"),  # one side: MISSING
+    )
+    await h.post(first)
+    await h.post(second)
+    assert len(h.llm.arbiter_requests) == 1
+    assert len(await group_rows(db)) == 1
+    joined = await rows(db, "SELECT data FROM claim_group_events WHERE kind = 'joined'")
+    assert joined[0][0]["rule"] == "compatible_signature:arbiter"
+
+
 async def test_missing_only_difference_with_arbiter_different_has_no_related(
     db: Database, h: Harness
 ) -> None:

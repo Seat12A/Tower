@@ -40,8 +40,9 @@ API = "https://www.wikidata.org/w/api.php"
 SPARQL = "https://query.wikidata.org/sparql"
 NAME = "wikidata"
 OFFICIAL_WEBSITE = "P856"
-RELATED = ("P178", "P176", "P123", "P137", "P749", "P127")
-"""Developer, manufacturer, publisher, operator, parent organization, owned by."""
+RELATED = ("P178", "P176", "P123", "P137", "P749", "P127", "P102")
+"""Developer, manufacturer, publisher, operator, parent organization, owned by, member of
+political party (a candidate's program is often published on the party's site)."""
 MAX_RELATED = 10
 _QID = re.compile(r"^Q[1-9][0-9]{0,15}$")
 _ISO2 = re.compile(r"^[A-Z]{2}$")

@@ -138,6 +138,9 @@ class Settings(BaseSettings):
     fc_searches_reinforced_extra: int = Field(default=4, ge=0, le=20)
     fc_passages_standard: int = Field(default=30, ge=4, le=200)
     """Passages given to the judge (~160 tokens each)."""
+    fc_passage_min_relative_score: float = Field(default=0.15, ge=0.0, le=0.9)
+    """A passage scoring below this fraction of the best BM25 score is not given to the
+    judge (0 disables the floor)."""
     fc_passages_reinforced: int = Field(default=60, ge=4, le=200)
     fc_passage_words: int = Field(default=120, ge=40, le=400)
     fc_confidence_coefficients: str = ""

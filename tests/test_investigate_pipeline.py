@@ -602,6 +602,8 @@ def test_cap_micros_and_languages() -> None:
     assert pl.writer_languages(settings, "fr") == ["fr"]
     assert pl.writer_languages(settings, "en") == ["en", "fr"]
     assert pl.writer_languages(settings, "de") == ["de", "fr"]
+    assert pl.writer_languages(settings, "und") == ["fr"]  # undetermined: never a note "in" und
+    assert pl.writer_languages(settings, "qme") == ["fr"]
 
 
 # ------------------------------------------------------------------ draft compose

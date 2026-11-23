@@ -103,8 +103,8 @@ l'étape suivante. Un job dont l'étape est déjà passée ne fait rien.
 
 | Étape | Rôle | Ce qui est fait |
 |---|---|---|
-| Cadrage | `frame` (Sonnet) ou `frame_reinforced` (Opus) | Sens littéral, sous-entendus, lecture charitable, définitions, période résolue (date du jour et du post fournies), conditions de vérité et de fausseté, pièges, sous-questions, décision « vérifiable ». Non vérifiable : en N3, l'enquête s'arrête sans brouillon ; en N4, un brouillon « Non vérifiable » est produit pour l'équipe |
-| Collecte | `query_writer` puis Atlas | Requêtes symétriques « confirmerait » et « infirmerait » (une série vide est signalée), Atlas (voir plus bas), découpage en passages d'environ 120 mots, classement BM25 en Python, déduplication SimHash, sélection (30 passages en standard, 60 en renforcé, 4 par source au plus). Sans aucun passage, le juge n'est pas appelé : issue « Non vérifiable » |
+| Cadrage | `frame` (Sonnet) ou `frame_reinforced` (Opus) | Sens littéral, sous-entendus, lecture charitable, définitions, période résolue (date du jour et du post fournies ; l'affirmation est jugée **à la date du post**, jamais à la date de la vérification), document primaire d'abord pour une affirmation attribuée (programme, déclaration, communiqué, décision, publication de l'institut de sondage), conditions de vérité et de fausseté, pièges, sous-questions, décision « vérifiable ». Non vérifiable : en N3, l'enquête s'arrête sans brouillon ; en N4, un brouillon « Non vérifiable » est produit pour l'équipe |
+| Collecte | `query_writer` puis Atlas | Requêtes symétriques « confirmerait » et « infirmerait » (une série vide est signalée), Atlas (voir plus bas), découpage en passages d'environ 120 mots, classement BM25 en Python, seuil de pertinence (un passage sous 15 % du meilleur score n'est pas gardé, `TOWER_FC_PASSAGE_MIN_RELATIVE_SCORE`), déduplication SimHash, sélection (30 passages en standard, 60 en renforcé, 4 par source au plus). Sans aucun passage, le juge n'est pas appelé : issue « Non vérifiable » |
 | Jugement | `judge` ou `judge_reinforced` | Preuves seulement, citation exacte et identifiant de passage par assertion, origine de chaque passage, ce que les sources ne disent pas, points à vérifier, recherche supplémentaire ; pas de score de confiance |
 | Second avis | `second_opinion` (OpenAI) | Mêmes entrées, passages en ordre inverse, sans le verdict. Comparaison : identique, écart de style, désaccord de fond |
 | Objection | `objection` (OpenAI) | Seulement sur désaccord de fond : type fermé, passage, direction fermée |
@@ -138,7 +138,7 @@ outil n'est donné aux modèles ; chaque sortie est validée par un schéma stri
 | Contrôle | Effet |
 |---|---|
 | Citation mot pour mot dans le passage **original** (normalisation des espaces, guillemets, tirets, points de suspension ; jamais contre une traduction) | Citation invalide retirée de la justification, gardée en base (`citations.valid = false`), `TWR-FCK-014` |
-| Indépendance : « Vrai » ou « Faux » exigent deux origines indépendantes dont une primaire (même origine = une seule ; domaine en repli ; passages quasi identiques = une seule source ; sources `avoid` exclues) | Rétrogradation en « Non vérifiable », contexte au moins « utile » s'il existe des éléments partiels |
+| Indépendance : « Vrai » ou « Faux » exigent deux origines indépendantes, avec **une source primaire ou deux sources établies** (niveau primaire ou secondaire, ou presse, fact-checker, université, revue selon le registre ou la table d'identité, jamais selon le modèle ; même origine = une seule ; domaine en repli ; passages quasi identiques = une seule source ; sources `avoid` et parties prenantes exclues ; Wikipédia, blogs et sites inconnus ne sont pas « établis ») | Rétrogradation en « Non vérifiable », contexte au moins « utile » s'il existe des éléments partiels |
 | Longueur de la note (≤ 280 caractères hors liens) | Signalée au relecteur |
 | Lexique chargé (`core/factcheck/loaded_terms.json`, par langue ; qualifications juridiques et historiques établies autorisées) | Signalé au relecteur |
 | Liens : chaque lien vient d'une source récupérée | Lien inconnu retiré et signalé |
@@ -155,11 +155,23 @@ empreinte, licence) restent toujours.
 Adaptateurs dans `core/adapters/knowledge/` (httpx importé paresseusement), derrière les
 ports `KnowledgeSource` et `SearchClient`, chaque appel précédé d'une lecture de
 `source_cache`. Ordre : fact-checks existants (Google Fact Check Tools), sources
-structurées (Wikidata ; INSEE BDM pour une statistique française ; Légifrance via PISTE
-pour un texte juridique français), Wikipédia (révision figée, contrôle du risque
-d'annulation pour une révision de moins de 48 h, suivi des références vers les sources
-primaires), puis recherche web (Brave : domaines primaires de la juridiction d'abord,
-puis élargie ; 4 recherches en standard, 4 de plus en renforcé). Une source indisponible
+structurées (Wikidata ; INSEE BDM pour une statistique française ; textes de loi
+seulement pour une affirmation de type `legal_text`), Wikipédia (révision figée, contrôle
+du risque d'annulation pour une révision de moins de 48 h, suivi des références vers les
+sources primaires), index d'actualités (au moins deux mots de l'affirmation en commun),
+puis recherche web (Brave ; 4 recherches en standard, 4 de plus en renforcé). Recherche
+web (révisée le 2026-11-23 après l'export des cases) :
+- **site officiel du sujet d'abord** : quand le QID du sujet donne un site officiel
+  (personne, parti, entreprise, institution), la première requête est aussi lancée sur ce
+  site (programme, déclaration, communiqué), puis les articles ; le site d'une partie
+  prenante reste la preuve de sa propre position ;
+- restriction aux domaines officiels de la juridiction **seulement** pour une
+  statistique, un texte juridique ou une procédure (puis élargissement si moins de deux
+  résultats, en gardant une recherche pour le premier côté pas encore cherché) ; un fait
+  d'actualité, une citation, une conduite ou une accusation sont cherchés sur tout le
+  web ;
+- les sources structurées, Wikipédia et l'index d'actualités ne peuvent pas occuper les
+  places réservées aux pages web (2 par recherche prévue, la moitié du plafond au plus). Une source indisponible
 est capturée (`TWR-ATL-*`) et sautée. Ce qui a été vérifié dans la documentation
 officielle de chaque API est consigné dans la docstring de chaque adaptateur.
 
@@ -268,7 +280,12 @@ Traitement :
 
 - Affirmations, passages et notes portent leur langue.
 - Le rédacteur écrit la note dans la langue du post, en français (référence) et en
-  anglais si le post est en anglais.
+  anglais si le post est en anglais. Une langue indéterminée (`und`, `qme`, `zxx`…) n'est
+  jamais une langue de note : seules les langues de référence sont écrites.
+- La note parle des faits à la date du post, avec leurs dates ; elle ne porte jamais
+  l'heure de la vérification (sauf situation en cours vérifiée dans les deux jours, au
+  jour près), ne décrit jamais une source sans rapport avec l'affirmation et n'emploie
+  pas le vocabulaire de l'enquête (« les sources fournies », « l'extrait consulté »).
 - Les relecteurs voient le français, ou l'anglais selon leur langue Discord ; les
   passages ni français ni anglais reçoivent une traduction française (rôle `translate`).
   Les citations restent vérifiées sur l'original.
@@ -397,7 +414,7 @@ hors transaction) :
    |---|---|
    | Signature identique, même langue, similarité des vecteurs d'origine ≥ seuil (0,92) | Rattachement sans arbitre |
    | Signature identique, paire interlingue (toujours) ou zone grise (0,80 à 0,92) | Arbitre `pair_arbiter` (2 appels au plus) ; rattachement seulement sur « même affirmation » |
-   | Signature compatible (un champ absent d'un côté), similarité ≥ 0,80 | Un appel d'arbitre ; même favorable : **nouveau groupe**, groupe proche suggéré (`related_group_id`) pour une fusion manuelle |
+   | Signature compatible (un champ absent d'un côté), similarité ≥ 0,80 | Un appel d'arbitre ; favorable avec une similarité ≥ seuil de rattachement (0,92) et hors statistique : **rattachement** (`compatible_signature:arbiter`, aucun champ contradictoire au recontrôle) ; sinon, même favorable : **nouveau groupe**, groupe proche suggéré (`related_group_id`) pour une fusion manuelle |
    | Différence de valeur, polarité, période, territoire, définition, unité… | Nouveau groupe, sans arbitre |
    | Similarité < 0,80 | Nouveau groupe |
 
@@ -481,7 +498,10 @@ est journalisé dans `claim_group_events` (auteur, motif, règle, similarité).
   job `factcheck.revalidate` ; notes provisoires périmées → `expired`.
 - `factcheck.revalidate` : pour une statistique, une fiche plus récente validée est
   reliée et la bande recalculée ; une bande validée couvre-t-elle la variante, elle
-  hérite ; sinon nouvelle enquête au niveau du groupe.
+  hérite ; sinon nouvelle enquête au niveau du groupe, **seulement si un post a rejoint le
+  groupe après le verdict** (revalidation à la demande, 2026-11-23). Un groupe dormant
+  reste `to_revalidate` : le prochain post qui le rejoint ouvre l'enquête. Une note
+  manuelle (verdict sans enquête) n'est jamais refaite par les modèles.
 
 ### Profils de traitement et niveaux
 

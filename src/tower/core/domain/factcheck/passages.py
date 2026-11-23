@@ -125,11 +125,22 @@ def dedupe_chunks(ranked: Sequence[RankedChunk], *, max_bits: int = 3) -> list[R
 
 
 def select_passages(
-    ranked: Sequence[RankedChunk], *, limit: int, per_source: int = 4
+    ranked: Sequence[RankedChunk],
+    *,
+    limit: int,
+    per_source: int = 4,
+    min_relative_score: float = 0.0,
 ) -> list[RankedChunk]:
-    """Top ``limit`` after ``dedupe_chunks``, at most ``per_source`` per source."""
+    """Top ``limit`` after ``dedupe_chunks``, at most ``per_source`` per source. With
+    ``min_relative_score``, a chunk scoring below that fraction of the best score (or not
+    above zero) is dropped: unrelated pages (a law article, another story) only add noise
+    that the judge and the writer then describe."""
     if limit <= 0:
         return []
+    if min_relative_score > 0 and ranked:
+        top = max(item.score for item in ranked)
+        floor = top * min_relative_score
+        ranked = [item for item in ranked if item.score > 0 and item.score >= floor]
     selected: list[RankedChunk] = []
     per: dict[str, int] = {}
     for item in dedupe_chunks(ranked):

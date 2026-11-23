@@ -23,7 +23,7 @@ from tower.core.ports.knowledge import Evidence, SourceCapabilities, SourceQuery
 if TYPE_CHECKING:
     from tower.core.db.database import Database
 
-__all__ = ["NewsIndexSource", "search_terms"]
+__all__ = ["NewsIndexSource", "match_query", "search_terms"]
 
 NAME = "news_index"
 LICENSE = "headline and link only"
@@ -138,7 +138,7 @@ _SEARCH = text(
     """
     WITH hits AS (
         SELECT n.cluster_id, max(ts_rank(n.tsv, q.query)) AS rank
-        FROM news_index n, websearch_to_tsquery('simple', :q) AS q(query)
+        FROM news_index n, to_tsquery('simple', :q) AS q(query)
         WHERE n.tsv @@ q.query AND n.cluster_id IS NOT NULL
           AND n.published_at >= :since AND n.published_at <= :until
           AND (CAST(:country AS text) IS NULL OR n.country = :country)
@@ -172,6 +172,21 @@ def search_terms(query: str) -> str:
     return " OR ".join(best)
 
 
+MIN_MATCHED_TERMS = 2
+
+
+def match_query(query: str) -> str:
+    """``to_tsquery`` text requiring at least ``MIN_MATCHED_TERMS`` of the
+    :func:`search_terms` words in one headline: ``(a & b) | (a & c) | ...``. A single word
+    matched any headline sharing a common word ("présidentielle"), which returned
+    unrelated stories (export of 2026-11-22). One word left: that word alone."""
+    words = [w for w in search_terms(query).split(" OR ") if w]
+    if len(words) < MIN_MATCHED_TERMS:
+        return " | ".join(words)
+    pairs = [f"({a} & {b})" for i, a in enumerate(words) for b in words[i + 1 :]]
+    return " | ".join(pairs)
+
+
 class NewsIndexSource:
     name = NAME
     capabilities = SourceCapabilities()
@@ -183,7 +198,7 @@ class NewsIndexSource:
         self._db = db
 
     async def lookup(self, query: SourceQuery) -> Sequence[Evidence]:
-        terms = search_terms(query.text)
+        terms = match_query(query.text)
         if not terms or query.limit <= 0:
             return []
         until = query.as_of or datetime.now(UTC)

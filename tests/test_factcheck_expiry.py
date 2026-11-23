@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from tests.test_drafts_usecases import Built
 from tests.test_factcheck_references import (
@@ -23,7 +23,13 @@ from tower.core.domain.security import Actor
 from tower.core.factcheck import names
 from tower.core.jobs.queue import JobRecord
 from tower.core.models.events import Event
-from tower.core.models.factcheck import ClaimGroup, ContextNote, Investigation, Verdict
+from tower.core.models.factcheck import (
+    ClaimGroup,
+    ContentClaim,
+    ContextNote,
+    Investigation,
+    Verdict,
+)
 from tower.core.models.factcheck_v1 import ReferenceFact
 from tower.core.models.jobs import Job
 from tower.core.services.base import JobContext
@@ -67,8 +73,23 @@ async def jobs(db: Database, kind: str) -> list[Job]:
         return list((await s.scalars(select(Job).where(Job.kind == kind))).all())
 
 
-async def expired_group(db: Database, ext: str) -> Built:
+async def still_circulating(db: Database, built: Built) -> None:
+    """A post joined the group after the verdict: the claim still circulates
+    (revalidation is demand-driven)."""
+    async with db.transaction() as s:
+        group = await s.get(ClaimGroup, built.group_id)
+        assert group is not None
+        await s.execute(
+            update(ContentClaim)
+            .where(ContentClaim.claim_id == group.representative_claim_id)
+            .values(created_at=datetime.now(UTC) + timedelta(minutes=5))
+        )
+
+
+async def expired_group(db: Database, ext: str, *, circulating: bool = True) -> Built:
     built = await active_draft(db, ext)
+    if circulating:
+        await still_circulating(db, built)
     await set_expiry(db, built.verdict_id, datetime.now(UTC) - timedelta(minutes=1))
     assert await expire(db) == 1
     return built
@@ -155,6 +176,42 @@ async def test_revalidate_opens_an_investigation_once(db: Database, settings: Se
     assert fresh[0].flags["previous_verdict_id"] == built.verdict_id
 
 
+async def test_revalidate_dormant_group_waits_for_a_new_post(
+    db: Database, settings: Settings
+) -> None:
+    """Export 2026-11-22: each expiry reopened an investigation and a duplicate case, even
+    when nobody posted the claim again. A dormant group stays ``to_revalidate``."""
+    built = await expired_group(db, "1850000000000000231", circulating=False)
+    async with db.transaction() as s:
+        verdict = await s.get(Verdict, built.verdict_id)
+        assert verdict is not None
+        verdict.validated_at = datetime.now(UTC) + timedelta(minutes=5)  # after the post
+    await revalidation.revalidate(ctx(db, settings, built.verdict_id))
+    async with db.session() as s:
+        invs = (
+            await s.scalars(
+                select(Investigation).where(Investigation.claim_group_id == built.group_id)
+            )
+        ).all()
+        group = await s.get(ClaimGroup, built.group_id)
+    assert not [i for i in invs if i.flags.get("revalidation")]
+    assert group is not None and group.state == "to_revalidate"
+
+
+async def test_revalidate_never_reinvestigates_a_manual_note(
+    db: Database, settings: Settings
+) -> None:
+    built = await expired_group(db, "1850000000000000232")
+    async with db.transaction() as s:
+        verdict = await s.get(Verdict, built.verdict_id)
+        assert verdict is not None
+        verdict.investigation_id = None  # written by the team (manual note)
+    await revalidation.revalidate(ctx(db, settings, built.verdict_id))
+    async with db.session() as s:
+        invs = (await s.scalars(select(Investigation))).all()
+    assert not [i for i in invs if i.flags.get("revalidation")]
+
+
 async def test_revalidate_nothing_to_do(db: Database, settings: Settings) -> None:
     await revalidation.revalidate(ctx(db, settings, 999_999))  # unknown verdict
     built = await active_draft(db, "1850000000000000212")
@@ -222,6 +279,7 @@ async def test_revalidate_without_band_investigates_on_the_newer_fact(
     db: Database, settings: Settings
 ) -> None:
     built = await active_draft(db, "1850000000000000222")
+    await still_circulating(db, built)
     await covered_by_band(db, built, with_band=False)
     await set_expiry(db, built.verdict_id, datetime.now(UTC) - timedelta(minutes=1))
     assert await expire(db) == 1
@@ -240,6 +298,7 @@ async def test_revalidate_without_band_investigates_on_the_newer_fact(
 
 async def test_revalidate_n4_never_inherits(db: Database, settings: Settings) -> None:
     built = await active_draft(db, "1850000000000000223")
+    await still_circulating(db, built)
     await covered_by_band(db, built, with_band=True)
     async with db.transaction() as s:
         group = await s.get(ClaimGroup, built.group_id)

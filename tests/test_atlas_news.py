@@ -17,7 +17,7 @@ from sqlalchemy import select, text
 from tower.core.adapters.knowledge.cache import DbSourceCache
 from tower.core.adapters.knowledge.gdelt import GdeltSource, MinInterval
 from tower.core.adapters.knowledge.http import SourceHttp
-from tower.core.adapters.knowledge.news_index import NewsIndexSource, search_terms
+from tower.core.adapters.knowledge.news_index import NewsIndexSource, match_query, search_terms
 from tower.core.adapters.knowledge.rss import UnsafeXml, fetch_feed, parse_feed
 from tower.core.atlas_seed_feeds import SEED_FEEDS, seed_news_feeds
 from tower.core.config import Settings
@@ -451,11 +451,16 @@ async def test_news_index_source_one_evidence_per_cluster(
         SourceQuery(text="agriculteurs sécheresse retraites", lang="fr", jurisdiction="BE", limit=5)
     )
     assert be[0].url == "https://a.example/s1"  # cluster root is A even if B matched first
-    assert len(be) == 2
+    # The other story shares a single word ("retraites"): two words are required.
+    assert len(be) == 1
     assert await source.lookup(SourceQuery(text="le la de", lang="fr")) == []
     assert search_terms("Le budget de la sécurité sociale en 2026") == (
         "sécurité OR sociale OR budget"
     )
+    assert match_query("Le budget de la sécurité sociale en 2026") == (
+        "(sécurité & sociale) | (sécurité & budget) | (sociale & budget)"
+    )
+    assert match_query("sécheresse") == "sécheresse"
 
 
 # --- GDELT -----------------------------------------------------------------------------------

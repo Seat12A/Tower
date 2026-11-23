@@ -109,6 +109,9 @@ TABLES = [
 def make_settings(**overrides: Any) -> Settings:
     base: dict[str, Any] = {
         "process": "test",
+        # Synthetic fixtures are a few short texts in mixed languages: the BM25 relevance
+        # floor is covered by its own tests (test_select_relevance_floor).
+        "fc_passage_min_relative_score": 0.0,
         "job_poll_interval": 0.2,
         "worker_concurrency": 2,
         "job_lease_seconds": 30,
