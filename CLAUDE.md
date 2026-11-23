@@ -63,6 +63,10 @@ Règles permanentes, à appliquer sans qu'elles soient répétées dans le promp
   commandes courtes (`pytest -q`, `| tail`), suite complète aux points de contrôle
   seulement, appels d'outils indépendants regroupés, recherche web limitée à la
   documentation officielle, pas de réécriture complète ni de documentation en double.
+- Tests proportionnés (consigne de Jules, 2026-11-23) : pour un ajustement (réglage,
+  prompt, petite correction), adapter les tests existants qui cassent et ajouter au plus
+  un test court ; pas de nouvelle batterie de tests, pas de suite complète ni de mesure
+  de RAM. Ces vérifications lourdes restent pour les lots qui ajoutent une brique.
 
 ### Exigences transversales (en plus des règles d'architecture ci-dessous)
 
