@@ -644,6 +644,7 @@ class Atlas:
             capture(exc.code, exc, domain=registrable_domain(url))
             return None
         text, title, published = self._page_text(page)
+        text = text.replace("\x00", "")  # PostgreSQL text rejects NUL characters
         if not text:
             return None
         final = page.final_url or url

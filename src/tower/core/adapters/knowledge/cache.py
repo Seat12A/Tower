@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from tower.core.db.database import Database
 
-__all__ = ["DbSourceCache", "cache_key", "purge_expired"]
+__all__ = ["DbSourceCache", "cache_key", "purge_expired", "strip_nul"]
 
 
 def cache_key(adapter: str, request: Mapping[str, object]) -> bytes:
@@ -62,7 +62,7 @@ class DbSourceCache:
         values = {
             "key": cache_key(adapter, request),
             "adapter": adapter,
-            "response": dict(response),
+            "response": strip_nul(dict(response)),
             "fetched_at": now,
             "expires_at": now + timedelta(seconds=ttl_s),
         }
@@ -73,6 +73,19 @@ class DbSourceCache:
         )
         async with self._db.transaction() as session:
             await session.execute(stmt)
+
+
+def strip_nul(value: Any) -> Any:
+    """Remove NUL characters from every string of a JSON value: PostgreSQL text and JSONB
+    reject U+0000, and one search result carrying it made the whole insert fail
+    (stress set, 2026-11-23)."""
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, dict):
+        return {strip_nul(k): strip_nul(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [strip_nul(v) for v in value]
+    return value
 
 
 async def purge_expired(session: AsyncSession, now: datetime, *, limit: int = 1000) -> int:

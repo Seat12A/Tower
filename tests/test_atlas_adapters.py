@@ -967,3 +967,11 @@ def test_atlas_modules_do_not_import_httpx() -> None:
         [sys.executable, "-c", code], capture_output=True, text=True, check=True, timeout=60
     )
     assert out.stdout.strip() == "False"
+
+
+def test_strip_nul_before_caching() -> None:
+    """A search result carrying U+0000 made the source_cache insert fail (stress set)."""
+    from tower.core.adapters.knowledge.cache import strip_nul
+
+    raw = {"results": [{"title": "a\x00b", "n": 1, "tags": ["x\x00"]}]}
+    assert strip_nul(raw) == {"results": [{"title": "ab", "n": 1, "tags": ["x"]}]}
