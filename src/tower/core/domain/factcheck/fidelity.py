@@ -44,7 +44,8 @@ def extract_numbers(text: str) -> frozenset[str]:
 def missing_entities(entities: Sequence[str], post_text: str) -> list[str]:
     """Entities absent from the post, compared casefolded and accent-insensitive, as
     whole words. An entity is present when all its significant words (≥ 3 letters) are,
-    or when it is an acronym of capitalized words of the post."""
+    when its surname is (or one typo away), or when it is an acronym of capitalized words
+    of the post."""
     words = set(_words(_fold(post_text)))
     capitalized_runs = _capitalized_runs(post_text)
     missing: list[str] = []
@@ -62,8 +63,44 @@ def missing_entities(entities: Sequence[str], post_text: str) -> list[str]:
         significant = [t for t in tokens if len(t) >= 3] or tokens
         if all(t in words for t in significant):
             continue
+        # Posts on X often give the surname only ("Riner", "Darmanin") or misspell it
+        # ("Rinner"): the surname (last significant word, 4 letters or more) present, or
+        # one typo away, is enough. A first name alone never is.
+        surname = significant[-1] if significant else ""
+        if _person_like(stripped) and len(surname) >= 4 and _near_word(surname, words):
+            continue
         missing.append(entity)
     return missing
+
+
+def _person_like(entity: str) -> bool:
+    """Two words or more, each capitalized ("Teddy Riner", "Marine Le Pen"): an
+    institution with lowercase words ("Banque centrale européenne") is not a person."""
+    parts = [p for p in re.split(r"[\s\-]+", entity) if p]
+    return len(parts) >= 2 and all(p[:1].isupper() for p in parts)
+
+
+def _near_word(token: str, words: set[str]) -> bool:
+    """``token`` is in ``words``, or (5 letters or more) one edit away from a word with
+    the same first letter."""
+    if token in words:
+        return True
+    if len(token) < 5:
+        return False
+    return any(w[:1] == token[:1] and _one_edit(token, w) for w in words)
+
+
+def _one_edit(a: str, b: str) -> bool:
+    """Levenshtein distance of exactly one (substitution, insertion or deletion)."""
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b, strict=True)) == 1
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    i = 0
+    while i < len(short) and short[i] == long_[i]:
+        i += 1
+    return short[i:] == long_[i + 1 :]
 
 
 def check_claim_fidelity(

@@ -921,7 +921,11 @@ def test_extract_numbers_email_like_not_mention() -> None:
         (["B.C.E."], "la BCE annonce", []),
         (["Élysée"], "Au palais de l'Elysee", []),
         (["Elysée"], "Au palais de l'ÉLYSÉE", []),
-        (["Emmanuel Macron"], "macron a dit", ["Emmanuel Macron"]),
+        (["Emmanuel Macron"], "macron a dit", []),  # surname only, as often on X
+        (["Teddy Riner"], "Teddy Rinner veut", []),  # one typo in the surname
+        (["Teddy Riner"], "Teddy a dit", ["Teddy Riner"]),  # first name alone: never
+        (["Gérald Darmanin"], "Darmanian dit", []),
+        (["Jean-Luc Mélenchon"], "Méluche gagnera", ["Jean-Luc Mélenchon"]),
         (["Emmanuel Macron"], "Emmanuel MACRON", []),
         (["Emmanuel Macron"], "Emmanuel a dit", ["Emmanuel Macron"]),
         (["Marine Le Pen"], "Le Pen et Marine", []),

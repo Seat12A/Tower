@@ -642,7 +642,9 @@ class Atlas:
         except FetchError as exc:
             run.fetch_failures += 1
             capture(exc.code, exc, domain=registrable_domain(url))
-            return None
+            return self._snippet_document(
+                run, url, adapter=adapter, lang=lang, side=side, item=fallback
+            )
         text, title, published = self._page_text(page)
         text = text.replace("\x00", "")  # PostgreSQL text rejects NUL characters
         if not text:
@@ -661,8 +663,44 @@ class Atlas:
             text=text,
             title=title or (fallback.title if fallback else None),
             publisher=rating.publisher,
-            published_at=published or (fallback.published_at if fallback else None),
+            # The page's own publication date only: the search engine's page age is often
+            # a crawl or update date, which raised false "source after the post" flags.
+            published_at=published,
             sha256=page.sha256,
+            side=side,
+        )
+
+    def _snippet_document(
+        self,
+        run: _Run,
+        url: str,
+        *,
+        adapter: str,
+        lang: str | None,
+        side: str | None,
+        item: SearchResult | None,
+    ) -> AtlasDocument | None:
+        """The search engine's title and snippet when the page itself cannot be read
+        (403, robots.txt, size cap): major outlets block automated fetches, and their
+        report was then lost entirely (stress set 2026-11-23). Never a scrape: only what
+        the search API returned."""
+        if item is None or not item.snippet.strip():
+            return None
+        text = f"{item.title.strip()}. {item.snippet.strip()}".replace("\x00", "")
+        rating = self.rate(url)
+        return AtlasDocument(
+            adapter=f"{adapter}_snippet",
+            canonical_url=canonical_url(url),
+            original_url=url,
+            domain=registrable_domain(url),
+            tier=rating.tier,
+            standing=rating.standing,
+            tier_basis=rating.basis,
+            lang=lang or run.request.claim_lang,
+            text=text,
+            title=item.title or None,
+            publisher=rating.publisher,
+            published_at=item.published_at,
             side=side,
         )
 

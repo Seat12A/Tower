@@ -40,6 +40,10 @@ class SourceRef:
     standing: str | None = None
     """Who publishes the source, from the human registry or the identity table only
     (``press``, ``official``...), never from a model."""
+    rated_tier: str | None = None
+    """Tier from the registry, the identity table, the rules or the adapter only, before
+    any display adjustment from the judge's standing (``tier`` may carry it, capped at
+    ``secondary``); ``None``: same as ``tier``. Used for "established"."""
 
 
 #: Standings (registry or identity table) of an established editorial source.
@@ -121,7 +125,7 @@ def assess_independence(refs: Sequence[SourceRef]) -> IndependenceResult:
             origins.append(key)
         if ref.tier == "primary":
             primary.add(key)
-        if is_established(ref.tier, ref.standing):
+        if is_established(ref.rated_tier or ref.tier, ref.standing):
             established.add(key)
             if not any(
                 d == ref.domain or hamming(h, ref.simhash) <= NEAR_DUPLICATE_BITS

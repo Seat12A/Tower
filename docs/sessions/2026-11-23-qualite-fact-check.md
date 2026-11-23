@@ -103,3 +103,60 @@ Wikidata ; deux relais d'une même dépêche restent une seule origine).
   confirmé ». Un contrôle de cohérence verdict/note à la relecture serait utile.
 - L'export ne contient ni le texte du post cité ou parent, ni les médias : certaines
   affirmations (« Jean-Michel dénonce… ») perdent leur sujet à l'extraction.
+
+## Suite : jeu de stress et premier passage réel (soir du 2026-11-23)
+
+### Réalisé
+- **Jeu de stress** de 50 posts (`src/tower/core/data/factcheck_stress_2026_11.jsonl`,
+  `--set builtin:factcheck_stress_2026_11`) écrit à partir de l'actualité réelle vérifiée
+  en ligne : posts à plusieurs affirmations mêlées, chiffres déformés, rumeurs, accusations,
+  avis, injections, paires ; styles des comptes relais et des utilisateurs (voir
+  `factcheck/evaluation.md`). Livré dans le paquet (l'image Docker n'a pas `tests/`).
+- **Rapport d'évaluation** : section « Details » par cas (rétrogradation, origines, source
+  primaire, second avis, note).
+- **Premier passage réel** (Jules, console Railway, 25 cas, 0,75 $) : 11/24 exacts, 75 %
+  d'abstention. La lecture des sorties du juge (`llm_calls`) montre que le juge avait le bon
+  verdict et les bonnes sources dans la plupart des cas ; la **règle d'indépendance**
+  rétrogradait ensuite. Corrigé :
+  - une source primaire non partie prenante suffit (Insee pour son chiffre, parquet) ;
+  - affirmation `quote` : deux éditeurs établis distincts suffisent (l'origine d'une
+    citation est toujours l'orateur).
+- **Bug** : un résultat Brave contenant U+0000 faisait échouer l'écriture de
+  `source_cache` (cas en erreur) ; caractères NUL retirés avant stockage.
+- **Pages bloquées** (403 de Le Figaro, Le Parisien, Légifrance, interieur.gouv.fr ;
+  robots.txt de Ouest-France) : le titre et l'extrait de l'API de recherche sont gardés
+  (`brave_snippet`) au lieu de perdre l'article.
+- **Dates** : l'âge de page de Brave n'est plus pris comme date de publication (fausses
+  alertes « source postérieure au post »).
+- **Noms sur X** : le contrôle de fidélité accepte le nom de famille seul ou à une faute
+  près pour une personne (« Riner », « Rinner ») ; l'extraction recopie les noms tels
+  qu'écrits (surnoms compris).
+- **Attendus corrigés** : 5 issues attendues du jeu étaient fausses (Palisades : condamnation
+  du 20 novembre selon le ministère américain de la Justice ; retrait de Ruffin ;
+  prolongation de la COP31 ; peines réelles du procès Zecler). Le juge avait trouvé mieux.
+- Consigne de Jules notée dans `CLAUDE.md` : tests proportionnés pour un ajustement.
+
+### Constats du passage réel non encore corrigés
+- Les coûts à 0 des modèles `gpt-5.6-*` sont l'allocation gratuite OpenAI (voulu).
+- GDELT : délais et 429, sauté sans conséquence.
+- Moutouh « condamné » et aveux du RN restaient « Non vérifiable » malgré un juge « Faux » :
+  cause probable, passages tirés de sites qui recopient les dépêches AFP, non reconnus
+  comme presse ; à confirmer avec la section « Details » au prochain passage.
+
+### Vérifications
+- Suite complète : 2 256 réussis, 2 échecs (`test_source_standing_db.py` :
+  `test_identity_refresh_errors`, `test_subject_sites_failure_does_not_stop_the_investigation`,
+  le compte de `error_reports` vaut 0). **Échecs préexistants** : identiques sur le code du
+  début de session (commit `3760138`), non liés à ces changements ; à examiner à part.
+  Un vrai défaut a été trouvé par la suite et corrigé : le statut donné par le juge
+  (affichage) comptait comme « source établie » ; la règle n'utilise plus que le niveau du
+  registre, de la table d'identité ou de l'adaptateur.
+- `ruff format --check`, `ruff check`, `mypy` strict (425 fichiers) : verts.
+- Rien n'a été relancé en production après ces corrections : à faire après déploiement
+  (commande dans `factcheck/evaluation.md`).
+
+### Points ouverts
+- Relancer le jeu de stress après déploiement et lire la section « Details ».
+- Une case par affirmation : regrouper les brouillons d'un post dans une case reste à
+  décider avec Jules.
+- Case 11 de l'export : contrôle de cohérence verdict/note à la relecture, à décider.

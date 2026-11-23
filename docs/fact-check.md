@@ -89,7 +89,9 @@ l'étape suivante. Un job dont l'étape est déjà passée ne fait rien.
   pseudonymisées (`@user`), et le texte du post parent ou cité tronqué à 280 caractères
   s'il est déjà en base ; jamais l'auteur.
 - Contrôle de fidélité dans les deux sens (`core/domain/factcheck/fidelity.py`) :
-  chiffre ou entité absent du post → affirmation rejetée ; post à chiffres sans
+  chiffre ou entité absent du post → affirmation rejetée (pour un nom de personne, le nom
+  de famille seul ou à une faute près suffit, comme souvent sur X : « Riner », « Rinner » ;
+  le prénom seul jamais ; les entités sont recopiées telles qu'écrites, surnom compris) ; post à chiffres sans
   affirmation chiffrée → rejeu. Un seul rejeu, avec une consigne ajoutée à l'entrée (donc
   hors cache) ; seules les affirmations fidèles sont gardées.
 - Cas d'usage `record_extraction` : `claims`, `content_claims`, un `claim_groups` par
@@ -171,7 +173,11 @@ web (révisée le 2026-11-23 après l'export des cases) :
   d'actualité, une citation, une conduite ou une accusation sont cherchés sur tout le
   web ;
 - les sources structurées, Wikipédia et l'index d'actualités ne peuvent pas occuper les
-  places réservées aux pages web (2 par recherche prévue, la moitié du plafond au plus). Une source indisponible
+  places réservées aux pages web (2 par recherche prévue, la moitié du plafond au plus).
+- page illisible (403, robots.txt, taille) : le titre et l'extrait renvoyés par l'API de
+  recherche sont gardés comme document (`brave_snippet`), au lieu de perdre l'article ;
+  jamais de contournement du blocage. Les grands médias (Le Figaro, Le Parisien,
+  Légifrance…) refusent les récupérations automatiques (jeu de stress du 2026-11-23). Une source indisponible
 est capturée (`TWR-ATL-*`) et sautée. Ce qui a été vérifié dans la documentation
 officielle de chaque API est consigné dans la docstring de chaque adaptateur.
 

@@ -883,6 +883,7 @@ def assess_judgement(
             simhash=by_label[label].simhash,
             stakeholder=stakeholder(by_label[label]),
             standing=by_label[label].source_standing,
+            rated_tier=("primary" if by_label[label].first_party else by_label[label].tier),
         )
         for label in valid_labels
     ]

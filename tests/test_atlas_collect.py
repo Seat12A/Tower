@@ -667,3 +667,16 @@ async def test_structured_sources_leave_room_for_the_web() -> None:
     )
     assert "https://press.example/a" in [d.canonical_url for d in res.documents]
     assert len(res.documents) <= 10
+
+
+async def test_blocked_page_keeps_the_search_snippet() -> None:
+    """Major outlets answer 403 to automated fetches: the title and snippet returned by
+    the search API are kept instead of losing the report."""
+    item = SearchResult(url="https://www.lefigaro.fr/a", title="Titre", snippet="Le fait rapporté.")
+    search = FakeSearch({("c1", False): [item]})
+    res = await atlas(search=search, fetcher=FakeFetcher({})).collect(
+        request(claim_type="conduct", queries=(q("c1", "web"),))
+    )
+    (doc,) = res.documents
+    assert doc.adapter == "brave_snippet" and doc.text == "Titre. Le fait rapporté."
+    assert doc.domain == "lefigaro.fr"
