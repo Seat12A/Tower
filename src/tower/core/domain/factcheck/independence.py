@@ -63,6 +63,17 @@ class IndependenceResult:
     """Normalized origin keys, in first-seen order."""
     established_origins: int = 0
     """Counted origins with at least one passage from an established source."""
+    established_publishers: int = 0
+    """Distinct established publishers (domain), near-identical texts counted once (a
+    wire copied word for word is one report)."""
+
+    @property
+    def attribution_corroborated(self) -> bool:
+        """For words attributed to someone (a quote, a statement, a program): the origin is
+        by construction the speaker, so two independent established publishers reporting
+        them suffice (stress set 2026-11-23: a statement on TV relayed by two outlets was
+        always one origin, hence never "true")."""
+        return self.corroborated or self.established_publishers >= 2
 
     @property
     def corroborated(self) -> bool:
@@ -95,6 +106,7 @@ def assess_independence(refs: Sequence[SourceRef]) -> IndependenceResult:
     origins: list[str] = []
     primary: set[str] = set()
     established: set[str] = set()
+    publishers: list[tuple[int, str]] = []  # (simhash, domain) of established passages
     for ref in refs:
         if ref.tier == "avoid" or ref.stakeholder:
             continue
@@ -111,11 +123,17 @@ def assess_independence(refs: Sequence[SourceRef]) -> IndependenceResult:
             primary.add(key)
         if is_established(ref.tier, ref.standing):
             established.add(key)
+            if not any(
+                d == ref.domain or hamming(h, ref.simhash) <= NEAR_DUPLICATE_BITS
+                for h, d in publishers
+            ):
+                publishers.append((ref.simhash, ref.domain))
     return IndependenceResult(
         independent_origins=len(origins),
         has_primary=bool(primary),
         origins=tuple(origins),
         established_origins=len(established),
+        established_publishers=len(publishers),
     )
 
 
@@ -125,14 +143,17 @@ def apply_independence_rule(
     result: IndependenceResult,
     *,
     has_partial_evidence: bool,
+    attribution: bool = False,
 ) -> tuple[Veracity, ContextNeed, bool]:
     """``TRUE``/``FALSE`` that is not :attr:`IndependenceResult.corroborated` (one primary
     source, or two independent origins from established sources) is downgraded to
-    ``UNVERIFIABLE``; the context need becomes at least ``USEFUL`` when
+    ``UNVERIFIABLE`` (``attribution``: :attr:`IndependenceResult.attribution_corroborated`
+    for a quote claim); the context need becomes at least ``USEFUL`` when
     partial evidence exists. Returns ``(veracity, context_need, downgraded)``.
     Other outcomes are returned unchanged."""
     downgraded = False
-    if veracity in (Veracity.TRUE, Veracity.FALSE) and not result.corroborated:
+    ok = result.attribution_corroborated if attribution else result.corroborated
+    if veracity in (Veracity.TRUE, Veracity.FALSE) and not ok:
         veracity = Veracity.UNVERIFIABLE
         downgraded = True
     if downgraded and has_partial_evidence and context_need is ContextNeed.NONE:

@@ -474,6 +474,26 @@ def test_is_established() -> None:
     assert not is_established("avoid", "press")
 
 
+def test_quote_relayed_by_two_outlets_is_corroborated() -> None:
+    """The origin of a quote is the speaker: two established outlets reporting it suffice
+    for a quote claim, not for a plain fact."""
+    refs = [
+        SourceRef("P1", "Gérald Darmanin", "ladepeche.fr", "unrated", _far(1), standing="press"),
+        SourceRef("P2", "Gérald Darmanin", "lci.fr", "unrated", _far(2), standing="press"),
+    ]
+    r = assess_independence(refs)
+    assert r.independent_origins == 1 and r.established_publishers == 2
+    assert apply_independence_rule(
+        V.TRUE, ContextNeed.NONE, r, has_partial_evidence=True, attribution=True
+    ) == (V.TRUE, ContextNeed.NONE, False)
+    assert apply_independence_rule(V.TRUE, ContextNeed.NONE, r, has_partial_evidence=True)[2]
+    same_text = [
+        refs[0],
+        SourceRef("P3", "Gérald Darmanin", "copy.fr", "unrated", _far(1), standing="press"),
+    ]
+    assert assess_independence(same_text).established_publishers == 1  # copied wire
+
+
 def test_single_primary_source_is_enough() -> None:
     out = apply_independence_rule(
         V.FALSE,

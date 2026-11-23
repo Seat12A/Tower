@@ -892,6 +892,7 @@ def assess_judgement(
         judge.context_need,
         independence,
         has_partial_evidence=bool(valid_labels),
+        attribution=claim is not None and claim.claim_type == "quote",
     )
     primary = [o.passage_id for o in judge.origins if o.primary and o.passage_id in by_label]
     return Assessment(
