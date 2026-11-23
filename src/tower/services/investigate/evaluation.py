@@ -838,7 +838,34 @@ def render_report(run: EvalRun, *, high: float) -> str:
         ],
         rows,
     )
+    lines += ["", "## Details", "", *_details(run.results)]
     return "\n".join(lines) + "\n"
+
+
+def _details(results: Sequence[CaseResult]) -> list[str]:
+    """Per case: why the outcome is what it is (independence rule, second opinion) and
+    the draft note, so a reviewer can tell a weak search from a strict rule."""
+    out: list[str] = []
+    for r in results:
+        o = r.outcome
+        if o is None:
+            continue
+        f = o.flags or {}
+        facts = [
+            f"downgraded={'yes' if f.get('downgraded') else 'no'}",
+            f"origins={f.get('independent_origins', '-')}",
+            f"primary={'yes' if f.get('has_primary') else 'no'}",
+            f"second_opinion={f.get('second_opinion_veracity', '-')}",
+        ]
+        if f.get("unverifiable_at_framing"):
+            facts.append("unverifiable_at_framing")
+        if f.get("no_evidence"):
+            facts.append("no_evidence")
+        out.append(f"- **{r.case.id}** ({'; '.join(facts)})")
+        note = next((n for n in o.notes if n.get("lang") == "fr"), o.notes[0] if o.notes else None)
+        if note:
+            out.append(f"  - {note.get('text', '').replace(chr(10), ' ')}")
+    return out
 
 
 def render_summary(run: EvalRun, *, high: float) -> str:
