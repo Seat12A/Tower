@@ -304,10 +304,12 @@ async def test_legifrance_only_for_french_legal_claims() -> None:
     assert (
         await a.collect(request(claim_type="legal_text", jurisdictions=("DE",)))
     ).documents == []
-    res = await a.collect(request(claim_type="procedure"))
+    # A judicial step of one affair is a news event: the codes are not queried.
+    assert (await a.collect(request(claim_type="procedure"))).documents == []
+    res = await a.collect(request(claim_type="legal_text"))
     assert len(res.documents) == 1
     assert res.documents[0].tier == "primary"  # adapter-declared or registry (legifrance.gouv.fr)
-    assert lf.queries[0].claim_type == "procedure" and lf.queries[0].jurisdiction == "FR"
+    assert lf.queries[0].claim_type == "legal_text" and lf.queries[0].jurisdiction == "FR"
 
 
 async def test_unavailable_source_skipped_and_captured(db: Database) -> None:
@@ -368,7 +370,9 @@ async def test_web_budget_symmetric_sides_and_broadening() -> None:
     res = await a.collect(request(queries=queries, max_web_searches=4))
     searched = [c[0] for c in search.calls]
     assert res.web_searches == 4 == len(searched)
-    assert searched == ["c1", "r1", "c2", "r2"]  # alternating; broadening never starves a side
+    # An empty restricted search is rerun on the whole web, but one search stays for the
+    # first query of the other side: broadening never starves a side.
+    assert searched == ["c1", "c1", "r1", "r1"]
     assert res.paid_cost_usd_micros == 4 * 5000
     # With a bigger budget the restricted-empty queries are rerun without domains.
     search2 = FakeSearch()
@@ -614,3 +618,52 @@ async def test_news_comes_after_the_encyclopedia_and_gdelt_only_for_ongoing_situ
     assert len(gdelt.queries) == 1
     await a.collect(request(claim_type="ongoing_situation", skip_encyclopedia=True))
     assert len(index.queries) == 2  # light check (E5): no news
+
+
+async def test_news_events_search_the_whole_web() -> None:
+    """Export 2026-11-22: a news event searched on gouv.fr returned unrelated official
+    pages. Only statistics, laws and procedures are restricted first."""
+    search = FakeSearch({("c1", False): [sr("https://press.example/a")]})
+    fetcher = FakeFetcher({"https://press.example/a": page("u", html("A", "body"))})
+    res = await atlas(search=search, fetcher=fetcher).collect(
+        request(claim_type="conduct", queries=(q("c1", "web"), q("r1", "web", "refute")))
+    )
+    assert search.calls == [("c1", ()), ("r1", ())]
+    assert [d.canonical_url for d in res.documents] == ["https://press.example/a"]
+
+
+async def test_subject_site_searched_first() -> None:
+    """The official site of the person or organisation (program, statement) is read
+    before the articles; the search counts in the budget."""
+    search = FakeSearch({("c1", True): [sr("https://party.example/programme")]})
+    fetcher = FakeFetcher({"https://party.example/programme": page("u", html("P", "body"))})
+    res = await atlas(search=search, fetcher=fetcher).collect(
+        request(
+            claim_type="other",
+            queries=(q("c1", "web"), q("r1", "web", "refute")),
+            subject_domains=("party.example",),
+            max_web_searches=3,
+        )
+    )
+    assert search.calls == [("c1", ("party.example",)), ("c1", ()), ("r1", ())]
+    assert res.documents[0].canonical_url == "https://party.example/programme"
+    assert res.web_searches == 3
+
+
+async def test_structured_sources_leave_room_for_the_web() -> None:
+    """Wikidata properties used to fill the document cap before any web page."""
+    many = FakeSource(
+        "wikidata", [ev("wikidata", f"https://www.wikidata.org/wiki/Q1#P{i}") for i in range(30)]
+    )
+    search = FakeSearch({("c1", False): [sr("https://press.example/a")]})
+    fetcher = FakeFetcher({"https://press.example/a": page("u", html("A", "body"))})
+    res = await atlas(sources={"wikidata": many}, search=search, fetcher=fetcher).collect(
+        request(
+            claim_type="conduct",
+            entity_lookups=("X",),
+            queries=(q("c1", "web"),),
+            max_documents=10,
+        )
+    )
+    assert "https://press.example/a" in [d.canonical_url for d in res.documents]
+    assert len(res.documents) <= 10

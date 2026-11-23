@@ -426,3 +426,10 @@ async def test_eval_pins_checked_at_to_its_day_so_reruns_hit_the_cache(db: Datab
         today=date(2026, 3, 1),
     )
     assert seen and all('"checked_at":"2026-03-01T00:00+00:00"' in m for m in seen)
+
+
+def test_stress_set_parses() -> None:
+    """The 2026-11 stress set (50 posts) stays loadable by ``tower factcheck eval``."""
+    cases = ev.load_cases("builtin:factcheck_stress_2026_11")  # shipped in the package
+    assert len(cases) == 50
+    assert all(c.post_text and len(c.post_text) <= 280 for c in cases)

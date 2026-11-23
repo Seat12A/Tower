@@ -428,11 +428,18 @@ def _dedupe(values: Iterable[str]) -> list[str]:
     return out
 
 
+_UNDETERMINED_LANGS = frozenset({"", "und", "zxx", "mul", "qam", "qct", "qht", "qme", "qst"})
+"""Platform codes that are not a language (``und``: undetermined; X also uses ``qme`` for
+media only, ``qst`` for very short text...): a note is never written "in" them."""
+
+
 def writer_languages(settings: Settings, post_lang: str) -> list[str]:
-    """Post language first, then the reference languages (``en`` for English posts)."""
-    return _dedupe(
-        [post_lang, *settings.fc_reference_lang_list, *(["en"] if post_lang == "en" else [])]
-    )
+    """Post language first, then the reference languages (``en`` for English posts). An
+    undetermined post language (export 2026-11-22: notes stored as ``und``) is dropped:
+    the reference languages are written."""
+    lang = (post_lang or "").lower()
+    first = [] if lang in _UNDETERMINED_LANGS else [lang]
+    return _dedupe([*first, *settings.fc_reference_lang_list, *(["en"] if lang == "en" else [])])
 
 
 def synthetic_judgement(*review_points: str, needs_more_research: str | None = None) -> JudgeOutput:
@@ -575,6 +582,7 @@ def atlas_request(
     depth: Depth | str,
     round_: int,
     as_of: date | None,
+    subject_domains: Sequence[str] = (),
 ) -> AtlasRequest:
     items = tuple(
         AtlasQuery(
@@ -602,6 +610,7 @@ def atlas_request(
         entity_lookups=tuple(queries.entity_lookups),
         max_web_searches=searches,
         as_of=as_of,
+        subject_domains=tuple(subject_domains),
     )
 
 
@@ -652,7 +661,9 @@ def select_new_passages(
                 p.source_url == r.chunk.source_key and p.text == r.chunk.text for p in existing
             )
         ]
-    selected = select_passages(ranked, limit=limit)
+    selected = select_passages(
+        ranked, limit=limit, min_relative_score=settings.fc_passage_min_relative_score
+    )
     out: list[PassageData] = []
     for i, item in enumerate(selected):
         doc = by_url[item.chunk.source_key]
@@ -697,6 +708,7 @@ async def collect_round(
     today: date,
     post_date: date | None,
     registry_tier: Callable[[str], tuple[str, str | None]] | None = None,
+    subject_domains: Sequence[str] = (),
 ) -> CollectOutcome:
     """E7: write the symmetric queries, collect through Atlas, select the passages."""
     step = await call_queries(
@@ -719,7 +731,13 @@ async def collect_round(
             refute=len(queries.refute),
         )
     request = atlas_request(
-        claim, queries, settings=settings, depth=depth, round_=round_, as_of=post_date
+        claim,
+        queries,
+        settings=settings,
+        depth=depth,
+        round_=round_,
+        as_of=post_date,
+        subject_domains=subject_domains if round_ == 1 else (),
     )
     result = await atlas.collect(request)
     passages = select_new_passages(
@@ -864,6 +882,7 @@ def assess_judgement(
             ),
             simhash=by_label[label].simhash,
             stakeholder=stakeholder(by_label[label]),
+            standing=by_label[label].source_standing,
         )
         for label in valid_labels
     ]

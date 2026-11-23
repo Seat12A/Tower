@@ -10,10 +10,12 @@ from tower.core.domain.factcheck.values import ContextNeed, Veracity
 from tower.core.domain.text import hamming
 
 __all__ = [
+    "ESTABLISHED_STANDINGS",
     "IndependenceResult",
     "SourceRef",
     "apply_independence_rule",
     "assess_independence",
+    "is_established",
     "normalize_origin",
 ]
 
@@ -35,6 +37,22 @@ class SourceRef:
     simhash: int
     stakeholder: bool = False
     """Publisher (or its controller) is a party to the claim (lot 6: registry join)."""
+    standing: str | None = None
+    """Who publishes the source, from the human registry or the identity table only
+    (``press``, ``official``...), never from a model."""
+
+
+#: Standings (registry or identity table) of an established editorial source.
+ESTABLISHED_STANDINGS = frozenset({"press", "fact_checker", "academic", "journal"})
+
+
+def is_established(tier: str, standing: str | None) -> bool:
+    """A source with an editorial process: tier ``primary`` or ``secondary``, or an
+    ``unrated`` source that the registry or the identity table knows as press, fact-checker,
+    university or journal. Encyclopedias, blogs and unknown sites are not."""
+    if tier in ("primary", "secondary"):
+        return True
+    return tier == "unrated" and standing in ESTABLISHED_STANDINGS
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +61,17 @@ class IndependenceResult:
     has_primary: bool
     origins: tuple[str, ...]
     """Normalized origin keys, in first-seen order."""
+    established_origins: int = 0
+    """Counted origins with at least one passage from an established source."""
+
+    @property
+    def corroborated(self) -> bool:
+        """Two independent origins, and either one primary source or two established
+        sources (two outlets with an editorial process that do not relay the same origin).
+        Export 2026-11-22: requiring a primary source in every case turned well-reported
+        events (a death, an outage, a candidacy reported by Reuters, Paris Match, BFMTV)
+        into "unverifiable", because the press is ``unrated``, never primary."""
+        return self.independent_origins >= 2 and (self.has_primary or self.established_origins >= 2)
 
 
 def normalize_origin(origin: str | None, domain: str) -> str:
@@ -63,6 +92,7 @@ def assess_independence(refs: Sequence[SourceRef]) -> IndependenceResult:
     counted: list[tuple[int, str]] = []  # (simhash, origin key) of every counted passage
     origins: list[str] = []
     primary: set[str] = set()
+    established: set[str] = set()
     for ref in refs:
         if ref.tier == "avoid" or ref.stakeholder:
             continue
@@ -77,10 +107,13 @@ def assess_independence(refs: Sequence[SourceRef]) -> IndependenceResult:
             origins.append(key)
         if ref.tier == "primary":
             primary.add(key)
+        if is_established(ref.tier, ref.standing):
+            established.add(key)
     return IndependenceResult(
         independent_origins=len(origins),
         has_primary=bool(primary),
         origins=tuple(origins),
+        established_origins=len(established),
     )
 
 
@@ -91,14 +124,13 @@ def apply_independence_rule(
     *,
     has_partial_evidence: bool,
 ) -> tuple[Veracity, ContextNeed, bool]:
-    """``TRUE``/``FALSE`` without two independent origins including a primary one is
+    """``TRUE``/``FALSE`` that is not :attr:`IndependenceResult.corroborated` (two
+    independent origins, with one primary source or two established sources) is
     downgraded to ``UNVERIFIABLE``; the context need becomes at least ``USEFUL`` when
     partial evidence exists. Returns ``(veracity, context_need, downgraded)``.
     Other outcomes are returned unchanged."""
     downgraded = False
-    if veracity in (Veracity.TRUE, Veracity.FALSE) and not (
-        result.independent_origins >= 2 and result.has_primary
-    ):
+    if veracity in (Veracity.TRUE, Veracity.FALSE) and not result.corroborated:
         veracity = Veracity.UNVERIFIABLE
         downgraded = True
     if downgraded and has_partial_evidence and context_need is ContextNeed.NONE:

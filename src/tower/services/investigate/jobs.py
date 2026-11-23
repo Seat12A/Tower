@@ -540,6 +540,9 @@ async def _collect(ctx: JobContext, st: _State) -> None:
     previous = [
         q["query"] for r in rounds for side in ("confirm", "refute") for q in r["queries"][side]
     ]
+    # Resolved before the search: the subject's official site (program, statement,
+    # release) is searched first, then the articles (cached Wikidata reads).
+    subject_hosts = await _subject_hosts(ctx, st.view, inv.id)
     outcome = await pl.collect_round(
         llm,
         atlas,
@@ -553,9 +556,9 @@ async def _collect(ctx: JobContext, st: _State) -> None:
         previous_queries=previous,
         today=st.today,
         post_date=_date(st),
+        subject_domains=subject_hosts,
     )
     no_evidence = not existing and not outcome.passages
-    subject_hosts = await _subject_hosts(ctx, st.view, inv.id) if outcome.passages else ()
     first_party = first_party_urls((p.source_url for p in outcome.passages), subject_hosts)
     record = dict(outcome.record)
     if subject_hosts:

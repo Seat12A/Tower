@@ -322,7 +322,26 @@ def parse_cases(text: str, *, limit: int | None = None) -> list[EvalCase]:
     return cases[:limit] if limit is not None else cases
 
 
+BUILTIN_PREFIX = "builtin:"
+"""``--set builtin:<name>`` reads ``tower/core/data/<name>.jsonl`` shipped in the package
+(the Docker image has no ``tests/``), e.g. ``builtin:factcheck_stress_2026_11``."""
+
+
 def load_cases(path: str | Path, *, limit: int | None = None) -> list[EvalCase]:
+    name = str(path)
+    if name.startswith(BUILTIN_PREFIX):
+        from importlib import resources
+
+        file = name.removeprefix(BUILTIN_PREFIX)
+        try:
+            text = (
+                resources.files("tower.core.data")
+                .joinpath(f"{file}.jsonl")
+                .read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError):
+            raise InvalidInput(f"Unknown built-in evaluation set {file!r}") from None
+        return parse_cases(text, limit=limit)
     try:
         text = Path(path).read_text(encoding="utf-8")
     except OSError as exc:

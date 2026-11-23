@@ -507,3 +507,20 @@ médias, personnalités, experts) en respectant la catégorie.
 | Contrôle du nom (un mot commun avec le nom affiché ; repli sur le pseudo seulement pour un nom affiché sans alphabet latin) et lignes `review` réservées aux comptes `government` de X | Sûreté : les listes fournies ne sont pas authentifiées ; dans le doute, ne pas attribuer |
 | `institutional` seulement pour les personnes en fonction (dont direction de parti), sinon `verified` | Consigne de Jules ; la catégorie vient de la fonction, jamais de l'opinion |
 | Domaine des experts en français | Décision du 2026-11-21 (expertise en texte libre français) |
+
+## Qualité des fact-checks après l'export des cases (2026-11-23)
+
+Examen des 85 cases exportées le 2026-11-22 (48 posts) : 75 % de « Non vérifiable »,
+sources hors sujet citées dans les notes, « Vrai » bien sourcés rétrogradés, doublons.
+Détails dans [sessions/2026-11-23-qualite-fact-check.md](sessions/2026-11-23-qualite-fact-check.md).
+
+| Décision | Raison |
+|---|---|
+| « Vrai » ou « Faux » : deux origines indépendantes **et** une source primaire **ou** deux sources établies (primaire, secondaire, ou presse / fact-checker / université / revue selon le registre ou la table d'identité, jamais selon le modèle). Remplace « deux origines dont une primaire » (2026-11-10) | La presse est `unrated` et jamais primaire : un décès, une panne ou une candidature rapportés par Reuters et Paris Match sortaient « Non vérifiable » (16 rétrogradations sur 89). La règle reste symétrique et fermée ; deux relais d'une même dépêche comptent pour une origine |
+| Recherche web sur tout le web pour les faits d'actualité, citations, conduites et accusations ; restriction aux domaines officiels de la juridiction seulement pour statistique, texte juridique et procédure | Restreindre un fait divers à `gouv.fr` renvoyait des pages électorales sans rapport ; l'élargissement ne se déclenchait jamais (budget) |
+| Site officiel du sujet (QID → P856, y compris le parti P102) cherché en premier, puis les articles | Demande de Jules : pour un programme ou une accusation visant une personne ou une organisation, lire d'abord le document officiel, avec prudence (partie prenante pour sa conduite ou son bilan) |
+| Textes de loi seulement pour `legal_text` ; `procedure` = fonctionnement général d'une procédure ; une étape d'une affaire (garde à vue, procès) est un fait | Les codes renvoyaient des articles sans rapport (vidéosurveillance en garde à vue, orientation professionnelle) |
+| Places réservées aux pages web ; index d'actualités à deux mots communs au moins ; seuil de pertinence BM25 (15 % du meilleur score) | Wikidata (une propriété = un document) et les articles de loi remplissaient le plafond avant le web ; un seul mot commun (« présidentielle ») ramenait n'importe quelle dépêche |
+| Revalidation à la demande : nouvelle enquête seulement si un post a rejoint le groupe depuis le verdict ; jamais pour une note manuelle | Chaque expiration rouvrait une enquête et une case en double (cases 10, 11, 85), même pour une blague ou un test |
+| Rattachement d'une affirmation hors statistique dont la signature est seulement compatible, si similarité ≥ seuil de rattachement et arbitre « même affirmation » | La même rumeur postée deux fois (similarité 0,99) faisait deux groupes, deux enquêtes et une fusion manuelle ; une statistique reste séparée (définition ou période manquante = autre chiffre) |
+| Consignes : 1 à 3 affirmations par post (un sondage = une affirmation), propos rapportés vérifiés comme attribution, jugement à la date du post, aucune source hors sujet citée ni décrite, pas d'horodatage de vérification ni de jargon d'enquête dans la note | Sondage Elabe en 5 cases, « À la Philharmonie, il y a plein d'origines » vérifié comme un fait, GTA 6 « non confirmé » à sa sortie, notes « Au 21 novembre à 18 h 32 UTC, la fiche Wikidata indique une date de naissance » |

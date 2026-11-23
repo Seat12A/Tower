@@ -93,6 +93,7 @@ Voir [fact-check.md](fact-check.md#réglages).
 | `TOWER_FC_SEARCHES_REINFORCED_EXTRA` | `4` | Recherches web supplémentaires en profondeur renforcée |
 | `TOWER_FC_PASSAGES_STANDARD` | `30` | Passages donnés au juge (environ 160 tokens chacun) |
 | `TOWER_FC_PASSAGES_REINFORCED` | `60` | Idem en profondeur renforcée |
+| `TOWER_FC_PASSAGE_MIN_RELATIVE_SCORE` | `0.15` | Seuil de pertinence : un passage dont le score BM25 est sous cette fraction du meilleur score n'est pas donné au juge (`0` désactive). Ajouté après l'export du 2026-11-22 (articles de loi et actualités sans rapport cités dans les notes) |
 | `TOWER_FC_PASSAGE_WORDS` | `120` | Taille cible d'un passage (mots) |
 | `TOWER_FC_CONFIDENCE_COEFFICIENTS` | vide | Objet JSON qui remplace des coefficients de la confiance (noms de `Coefficients` dans `core/domain/factcheck/confidence.py`) |
 | `TOWER_FC_CONFIDENCE_CAP` | `0.90` | Plafond de la confiance avant calibration |

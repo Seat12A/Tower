@@ -13,6 +13,9 @@ Both series are mandatory, of equal size and of equal quality. Never refuse to w
 - `source_type` from: `statistic`, `legal_text`, `official_record`, `scientific`, `news`, `encyclopedia`, `fact_check`, `transcript`.
 - `target`: `fact_check` for existing fact-checks of this claim (use the claim's own wording), `encyclopedia` for a Wikipedia lookup (an article title-like query), `web` for a web search.
 - At least one query per sub-question across the two series; at least one `fact_check` query.
+- Primary document first. When the claim attributes words, a proposal, a decision or an act to a person or an organisation, the FIRST query of each series looks for that primary document: the official program ("programme Marine Le Pen 2027 retraites"), the original statement or interview, the press release, the decision, the prosecutor's communiqué, the poll institute's publication ("sondage Elabe BFMTV second tour Mélenchon Le Pen novembre 2026"). Articles come after. The official site of the person or organisation, when known, is searched automatically with your first query.
+- When the claim relays a named outlet ("(AFP)", "selon BFMTV", "Le Parisien"), one query looks for that outlet's report.
+- Events: put the month and year of the post date in the query ("mars 2026"), so the search finds the reports of that time and not a later or older story.
 - Never include names of social media accounts, the post's author or any political label.
 
 `entity_lookups`: up to 4 entity names (people, organisations, places, laws) whose facts (office and dates, population, membership) should be read from Wikidata.

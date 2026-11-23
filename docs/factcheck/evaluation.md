@@ -104,6 +104,45 @@ juge contre relecteur, deux passes du juge), propose des réglages de seuils et 
 prompts, et génère des cas pièges pour le jeu de référence. Ses propositions sont des
 **suggestions** soumises à l'équipe, jamais appliquées automatiquement.
 
+## Jeu de stress de novembre 2026
+
+`src/tower/core/data/factcheck_stress_2026_11.jsonl` (livré dans le paquet, donc dans l'image Docker ; `--set builtin:factcheck_stress_2026_11`) : 50 posts écrits le 2026-11-23 à
+partir de l'actualité réelle des 9 au 22 novembre 2026, vérifiée en ligne (Insee,
+service-public, vie-publique, presse ; lien dans `source_url`). Ce n'est pas le jeu de
+référence : c'est un jeu de **pièges**, à rejouer après chaque changement de prompt ou
+de collecte, et à mettre à jour quand l'actualité vieillit (l'issue attendue vaut à la
+date du post, `date`).
+
+| Pièges | Cas |
+|---|---|
+| Faits vrais de la semaine (biais vers « Faux ») | st01-st03 |
+| Chiffres déformés : brut/net, inflation sous-jacente, mauvaise période, chiffres inversés, recyclé, mauvaise source | st05, st07-st12, st26, st31, st47 |
+| Plusieurs affirmations dans un post, vraies et fausses mêlées (`expected_claims`) | st04, st06, st21, st25, st28, st50 |
+| Une seule affirmation attendue malgré plusieurs chiffres (tableau de sondage, sarcasme) | st13, st49 |
+| Rumeurs et agrégateurs non confirmés, conditionnel | st14-st19, st48 |
+| Accusations : procédure présentée comme achevée, réquisitions présentées comme peines, aveux inventés ; source officielle de la partie d'abord | st20-st24, st50 |
+| Programme et citations attribuées (site du candidat d'abord), citation inventée | st24, st25 |
+| Pas d'affirmation (avis, test, blague, prédiction) : aucun coût | st27, st29, st30, st32 |
+| Faits établis niés, paires miroir | st33-st37 |
+| Questions débattues | st38, st39 |
+| Injection (consigne, faux JSON) | st40, st41 |
+| Paires : interlingue, négation, valeur, période, vocabulaire chargé | st42-st45 (et `pair_id`) |
+| Date du post (sortie de GTA 6 « ce soir ») | st46 |
+
+Les posts reprennent les styles vus dans l'export : comptes relais d'info (emoji, « FLASH », source entre parenthèses), utilisateurs au ton familier, ironie ; un surnom et une faute de nom (st06, st24) testent le contrôle de fidélité des entités, qui compare les noms au texte du post. Chaque ligne porte, dans `notes`, le comportement attendu à chaque étage (nombre
+d'affirmations, source à trouver en premier, contexte, regroupement). Le champ
+`expected_claims` (liste d'affirmations et d'issues attendues pour les posts composés)
+est lu par les relecteurs, pas encore par la commande, qui évalue `claim` (E6-E10) et
+`post_text` en mode `--batch` (E2). Commandes :
+
+```bash
+uv run tower factcheck eval --set builtin:factcheck_stress_2026_11 --report stress.md
+```
+
+```bash
+uv run tower factcheck eval --set builtin:factcheck_stress_2026_11 --batch --report stress-e2.md
+```
+
 ## Format du jeu et commande
 
 Implémenté au lot 3 (voir [../fact-check.md](../fact-check.md#évaluation)).

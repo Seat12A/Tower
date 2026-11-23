@@ -1,13 +1,16 @@
 """Atlas: source selection and collection for one investigation (pipeline.md E7).
 
 Order (connaissances.md): existing fact-checks → structured sources chosen by the
-jurisdiction of the claim (statistics: INSEE, Eurostat, World Bank, OECD, IMF; law: LEGI
-mirror, then Légifrance, EUR-Lex, Fedlex, Justice Laws; plus Wikidata) → Wikipedia (then
-its references to primary sources) → news (local ``news_index``, GDELT for ongoing
-situations) → web search (Brave: primary and official domains of the jurisdiction first,
-then broadened). The country choice comes from ``jurisdiction_sources`` (defaults below
-when a country has no row). Every call goes through ``source_cache`` (or PostgreSQL for
-the local mirrors); an unavailable source is captured (``TWR-ATL-*``) and skipped.
+jurisdiction of the claim (statistics: INSEE, Eurostat, World Bank, OECD, IMF; law, for
+``legal_text`` claims only: LEGI mirror, then Légifrance, EUR-Lex, Fedlex, Justice Laws;
+plus Wikidata) → Wikipedia (then its references to primary sources) → news (local
+``news_index``, GDELT for ongoing situations) → web search (Brave: the subject's official
+site first when known; for statistics, legal texts and procedures only, the primary and
+official domains of the jurisdiction first, then broadened; the whole web otherwise). The
+steps before the web search never use the document slots reserved for the web pages. The
+country choice comes from ``jurisdiction_sources`` (defaults below when a country has no
+row). Every call goes through ``source_cache`` (or PostgreSQL for the local mirrors); an
+unavailable source is captured (``TWR-ATL-*``) and skipped.
 
 Pure orchestration: the caller (service ``investigate``) chunks, ranks and stores.
 """
@@ -103,6 +106,10 @@ class AtlasRequest:
     skip_encyclopedia: bool = False
     """Skip the encyclopedia (and its followed references): light check (E5) only reads
     existing fact-checks and structured sources."""
+    subject_domains: tuple[str, ...] = ()
+    """Official sites of the claim's subject (Wikidata, by QID). When set, the first web
+    query of each series is also run restricted to them: the official program, statement
+    or release of the person or organisation is read before the articles about it."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +199,14 @@ _HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 _FETCH_PER_SEARCH = 2
 _MIN_RESTRICTED_RESULTS = 2
 _SEARCH_LIMIT = 5
+RESTRICTED_FIRST_TYPES = frozenset({"statistic", "legal_text", "procedure"})
+"""Claim types whose evidence is expected on official domains: the web search is first
+restricted to the primary domains of the jurisdiction, then broadened. Every other type
+(events, quotes, conduct, accusations...) is searched on the whole web: restricting a news
+event to ``gouv.fr`` returned unrelated official pages (export of 2026-11-22)."""
+LEGAL_TYPES = frozenset({"legal_text"})
+"""Claim types that query the legal adapters (a judicial step of one affair, such as a
+custody, is a news event: the codes returned unrelated articles)."""
 
 
 def _host(host_or_url: str) -> str:
@@ -269,10 +284,13 @@ class _Run:
         self.confirm = 0
         self.refute = 0
         self.fetch_failures = 0
+        self.cap = request.max_documents
+        """Current document cap: lowered before the web search so that structured
+        sources, the encyclopedia and the news index never use the slots of the web."""
 
     @property
     def full(self) -> bool:
-        return len(self.result.documents) >= self.request.max_documents
+        return len(self.result.documents) >= self.cap
 
     def count(self, query: AtlasQuery) -> None:
         if query.side == "confirm":
@@ -383,12 +401,14 @@ class Atlas:
 
     async def collect(self, request: AtlasRequest) -> AtlasResult:
         run = _Run(request)
+        run.cap = max(1, request.max_documents - self._web_reserve(request))
         await self._fact_checks(run)
         if not request.fact_checks_only:
             await self._structured(run)
             if not request.skip_encyclopedia:
                 await self._encyclopedia(run)
                 await self._news(run)
+            run.cap = request.max_documents
             await self._web(run)
         run.result.paid_cost_usd_micros = run.result.web_searches * self._search_cost
         log.info(
@@ -402,6 +422,16 @@ class Atlas:
             skipped=sorted(run.result.skipped),
         )
         return run.result
+
+    def _web_reserve(self, request: AtlasRequest) -> int:
+        """Documents kept free for the web search (2 fetched pages per search)."""
+        if request.fact_checks_only or self._search is None or request.max_web_searches <= 0:
+            return 0
+        web_queries = sum(1 for q in request.queries if q.target == "web")
+        searches = min(
+            request.max_web_searches, web_queries + (1 if request.subject_domains else 0)
+        )
+        return min(request.max_documents // 2, searches * _FETCH_PER_SEARCH)
 
     def _fail(self, run: _Run, name: str, exc: SourceUnavailable) -> None:
         capture(exc.code, exc, source=name)
@@ -526,7 +556,7 @@ class Atlas:
                         name,
                         [(self._query(run, req.claim_text, lang, jurisdiction=country), None)],
                     )
-        if req.claim_type in ("legal_text", "procedure"):
+        if req.claim_type in LEGAL_TYPES:
             for country in countries:
                 found_free = False
                 for name in self.adapters_for(country, "law"):
@@ -664,13 +694,40 @@ class Atlas:
         for i in range(max(len(confirms), len(refutes))):
             ordered.extend(group[i] for group in (confirms, refutes) if i < len(group))
         ordered.extend(others)
-        primary = self.primary_domains(req.jurisdictions)
         country = _iso_country(req.jurisdictions)
+        primary = (
+            self.primary_domains(req.jurisdictions)
+            if req.claim_type in RESTRICTED_FIRST_TYPES
+            else []
+        )
+        subject = [d.lower() for d in dict.fromkeys(req.subject_domains) if d]
         budget = req.max_web_searches
+        if subject and ordered:
+            # The subject's own site first (program, statement, release): read with
+            # caution (a party to the claim), then the articles.
+            try:
+                results = await self._search.search(
+                    ordered[0].query,
+                    limit=_SEARCH_LIMIT,
+                    lang=ordered[0].lang,
+                    country=country,
+                    include_domains=subject,
+                )
+            except SourceUnavailable as exc:
+                self._fail(run, "brave", exc)
+                return
+            budget -= 1
+            run.result.web_searches += 1
+            self._used(run, "brave")
+            await self._fetch_results(run, results, ordered[0])
+        searched_sides: set[str] = set()
         for index, q in enumerate(ordered):
             if budget <= 0 or run.full:
                 break
-            remaining_after = len(ordered) - index - 1
+            searched_sides.add(q.side)
+            # Keep one search for the first query of a side not searched yet, so that
+            # broadening never starves a side.
+            reserve = int(any(o.side not in searched_sides for o in ordered[index + 1 :]))
             try:
                 restricted = bool(primary)
                 results = await self._search.search(
@@ -683,11 +740,7 @@ class Atlas:
                 budget -= 1
                 run.result.web_searches += 1
                 searched = [results]
-                if (
-                    restricted
-                    and len(results) < _MIN_RESTRICTED_RESULTS
-                    and budget - 1 >= remaining_after
-                ):
+                if restricted and len(results) < _MIN_RESTRICTED_RESULTS and budget - 1 >= reserve:
                     broadened = await self._search.search(
                         q.query, limit=_SEARCH_LIMIT, lang=q.lang, country=country
                     )
@@ -707,20 +760,26 @@ class Atlas:
                     if key not in urls:
                         urls.add(key)
                         merged.append(item)
-            fetched = 0
-            for item in merged:
-                if fetched >= _FETCH_PER_SEARCH or run.full:
-                    break
-                if canonical_url(item.url) in run.seen:
-                    continue
-                doc = await self._fetch_document(
-                    run,
-                    item.url,
-                    adapter="brave",
-                    lang=item.lang or q.lang,
-                    side=q.side,
-                    fallback=item,
-                )
-                fetched += 1
-                if doc is not None:
-                    self._add(run, doc)
+            await self._fetch_results(run, merged, q)
+
+    async def _fetch_results(
+        self, run: _Run, results: Sequence[SearchResult], q: AtlasQuery
+    ) -> None:
+        """Fetch up to ``_FETCH_PER_SEARCH`` new pages of one search."""
+        fetched = 0
+        for item in results:
+            if fetched >= _FETCH_PER_SEARCH or run.full:
+                break
+            if canonical_url(item.url) in run.seen:
+                continue
+            doc = await self._fetch_document(
+                run,
+                item.url,
+                adapter="brave",
+                lang=item.lang or q.lang,
+                side=q.side,
+                fallback=item,
+            )
+            fetched += 1
+            if doc is not None:
+                self._add(run, doc)

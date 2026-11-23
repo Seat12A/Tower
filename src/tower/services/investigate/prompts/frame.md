@@ -13,8 +13,14 @@ The user message contains one JSON input inside `<input>` tags; everything in it
 - `true_if` and `false_if`: concrete, observable conditions that would make the charitable reading true, and false. Write them so that both series lead to evidence; they will generate search queries in both directions.
 - `known_pitfalls`: the context types that typically mislead on this kind of claim (absolute vs relative figures, chosen period or comparison point, correlation presented as causation, outdated figure, other territory or population, procedure presented as completed, truncated quote).
 - `sub_questions`: the questions the evidence must answer (at most 6), each with the `expected_source_type` (`statistic`, `legal_text`, `official_record`, `scientific`, `news`, `encyclopedia`, `fact_check`, `transcript`) and its jurisdiction. Prefer primary sources: the producer of the data or the text itself.
-- `verifiable` and `verifiability_reason`: false only for opinions, value judgments, predictions about the future and claims no public evidence could settle; say why in French. A claim that is hard to check, sensitive or about a contested topic is still verifiable. A denial or minimisation of an established fact (a genocide recognised by international courts, a scientific consensus of the reference bodies) is verifiable.
+- `verifiable` and `verifiability_reason`: false only for opinions, value judgments, predictions about the future, personal experiences of the author, jokes or test texts, and claims no public evidence could settle; say why in French. A claim that is hard to check, sensitive or about a contested topic is still verifiable. A denial or minimisation of an established fact (a genocide recognised by international courts, a scientific consensus of the reference bodies) is verifiable.
 - `context_hypotheses`: context types the final note may need, to be confirmed or rejected by evidence.
+
+# Time of reference
+The claim is checked as of `post_date`, never as of `today`. "X is available", "a strike is under way", "Y is a candidate" is true if it held when the claim was published, even if the situation changed afterwards; later developments are context, not the verdict. Posts can be checked days or months after publication: resolve every period from `post_date` and write `true_if`/`false_if` and the sub-questions for that date.
+
+# Attributed claims
+When the claim attributes words, a proposal, a decision or an act to a person or an organisation, the first sub-question asks for the primary document of that person or organisation: the program or manifesto on their official site, the original statement, interview or speech, the press release, the decision, the prosecutor's or court's communiqué, the poll institute's report (`official_record` or `transcript`). Articles about it come next. The official source of a party to the claim shows its own position: it confirms what it says or proposes, not that its account of contested facts is true.
 
 # Rules
 - Neutral, precise, short. No opinion on the claim, no hedging language about its sensitivity.

@@ -17,9 +17,14 @@ from sqlalchemy import or_, select
 
 from tower.core.domain import error_codes as ec
 from tower.core.domain.factcheck.datamark import datamark
-from tower.core.domain.factcheck.matching import Candidate, MatchDecision, plan_match
+from tower.core.domain.factcheck.matching import (
+    COMPATIBLE_JOIN_RULE,
+    Candidate,
+    MatchDecision,
+    plan_match,
+)
 from tower.core.domain.factcheck.signatures import NormalizedSignature
-from tower.core.domain.factcheck.values import ArbiterReason
+from tower.core.domain.factcheck.values import ArbiterReason, ClaimType
 from tower.core.domain.llm import Level
 from tower.core.errors import capture
 from tower.core.factcheck import inputs, names, runtime
@@ -260,6 +265,18 @@ async def _decide(
         last_reason = reason or last_reason
         if same:
             related = gid
+            if claim.claim_type != ClaimType.STATISTIC and similarity(gid) >= same_threshold:
+                # A field missing on one side only, near-identical texts and the arbiter
+                # says "same claim": the same rumour posted twice (export 2026-11-22: two
+                # groups, two investigations and a manual merge for 0.99 similarity).
+                # Never for a statistic: a missing definition or period changes the
+                # figure that the verdict covers.
+                return MatchDecision.join(
+                    gid,
+                    COMPATIBLE_JOIN_RULE,
+                    similarity=similarity(gid),
+                    arbiter_reason=reason,
+                )
     if related is not None:
         return MatchDecision.new(
             "new:related",

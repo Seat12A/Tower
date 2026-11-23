@@ -9,6 +9,7 @@ from tower.core.domain.factcheck.signatures import SignatureComparison
 from tower.core.domain.factcheck.values import Band, BandSide, MatchOutcome
 
 __all__ = [
+    "COMPATIBLE_JOIN_RULE",
     "MAX_ARBITER_CALLS",
     "Candidate",
     "MatchDecision",
@@ -17,6 +18,9 @@ __all__ = [
 ]
 
 MAX_ARBITER_CALLS = 2
+COMPATIBLE_JOIN_RULE = "compatible_signature:arbiter"
+"""Join of a non-statistic claim whose signature differs only by fields missing on one
+side, with near-identical texts and an arbiter "same claim"."""
 
 
 @dataclass(frozen=True, slots=True)

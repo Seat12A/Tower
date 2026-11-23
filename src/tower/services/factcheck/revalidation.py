@@ -3,7 +3,9 @@
 
 ``expire`` marks the verdicts past their ``expires_at`` as ``expired`` and enqueues one
 revalidation per verdict. The job brings the group back to a verdict: relink to a newer
-validated fact of the series, inherit through an active band, or investigate again.
+validated fact of the series, inherit through an active band, or investigate again, but
+only when a post joined the group after the verdict (a dormant group waits for its next
+post; a manual note is never re-investigated by the models).
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from tower.core.logging import get_logger
 from tower.core.models.factcheck import (
     Claim,
     ClaimGroup,
+    ClaimGroupMember,
     ContentClaim,
     Investigation,
     Verdict,
@@ -91,6 +94,21 @@ async def _has_running_investigation(
         if inv.created_at > cutoff:
             return True
     return False
+
+
+async def _seen_since(session: AsyncSession, group: ClaimGroup, since: datetime) -> bool:
+    """A post joined one of the group's claims after ``since``: the claim still circulates."""
+    found = await session.scalar(
+        select(ContentClaim.content_id)
+        .join(ClaimGroupMember, ClaimGroupMember.claim_id == ContentClaim.claim_id)
+        .where(
+            ClaimGroupMember.group_id == group.id,
+            ClaimGroupMember.removed_at.is_(None),
+            ContentClaim.created_at > since,
+        )
+        .limit(1)
+    )
+    return found is not None
 
 
 async def _newer_fact(session: AsyncSession, fact: ReferenceFact) -> ReferenceFact | None:
@@ -248,6 +266,18 @@ async def _revalidate(ctx: JobContext, verdict_id: int) -> None:
                 return
         if content is None:
             raise PermanentError("no content to investigate for the group")
+        # Demand-driven: a new investigation (and a new review case) only when the claim
+        # still circulates. Export 2026-11-22: every expiry reopened an investigation and a
+        # duplicate case, even for a one-off joke or a manual note. A dormant group stays
+        # ``to_revalidate``; the next post that joins it opens the investigation
+        # (claims use case, ``_after_join``).
+        if verdict.investigation_id is None:
+            log.info("factcheck.revalidate_skipped", verdict=verdict_id, reason="manual_note")
+            return
+        cutoff = verdict.validated_at or verdict.created_at
+        if not await _seen_since(session, group, cutoff):
+            log.info("factcheck.revalidate_skipped", verdict=verdict_id, reason="dormant")
+            return
         await claims_uc.request_investigation(
             session,
             actor,
