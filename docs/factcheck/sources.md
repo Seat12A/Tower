@@ -83,8 +83,8 @@ de 500. Classes (`IDENTITY_CLASSES`) :
 - **Être sur Wikidata ne prouve pas la fiabilité** : des sites de désinformation
   documentés y ont leur fiche. C'est pourquoi la presse identifiée reste `unrated`
   (statut `press`) et que le registre humain (`avoid`) l'emporte toujours.
-- Règle d'indépendance (depuis le 2026-11-23) : deux origines indépendantes publiées par
-  des sources **établies** (niveau primaire ou secondaire, ou statut `press`,
+- Règle d'indépendance (depuis le 2026-11-23) : une source primaire non partie prenante
+  suffit ; sinon deux origines indépendantes publiées par des sources **établies** (niveau primaire ou secondaire, ou statut `press`,
   `fact_checker`, `academic`, `journal` donné par le registre ou cette table) suffisent
   pour « Vrai » ou « Faux », sans source primaire. Le statut donné par le juge n'entre
   jamais dans ce calcul.

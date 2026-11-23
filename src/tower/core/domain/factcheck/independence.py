@@ -66,12 +66,14 @@ class IndependenceResult:
 
     @property
     def corroborated(self) -> bool:
-        """Two independent origins, and either one primary source or two established
-        sources (two outlets with an editorial process that do not relay the same origin).
-        Export 2026-11-22: requiring a primary source in every case turned well-reported
-        events (a death, an outage, a candidacy reported by Reuters, Paris Match, BFMTV)
-        into "unverifiable", because the press is ``unrated``, never primary."""
-        return self.independent_origins >= 2 and (self.has_primary or self.established_origins >= 2)
+        """One primary source that is not a party to the claim (the statistics office for
+        its figure, the prosecutor for the state of a procedure, the body for its own
+        rules), or two independent origins published by established sources (two outlets
+        with an editorial process that do not relay the same origin). Parties to the claim
+        and ``avoid`` sources are never counted (``assess_independence``).
+        Stress set 2026-11-23: the judge was right with the Insee alone (inflation, core
+        inflation) and the rule still asked for a second origin."""
+        return self.has_primary or (self.independent_origins >= 2 and self.established_origins >= 2)
 
 
 def normalize_origin(origin: str | None, domain: str) -> str:
@@ -124,9 +126,9 @@ def apply_independence_rule(
     *,
     has_partial_evidence: bool,
 ) -> tuple[Veracity, ContextNeed, bool]:
-    """``TRUE``/``FALSE`` that is not :attr:`IndependenceResult.corroborated` (two
-    independent origins, with one primary source or two established sources) is
-    downgraded to ``UNVERIFIABLE``; the context need becomes at least ``USEFUL`` when
+    """``TRUE``/``FALSE`` that is not :attr:`IndependenceResult.corroborated` (one primary
+    source, or two independent origins from established sources) is downgraded to
+    ``UNVERIFIABLE``; the context need becomes at least ``USEFUL`` when
     partial evidence exists. Returns ``(veracity, context_need, downgraded)``.
     Other outcomes are returned unchanged."""
     downgraded = False

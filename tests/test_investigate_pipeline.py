@@ -522,7 +522,7 @@ def test_assess_valid_citations_independence_and_primary() -> None:
 
 
 def test_assess_invalid_and_unknown_citations_and_downgrade() -> None:
-    passages = [_pd("P1", "The rate was seven percent in 2025.", tier="primary")]
+    passages = [_pd("P1", "The rate was seven percent in 2025.", tier="secondary")]
     judge = _judge(
         [_cite("P1", "rate was seven percent"), _cite("P1", "never written"), _cite("P7", "x")],
         [PassageOrigin(passage_id="P1", origin="Insee", primary=True)],
@@ -530,9 +530,20 @@ def test_assess_invalid_and_unknown_citations_and_downgrade() -> None:
     a = pl.assess_judgement(judge, passages)
     assert [c.valid for c in a.citations] == [True, False, False]
     assert a.valid_labels == ["P1"]
-    # One independent origin only: TRUE becomes UNVERIFIABLE, context at least useful.
+    # One non-primary origin only: TRUE becomes UNVERIFIABLE, context at least useful.
     assert a.veracity is Veracity.UNVERIFIABLE and a.downgraded
     assert a.context_need is ContextNeed.USEFUL
+
+
+def test_assess_single_primary_source_suffices() -> None:
+    """Stress set 2026-11-23: the Insee alone settles its own figure."""
+    passages = [_pd("P1", "The rate was seven percent in 2025.", tier="primary")]
+    judge = _judge(
+        [_cite("P1", "rate was seven percent")],
+        [PassageOrigin(passage_id="P1", origin="Insee", primary=True)],
+    )
+    a = pl.assess_judgement(judge, passages)
+    assert a.veracity is Veracity.TRUE and not a.downgraded
 
 
 def test_assess_accepts_datamarked_quote_and_ellipsis() -> None:

@@ -420,7 +420,6 @@ GOOD = IndependenceResult(2, True, ("a", "b"))
     "result",
     [
         IndependenceResult(0, False, ()),
-        IndependenceResult(1, True, ("a",)),
         IndependenceResult(2, False, ("a", "b")),
         IndependenceResult(5, False, ("a", "b", "c", "d", "e")),
     ],
@@ -473,6 +472,16 @@ def test_is_established() -> None:
     assert is_established("unrated", "press") and is_established("unrated", "academic")
     assert not is_established("unrated", None) and not is_established("tertiary", "press")
     assert not is_established("avoid", "press")
+
+
+def test_single_primary_source_is_enough() -> None:
+    out = apply_independence_rule(
+        V.FALSE,
+        ContextNeed.NONE,
+        IndependenceResult(1, True, ("insee",)),
+        has_partial_evidence=True,
+    )
+    assert out == (V.FALSE, ContextNeed.NONE, False)
 
 
 @pytest.mark.parametrize("v", list(Veracity))
