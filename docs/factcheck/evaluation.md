@@ -106,7 +106,7 @@ prompts, et génère des cas pièges pour le jeu de référence. Ses proposition
 
 ## Jeu de stress de novembre 2026
 
-`tests/fixtures/factcheck_stress_2026_11.jsonl` : 50 posts écrits le 2026-11-23 à
+`src/tower/core/data/factcheck_stress_2026_11.jsonl` (livré dans le paquet, donc dans l'image Docker ; `--set builtin:factcheck_stress_2026_11`) : 50 posts écrits le 2026-11-23 à
 partir de l'actualité réelle des 9 au 22 novembre 2026, vérifiée en ligne (Insee,
 service-public, vie-publique, presse ; lien dans `source_url`). Ce n'est pas le jeu de
 référence : c'est un jeu de **pièges**, à rejouer après chaque changement de prompt ou
@@ -136,11 +136,11 @@ est lu par les relecteurs, pas encore par la commande, qui évalue `claim` (E6-E
 `post_text` en mode `--batch` (E2). Commandes :
 
 ```bash
-uv run tower factcheck eval --set tests/fixtures/factcheck_stress_2026_11.jsonl --report stress.md
+uv run tower factcheck eval --set builtin:factcheck_stress_2026_11 --report stress.md
 ```
 
 ```bash
-uv run tower factcheck eval --set tests/fixtures/factcheck_stress_2026_11.jsonl --batch --report stress-e2.md
+uv run tower factcheck eval --set builtin:factcheck_stress_2026_11 --batch --report stress-e2.md
 ```
 
 ## Format du jeu et commande
