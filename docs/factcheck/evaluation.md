@@ -129,7 +129,7 @@ date du post, `date`).
 | Paires : interlingue, négation, valeur, période, vocabulaire chargé | st42-st45 (et `pair_id`) |
 | Date du post (sortie de GTA 6 « ce soir ») | st46 |
 
-Chaque ligne porte, dans `notes`, le comportement attendu à chaque étage (nombre
+Les posts sont écrits comme sur X (fautes, sans accents, argot, surnoms comme « Méluche » ou « Darma », majuscules, emojis, ironie) : ils testent aussi le contrôle de fidélité des entités, qui compare les noms au texte du post. Chaque ligne porte, dans `notes`, le comportement attendu à chaque étage (nombre
 d'affirmations, source à trouver en premier, contexte, regroupement). Le champ
 `expected_claims` (liste d'affirmations et d'issues attendues pour les posts composés)
 est lu par les relecteurs, pas encore par la commande, qui évalue `claim` (E6-E10) et
