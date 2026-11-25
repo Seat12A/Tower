@@ -11,11 +11,13 @@ from fastapi import APIRouter, Query, Request, Response
 
 from tower.core.domain.factcheck.manual import validate_manual_note
 from tower.core.usecases import drafts as uc
+from tower.core.usecases import factcheck_progress as progress_uc
 from tower.core.usecases import manual_notes as manual_uc
 from tower.core.usecases import verdict_index as index_uc
 from tower.gate.deps import ActorDep, ReadSession, WriteSession
 from tower.gate.schemas import (
     DraftOut,
+    FactcheckInProgressOut,
     FactcheckRequestIn,
     FactcheckRequestOut,
     ManualNoteIn,
@@ -49,6 +51,22 @@ async def request_factcheck(
         accepted=True,
         duplicate=result.duplicate,
     )
+
+
+@router.get(
+    "/v1/factcheck/in-progress",
+    response_model=FactcheckInProgressOut,
+    tags=["factcheck"],
+)
+async def factchecks_in_progress(
+    actor: ActorDep,
+    session: ReadSession,
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> FactcheckInProgressOut:
+    """Fact-checks being prepared: team requests not yet extracted and investigations
+    not yet assembled into a draft (failed ones for 24 hours), newest first."""
+    result = await progress_uc.in_progress(session, actor, limit=limit)
+    return FactcheckInProgressOut.model_validate(result, from_attributes=True)
 
 
 @router.post(

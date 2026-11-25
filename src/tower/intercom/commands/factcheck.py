@@ -206,6 +206,13 @@ def register(tree: Any, ctx: Context) -> None:
     async def fc_request(interaction: discord.Interaction, url: str) -> None:
         await run_handler(interaction, lambda loc, uid: fc.request(gate, uid, loc, url))
 
+    @app_commands.command(
+        name="factchecks", description="Fact-checks being prepared and their stage"
+    )
+    @app_commands.guild_only()
+    async def fc_in_progress(interaction: discord.Interaction) -> None:
+        await run_handler(interaction, lambda loc, uid: fc.in_progress(gate, uid, loc))
+
     class NoteModal(BaseModal):
         """Free texts of ``/note``; the choices come from the slash command options."""
 
@@ -353,6 +360,6 @@ def register(tree: Any, ctx: Context) -> None:
             interaction, lambda loc, uid: fc.band_validate(gate, uid, loc, verdict_id)
         )
 
-    commands: tuple[Any, ...] = (fc_request, note_cmd, grp, fct)
+    commands: tuple[Any, ...] = (fc_request, fc_in_progress, note_cmd, grp, fct)
     for command in commands:
         tree.add_command(command)

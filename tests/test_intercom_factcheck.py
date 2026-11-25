@@ -768,3 +768,42 @@ def test_group_fact_and_request_cards_are_persistent() -> None:
         fc.decided_reply("en", "active"),
     ):
         assert_persistent(reply)
+
+
+class ProgressGate:
+    def __init__(self, data: dict[str, Any]) -> None:
+        self.data = data
+
+    async def factchecks_in_progress(self, acting: int | None, **kw: Any) -> dict[str, Any]:
+        return self.data
+
+
+async def test_factchecks_in_progress_card() -> None:
+    request = {
+        "step": "reading",
+        "status": "queued",
+        "level": "N3",
+        "url": "https://x.com/i/status/42",
+        "requested_by": "staff:1002@intercom",
+        "attempts": 2,
+        "last_error": "rate limited",
+        "created_at": "2026-11-25T18:00:00Z",
+    }
+    inv = {
+        "id": "fbaa8363-1f02-4e51-9e4d-5cb40e3283dc",
+        "level": "N3",
+        "depth": "standard",
+        "stage": "judging",
+        "cost_usd": 0.04,
+        "claim": "Le chômage a doublé en un an",
+        "url": "https://x.com/i/status/43",
+        "requested_by": "system:factcheck",
+        "created_at": "2026-11-25T18:00:00Z",
+    }
+    gate = cast(GateClient, ProgressGate({"requests": [request], "investigations": [inv]}))
+    reply = await fc.in_progress(gate, 1, "fr")
+    for piece in ("Lecture du post", "<@1002>", "tentative 2", "Jugement", "`fbaa8363`"):
+        assert piece in reply.text, piece
+    assert "automatique" in reply.text and "<t:1795629600:R>" in reply.text
+    empty = await fc.in_progress(cast(GateClient, ProgressGate({})), 1, "en")
+    assert "No fact-check is being prepared" in empty.text

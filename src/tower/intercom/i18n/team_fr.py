@@ -135,6 +135,7 @@ MESSAGES: dict[str, str] = {
     "help.cmd.case reject": "Rejeter un case",
     "help.cmd.case publish": "Enregistrer le lien de publication X",
     "help.cmd.factcheck": "Demander la vérification d'un post",
+    "help.cmd.factchecks": "Voir les fact-checks en préparation et leur étape",
     "help.cmd.group show": "Afficher un groupe d'affirmations",
     "help.cmd.group merge": "Fusionner deux groupes",
     "help.cmd.group split": "Déplacer des affirmations dans un nouveau groupe",

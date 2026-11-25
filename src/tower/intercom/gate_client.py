@@ -260,6 +260,14 @@ class GateClient:
         )
         return accepted
 
+    async def factchecks_in_progress(
+        self, acting: int | None, *, limit: int = 25
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = await self._request(
+            "GET", "/v1/factcheck/in-progress", acting, params={"limit": limit}
+        )
+        return result
+
     async def list_drafts(
         self,
         acting: int | None,

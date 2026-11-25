@@ -337,6 +337,48 @@ class DraftContentOut(BaseModel):
     lang: str
 
 
+class PendingRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    step: Literal["reading", "extracting"]
+    status: Literal["queued", "running"]
+    level: str | None
+    platform: str | None
+    external_id: str | None
+    url: str | None
+    requested_by: str
+    attempts: int
+    last_error: str | None
+    created_at: datetime
+
+
+class RunningInvestigationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    group_id: str
+    level: str
+    depth: str
+    stage: str
+    round: int
+    cost_usd: float
+    claim: str | None
+    platform: str | None
+    external_id: str | None
+    url: str | None
+    requested_by: str
+    error: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class FactcheckInProgressOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    requests: list[PendingRequestOut]
+    investigations: list[RunningInvestigationOut]
+
+
 class DraftCaseOut(BaseModel):
     id: str
     short_id: str | None = None
