@@ -781,6 +781,25 @@ async def test_n4_on_already_extracted_content_promotes_the_group(
     )
 
 
+async def test_n3_request_on_already_extracted_content_reinvestigates(
+    db: Database, settings: Settings
+) -> None:
+    """A team request at N3 never stops at an earlier extraction: a new standard
+    investigation when the previous one failed, nothing while one is running."""
+    cid = await make_content(db, "2032", POST)
+    runtime.set_override(
+        "llm", ScriptedLLM(output(cid, [claim("Le chômage est de 7 %.", entities=["INSEE"])]))
+    )
+    await run_extract(db, settings, cid, "N3")
+    await run_extract(db, settings, cid, "N3", by="staff:7")  # one is running: no new one
+    assert await scalar(db, "SELECT count(*) FROM investigations") == 1
+    async with db.transaction() as s:
+        await s.execute(text("UPDATE investigations SET stage = 'failed'"))
+    await run_extract(db, settings, cid, "N3", by="staff:7")
+    invs = await rows(db, "SELECT level, depth, requested_by FROM investigations ORDER BY id")
+    assert tuple(invs[-1]) == ("N3", "standard", "staff:7") and len(invs) == 2
+
+
 async def test_n4_promotion_restarts_after_a_failed_n4_investigation(
     db: Database, settings: Settings
 ) -> None:
@@ -845,7 +864,7 @@ async def set_x_budget(db: Database, cap: int, spent: int = 0) -> None:
         )
 
 
-async def test_request_ingests_and_enqueues_an_n4_extraction_end_to_end(
+async def test_request_ingests_and_enqueues_an_n3_extraction_end_to_end(
     db: Database, settings: Settings
 ) -> None:
     await set_x_budget(db, 1_000_000)
@@ -868,9 +887,9 @@ async def test_request_ingests_and_enqueues_an_n4_extraction_end_to_end(
     assert queued == [
         {
             "content_id": cid,
-            "level": "N4",
+            "level": "N3",
             "requested_by": "staff:9",
-            "_dedupe": names.extract_key(cid, "N4"),
+            "_dedupe": names.extract_key(cid, "N3"),
         }
     ]
     await run_request(db, settings)  # asking twice does not duplicate the job
@@ -879,9 +898,9 @@ async def test_request_ingests_and_enqueues_an_n4_extraction_end_to_end(
     runtime.set_override(
         "llm", ScriptedLLM(output(cid, [claim("Le chômage est de 7 %.", entities=["INSEE"])]))
     )
-    await run_extract(db, settings, cid, "N4", by="staff:9")
+    await run_extract(db, settings, cid, "N3", by="staff:9")
     inv = (await rows(db, "SELECT level, depth, requested_by FROM investigations"))[0]
-    assert tuple(inv) == ("N4", "reinforced", "staff:9")
+    assert tuple(inv) == ("N3", "standard", "staff:9")
     assert await scalar(db, "SELECT reach FROM claim_groups") == 900
 
 
@@ -919,6 +938,14 @@ async def test_request_budget_refused(db: Database, settings: Settings) -> None:
     assert info.value.delay >= 60
     assert client.calls == []  # no platform call without budget
     assert await scalar(db, "SELECT count(*) FROM content_items") == 0
+
+
+async def test_request_level_is_configurable(db: Database, settings: Settings) -> None:
+    cid = await make_content(db, "3003", POST)
+    runtime.set_override("platform:x", FakePlatform(platform_item("3003")))
+    await run_request(db, settings.model_copy(update={"fc_request_level": "N4"}), "3003")
+    assert [q["level"] for q in await jobs_of(db, names.JOB_EXTRACT)] == ["N4"]
+    assert cid
 
 
 async def test_request_for_known_content_still_enqueues(db: Database, settings: Settings) -> None:

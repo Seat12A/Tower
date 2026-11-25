@@ -88,6 +88,7 @@ Voir [fact-check.md](fact-check.md#réglages).
 | `TOWER_FC_CAP_STANDARD_USD` | `0.10` | Plafond de coût d'une enquête standard : au-delà, pas d'escalade |
 | `TOWER_FC_CAP_REINFORCED_USD` | `0.40` | Plafond d'une enquête renforcée (N3) |
 | `TOWER_FC_CAP_N4_USD` | `0.60` | Plafond d'une enquête N4 |
+| `TOWER_FC_REQUEST_LEVEL` | `N3` | Niveau d'un fact-check demandé par l'équipe (bot, `POST /v1/factcheck/requests`) : `N3` (profondeur standard, renforcée seulement en cas de doute, réutilisation permise) ou `N4` (toujours renforcée, modèles les plus forts, jamais de réutilisation) |
 | `TOWER_FC_N4_REVALIDATE_HOURS` | `24` | Revalidation continue du N4 : un verdict N4 expire (et repart en enquête renforcée, sans réutilisation directe) au plus tard N heures après sa validation |
 | `TOWER_FC_SEARCHES_STANDARD` | `4` | Recherches web d'une enquête standard |
 | `TOWER_FC_SEARCHES_REINFORCED_EXTRA` | `4` | Recherches web supplémentaires en profondeur renforcée |

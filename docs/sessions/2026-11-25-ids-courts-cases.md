@@ -71,3 +71,18 @@ Reportées dans `docs/decisions.md` (section du 2026-11-25, identifiants courts)
 - Collision simultanée de deux insertions qui partagent leurs 8 caractères : la seconde
   échoue sur la contrainte d'unicité et doit être relancée (un job l'est
   automatiquement). Probabilité de l'ordre de 1 sur 4 milliards par paire simultanée.
+
+## Suite : niveau des demandes de fact-check
+
+- Demande de Jules : les demandes depuis le bot passaient en N4 (modèles les plus forts à
+  chaque fois). Nouveau réglage `TOWER_FC_REQUEST_LEVEL` (`N3` par défaut, `N4`
+  possible), lu par le job `factcheck.request` (`services/factcheck/jobs.py`).
+- `claims.promote_for_request` : une demande N3 sur un contenu déjà extrait porte ses
+  groupes en N3 et ouvre une enquête standard si le groupe n'a ni verdict actif ni
+  enquête N3/N4 en cours.
+- Docs : `configuration.md`, `.env.example`, `api.md`, `intercom.md`, `fact-check.md`,
+  `decisions.md`.
+- Vérifications : ruff, mypy strict OK ; tests du service factcheck, du bot, de gate et
+  des niveaux et récits : 171 réussis. Tests adaptés (demande en N3) et deux tests
+  courts ajoutés (niveau configurable, demande N3 sur contenu déjà extrait).
+- À savoir : en N3, une affirmation non vérifiable ne produit pas de brouillon.

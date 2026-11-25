@@ -225,6 +225,7 @@ async def _promote_groups(
     claim_ids: Sequence[int],
     requested_by: str,
     language_not_processed: bool,
+    level: str,
 ) -> None:
     groups = (
         await session.scalars(
@@ -235,11 +236,12 @@ async def _promote_groups(
         )
     ).all()
     for group in groups:
-        await claims_uc.promote_to_n4(
+        await claims_uc.promote_for_request(
             session,
             actor,
             group=group,
             content=content,
+            level=level,
             requested_by=requested_by,
             language_not_processed=language_not_processed,
         )
@@ -298,9 +300,10 @@ async def _reuse_existing(
             session, content.id, level, ExtractionStatus.EXTRACTED, None, None
         )
         log.info("factcheck.copy_linked", content=content.id, original=earlier)
-    if level == "N4":
+    if level == "N4" or (level == "N3" and requested_by != names.FACTCHECK_ACTOR):
+        # A team request (or N4) never stops at an earlier extraction.
         await _promote_groups(
-            session, actor, content, claim_ids, requested_by, language_not_processed
+            session, actor, content, claim_ids, requested_by, language_not_processed, level
         )
     return True
 
@@ -428,7 +431,7 @@ def _check_post_id(output: ExtractOutput, content_id: int) -> None:
         raise RuntimeError("extraction post_id does not match the input")
 
 
-# ------------------------------------------------------------- manual request (N4)
+# ------------------------------------------- manual request (TOWER_FC_REQUEST_LEVEL)
 
 
 def _to_item_input(item: PlatformItem) -> ItemInput:
@@ -481,15 +484,16 @@ async def request(ctx: JobContext) -> None:
         )
         if content_id is None:  # pragma: no cover (just upserted)
             raise PermanentError("content missing after ingestion")
+        level = ctx.settings.fc_request_level
         await enqueue(
             session,
             QUEUE,
             names.JOB_EXTRACT,
-            {"content_id": content_id, "level": "N4", "requested_by": requested_by},
+            {"content_id": content_id, "level": level, "requested_by": requested_by},
             priority=names.FAST_LANE_PRIORITY,
-            dedupe_key=names.extract_key(content_id, "N4"),
+            dedupe_key=names.extract_key(content_id, level),
         )
-    log.info("factcheck.requested", content=content_id, platform=platform)
+    log.info("factcheck.requested", content=content_id, platform=platform, level=level)
 
 
 async def _read_for(ctx: JobContext, platform: str, external_id: str, ref: str) -> PlatformItem:

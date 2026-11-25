@@ -130,6 +130,10 @@ class Settings(BaseSettings):
     """Per-investigation cost cap at the standard depth: no escalation beyond it."""
     fc_cap_reinforced_usd: float = Field(default=0.40, ge=0)
     fc_cap_n4_usd: float = Field(default=0.60, ge=0)
+    fc_request_level: Literal["N3", "N4"] = "N3"
+    """Level of a fact-check requested by the team (bot, ``POST /v1/factcheck/requests``):
+    ``N3`` (standard depth, escalates only on doubt) keeps frequent requests affordable;
+    ``N4`` always runs the reinforced depth (strongest models)."""
     fc_n4_revalidate_hours: int = Field(default=24, ge=1)
     """N4 continuous revalidation: an N4 verdict expires (and is re-investigated) at most
     this many hours after its validation."""

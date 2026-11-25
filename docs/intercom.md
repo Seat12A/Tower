@@ -68,7 +68,7 @@ unique d'au moins 6 caractères**.
 | `/incidents show empreinte` | Détail (préfixe de 6 caractères accepté, résolus compris) : statut, sévérité, occurrences, première et dernière occurrence, processus, emplacement, exception, relançable, note de résolution, dernier message, piste du catalogue, dernier contexte (12 clés au plus) et fin de la dernière trace, le tout borné à un message Discord ; boutons « Résoudre » (si ouvert) et retour à la liste | `errors:read` (`errors:manage` pour résoudre) |
 | `/incidents resolve empreinte` | Modal : note facultative | `errors:manage` |
 | `/usage` | Allocation gratuite du jour, dépense du mois par portée ; actualisation | `usage:read` |
-| `/factcheck url` | Demande de fact-check manuelle (N4) : « demandée » ou « déjà demandée » | `factcheck:request` |
+| `/factcheck url` | Demande de fact-check manuelle (niveau `TOWER_FC_REQUEST_LEVEL`, N3 par défaut) : « demandée » ou « déjà demandée » | `factcheck:request` |
 | `/note url veracity claim_type [context_need] [context_types] [note_lang]` | Note manuelle sans IA : les options choisissent le verdict, puis un formulaire demande l'affirmation (fr), la note, les sources (une URL par ligne) et la fiche ; le brouillon arrive dans le salon des cases | `cases:review` |
 | `/group show id` | Carte du groupe : actualiser, fusionner ici (modal), scinder (modal) | `cases:read`, `claim_groups:manage` |
 | `/group merge` / `split` | Fusion et scission (réversibles) | `claim_groups:manage` |
