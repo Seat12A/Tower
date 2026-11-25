@@ -18,11 +18,17 @@ MESSAGES: dict[str, str] = {
     ),
     "progress.auto": "automatique",
     "progress.post": "post",
-    "progress.retrying": "tentative {n}, dernière erreur :",
     "progress.step.reading": "Lecture du post",
     "progress.step.extracting": "Extraction des affirmations",
     "progress.job.queued": "en file",
     "progress.job.running": "en cours",
+    "progress.job.failed": "échouée",
+    "progress.waiting": "En attente :",
+    "progress.next_try": "prochain essai {when}",
+    "progress.stalled": (
+        "Aucun job ne fait tourner cette étape : elle sera marquée en échec "
+        "automatiquement sous 30 min. Dernière erreur :"
+    ),
     "progress.depth.standard": "standard",
     "progress.depth.reinforced": "renforcée",
     "progress.stage.framing": "Cadrage",

@@ -802,7 +802,14 @@ async def test_factchecks_in_progress_card() -> None:
     }
     gate = cast(GateClient, ProgressGate({"requests": [request], "investigations": [inv]}))
     reply = await fc.in_progress(gate, 1, "fr")
-    for piece in ("Lecture du post", "<@1002>", "tentative 2", "Jugement", "`fbaa8363`"):
+    for piece in (
+        "Lecture du post",
+        "<@1002>",
+        "En attente",
+        "rate limited",
+        "Jugement",
+        "`fbaa8363`",
+    ):
         assert piece in reply.text, piece
     assert "automatique" in reply.text and "<t:1795629600:R>" in reply.text
     empty = await fc.in_progress(cast(GateClient, ProgressGate({})), 1, "en")

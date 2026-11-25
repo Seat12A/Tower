@@ -103,3 +103,26 @@ Reportées dans `docs/decisions.md` (section du 2026-11-25, identifiants courts)
 - Redémarrage : les fact-checks en cours ne sont pas perdus. Les jobs sont en base ; un
   job interrompu reprend après expiration de son bail (`TOWER_JOB_LEASE_SECONDS`,
   5 min) et les étapes déjà payées d'une enquête ne sont pas refaites.
+
+## Suite : enquête bloquée et raisons d'attente dans `/factchecks`
+
+- Constat de Jules : une enquête affichée « Rédaction de la note » depuis un jour, et des
+  demandes manuelles absentes de la liste. Les données de production n'ont pas pu être
+  lues depuis cette session : le diagnostic vient du code.
+- Cause possible d'une enquête figée : une étape qui se termine sans marquer l'enquête
+  en échec (délai dépassé à la dernière tentative, `PermanentError` levée par une étape,
+  job perdu). Nouvelle tâche périodique `investigate:stalled`
+  (`services/investigate/stalled.py`) : échec après 30 min sans job actif, avec la
+  dernière erreur du job.
+- Autre cause possible, non bloquante : un job reporté (`RetryLater`, par exemple budget
+  `level:N3` épuisé). Il ne consomme pas de tentative et peut attendre longtemps.
+  `/factchecks` affiche maintenant la raison et le prochain essai (`run_at`,
+  `job_error`), et signale une étape sans job.
+- Demandes absentes : la liste ne montrait que les jobs en file ou en cours. Elle montre
+  aussi les demandes échouées des dernières 24 h. Une demande réussie dont l'extraction
+  n'a donné aucune enquête (aucune affirmation vérifiable, verdict réutilisé, non
+  vérifiable en N3), ou dont le brouillon est assemblé mais retenu par le quota
+  quotidien, n'apparaît toujours pas.
+- Vérifications : ruff, mypy strict OK ; un test ajouté (enquête bloquée), test de carte
+  adapté ; tests de gate (fact-check), du bot, des services et d'isolation des imports :
+  201 réussis.

@@ -138,6 +138,18 @@ outil n'est donné aux modèles ; chaque sortie est validée par un schéma stri
   `TOWER_FC_CAP_REINFORCED_USD` (0,40 $), `TOWER_FC_CAP_N4_USD` (0,60 $). Au-delà, pas
   d'escalade (`flags.cap_reached`, `TWR-FCK-004`).
 
+### Enquête bloquée
+
+Une étape peut se terminer sans marquer son enquête en échec : délai dépassé à la
+dernière tentative (le runner échoue le job sans que l'étape le voie), `PermanentError`
+levée par une étape, job perdu. La tâche périodique `investigate:stalled` (toutes les
+5 min, `services/investigate/stalled.py`) marque `failed` une enquête non finale,
+inchangée depuis 30 min et sans job `queued` ni `running` : erreur
+`stalled at <étape>: <dernière erreur du job>`, `TWR-FCK` d'étape échouée capturé,
+`investigation.completed` (issue `failed`). Une nouvelle demande repart de zéro. Une
+étape **reportée** (budget épuisé, fournisseur indisponible) a toujours un job en file :
+elle n'est pas concernée, `/factchecks` affiche la raison et le prochain essai.
+
 ### Contrôles déterministes (E9)
 
 | Contrôle | Effet |

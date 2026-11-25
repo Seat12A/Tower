@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Integer, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.domain.factcheck.urls import content_url
@@ -34,7 +34,9 @@ class PendingRequest:
     step: str
     """``reading`` (post not read yet) or ``extracting``."""
     status: str
-    """Job status: ``queued`` or ``running``."""
+    """Job status: ``queued``, ``running`` or ``failed`` (for ``FAILED_WINDOW``)."""
+    run_at: datetime
+    """Next attempt (a deferred job: budget, rate limit, platform outage)."""
     level: str | None
     platform: str | None
     external_id: str | None
@@ -63,6 +65,13 @@ class RunningInvestigation:
     error: str | None
     created_at: datetime
     updated_at: datetime
+    job_status: str | None
+    """Latest job of the investigation: ``queued``, ``running``, ``failed``,
+    ``succeeded``; ``None`` when it never had one."""
+    job_run_at: datetime | None
+    job_attempts: int
+    job_error: str | None
+    """Last error or deferral reason of that job (budget, provider, timeout…)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,13 +86,16 @@ def _clip(text: str | None) -> str | None:
     return text[: _CLAIM_CHARS - 1].rstrip() + "…"
 
 
-async def _requests(session: AsyncSession, limit: int) -> list[PendingRequest]:
+async def _requests(session: AsyncSession, limit: int, now: datetime) -> list[PendingRequest]:
     jobs = (
         await session.scalars(
             select(Job)
             .where(
                 Job.kind.in_((names.JOB_REQUEST, names.JOB_EXTRACT)),
-                Job.status.in_(("queued", "running")),
+                or_(
+                    Job.status.in_(("queued", "running")),
+                    and_(Job.status == "failed", Job.finished_at >= now - FAILED_WINDOW),
+                ),
                 func.coalesce(Job.payload["requested_by"].astext, names.FACTCHECK_ACTOR)
                 != names.FACTCHECK_ACTOR,
             )
@@ -115,6 +127,7 @@ async def _requests(session: AsyncSession, limit: int) -> list[PendingRequest]:
             PendingRequest(
                 step="reading" if job.kind == names.JOB_REQUEST else "extracting",
                 status=job.status,
+                run_at=job.run_at,
                 level=payload.get("level"),
                 platform=None if platform is None else str(platform),
                 external_id=None if external_id is None else str(external_id),
@@ -154,6 +167,21 @@ async def _investigations(
             .limit(limit)
         )
     ).all()
+    jobs: dict[int, Job] = {}
+    if rows:
+        key = cast(Job.payload["investigation_id"].astext, Integer)
+        latest = (
+            await session.scalars(
+                select(Job)
+                .where(
+                    Job.payload.has_key("investigation_id"),
+                    key.in_([r[0].id for r in rows]),
+                )
+                .order_by(key, Job.id.desc())
+                .distinct(key)
+            )
+        ).all()
+        jobs = {int(j.payload["investigation_id"]): j for j in latest}
     return [
         RunningInvestigation(
             id=str(inv.public_id),
@@ -171,6 +199,10 @@ async def _investigations(
             error=_clip(inv.error),
             created_at=inv.created_at,
             updated_at=inv.updated_at,
+            job_status=job.status if (job := jobs.get(inv.id)) else None,
+            job_run_at=job.run_at if job else None,
+            job_attempts=job.attempts if job else 0,
+            job_error=_clip(job.last_error) if job else None,
         )
         for inv, group_id, text_fr, content in rows
     ]
@@ -183,6 +215,6 @@ async def in_progress(session: AsyncSession, actor: Actor, *, limit: int = 25) -
     limit = min(max(limit, 1), 100)
     now = datetime.now(UTC)
     return InProgress(
-        requests=await _requests(session, limit),
+        requests=await _requests(session, limit, now),
         investigations=await _investigations(session, limit, now),
     )
