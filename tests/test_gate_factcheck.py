@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
+from sqlalchemy import text
 
 from tower.core.db.database import Database
 
@@ -205,3 +206,35 @@ async def test_case_discord_thread_link(client: httpx.AsyncClient, bot: str, db:
     assert missing.status_code == 404 and missing.json()["error"]["code"] == "TWR-DOS-001"
     anonymous = await client.put(f"{path}/discord-thread", json={"thread_id": thread})
     assert anonymous.status_code in (401, 403)
+
+
+async def test_factchecks_in_progress(client: httpx.AsyncClient, bot: str, db: Database) -> None:
+    """Team requests still queued, then investigations not yet assembled (a running one,
+    a recent failure), never an assembled one; ``cases:read`` only."""
+    r = await client.post(
+        "/v1/factcheck/requests",
+        json={"url": f"https://x.com/someone/status/{EXT}"},
+        headers=h(bot, EDITOR),
+    )
+    assert r.status_code == 202
+    built = await build_draft(db, ext="1850000000000000555")
+    async with db.transaction() as s:
+        await s.execute(
+            text("UPDATE investigations SET stage = 'judging', cost_usd_micros = 42000")
+        )
+    r = await client.get("/v1/factcheck/in-progress", headers=h(bot, EDITOR))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert [(q["step"], q["status"], q["external_id"]) for q in body["requests"]] == [
+        ("reading", "queued", EXT)
+    ]
+    assert body["requests"][0]["requested_by"].startswith(f"staff:{EDITOR}")
+    [inv] = body["investigations"]
+    assert inv["stage"] == "judging" and inv["cost_usd"] == 0.042
+    assert inv["url"] == "https://x.com/i/status/1850000000000000555" and inv["claim"]
+    async with db.transaction() as s:
+        await s.execute(text("UPDATE investigations SET stage = 'assembled'"))
+    r = await client.get("/v1/factcheck/in-progress", headers=h(bot, EDITOR))
+    assert r.json()["investigations"] == []
+    assert built.case_id
+    assert (await client.get("/v1/factcheck/in-progress")).status_code in (401, 403)

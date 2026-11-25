@@ -141,6 +141,7 @@ _COMMANDS: tuple[tuple[str, str, str | None], ...] = (
     ("cases", "case reject", "cases:decide"),
     ("cases", "case publish", "cases:publish"),
     ("factcheck", "factcheck", "factcheck:request"),
+    ("factcheck", "factchecks", "cases:read"),
     ("factcheck", "group show", "cases:read"),
     ("factcheck", "group merge", "claim_groups:manage"),
     ("factcheck", "group split", "claim_groups:manage"),

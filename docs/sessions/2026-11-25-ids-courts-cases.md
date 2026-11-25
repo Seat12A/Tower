@@ -86,3 +86,20 @@ Reportées dans `docs/decisions.md` (section du 2026-11-25, identifiants courts)
   des niveaux et récits : 171 réussis. Tests adaptés (demande en N3) et deux tests
   courts ajoutés (niveau configurable, demande N3 sur contenu déjà extrait).
 - À savoir : en N3, une affirmation non vérifiable ne produit pas de brouillon.
+
+## Suite : commande `/factchecks`
+
+- Demande de Jules : voir les fact-checks en préparation et leur statut.
+- `core/usecases/factcheck_progress.py` (lecture seule) et
+  `GET /v1/factcheck/in-progress` (`cases:read`) : demandes de l'équipe pas encore
+  extraites (jobs `factcheck.request` et `factcheck.extract`, flux automatiques exclus)
+  et enquêtes non assemblées, avec les échecs des dernières 24 h.
+- Bot : `/factchecks` (carte avec étape, niveau, profondeur, coût, affirmation, lien,
+  demandeur, ancienneté). Permission `cases:read`, déjà donnée aux rôles de relecture :
+  rien à configurer, la commande est synchronisée au démarrage du bot.
+- Docs : `api.md`, `intercom.md`.
+- Vérifications : ruff, mypy strict OK ; un test de route et un test de carte ajoutés ;
+  tests de gate (fact-check), du bot et de l'aide : 111 réussis.
+- Redémarrage : les fact-checks en cours ne sont pas perdus. Les jobs sont en base ; un
+  job interrompu reprend après expiration de son bail (`TOWER_JOB_LEASE_SECONDS`,
+  5 min) et les étapes déjà payées d'une enquête ne sont pas refaites.

@@ -13,6 +13,7 @@ import dataclasses
 import re
 import unicodedata
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import Any
 
 from tower.core.domain import error_codes as ec
@@ -1191,6 +1192,104 @@ async def request(gate: GateClient, acting: int, locale: str, url: str) -> Reply
         t(locale, "factcheck.accepted.title"),
         t(locale, "factcheck.accepted"),
         details=details,
+    )
+
+
+# --- /factchecks: fact-checks being prepared --------------------------------------------
+
+_STAFF = re.compile(r"^staff:(\d+)")
+
+
+def _who(locale: str, requested_by: object) -> str:
+    """``<@id>`` for a team member, "automatic" for the monitoring flows."""
+    match = _STAFF.match(str(requested_by or ""))
+    return f"<@{match.group(1)}>" if match else t(locale, "progress.auto")
+
+
+def _since(value: object) -> str:
+    """Discord relative timestamp (``<t:…:R>``) of an ISO date; as is otherwise."""
+    try:
+        when = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return str(value)
+    return f"<t:{int(when.timestamp())}:R>"
+
+
+def _post(item: dict[str, Any]) -> str:
+    url = item.get("url")
+    return f"[{t(item['_locale'], 'progress.post')}]({url})" if url else "-"
+
+
+def _request_line(locale: str, r: dict[str, Any]) -> str:
+    step = t(locale, f"progress.step.{r['step']}")
+    status = t(locale, f"progress.job.{r['status']}")
+    parts = [f"**{step}**", status, code(r.get("level") or "-"), _post({**r, "_locale": locale})]
+    parts += [_who(locale, r.get("requested_by")), _since(r.get("created_at"))]
+    line = "- " + " · ".join(parts)
+    if r.get("attempts", 0) > 1 and r.get("last_error"):
+        line += (
+            "\n  "
+            + t(locale, "progress.retrying", n=r["attempts"])
+            + " "
+            + code(_clip(str(r["last_error"]), 120))
+        )
+    return line
+
+
+def _investigation_line(locale: str, i: dict[str, Any]) -> str:
+    stage = str(i.get("stage", "?"))
+    label = (
+        t(locale, f"progress.stage.{stage}") if has(locale, f"progress.stage.{stage}") else stage
+    )
+    icon = emojis.ERROR if stage == "failed" else emojis.LOADING
+    depth = t(locale, f"progress.depth.{i.get('depth')}")
+    parts = [
+        f"{icon} **{label}**",
+        code(short(i["id"])),
+        f"{code(i.get('level', '?'))} {depth}",
+        f"{float(i.get('cost_usd') or 0):.2f} $",
+        _post({**i, "_locale": locale}),
+        _who(locale, i.get("requested_by")),
+        _since(i.get("created_at")),
+    ]
+    line = "- " + " · ".join(parts)
+    if i.get("claim"):
+        line += "\n  > " + _clip(str(i["claim"]), 160)
+    if stage == "failed" and i.get("error"):
+        line += "\n  " + code(_clip(str(i["error"]), 160))
+    return line
+
+
+@guarded
+async def in_progress(gate: GateClient, acting: int, locale: str) -> Reply:
+    """``/factchecks``: team requests still queued and investigations not yet assembled
+    into a draft, with their stage."""
+    data = await gate.factchecks_in_progress(acting)
+    requests = list(data.get("requests") or [])
+    investigations = list(data.get("investigations") or [])
+    if not requests and not investigations:
+        return card(t(locale, "progress.title"), t(locale, "progress.empty"), icon=emojis.INFO)
+    blocks: list[str] = []
+    if requests:
+        blocks.append(t(locale, "progress.requests", n=len(requests)))
+        blocks += [_request_line(locale, r) for r in requests]
+    if investigations:
+        if blocks:
+            blocks.append("")
+        blocks.append(t(locale, "progress.investigations", n=len(investigations)))
+        blocks += [_investigation_line(locale, i) for i in investigations]
+    body, used = [], 0
+    for line in blocks:
+        if used + len(line) + 1 > MAX_MESSAGE - 100:
+            body.append(t(locale, "progress.more"))
+            break
+        body.append(line)
+        used += len(line) + 1
+    return card(
+        t(locale, "progress.title"),
+        "\n".join(body),
+        icon=emojis.ROBOT_WORKING,
+        footer=t(locale, "progress.footer"),
     )
 
 

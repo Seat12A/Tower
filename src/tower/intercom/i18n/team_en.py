@@ -130,6 +130,7 @@ MESSAGES: dict[str, str] = {
     "help.cmd.case reject": "Reject a case",
     "help.cmd.case publish": "Record the X publication link",
     "help.cmd.factcheck": "Request a fact-check of a post",
+    "help.cmd.factchecks": "Fact-checks being prepared and their stage",
     "help.cmd.group show": "Show a claim group",
     "help.cmd.group merge": "Merge two claim groups",
     "help.cmd.group split": "Move claims into a new group",
