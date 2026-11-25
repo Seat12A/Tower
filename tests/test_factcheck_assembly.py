@@ -195,6 +195,7 @@ async def test_assemble_opens_the_case_and_publishes_draft_ready(
     assert ready[0] == {
         "draft_id": str(verdict_public),
         "case_id": str(case[1]),
+        "case_short_id": str(case[1])[:8],
         "group_id": str(group_public),
         "level": "N4",
         "veracity": "false",

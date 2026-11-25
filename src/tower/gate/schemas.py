@@ -7,6 +7,7 @@ from dataclasses import asdict
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
+from fastapi import Path
 from pydantic import BaseModel, ConfigDict, Field
 
 from tower.core.domain.cases import CaseKind, CaseStatus
@@ -15,9 +16,23 @@ from tower.core.models.cases import Case, CaseEvent
 from tower.core.usecases.case_views import CaseDetails
 from tower.core.usecases.drafts import DraftView, PublicVerdict
 
+CaseId = Annotated[
+    str,
+    Path(
+        min_length=8,
+        max_length=36,
+        description="Short id of the case (8 hex characters or more); the full public id "
+        "is still accepted during the transition.",
+        examples=["fbaa8363"],
+    ),
+]
+
 
 class CaseOut(BaseModel):
+    short_id: str
+    """Identifier to show and link everywhere (``/v1/cases/{short_id}``)."""
     public_id: uuid.UUID
+    """Full id, kept during the transition to short ids (contract: remove)."""
     kind: CaseKind
     status: CaseStatus
     x_post_id: str | None
@@ -36,6 +51,7 @@ class CaseOut(BaseModel):
     @classmethod
     def of(cls, d: Case, *, draft_id: uuid.UUID | None = None) -> CaseOut:
         return cls(
+            short_id=d.short_id,
             public_id=d.public_id,
             kind=CaseKind(d.kind),
             status=CaseStatus(d.status),
@@ -55,6 +71,7 @@ class CaseOut(BaseModel):
 class CasePublicOut(BaseModel):
     """Public website view: published cases only, no internal data."""
 
+    short_id: str
     public_id: uuid.UUID
     kind: CaseKind
     x_post_id: str | None
@@ -67,6 +84,7 @@ class CaseSummaryOut(BaseModel):
     """One case of a search result. Internal fields (``status``, ``priority``,
     ``assigned_to``) are ``null`` for the public, who only sees published cases."""
 
+    short_id: str
     public_id: uuid.UUID
     kind: CaseKind
     title: str | None
@@ -321,6 +339,7 @@ class DraftContentOut(BaseModel):
 
 class DraftCaseOut(BaseModel):
     id: str
+    short_id: str | None = None
     status: str
     discord_thread_id: str | None = None
 

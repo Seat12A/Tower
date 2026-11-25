@@ -88,6 +88,7 @@ async def open_draft_for_content(
         {
             "draft_id": str(verdict.public_id),
             "case_id": str(case.public_id),
+            "case_short_id": case.short_id,
             "group_id": str(group.public_id),
             "level": group.level,
             "veracity": verdict.veracity,

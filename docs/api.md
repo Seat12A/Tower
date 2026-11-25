@@ -24,26 +24,28 @@ Documentation interactive : `/docs` (hors production). Format d'erreur : voir
 
 Les anciens chemins `/v1/dossiers…` répondent encore à l'identique (cachés du schéma) pendant la transition du renommage « dossier » → « case » (voir [decisions.md](decisions.md)).
 
+**Identifiant d'un case : l'id court.** `{case_id}` est le `short_id` du case : les 8 premiers caractères hexadécimaux de son UUID, un de plus en cas de collision (`fbaa8363`). C'est lui qu'on affiche et qu'on met dans les liens (posts X, site, bot). La correspondance est **exacte**, jamais par préfixe : un lien déjà publié désigne toujours le même case. L'UUID complet (`public_id`) reste accepté et renvoyé pendant la transition (expand/contract). Id mal formé (moins de 8 caractères, non hexadécimal) → `422` `TWR-GEN-001` ; inconnu → `404` `TWR-DOS-001`.
+
 | Méthode | Chemin | Permission | Description |
 |---|---|---|---|
 | GET | `/v1/cases` | public / `cases:read` | Liste (public : publiés seulement, vue réduite). Filtres `status`, `kind`, `limit` (≤ 200), `before_id` |
 | POST | `/v1/cases` | `cases:create` | Ouvre un case `{kind, x_post_id?, title?, priority?, reason?}` |
-| GET | `/v1/cases/{public_id}` | public / `cases:read` | Détail (public : publiés seulement). Vue interne : `discord_thread_id` (post du forum, chaîne) et `draft_id` (dernier brouillon de fact-check du case, seulement sur ce détail) |
-| PUT | `/v1/cases/{public_id}/discord-thread` | `cases:read` (`204`) | Enregistre le post du forum Discord du case `{thread_id}` (chaîne de chiffres). Marqueur opérationnel : ni audit ni événement. Erreurs : `TWR-DOS-007` (id invalide), `TWR-DOS-001` |
-| GET | `/v1/cases/{public_id}/history` | `cases:read` | Journal des transitions |
-| POST | `/v1/cases/{public_id}/transitions` | selon la cible | `{to, reason?, expected_version?}` |
-| POST | `/v1/cases/{public_id}/publish` | `cases:publish` | « Marquer comme publié » `{url, expected_version?}` |
+| GET | `/v1/cases/{case_id}` | public / `cases:read` | Détail (public : publiés seulement). Vue interne : `discord_thread_id` (post du forum, chaîne) et `draft_id` (dernier brouillon de fact-check du case, seulement sur ce détail) |
+| PUT | `/v1/cases/{case_id}/discord-thread` | `cases:read` (`204`) | Enregistre le post du forum Discord du case `{thread_id}` (chaîne de chiffres). Marqueur opérationnel : ni audit ni événement. Erreurs : `TWR-DOS-007` (id invalide), `TWR-DOS-001` |
+| GET | `/v1/cases/{case_id}/history` | `cases:read` | Journal des transitions |
+| POST | `/v1/cases/{case_id}/transitions` | selon la cible | `{to, reason?, expected_version?}` |
+| POST | `/v1/cases/{case_id}/publish` | `cases:publish` | « Marquer comme publié » `{url, expected_version?}` |
 
 Vue complète :
 
 ```json
-{"public_id": "e65b…", "kind": "fact_check", "status": "received",
+{"short_id": "e65b1c07", "public_id": "e65b1c07-…", "kind": "fact_check", "status": "received",
  "x_post_id": "1850000000000000001", "title": null, "priority": 0,
  "assigned_to": null, "published_url": null, "version": 1,
  "created_at": "…", "updated_at": "…"}
 ```
 
-Vue publique : `public_id`, `kind`, `x_post_id`, `title`, `published_url`, `updated_at`.
+Vue publique : `short_id`, `public_id`, `kind`, `x_post_id`, `title`, `published_url`, `updated_at`.
 
 ### Lecture pour le site : recherche, statistiques, détail complet
 
@@ -57,7 +59,7 @@ route ne renvoie l'auteur du post : le site intègre le post depuis son lien.
 |---|---|---|---|
 | GET | `/v1/cases/search` | public / `cases:read` | Recherche filtrée, **pages numérotées** avec le total |
 | GET | `/v1/cases/stats` | public / `cases:read` | Comptes des cases qui passent les mêmes filtres |
-| GET | `/v1/cases/{public_id}/details?lang=` | public / `cases:read` | Tout sur un case : post, affirmation, verdict, note, chronologie |
+| GET | `/v1/cases/{case_id}/details?lang=` | public / `cases:read` | Tout sur un case : post, affirmation, verdict, note, chronologie |
 
 Filtres communs à `search` et `stats` (tous facultatifs, combinés en ET ; les valeurs
 répétées d'un même filtre sont combinées en OU) :
@@ -81,7 +83,7 @@ commencerait au-delà de la 10 000ᵉ ligne → `422` `TWR-DOS-008` (affiner les
 `since` après `until` → même code.
 
 ```json
-{"items": [{"public_id": "e65b…", "kind": "fact_check", "title": "Le chômage a doublé en un an",
+{"items": [{"short_id": "e65b1c07", "public_id": "e65b1c07-…", "kind": "fact_check", "title": "Le chômage a doublé en un an",
   "platform": "x", "x_post_id": "1850…", "external_id": "1850…", "url": "https://x.com/i/status/1850…",
   "published_url": "https://x.com/seat12a/status/…", "published_at": "…", "created_at": "…",
   "updated_at": "…", "claim_type": "statistic", "claim_lang": "fr", "jurisdictions": ["FR"],
@@ -110,7 +112,7 @@ validés (équipe comprise : un brouillon n'est pas un verdict) ; `by_jurisdicti
 premières ; `by_status` : équipe seulement ; `timeline` : créations de cases par période
 (début de période), 400 périodes au plus, de la plus ancienne à la plus récente.
 
-`GET /v1/cases/{public_id}/details` renvoie les champs d'un résultat de recherche, plus :
+`GET /v1/cases/{case_id}/details` renvoie les champs d'un résultat de recherche, plus :
 
 | Champ | Contenu |
 |---|---|
@@ -208,10 +210,10 @@ brouillon est l'identifiant public du verdict.
 
 | Méthode | Chemin | Accès |
 |---|---|---|
-| POST | `/v1/factcheck/requests` | `factcheck:request` (`202`) ; corps `{url}` ou `{platform, external_id}` ; répond `{platform, external_id, accepted, duplicate}`. Enfile `factcheck.request` (N4) |
+| POST | `/v1/factcheck/requests` | `factcheck:request` (`202`) ; corps `{url}` ou `{platform, external_id}` ; répond `{platform, external_id, accepted, duplicate}`. Enfile `factcheck.request` (niveau `TOWER_FC_REQUEST_LEVEL`, `N3` par défaut) |
 | POST | `/v1/factcheck/manual` | `cases:review` + `cases:create` (`202`) ; note écrite par l'équipe, sans modèle : `{url | platform+external_id, claim_text, claim_type, veracity, context_need?, context_types?, note_text?, note_lang?, links?, fact_sheet?}` ; répond `{platform, external_id, status: drafted|queued, draft_id, duplicate}`. Erreur de saisie `TWR-FCK-049`. Voir [fact-check.md](fact-check.md#notes-manuelles-sans-ia) |
 | GET | `/v1/drafts?status=pending&notified=&limit=&before_id=` | `cases:read` ; brouillons en relecture (`drafted_at` posé), du plus récent au plus ancien ; `before_id` = champ `seq` |
-| GET | `/v1/drafts/{id}` | `cases:read` ; brouillon complet : issue, besoin et types de contexte, confiance et bande, affirmation, contenu et lien, case (`id`, `status`, `discord_thread_id`), notes par langue (texte, fiche, origine), liens, justification avec citations (source avec `tier` effectif, `standing` et `tier_basis` — voir [factcheck/sources.md](factcheck/sources.md) —, passage, traduction française), ce que les sources ne disent pas, points à vérifier, objection, critique, contrôles, indicateurs, sources citées, `version` |
+| GET | `/v1/drafts/{id}` | `cases:read` ; brouillon complet : issue, besoin et types de contexte, confiance et bande, affirmation, contenu et lien, case (`id`, `short_id`, `status`, `discord_thread_id`), notes par langue (texte, fiche, origine), liens, justification avec citations (source avec `tier` effectif, `standing` et `tier_basis` — voir [factcheck/sources.md](factcheck/sources.md) —, passage, traduction française), ce que les sources ne disent pas, points à vérifier, objection, critique, contrôles, indicateurs, sources citées, `version` |
 | POST | `/v1/drafts/{id}/review` | `{decision: accept\|edit\|reject, veracity?, note_text?, note_lang?, labels?, reason?, expected_version?}` ; `cases:review` (avis favorable) ou `cases:decide` (validation, rejet) ; répond `{outcome, draft}`. Erreurs : `TWR-FCK-007` (inconnu), `TWR-FCK-008` (déjà décidé), `TWR-FCK-009` (revue invalide), conflit de version |
 | POST | `/v1/drafts/{id}/notified` | `cases:read` (`204`) ; marque le brouillon comme affiché par le bot (idempotent) |
 | GET | `/v1/verdict-index/{platform}/{bucket}` | **public** ; index des verdicts pour l'extension : `{platform, bucket, hashes}`, `hashes` = SHA-256 (hex) des IDs natifs des posts de la boîte qui ont un verdict visible (même règle que la route ci-dessous) ; `bucket` = 4 premiers caractères hex de `sha256(ID natif UTF-8)` ; `Cache-Control: public, max-age=300`, `ETag` fort (`If-None-Match` → `304`) ; boîte ou plateforme invalide → `422` `TWR-FCK-050`. Détails : [extension-api.md](extension-api.md) |
@@ -358,4 +360,4 @@ Espace organisation (en-tête `X-Organization-Token`, voir
 
 | Méthode | Chemin | Permission | Description |
 |---|---|---|---|
-| GET | `/v1/ids/{kind}/{ref}` | `cases:read` | Identifiant complet de l'élément dont l'identifiant commence par `ref` (6 caractères hexadécimaux ou plus, tirets ignorés). `kind` : `case`, `group`, `claim`, `narrative`, `draft` ; badges (`badges:read` au lieu de `cases:read`) : `affiliation`, `badge_request`, `badge_report`, `org_key`. Répond `{kind, id}`. Recherche par plage sur l'index unique. Erreurs : `TWR-GEN-001` (préfixe invalide), `TWR-GEN-002` (aucun), `TWR-GEN-005` (plusieurs : taper plus de caractères) |
+| GET | `/v1/ids/{kind}/{ref}` | `cases:read` | Identifiant complet de l'élément dont l'identifiant commence par `ref` (6 caractères hexadécimaux ou plus, tirets ignorés). `kind` : `case`, `group`, `claim`, `narrative`, `draft` ; badges (`badges:read` au lieu de `cases:read`) : `affiliation`, `badge_request`, `badge_report`, `org_key`. Répond `{kind, id}`. Recherche par plage sur l'index unique ; pour `case`, un `short_id` exact l'emporte sur le préfixe (un id court publié peut être le début d'un case plus récent). Les routes des cases acceptent directement l'id court : ce détour n'est plus nécessaire pour eux. Erreurs : `TWR-GEN-001` (préfixe invalide), `TWR-GEN-002` (aucun), `TWR-GEN-005` (plusieurs : taper plus de caractères) |

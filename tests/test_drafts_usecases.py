@@ -348,7 +348,12 @@ async def test_get_draft_view(db: Database) -> None:
         "url": f"https://x.com/i/status/{EXT}",
         "lang": "fr",
     }
-    assert view.case == {"id": str(built.case), "status": "received", "discord_thread_id": None}
+    assert view.case == {
+        "id": str(built.case),
+        "short_id": str(built.case)[:8],
+        "status": "received",
+        "discord_thread_id": None,
+    }
     assert set(view.notes) == {"fr"} and view.notes["fr"]["origin"] == "machine"
     assert view.links == [f"https://insee.example/{EXT}"]
     cites = view.rationale[0]["citations"]
@@ -403,6 +408,7 @@ async def test_accept_by_reviewer_is_an_endorsement(db: Database) -> None:
     assert result.outcome == "endorsed" and result.draft.status == "draft"
     assert result.draft.case == {
         "id": str(built.case),
+        "short_id": str(built.case)[:8],
         "status": "in_review",
         "discord_thread_id": None,
     }
@@ -455,6 +461,7 @@ async def test_accept_by_editor_validates(db: Database) -> None:
     assert result.outcome == "validated" and result.draft.status == "active"
     assert result.draft.case == {
         "id": str(built.case),
+        "short_id": str(built.case)[:8],
         "status": "validated",
         "discord_thread_id": None,
     }
@@ -487,6 +494,7 @@ async def test_accept_by_editor_validates(db: Database) -> None:
         "verdict_id": str(built.verdict),
         "group_id": published["group_id"],
         "case_id": str(built.case),
+        "case_short_id": str(built.case)[:8],
         "veracity": "false",
         "context_need": "necessary",
         "platform": "x",
@@ -606,6 +614,7 @@ async def test_reject_by_editor(db: Database) -> None:
     assert result.outcome == "rejected" and result.draft.status == "rejected"
     assert result.draft.case == {
         "id": str(built.case),
+        "short_id": str(built.case)[:8],
         "status": "rejected",
         "discord_thread_id": None,
     }

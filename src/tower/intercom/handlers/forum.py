@@ -18,7 +18,15 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Any
 
-from tower.intercom.handlers import MAX_MESSAGE, Button, Option, Reply, Select, short
+from tower.intercom.handlers import (
+    MAX_MESSAGE,
+    Button,
+    Option,
+    Reply,
+    Select,
+    case_short,
+    short,
+)
 from tower.intercom.handlers import factcheck as fc
 from tower.intercom.i18n import has, t
 from tower.intercom.ui import emojis
@@ -166,11 +174,11 @@ TOPIC_WORDS = 3
 """Words of the narrative title kept in a post title."""
 
 
-def _name(case_id: object, topic: object = None) -> str:
+def _name(case_id: str, topic: object = None) -> str:
     """Post title: the case id, plus a few words of the narrative title when the
     narrative has one (already generated: no extra model call). Never the claim itself:
     it is quoted in the starter message."""
-    name = _t("forum.post.name", id=short(case_id or "?"))
+    name = _t("forum.post.name", id=case_id)
     words = str(topic or "").split()[:TOPIC_WORDS]
     if words:
         name = f"{name} · {' '.join(words)}"
@@ -290,7 +298,7 @@ def draft_post(view: dict[str, Any], case_status: object = None) -> Post:
     url = (view.get("content") or {}).get("url")
     narrative = view.get("narrative") or {}
     group = view.get("group") or {}
-    ids = [_t("forum.footer.case", id=short(case.get("id", "?")))] if case else []
+    ids = [_t("forum.footer.case", id=case_short(case, "id"))] if case else []
     ids.append(_t("forum.footer.draft", id=short(draft_id)))
     if group.get("id"):
         ids.append(_t("forum.footer.group", id=short(group["id"])))
@@ -348,7 +356,7 @@ def draft_post(view: dict[str, Any], case_status: object = None) -> Post:
         ephemeral=False,
     )
     return Post(
-        name=_name(case.get("id"), narrative.get("title")),
+        name=_name(case_short(case, "id"), narrative.get("title")),
         tags=_tags(status, view.get("veracity"), view.get("level"), signals[:2]),
         starter=starter,
         archived=status in _FINAL_STATUSES,
@@ -360,7 +368,7 @@ def case_post(case: dict[str, Any]) -> Post:
     platform, status. Its actions stay in ``/case``."""
     status = status_of(case.get("status"))
     title, icon = _status_title(status)
-    public_id = str(case.get("public_id") or case.get("id") or "?")
+    case_id = case_short(case) if case.get("public_id") else case_short(case, "id")
     platform = str(case.get("platform") or ("x" if case.get("x_post_id") else "-"))
     x_post = case.get("x_post_id")
     url = f"https://x.com/i/status/{x_post}" if x_post else None
@@ -370,12 +378,12 @@ def case_post(case: dict[str, Any]) -> Post:
         accent=_STATUS_ACCENTS[status],  # type: ignore[arg-type]
         body=fc._quote_block(str(case.get("title") or _t("forum.untitled"))),
         details=((_t("notify.label.platform"), f"`{platform}`"),),
-        footer=_t("forum.footer.case", id=short(public_id)),
+        footer=_t("forum.footer.case", id=case_id),
         buttons=_bar([], url),
         ephemeral=False,
     )
     return Post(
-        name=_name(public_id),
+        name=_name(case_id),
         tags=_tags(status, None, None, []),
         starter=starter,
         archived=status in _FINAL_STATUSES,

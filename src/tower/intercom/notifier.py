@@ -33,7 +33,7 @@ from tower.core.factcheck.names import (
 from tower.core.logging import get_logger
 from tower.intercom.forum import CaseForum
 from tower.intercom.gate_client import GateClient, GateError, SseEvent
-from tower.intercom.handlers import Accent, Reply, card, code, fmt_usd, short
+from tower.intercom.handlers import Accent, Reply, card, case_short, code, fmt_usd, short
 from tower.intercom.handlers.factcheck import SendDraft, post_draft, reconcile_drafts
 from tower.intercom.handlers.narratives import format_surge_detected, format_surge_ended
 from tower.intercom.i18n import t
@@ -144,7 +144,7 @@ def format_event(event: SseEvent, locale: str) -> tuple[str, Reply] | None:
             "primary",
             body=str(p.get("title") or "-"),
             details=(
-                _detail(locale, "case", short(p.get("public_id", "?"))),
+                _detail(locale, "case", case_short(p)),
                 _detail(locale, "platform", _platform(p)),
             ),
         )
@@ -155,7 +155,7 @@ def format_event(event: SseEvent, locale: str) -> tuple[str, Reply] | None:
             emojis.FOLDER,
             "primary",
             details=(
-                _detail(locale, "case", short(p.get("public_id", "?"))),
+                _detail(locale, "case", case_short(p)),
                 _detail(locale, "platform", _platform(p)),
                 _detail(locale, "from", _status(locale, p.get("from"))),
                 _detail(locale, "to", _status(locale, p.get("to"))),

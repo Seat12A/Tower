@@ -349,6 +349,7 @@ async def _build_view(session: AsyncSession, verdict: Verdict) -> DraftView:
         case=(
             {
                 "id": str(case.public_id),
+                "short_id": case.short_id,
                 "status": case.status,
                 "discord_thread_id": (
                     None if case.discord_thread_id is None else str(case.discord_thread_id)
@@ -683,12 +684,14 @@ async def review_draft(
         )
     )
     case_public = str(case.public_id) if case is not None else None
+    case_short = case.short_id if case is not None else None
     await publish(
         session,
         names.DRAFT_REVIEWED,
         {
             "draft_id": str(verdict.public_id),
             "case_id": case_public,
+            "case_short_id": case_short,
             "decision": decision.value,
             "outcome": outcome.value,
             "final_veracity": verdict.veracity,
@@ -708,6 +711,7 @@ async def review_draft(
                 "verdict_id": str(verdict.public_id),
                 "group_id": str(group.public_id),
                 "case_id": case_public,
+                "case_short_id": case_short,
                 "veracity": verdict.veracity,
                 "context_need": verdict.context_need,
                 "platform": content.platform if content is not None else None,

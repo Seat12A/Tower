@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
@@ -14,6 +13,7 @@ from tower.gate.deps import ActorDep, ReadSession, WriteSession
 from tower.gate.schemas import (
     CaseCreate,
     CaseEventOut,
+    CaseId,
     CaseOut,
     CasePublicOut,
     DiscordThreadIn,
@@ -55,40 +55,40 @@ async def open_case(body: CaseCreate, actor: ActorDep, session: WriteSession) ->
     return CaseOut.of(case)
 
 
-@router.get("/{public_id}", response_model=CaseOut | CasePublicOut)
+@router.get("/{case_id}", response_model=CaseOut | CasePublicOut)
 async def get_case(
-    public_id: uuid.UUID, actor: ActorDep, session: ReadSession
+    case_id: CaseId, actor: ActorDep, session: ReadSession
 ) -> CaseOut | CasePublicOut:
-    case = await uc.get_case(session, actor, public_id)
+    case = await uc.get_case(session, actor, case_id)
     if actor.can(Permission.CASE_READ):
         return CaseOut.of(case, draft_id=await draft_id_of_case(session, case.id))
     return CasePublicOut.model_validate(CaseOut.of(case).model_dump())
 
 
-@router.put("/{public_id}/discord-thread", status_code=204)
+@router.put("/{case_id}/discord-thread", status_code=204)
 async def link_discord_thread(
-    public_id: uuid.UUID, body: DiscordThreadIn, actor: ActorDep, session: WriteSession
+    case_id: CaseId, body: DiscordThreadIn, actor: ActorDep, session: WriteSession
 ) -> Response:
     """Record the Discord forum post showing the case (intercom)."""
-    await uc.link_discord_thread(session, actor, public_id, int(body.thread_id))
+    await uc.link_discord_thread(session, actor, case_id, int(body.thread_id))
     return Response(status_code=204)
 
 
-@router.get("/{public_id}/history", response_model=list[CaseEventOut])
+@router.get("/{case_id}/history", response_model=list[CaseEventOut])
 async def case_history(
-    public_id: uuid.UUID, actor: ActorDep, session: ReadSession
+    case_id: CaseId, actor: ActorDep, session: ReadSession
 ) -> list[CaseEventOut]:
-    return [CaseEventOut.of(ev) for ev in await uc.history(session, actor, public_id)]
+    return [CaseEventOut.of(ev) for ev in await uc.history(session, actor, case_id)]
 
 
-@router.post("/{public_id}/transitions", response_model=CaseOut)
+@router.post("/{case_id}/transitions", response_model=CaseOut)
 async def transition(
-    public_id: uuid.UUID, body: TransitionIn, actor: ActorDep, session: WriteSession
+    case_id: CaseId, body: TransitionIn, actor: ActorDep, session: WriteSession
 ) -> CaseOut:
     case = await uc.transition(
         session,
         actor,
-        public_id,
+        case_id,
         body.to,
         reason=body.reason,
         expected_version=body.expected_version,
@@ -97,12 +97,12 @@ async def transition(
     return CaseOut.of(case)
 
 
-@router.post("/{public_id}/publish", response_model=CaseOut)
+@router.post("/{case_id}/publish", response_model=CaseOut)
 async def mark_published(
-    public_id: uuid.UUID, body: PublishIn, actor: ActorDep, session: WriteSession
+    case_id: CaseId, body: PublishIn, actor: ActorDep, session: WriteSession
 ) -> CaseOut:
     case = await uc.mark_published(
-        session, actor, public_id, body.url, expected_version=body.expected_version
+        session, actor, case_id, body.url, expected_version=body.expected_version
     )
     return CaseOut.of(case)
 

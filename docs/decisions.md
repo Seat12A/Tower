@@ -542,3 +542,28 @@ recherche filtrée et paginée. Détails : [api.md](api.md) et
 | Pas de limite de débit sur ces GET publics : `Cache-Control: public, max-age=300` pour les réponses anonymes | Même choix que `/v1/content/…/verdict` ; un CDN absorbe la charge |
 | Filtres de date et chronologie des statistiques sur la date de **création** du case | Colonne indexée ; la date de publication est renvoyée (`published_at`) mais n'est pas une colonne |
 | Nouvelles routes absentes des anciens chemins `/v1/dossiers` | Aucun client ancien ne les utilise ; rien à retirer au « contract » |
+
+## Identifiants courts des cases partout (2026-11-25)
+
+Demande de Jules : interne et externe n'utilisent que l'id court, pour que le lien d'un
+case tienne dans un post X. Détails : [api.md](api.md#cases) et
+[sessions/2026-11-25-ids-courts-cases.md](sessions/2026-11-25-ids-courts-cases.md).
+
+| Décision | Raison |
+|---|---|
+| Colonne `cases.short_id` unique, figée à la création (8 premiers caractères hexadécimaux du UUID, un de plus par collision), posée par un déclencheur SQL | Un simple préfixe deviendrait ambigu le jour où un case plus récent partagerait ses 8 caractères : un lien déjà publié sur X cesserait de marcher. Le déclencheur remplit aussi les insertions du code déjà déployé (expand) |
+| Mêmes 8 caractères que l'affichage existant du bot | Les ids déjà vus sur Discord restent valables |
+| Routes des cases : correspondance **exacte** sur `short_id`, UUID complet encore accepté ; réponses avec `short_id` en plus de `public_id` | Transition expand/contract : le site et l'extension déployés lisent encore `public_id`. Contract : retirer `public_id` des réponses quand plus aucun client ne le lit |
+| Champ nommé `short_id` (pas `id`) | `id` désigne déjà l'UUID dans d'autres blocs (verdict, brouillon) ; évite toute confusion pendant la transition |
+| Cases seulement pour l'instant ; groupes, brouillons et récits gardent l'affichage à 8 caractères avec complétion par préfixe | Seuls les cases partent dans des liens publics ; les autres objets restent internes |
+
+## Niveau des demandes de fact-check de l'équipe (2026-11-25)
+
+Demande de Jules : les demandes depuis le bot seront nombreuses ; une enquête N4 (Opus à
+chaque étape, seconde passe du juge) par demande épuiserait le forfait.
+
+| Décision | Raison |
+|---|---|
+| `TOWER_FC_REQUEST_LEVEL`, `N3` par défaut (`N4` possible) | N3 : profondeur standard (Sonnet), renforcée automatiquement seulement en cas de doute (`TOWER_FC_ESCALATION_THRESHOLD`), plafond de 0,10 $ au lieu de 0,60 $, réutilisation d'un verdict actif permise |
+| Une demande N3 sur un contenu déjà extrait relance une enquête si besoin | Sans cela, une demande sur un post déjà vu par le flux de masse ne produirait rien |
+| Différence de comportement à connaître : en N3, une affirmation jugée non vérifiable ne produit pas de brouillon (en N4, un brouillon « Non vérifiable » allait à l'équipe) | Règle existante du N3, gardée telle quelle |

@@ -39,6 +39,13 @@ async def resolve_id(session: AsyncSession, actor: Actor, kind: str, ref: str) -
     actor.require(Permission.BADGES_READ if kind in _BADGE_KINDS else Permission.CASE_READ)
     model = KINDS[kind]
     low, high = prefix_bounds(ref)
+    if kind == "case":  # an exact short id wins: it may be a prefix of later cases too
+        exact = await session.scalar(
+            select(Case.public_id).where(Case.short_id == ref.strip().lower().replace("-", ""))
+        )
+        if exact is not None:
+            found_case: uuid.UUID = exact
+            return found_case
     rows = (
         await session.scalars(
             select(model.public_id)

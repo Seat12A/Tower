@@ -58,6 +58,7 @@ __all__ = [
     "ExtractionRecord",
     "journal_event",
     "mark_extraction",
+    "promote_for_request",
     "promote_to_n4",
     "raise_group_level",
     "record_extraction",
@@ -864,6 +865,60 @@ async def promote_to_n4(
         group=group,
         content=content,
         level="N4",
+        requested_by=requested_by,
+        flags={"language_not_processed": True} if language_not_processed else None,
+    )
+
+
+async def promote_for_request(
+    session: AsyncSession,
+    actor: Actor,
+    *,
+    group: ClaimGroup,
+    content: ContentItem,
+    level: str,
+    requested_by: str,
+    language_not_processed: bool = False,
+) -> Investigation | None:
+    """A team request on content already extracted (``TOWER_FC_REQUEST_LEVEL``). N4: see
+    ``promote_to_n4``. N3: the group rises to N3 (never lowers) and a standard
+    investigation starts unless the group already has an active verdict (reused, as N3
+    allows) or an investigation at N3 or above that did not fail."""
+    if level == "N4":
+        return await promote_to_n4(
+            session,
+            actor,
+            group=group,
+            content=content,
+            requested_by=requested_by,
+            language_not_processed=language_not_processed,
+        )
+    actor.require(Permission.FACTCHECK_REQUEST)
+    await raise_group_level(session, actor, group, level, reason="team request")
+    claim_type = await session.scalar(
+        select(Claim.claim_type).where(Claim.id == group.representative_claim_id)
+    )
+    if claim_type is not None and ClaimType(claim_type) in UNVERIFIABLE_CLAIM_TYPES:
+        return None
+    if group.active_verdict_id is not None:
+        return None
+    existing = await session.scalar(
+        select(Investigation.id)
+        .where(
+            Investigation.claim_group_id == group.id,
+            Investigation.level.in_(("N3", "N4")),
+            Investigation.stage != FAILED,
+        )
+        .limit(1)
+    )
+    if existing is not None:
+        return None
+    return await request_investigation(
+        session,
+        actor,
+        group=group,
+        content=content,
+        level=group.level if group.level == "N4" else level,
         requested_by=requested_by,
         flags={"language_not_processed": True} if language_not_processed else None,
     )

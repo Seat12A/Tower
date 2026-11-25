@@ -107,7 +107,15 @@ async def test_case_lifecycle(
     assert r.json()["status"] == "published" and r.json()["published_url"] == url
 
     public = (await client.get(f"/v1/cases/{pid}")).json()
-    assert set(public) == {"public_id", "kind", "x_post_id", "title", "published_url", "updated_at"}
+    assert set(public) == {
+        "short_id",
+        "public_id",
+        "kind",
+        "x_post_id",
+        "title",
+        "published_url",
+        "updated_at",
+    }
 
     history = (await client.get(f"/v1/cases/{pid}/history", headers=staff)).json()
     assert [e["to_status"] for e in history] == ["received", "in_review", "validated", "published"]

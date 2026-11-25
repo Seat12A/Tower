@@ -9,7 +9,16 @@ from __future__ import annotations
 from typing import Any
 
 from tower.intercom.gate_client import GateClient, GateError
-from tower.intercom.handlers import Accent, Button, Reply, card, code, guarded, resolve_ref, short
+from tower.intercom.handlers import (
+    Accent,
+    Button,
+    Reply,
+    card,
+    case_short,
+    code,
+    guarded,
+    resolve_ref,
+)
 from tower.intercom.i18n import has, t
 from tower.intercom.ui import emojis
 
@@ -86,7 +95,7 @@ def _card(locale: str, d: dict[str, Any], footer: str = "") -> Reply:
             )
         )
     return card(
-        t(locale, "case.title", short_id=short(pid)),
+        t(locale, "case.title", short_id=case_short(d)),
         d.get("title") or "",
         icon=emojis.FOLDER,
         accent=_ACCENTS.get(status, "primary"),
@@ -115,7 +124,7 @@ async def _transition(
         acting, public_id, to=to, version=_version(current), note=note or None
     )
     # Show the refreshed case, with the outcome in the footer.
-    return _card(locale, updated, t(locale, key, short_id=short(updated["public_id"])))
+    return _card(locale, updated, t(locale, key, short_id=case_short(updated)))
 
 
 @guarded
@@ -148,7 +157,7 @@ async def publish(gate: GateClient, acting: int, locale: str, public_id: str, ur
         t(
             locale,
             "case.published",
-            short_id=short(updated["public_id"]),
+            short_id=case_short(updated),
             url=updated.get("published_url") or url,
         ),
     )

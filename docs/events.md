@@ -74,7 +74,7 @@ identifiant d'événement.
 
 | Topic | Émis par | Payload |
 |---|---|---|
-| `case.opened` | cas d'usage `open_case` | état du case |
+| `case.opened` | cas d'usage `open_case` | état du case (`public_id`, `short_id`, `kind`, `status`…) |
 | `case.transitioned` | `transition`, `mark_published` | état + `from`, `to`, `reason` |
 | `incident.opened` | reporter d'erreurs (sévérité ≥ error, nouvelle empreinte) | code, titre, sévérité, processus, lieu, message |
 | `incident.reopened` | reporter (erreur résolue qui réapparaît) | idem |
@@ -98,9 +98,9 @@ identifiant d'événement.
 | `claim.extracted` | cas d'usage `record_extraction` (service `factcheck`, E2), un par contenu | `content_id` (clé interne en chaîne), `content_public_id`, `platform`, `external_id`, `level`, `claim_ids`, `group_ids` |
 | `investigation.requested` | `record_extraction`, promotion N4 | `investigation_id`, `group_id`, `level`, `depth`, `content_id` |
 | `investigation.completed` | `complete_investigation` / `fail_investigation` (service `investigate`) | `investigation_id`, `group_id`, `level`, `depth`, `verdict_id`, `veracity`, `context_need`, `outcome` (`drafted`, `unverifiable_at_framing`, `failed`) |
-| `draft.ready` | cas d'usage `open_draft` (service `factcheck`, E10) | `draft_id` (= identifiant public du verdict), `case_id`, `group_id`, `level`, `veracity`, `context_need`, `confidence`, `platform`, `external_id`, `url` |
-| `draft.reviewed` | cas d'usage `review_draft` | `draft_id`, `case_id`, `decision`, `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `labels`, `reviewer` |
-| `verdict.published` | `review_draft`, à la validation (case `validated` ; la publication sur X reste manuelle) | `verdict_id`, `group_id`, `case_id`, `veracity`, `context_need`, `platform`, `external_id`, `retranslate_from` |
+| `draft.ready` | cas d'usage `open_draft` (service `factcheck`, E10) | `draft_id` (= identifiant public du verdict), `case_id`, `case_short_id`, `group_id`, `level`, `veracity`, `context_need`, `confidence`, `platform`, `external_id`, `url` |
+| `draft.reviewed` | cas d'usage `review_draft` | `draft_id`, `case_id`, `case_short_id`, `decision`, `outcome` (`endorsed`, `validated`, `rejected`), `final_veracity`, `labels`, `reviewer` |
+| `verdict.published` | `review_draft`, à la validation (case `validated` ; la publication sur X reste manuelle) | `verdict_id`, `group_id`, `case_id`, `case_short_id`, `veracity`, `context_need`, `platform`, `external_id`, `retranslate_from` |
 | `claim_group.created` | `record_extraction` (E3), nouveau groupe | `group_id`, `claim_id`, `level`, `content_id`, `rule` (règle d'E3), `related_group_id` (groupe proche suggéré pour une fusion manuelle, ou nul), `reference_fact_id`, `band`, `band_side` |
 | `claim_group.merged` | cas d'usage `merge_groups` (gate, bot) | `target_group_id`, `source_group_id`, `claim_ids` (affirmations déplacées : une scission de ces affirmations annule la fusion), `actor`, `reason` |
 | `claim_group.split` | cas d'usage `split_group` | `group_id`, `new_group_id`, `claim_ids`, `actor`, `reason` |

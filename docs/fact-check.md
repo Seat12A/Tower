@@ -6,7 +6,8 @@ en cas d'écart, cette page décrit le code, et l'écart est noté dans
 [decisions.md](decisions.md).
 
 Périmètre du lot 3 : les **comptes suivis** (niveau N3) et les **demandes manuelles** de
-l'équipe (niveau N4), de bout en bout jusqu'au brouillon relu dans Discord et au
+l'équipe (niveau `TOWER_FC_REQUEST_LEVEL` : N3 par défaut depuis le 2026-11-25, N4
+possible), de bout en bout jusqu'au brouillon relu dans Discord et au
 verdict publié en lecture publique. Le **lot 4** (V1) ajoute les embeddings et le
 routage E1, l'appariement E3 et les groupes, la réutilisation des verdicts, les fiches de
 référence et les bandes de valeurs, la péremption, les profils de traitement et les
@@ -98,6 +99,10 @@ l'étape suivante. Un job dont l'étape est déjà passée ne fait rien.
   `investigation.requested` dans la même transaction.
 - Une demande N4 sur un contenu déjà extrait promeut ses groupes en N4 et ouvre une
   enquête N4 (profondeur renforcée) s'il n'en a pas.
+- Une demande de l'équipe en N3 sur un contenu déjà extrait porte ses groupes en N3
+  (jamais à la baisse) et ouvre une enquête standard, sauf si le groupe a déjà un
+  verdict actif (réutilisé) ou une enquête N3 ou N4 non échouée
+  (`promote_for_request`).
 
 ## Enquête (E6 à E9)
 
