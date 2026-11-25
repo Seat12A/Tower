@@ -1220,19 +1220,28 @@ def _post(item: dict[str, Any]) -> str:
     return f"[{t(item['_locale'], 'progress.post')}]({url})" if url else "-"
 
 
+def _waiting(locale: str, error: object, run_at: object) -> str:
+    """Why a queued job waits (deferral reason) and when it runs next."""
+    line = "  " + emojis.PAUSE + " " + t(locale, "progress.waiting")
+    if error:
+        line += " " + code(_clip(str(error), 140))
+    if run_at:
+        line += " · " + t(locale, "progress.next_try", when=_since(run_at))
+    return line
+
+
 def _request_line(locale: str, r: dict[str, Any]) -> str:
     step = t(locale, f"progress.step.{r['step']}")
     status = t(locale, f"progress.job.{r['status']}")
-    parts = [f"**{step}**", status, code(r.get("level") or "-"), _post({**r, "_locale": locale})]
-    parts += [_who(locale, r.get("requested_by")), _since(r.get("created_at"))]
+    icon = emojis.ERROR + " " if r["status"] == "failed" else ""
+    parts = [f"{icon}**{step}**", status, code(r.get("level") or "-")]
+    parts += [_post({**r, "_locale": locale}), _who(locale, r.get("requested_by"))]
+    parts.append(_since(r.get("created_at")))
     line = "- " + " · ".join(parts)
-    if r.get("attempts", 0) > 1 and r.get("last_error"):
-        line += (
-            "\n  "
-            + t(locale, "progress.retrying", n=r["attempts"])
-            + " "
-            + code(_clip(str(r["last_error"]), 120))
-        )
+    if r["status"] == "failed":
+        line += "\n  " + code(_clip(str(r.get("last_error") or "?"), 160))
+    elif r["status"] == "queued" and r.get("last_error"):
+        line += "\n" + _waiting(locale, r["last_error"], r.get("run_at"))
     return line
 
 
@@ -1255,8 +1264,15 @@ def _investigation_line(locale: str, i: dict[str, Any]) -> str:
     line = "- " + " · ".join(parts)
     if i.get("claim"):
         line += "\n  > " + _clip(str(i["claim"]), 160)
-    if stage == "failed" and i.get("error"):
-        line += "\n  " + code(_clip(str(i["error"]), 160))
+    if stage == "failed":
+        if i.get("error"):
+            line += "\n  " + code(_clip(str(i["error"]), 160))
+    elif i.get("job_status") == "queued" and i.get("job_error"):
+        line += "\n" + _waiting(locale, i["job_error"], i.get("job_run_at"))
+    elif i.get("job_status") not in ("queued", "running"):
+        line += "\n  " + emojis.WARNING + " " + t(locale, "progress.stalled")
+        if i.get("job_error"):
+            line += " " + code(_clip(str(i["job_error"]), 140))
     return line
 
 

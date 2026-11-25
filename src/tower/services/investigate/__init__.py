@@ -8,7 +8,7 @@ Only ``tower.core`` is imported. Triggered by ``investigation.requested``; publi
 from __future__ import annotations
 
 from tower.core.factcheck import names
-from tower.core.services.base import JobSpec, Service, Subscription
+from tower.core.services.base import JobSpec, PeriodicTask, Service, Subscription
 from tower.services.investigate.jobs import (
     collect,
     draft,
@@ -19,6 +19,7 @@ from tower.services.investigate.jobs import (
     on_requested,
     second_opinion,
 )
+from tower.services.investigate.stalled import fail_stalled
 
 TIMEOUT_S = 240
 
@@ -42,4 +43,5 @@ service = Service(
             name="requests", topics=(names.INVESTIGATION_REQUESTED,), handler=on_requested
         ),
     ),
+    periodic=(PeriodicTask("investigate:stalled", 300, fail_stalled),),
 )

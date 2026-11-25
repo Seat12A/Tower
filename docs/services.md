@@ -32,7 +32,8 @@ service = Service(
 `Service.periodic` déclare des tâches `PeriodicTask(name, every_seconds, fn)` :
 `fn(session, settings) -> int` s'exécute dans une transaction, sur un seul réplica à la
 fois (verrou consultatif `pg_try_advisory_xact_lock(hashtext(name))`), aux côtés de la
-maintenance du socle. Exemple : partitions et secrets du service `ingest`.
+maintenance du socle. Exemples : partitions et secrets du service `ingest`, enquêtes
+bloquées du service `investigate` (`investigate:stalled`).
 
 ## Brancher un nouveau service
 

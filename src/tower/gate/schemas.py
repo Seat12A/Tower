@@ -341,7 +341,8 @@ class PendingRequestOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     step: Literal["reading", "extracting"]
-    status: Literal["queued", "running"]
+    status: Literal["queued", "running", "failed"]
+    run_at: datetime
     level: str | None
     platform: str | None
     external_id: str | None
@@ -370,6 +371,10 @@ class RunningInvestigationOut(BaseModel):
     error: str | None
     created_at: datetime
     updated_at: datetime
+    job_status: str | None
+    job_run_at: datetime | None
+    job_attempts: int
+    job_error: str | None
 
 
 class FactcheckInProgressOut(BaseModel):

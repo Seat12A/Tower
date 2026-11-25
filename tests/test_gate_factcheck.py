@@ -7,7 +7,9 @@ import httpx
 import pytest
 from sqlalchemy import text
 
+from tower.core.config import Settings
 from tower.core.db.database import Database
+from tower.services.investigate.stalled import fail_stalled
 
 from .conftest import TokenFactory
 from .test_drafts_usecases import EXT, build_draft
@@ -238,3 +240,20 @@ async def test_factchecks_in_progress(client: httpx.AsyncClient, bot: str, db: D
     assert r.json()["investigations"] == []
     assert built.case_id
     assert (await client.get("/v1/factcheck/in-progress")).status_code in (401, 403)
+
+
+async def test_stalled_investigation_is_failed(db: Database, settings: Settings) -> None:
+    """A stage left without any job for 30 minutes is marked failed with a reason."""
+    await build_draft(db, ext="1850000000000000556")
+    async with db.transaction() as s:
+        await s.execute(
+            text(
+                "UPDATE investigations SET stage = 'drafting', "
+                "updated_at = now() - interval '1 hour'"
+            )
+        )
+    async with db.transaction() as s:
+        assert await fail_stalled(s, settings) == 1
+    async with db.transaction() as s:
+        stage, error = (await s.execute(text("SELECT stage, error FROM investigations"))).one()
+    assert stage == "failed" and error.startswith("stalled at drafting")
