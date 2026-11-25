@@ -105,7 +105,7 @@ async def test_case_short_id_is_stable_and_used_by_every_route(
         for pid in (first_id, clash_id):
             s.add(Case(public_id=pid, kind="fact_check", status="published", opened_by="t"))
     async with db.transaction() as s:
-        rows = dict((await s.execute(select(Case.public_id, Case.short_id))).tuples().all())
+        rows = {p: sid for p, sid in await s.execute(select(Case.public_id, Case.short_id))}
         await s.execute(update(Case).where(Case.public_id == first_id).values(short_id="00000000"))
     assert rows[first_id] == "fbaa8363" and rows[clash_id] == "fbaa83639"
 
