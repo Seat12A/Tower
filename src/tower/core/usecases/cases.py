@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import ColumnElement, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tower.core.domain import error_codes as ec
@@ -17,6 +17,7 @@ from tower.core.domain.cases import (
     parse_publication_url,
 )
 from tower.core.domain.errors import Conflict, InvalidInput, NotFound
+from tower.core.domain.ids import parse_ref
 from tower.core.domain.security import Actor, Permission
 from tower.core.events.outbox import publish
 from tower.core.models.cases import Case, CaseEvent
@@ -28,6 +29,7 @@ def case_payload(d: Case) -> dict[str, Any]:
     """Representation published in events (X IDs as strings)."""
     return {
         "public_id": str(d.public_id),
+        "short_id": d.short_id,
         "kind": d.kind,
         "status": d.status,
         "x_post_id": None if d.x_post_id is None else str(d.x_post_id),
@@ -84,15 +86,29 @@ async def open_case(
     return case
 
 
-async def get_case(session: AsyncSession, actor: Actor, public_id: uuid.UUID) -> Case:
-    case = await session.scalar(select(Case).where(Case.public_id == public_id))
+CaseRef = uuid.UUID | str
+"""A case's short id (shown everywhere) or its full public id."""
+
+
+def case_ref(ref: CaseRef) -> ColumnElement[bool]:
+    """``WHERE`` clause selecting the case named by ``ref``: an exact short id or a full
+    public id. A short id is never a prefix search: a published link stays valid when a
+    later case shares its first characters. ``InvalidInput`` for a malformed ``ref``."""
+    parsed = ref if isinstance(ref, uuid.UUID) else parse_ref(ref)
+    if isinstance(parsed, uuid.UUID):
+        return Case.public_id == parsed
+    return Case.short_id == parsed
+
+
+async def get_case(session: AsyncSession, actor: Actor, ref: CaseRef) -> Case:
+    case = await session.scalar(select(Case).where(case_ref(ref)))
     if case is None or not _can_see(actor, case):
-        raise NotFound("Case not found", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
+        raise NotFound("Case not found", code=ec.DOS_NOT_FOUND, case=str(ref))
     return case
 
 
 async def link_discord_thread(
-    session: AsyncSession, actor: Actor, public_id: uuid.UUID, thread_id: int
+    session: AsyncSession, actor: Actor, ref: CaseRef, thread_id: int
 ) -> None:
     """Record the Discord forum post showing the case. Operational marker, like
     ``mark_draft_notified``: no audit, no event, no version bump."""
@@ -100,11 +116,13 @@ async def link_discord_thread(
     if not 0 < thread_id < 2**63:
         raise InvalidInput("Invalid Discord thread id", code=ec.DOS_BAD_THREAD_ID)
     result = await session.execute(
-        text("UPDATE cases SET discord_thread_id = :t WHERE public_id = :p"),
-        {"t": thread_id, "p": public_id},
+        update(Case)
+        .where(case_ref(ref))
+        .values(discord_thread_id=thread_id)
+        .execution_options(synchronize_session=False)
     )
     if result.rowcount == 0:  # type: ignore[attr-defined]
-        raise NotFound("Case not found", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
+        raise NotFound("Case not found", code=ec.DOS_NOT_FOUND, case=str(ref))
 
 
 async def list_cases(
@@ -132,7 +150,7 @@ async def list_cases(
 async def transition(
     session: AsyncSession,
     actor: Actor,
-    public_id: uuid.UUID,
+    ref: CaseRef,
     target: CaseStatus,
     *,
     reason: str | None = None,
@@ -141,9 +159,9 @@ async def transition(
 ) -> Case:
     """Advance a case. Locks the row so two reviewers cannot race."""
     actor.require(TRANSITION_PERMISSION[target])
-    case = await session.scalar(select(Case).where(Case.public_id == public_id).with_for_update())
+    case = await session.scalar(select(Case).where(case_ref(ref)).with_for_update())
     if case is None or not _can_see(actor, case):
-        raise NotFound("Case not found", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
+        raise NotFound("Case not found", code=ec.DOS_NOT_FOUND, case=str(ref))
     if expected_version is not None and case.version != expected_version:
         raise Conflict(
             "The case was modified in the meantime",
@@ -199,7 +217,7 @@ async def transition(
 async def mark_published(
     session: AsyncSession,
     actor: Actor,
-    public_id: uuid.UUID,
+    ref: CaseRef,
     url: str,
     *,
     expected_version: int | None = None,
@@ -208,16 +226,16 @@ async def mark_published(
     return await transition(
         session,
         actor,
-        public_id,
+        ref,
         CaseStatus.PUBLISHED,
         published_url=url,
         expected_version=expected_version,
     )
 
 
-async def history(session: AsyncSession, actor: Actor, public_id: uuid.UUID) -> Sequence[CaseEvent]:
+async def history(session: AsyncSession, actor: Actor, ref: CaseRef) -> Sequence[CaseEvent]:
     actor.require(Permission.CASE_READ)
-    case = await get_case(session, actor, public_id)
+    case = await get_case(session, actor, ref)
     stmt = select(CaseEvent).where(CaseEvent.case_id == case.id).order_by(CaseEvent.id)
     return (await session.scalars(stmt)).all()
 

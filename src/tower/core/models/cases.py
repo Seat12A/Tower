@@ -4,7 +4,18 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, ForeignKey, Identity, Index, SmallInteger, Text, func, text
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    FetchedValue,
+    ForeignKey,
+    Identity,
+    Index,
+    SmallInteger,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,12 +32,16 @@ class Case(Base):
         check_in("kind", CaseKind, "kind"),
         check_in("status", CaseStatus, "status"),
         Index("ix_cases_status_kind_created", "status", "kind", "created_at"),
+        CheckConstraint("short_id ~ '^[0-9a-f]{8,32}$'", name="short_id_hex"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     public_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
     )
+    short_id: Mapped[str] = mapped_column(Text, unique=True, server_default=FetchedValue())
+    """Identifier shown everywhere (links in posts, site, bot): the first 8 hex digits of
+    ``public_id``, one more per collision. Set once by the ``cases_short_id`` trigger."""
     kind: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text)
     x_post_id: Mapped[int | None] = mapped_column(BigInteger, index=True)

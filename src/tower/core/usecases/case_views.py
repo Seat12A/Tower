@@ -34,6 +34,7 @@ from tower.core.models.factcheck import (
     Verdict,
 )
 from tower.core.models.ingestion import ContentItem
+from tower.core.usecases.cases import CaseRef, case_ref
 from tower.core.usecases.drafts import PublicNote, norm_lang, public_note
 
 __all__ = [
@@ -97,6 +98,7 @@ class CaseSearch:
 
 @dataclass(frozen=True, slots=True)
 class CaseSummary:
+    short_id: str
     public_id: uuid.UUID
     kind: str
     title: str | None
@@ -285,6 +287,7 @@ def _summary(
     now: datetime,
 ) -> CaseSummary:
     return CaseSummary(
+        short_id=case.short_id,
         public_id=case.public_id,
         kind=case.kind,
         title=case.title,
@@ -368,15 +371,15 @@ async def search_cases(
 
 
 async def get_case_details(
-    session: AsyncSession, actor: Actor, public_id: uuid.UUID, lang: str | None = None
+    session: AsyncSession, actor: Actor, ref: CaseRef, lang: str | None = None
 ) -> CaseDetails:
     """Everything about one case: post, claim, verdict and note (best language, as in
     ``get_public_verdict``), number of posts carrying the claim, status timeline."""
     internal = _internal(actor)
-    stmt = _joined(_row_select().select_from(Case), internal).where(Case.public_id == public_id)
+    stmt = _joined(_row_select().select_from(Case), internal).where(case_ref(ref))
     row = (await session.execute(stmt)).first()
     if row is None:
-        raise NotFound("Case not found", code=ec.DOS_NOT_FOUND, public_id=str(public_id))
+        raise NotFound("Case not found", code=ec.DOS_NOT_FOUND, case=str(ref))
     case, verdict, claim, content, published_at = row
     now = datetime.now(UTC)
     wanted = norm_lang(lang)

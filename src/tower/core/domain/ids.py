@@ -8,10 +8,13 @@ import uuid
 from tower.core.domain import error_codes as ec
 from tower.core.domain.errors import InvalidInput
 
-__all__ = ["MIN_PREFIX", "prefix_bounds"]
+__all__ = ["MIN_PREFIX", "SHORT_ID_LEN", "parse_ref", "prefix_bounds"]
 
 MIN_PREFIX = 6
 """Shortest accepted prefix (the bot shows 8 characters)."""
+
+SHORT_ID_LEN = 8
+"""Length of a case short id (``cases.short_id``); longer only on a prefix collision."""
 
 _HEX = re.compile(r"^[0-9a-f]+$")
 
@@ -26,3 +29,15 @@ def prefix_bounds(ref: str) -> tuple[uuid.UUID, uuid.UUID]:
             code=ec.GEN_INVALID_INPUT,
         )
     return uuid.UUID(digits.ljust(32, "0")), uuid.UUID(digits.ljust(32, "f"))
+
+
+def parse_ref(ref: str) -> uuid.UUID | str:
+    """A full public id (UUID) or a short id (``SHORT_ID_LEN`` to 31 hex characters,
+    dashes ignored, any case). ``InvalidInput`` otherwise."""
+    digits = ref.strip().lower().replace("-", "")
+    if not _HEX.fullmatch(digits) or not SHORT_ID_LEN <= len(digits) <= 32:
+        raise InvalidInput(
+            f"Expected a short id ({SHORT_ID_LEN} characters or more) or a full id",
+            code=ec.GEN_INVALID_INPUT,
+        )
+    return uuid.UUID(digits) if len(digits) == 32 else digits

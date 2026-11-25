@@ -6,7 +6,6 @@ are not taken for a case id. Not mirrored under the old ``/v1/dossiers`` paths.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from typing import Annotated
 
@@ -18,7 +17,7 @@ from tower.core.domain.platforms import Platform
 from tower.core.domain.security import Actor, Permission
 from tower.core.usecases import case_views as uc
 from tower.gate.deps import ActorDep, ReadSession
-from tower.gate.schemas import CaseDetailsOut, CasePageOut, CaseStatsOut, CaseSummaryOut
+from tower.gate.schemas import CaseDetailsOut, CaseId, CasePageOut, CaseStatsOut, CaseSummaryOut
 
 router = APIRouter(prefix="/v1/cases", tags=["cases"])
 
@@ -142,15 +141,15 @@ async def case_stats(
     return CaseStatsOut.model_validate(stats, from_attributes=True)
 
 
-@router.get("/{public_id}/details", response_model=CaseDetailsOut)
+@router.get("/{case_id}/details", response_model=CaseDetailsOut)
 async def case_details(
-    public_id: uuid.UUID,
+    case_id: CaseId,
     response: Response,
     actor: ActorDep,
     session: ReadSession,
     lang: Annotated[str | None, Query(max_length=16, description="Note language")] = None,
 ) -> CaseDetailsOut:
     """Everything about a case (public: published cases, validated verdicts)."""
-    details = await uc.get_case_details(session, actor, public_id, lang)
+    details = await uc.get_case_details(session, actor, case_id, lang)
     _cache_public(response, actor)
     return CaseDetailsOut.of(details)

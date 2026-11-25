@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import functools
 import re
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Concatenate, Literal
+from typing import Any, Concatenate, Literal
 
 from tower.intercom.gate_client import GateClient, GateError, GateUnavailable
 from tower.intercom.i18n import has, t
@@ -32,6 +32,7 @@ __all__ = [
     "Reply",
     "Select",
     "card",
+    "case_short",
     "code",
     "error_card",
     "error_reply",
@@ -249,6 +250,12 @@ def code(value: object) -> str:
 
 def short(identifier: object, length: int = 8) -> str:
     return str(identifier)[:length]
+
+
+def case_short(case: Mapping[str, Any], full_key: str = "public_id") -> str:
+    """Short id of a case as gate serves it (``short_id``, longer than 8 characters
+    after a collision); before gate serves it, the first 8 characters of the full id."""
+    return str(case.get("short_id") or short(case.get(full_key) or "?"))
 
 
 def fmt_dt(value: object) -> str:
