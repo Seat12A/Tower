@@ -20,6 +20,7 @@ from tower.gate.middleware import ObservabilityMiddleware
 from tower.gate.ratelimit import TokenBucketLimiter
 from tower.gate.routes import (
     badges,
+    case_views,
     cases,
     errors,
     events,
@@ -86,6 +87,7 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.badge_limiter = TokenBucketLimiter(capacity=10, refill_per_second=1 / 60)
     install_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(case_views.router)  # before cases: /search, /stats
     app.include_router(cases.router)
     # Old /v1/dossiers paths (site, extension, tokens of older clients): same handlers,
     # hidden from the schema. Expand step of the dossier -> case rename.

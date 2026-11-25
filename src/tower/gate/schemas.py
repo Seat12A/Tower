@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import asdict
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from tower.core.domain.cases import CaseKind, CaseStatus
 from tower.core.domain.factcheck.values import ReviewDecision, ReviewOutcome
 from tower.core.models.cases import Case, CaseEvent
+from tower.core.usecases.case_views import CaseDetails
 from tower.core.usecases.drafts import DraftView, PublicVerdict
 
 
@@ -60,6 +61,133 @@ class CasePublicOut(BaseModel):
     title: str | None
     published_url: str | None
     updated_at: datetime
+
+
+class CaseSummaryOut(BaseModel):
+    """One case of a search result. Internal fields (``status``, ``priority``,
+    ``assigned_to``) are ``null`` for the public, who only sees published cases."""
+
+    public_id: uuid.UUID
+    kind: CaseKind
+    title: str | None
+    platform: str | None
+    x_post_id: str | None
+    external_id: str | None
+    url: str | None
+    published_url: str | None
+    published_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    claim_type: str | None
+    claim_lang: str | None
+    jurisdictions: list[str]
+    veracity: str | None
+    context_need: str | None
+    verdict_state: str | None
+    """``current``, ``expired`` or ``superseded`` (team: also ``draft``, ``rejected``)."""
+    status: CaseStatus | None = None
+    priority: int | None = None
+    assigned_to: str | None = None
+
+
+class CasePageOut(BaseModel):
+    items: list[CaseSummaryOut]
+    page: int
+    per_page: int
+    total: int
+    pages: int
+
+
+class CaseContentOut(BaseModel):
+    platform: str
+    external_id: str
+    url: str | None
+    lang: str
+
+
+class CaseClaimOut(BaseModel):
+    text: str
+    """In the requested language when it is French, otherwise in the post language."""
+    lang: str
+    text_fr: str
+    claim_type: str
+    subject: str | None
+    place: str | None
+    period_start: date | None
+    period_end: date | None
+    jurisdictions: list[str]
+
+
+class CaseVerdictOut(BaseModel):
+    id: uuid.UUID
+    veracity: str
+    context_need: str
+    context_types: list[str]
+    validated_at: datetime | None
+    expires_at: datetime | None
+    state: str | None
+
+
+class CaseTimelineOut(BaseModel):
+    status: CaseStatus
+    at: datetime
+    from_status: CaseStatus | None = None
+    actor: str | None = None
+    reason: str | None = None
+
+
+class CaseInternalOut(BaseModel):
+    discord_thread_id: str | None
+    draft_id: uuid.UUID | None
+    verdict_status: str | None
+    confidence: float | None
+    level: str | None
+    version: int
+    opened_by: str
+
+
+class CaseDetailsOut(CaseSummaryOut):
+    """Everything about a case: post, claim, verdict, note in the best language, number
+    of posts carrying the claim, status timeline (``internal``: team only)."""
+
+    content: CaseContentOut | None
+    claim: CaseClaimOut | None
+    verdict: CaseVerdictOut | None
+    note: PublicNoteOut | None
+    posts_count: int
+    timeline: list[CaseTimelineOut]
+    internal: CaseInternalOut | None = None
+
+    @classmethod
+    def of(cls, d: CaseDetails) -> CaseDetailsOut:
+        return cls.model_validate(
+            asdict(d.summary)
+            | {
+                "content": d.content,
+                "claim": d.claim,
+                "verdict": d.verdict,
+                "note": None if d.note is None else asdict(d.note),
+                "posts_count": d.posts_count,
+                "timeline": d.timeline,
+                "internal": d.internal,
+            }
+        )
+
+
+class CaseStatsOut(BaseModel):
+    """Counts of the matching cases (public: published cases, validated verdicts)."""
+
+    total: int
+    by_kind: dict[str, int]
+    by_veracity: dict[str, int]
+    by_claim_type: dict[str, int]
+    by_lang: dict[str, int]
+    by_jurisdiction: dict[str, int]
+    by_status: dict[str, int] | None
+    interval: str
+    timeline: list[dict[str, Any]]
+    """``[{period: "YYYY-MM-DD" (start of the period), count}]``, oldest first."""
+    generated_at: datetime
 
 
 class CaseEventOut(BaseModel):

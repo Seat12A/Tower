@@ -524,3 +524,21 @@ Détails dans [sessions/2026-11-23-qualite-fact-check.md](sessions/2026-11-23-qu
 | Revalidation à la demande : nouvelle enquête seulement si un post a rejoint le groupe depuis le verdict ; jamais pour une note manuelle | Chaque expiration rouvrait une enquête et une case en double (cases 10, 11, 85), même pour une blague ou un test |
 | Rattachement d'une affirmation hors statistique dont la signature est seulement compatible, si similarité ≥ seuil de rattachement et arbitre « même affirmation » | La même rumeur postée deux fois (similarité 0,99) faisait deux groupes, deux enquêtes et une fusion manuelle ; une statistique reste séparée (définition ou période manquante = autre chiffre) |
 | Consignes : 1 à 3 affirmations par post (un sondage = une affirmation), propos rapportés vérifiés comme attribution, jugement à la date du post, aucune source hors sujet citée ni décrite, pas d'horodatage de vérification ni de jargon d'enquête dans la note | Sondage Elabe en 5 cases, « À la Philharmonie, il y a plein d'origines » vérifié comme un fait, GTA 6 « non confirmé » à sa sortie, notes « Au 21 novembre à 18 h 32 UTC, la fiche Wikidata indique une date de naissance » |
+
+## API de lecture des cases pour le site (2026-11-25)
+
+Demande de Jules : un endpoint de statistiques, un détail complet des cases, une
+recherche filtrée et paginée. Détails : [api.md](api.md) et
+[sessions/2026-11-25-api-site-cases.md](sessions/2026-11-25-api-site-cases.md).
+
+| Décision | Raison |
+|---|---|
+| Public : cases `published` et verdicts **validés** (actif, remplacé ou périmé) seulement, filtre appliqué dans la jointure SQL | Un brouillon ne doit sortir ni dans un résultat, ni dans un filtre, ni dans un compte |
+| Verdict périmé ou remplacé montré avec `verdict_state` et sa date de validation, note seulement si elle est encore validée (mêmes règles que l'extension) | Archive fidèle de ce que l'équipe a publié, sans présenter un verdict ancien comme actuel |
+| Ni auteur ni texte du post dans ces réponses ; le site intègre le post depuis `url` | Règle 10 (égalité de traitement) ; payload minimal |
+| Pas de raisonnement (`rationale`) ni de passages cités en public : la note et ses liens suffisent | Contenu interne de relecture, non relu pour le public |
+| Pagination par pages numérotées avec total (`page`, `per_page` ≤ 100), plafonnée à 10 000 lignes de profondeur | Demande de Jules (pages de recherche du site) ; un compte reste bon marché au volume actuel, la profondeur bornée évite les `OFFSET` géants |
+| Recherche texte calculée à la volée (plein texte français + texte original + sous-chaîne), sans nouvel index ni migration | Quelques centaines de cases : un parcours suffit ; un index GIN viendra si le volume l'exige |
+| Pas de limite de débit sur ces GET publics : `Cache-Control: public, max-age=300` pour les réponses anonymes | Même choix que `/v1/content/…/verdict` ; un CDN absorbe la charge |
+| Filtres de date et chronologie des statistiques sur la date de **création** du case | Colonne indexée ; la date de publication est renvoyée (`published_at`) mais n'est pas une colonne |
+| Nouvelles routes absentes des anciens chemins `/v1/dossiers` | Aucun client ancien ne les utilise ; rien à retirer au « contract » |
