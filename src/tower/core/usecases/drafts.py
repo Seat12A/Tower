@@ -78,6 +78,8 @@ __all__ = [
     "get_public_verdict",
     "list_pending_drafts",
     "mark_draft_notified",
+    "norm_lang",
+    "public_note",
     "request_factcheck",
     "review_draft",
 ]
@@ -803,7 +805,7 @@ async def request_factcheck(
 # --- public verdict --------------------------------------------------------------------
 
 
-def _norm_lang(lang: str | None) -> str | None:
+def norm_lang(lang: str | None) -> str | None:
     if not lang:
         return None
     primary = lang.strip().replace("_", "-").split("-", 1)[0].lower()
@@ -832,7 +834,7 @@ async def get_public_verdict(
     )
     if content is None:
         raise not_found
-    wanted = _norm_lang(lang)
+    wanted = norm_lang(lang)
     now = datetime.now(UTC)
     rows = await session.execute(
         select(Claim, Verdict, ClaimGroup.level)
@@ -854,7 +856,7 @@ async def get_public_verdict(
     claims: list[PublicClaim] = []
     for claim, verdict, level in rows.all():
         inherited, note_owner, rule = await _inheritance(session, verdict, content.id)
-        note = await _public_note(
+        note = await public_note(
             session, note_owner, wanted, content.lang, rule=rule, level=level, now=now
         )
         claims.append(
@@ -930,7 +932,7 @@ async def _inheritance(
     return None, verdict, None
 
 
-async def _public_note(
+async def public_note(
     session: AsyncSession,
     verdict: Verdict,
     wanted: str | None,

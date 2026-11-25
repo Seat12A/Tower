@@ -125,6 +125,13 @@ DOS_BAD_PRIORITY = _define(
 DOS_BAD_THREAD_ID = _define(
     "TWR-DOS-007", "Invalid Discord thread id", http_status=422, severity=_INFO
 )
+DOS_BAD_SEARCH = _define(
+    "TWR-DOS-008",
+    "Invalid case search",
+    http_status=422,
+    severity=_INFO,
+    hint="Check the date range (since <= until) and the page depth (page * per_page).",
+)
 
 # --- EVT: event bus ----------------------------------------------------
 EVT_BAD_CURSOR = _define("TWR-EVT-001", "Invalid event cursor", http_status=422, severity=_INFO)

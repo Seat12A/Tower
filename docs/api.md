@@ -45,6 +45,85 @@ Vue complète :
 
 Vue publique : `public_id`, `kind`, `x_post_id`, `title`, `published_url`, `updated_at`.
 
+### Lecture pour le site : recherche, statistiques, détail complet
+
+Code : `gate/routes/case_views.py`, `core/usecases/case_views.py`. Accès **public** :
+cases **publiés** seulement, verdicts **validés** seulement (un brouillon ne sort jamais,
+ni dans un filtre ni dans un compte). Avec `cases:read` : tous les cases, champs
+internes en plus. Réponses anonymes avec `Cache-Control: public, max-age=300`. Aucune
+route ne renvoie l'auteur du post : le site intègre le post depuis son lien.
+
+| Méthode | Chemin | Permission | Description |
+|---|---|---|---|
+| GET | `/v1/cases/search` | public / `cases:read` | Recherche filtrée, **pages numérotées** avec le total |
+| GET | `/v1/cases/stats` | public / `cases:read` | Comptes des cases qui passent les mêmes filtres |
+| GET | `/v1/cases/{public_id}/details?lang=` | public / `cases:read` | Tout sur un case : post, affirmation, verdict, note, chronologie |
+
+Filtres communs à `search` et `stats` (tous facultatifs, combinés en ET ; les valeurs
+répétées d'un même filtre sont combinées en OU) :
+
+| Paramètre | Description |
+|---|---|
+| `q` | Texte (≤ 200 caractères) cherché dans le titre et l'affirmation : plein texte français (`websearch_to_tsquery`, guillemets et `-mot` acceptés), plein texte du texte original, et sous-chaîne (`chôm`) |
+| `kind` | `fact_check`, `moderation` |
+| `status` | Équipe seulement (le public ne voit que `published`) |
+| `veracity` | Répétable : `true`, `mostly_true`, `misleading`, `false`, `unverifiable` |
+| `claim_type` | Répétable : types d'affirmation (`statistic`, `quote`…) |
+| `context_need` | `none`, `useful`, `necessary` |
+| `lang` | Langue originale de l'affirmation (`fr`, `en`…) |
+| `jurisdiction` | Code ISO 3166, `EU` ou `INT` (insensible à la casse) |
+| `platform` | `x`, `bluesky`… |
+| `since`, `until` | Date de création du case, ISO 8601 (`since` inclus, `until` exclu ; sans fuseau = UTC) |
+
+`GET /v1/cases/search` ajoute `sort` (`newest` par défaut, `oldest`, `relevance` = rang
+du texte `q`), `page` (≥ 1, défaut 1) et `per_page` (1 à 100, défaut 20). Une page qui
+commencerait au-delà de la 10 000ᵉ ligne → `422` `TWR-DOS-008` (affiner les filtres) ;
+`since` après `until` → même code.
+
+```json
+{"items": [{"public_id": "e65b…", "kind": "fact_check", "title": "Le chômage a doublé en un an",
+  "platform": "x", "x_post_id": "1850…", "external_id": "1850…", "url": "https://x.com/i/status/1850…",
+  "published_url": "https://x.com/seat12a/status/…", "published_at": "…", "created_at": "…",
+  "updated_at": "…", "claim_type": "statistic", "claim_lang": "fr", "jurisdictions": ["FR"],
+  "veracity": "false", "context_need": "necessary", "verdict_state": "current",
+  "status": null, "priority": null, "assigned_to": null}],
+ "page": 1, "per_page": 20, "total": 42, "pages": 3}
+```
+
+`verdict_state` : `current` (actif, non périmé), `expired` (péremption atteinte),
+`superseded` (remplacé par un verdict plus récent), `null` sans verdict validé ; pour
+l'équipe aussi `draft` et `rejected`. Un verdict périmé ou remplacé reste affiché avec
+sa date de validation : au site de le signaler comme ancien. `published_at` = date de la
+transition vers `published`. `status`, `priority`, `assigned_to` : équipe seulement.
+
+`GET /v1/cases/stats` ajoute `interval` (`day`, `week`, `month` par défaut) :
+
+```json
+{"total": 42, "by_kind": {"fact_check": 42}, "by_veracity": {"false": 20, "misleading": 12},
+ "by_claim_type": {"statistic": 15}, "by_lang": {"fr": 38, "en": 4},
+ "by_jurisdiction": {"FR": 35, "US": 4}, "by_status": null, "interval": "month",
+ "timeline": [{"period": "2026-11-01", "count": 42}], "generated_at": "…"}
+```
+
+Comptes triés du plus grand au plus petit ; `by_veracity` ne compte que les verdicts
+validés (équipe comprise : un brouillon n'est pas un verdict) ; `by_jurisdiction` : 20
+premières ; `by_status` : équipe seulement ; `timeline` : créations de cases par période
+(début de période), 400 périodes au plus, de la plus ancienne à la plus récente.
+
+`GET /v1/cases/{public_id}/details` renvoie les champs d'un résultat de recherche, plus :
+
+| Champ | Contenu |
+|---|---|
+| `content` | `{platform, external_id, url, lang}` du post |
+| `claim` | `{text, lang, text_fr, claim_type, subject, place, period_start, period_end, jurisdictions}` ; `text` en français si `lang=fr`, sinon dans la langue du post |
+| `verdict` | `{id, veracity, context_need, context_types, validated_at, expires_at, state}` (`id` = identifiant public du verdict) |
+| `note` | Note validée dans la meilleure langue (`lang` demandée, langue du post, `en`, `fr`) : `{lang, text, fact_sheet, machine_translated, links}` ; `null` si aucune note validée |
+| `posts_count` | Nombre de posts qui portent la même affirmation (membres du groupe) |
+| `timeline` | `[{status, at}]` ; équipe : aussi `from_status`, `actor`, `reason` |
+| `internal` | Équipe seulement : `{discord_thread_id, draft_id, verdict_status, confidence, level, version, opened_by}` |
+
+Case inconnu ou non publié (public) → `404` `TWR-DOS-001`.
+
 ## Événements (SSE)
 
 `GET /v1/events` — permission `events:read`. Voir [events.md](events.md).
